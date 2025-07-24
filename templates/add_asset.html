@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Add Asset</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css">
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+<div class="container mt-5">
+    <h1 class="mb-4">Add New Asset</h1>
+    <form method="post">
+        <div class="mb-3">
+            <label for="name" class="form-label">Asset Name</label>
+            <input type="text" class="form-control" id="name" name="name" required>
+        </div>
+        <div class="mb-3">
+            <label for="quantity" class="form-label">Quantity</label>
+            <input type="number" class="form-control" id="quantity" name="quantity" min="1" value="1" required>
+        </div>
+        <div class="mb-3">
+            <label for="owner" class="form-label">Owner</label>
+            <input type="text" class="form-control" id="owner" name="owner" required>
+        </div>
+        <div class="mb-3">
+            <label for="building" class="form-label">Building</label>
+            <select class="form-select" id="building" name="building" required>
+                <option value="">Select Building</option>
+                <option value="HO">HO (Head Office)</option>
+                <option value="Kucu Maabela">Kucu Maabela</option>
+            </select>
+        </div>
+        <div class="mb-3">
+            <label for="department" class="form-label">Department/Section</label>
+            <select class="form-select" id="department" name="department" required>
+                <option value="">Select Department/Section</option>
+            </select>
+        </div>
+        <button type="submit" class="btn btn-success">Add Asset</button>
+        <a href="/" class="btn btn-secondary">Cancel</a>
+    </form>
+</div>
+<script>
+    const departmentOptions = {
+        'HO': ['HR', 'Finance', 'IT', 'Purchasing', 'PR'],
+        'Kucu Maabela': ['Kitchen', 'Dining', 'Recipient', 'Store']
+    };
+    document.getElementById('building').addEventListener('change', function() {
+        const building = this.value;
+        const departmentSelect = document.getElementById('department');
+        departmentSelect.innerHTML = '<option value="">Select Department/Section</option>';
+        if (departmentOptions[building]) {
+            departmentOptions[building].forEach(function(dep) {
+                const opt = document.createElement('option');
+                opt.value = dep;
+                opt.textContent = dep;
+                departmentSelect.appendChild(opt);
+            });
+        }
+    });
+</script>
+</body>
+</html> 

@@ -1,0 +1,216 @@
+body {
+    background: #111;
+    font-family: 'Montserrat', 'Roboto', Arial, sans-serif;
+    color: #f5f5f5;
+}
+
+.container {
+    max-width: 1000px;
+    background: #181818;
+    border-radius: 18px;
+    box-shadow: 0 4px 32px rgba(44,44,44,0.22);
+    padding: 36px 36px 28px 36px;
+    margin-top: 48px;
+}
+
+.header-logo {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    margin-bottom: 10px;
+}
+
+.header-logo img {
+    height: 70px;
+    max-width: 200px;
+    object-fit: contain;
+    margin-bottom: 8px;
+}
+
+h1, .modal-title {
+    color: #D4AF37;
+    font-weight: 700;
+    letter-spacing: 1px;
+    text-align: center;
+    margin-bottom: 0.5rem;
+}
+
+.gold-divider {
+    width: 80px;
+    height: 4px;
+    background: linear-gradient(90deg, #FFD700 0%, #D4AF37 100%);
+    border-radius: 2px;
+    margin: 0 auto 24px auto;
+}
+
+.filters-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 16px;
+    align-items: flex-end;
+    margin-bottom: 18px;
+    justify-content: space-between;
+}
+
+.filters-row .form-label {
+    margin-bottom: 4px;
+}
+
+#addAssetBtn {
+    min-width: 180px;
+    font-size: 1.1em;
+    padding: 10px 0;
+    box-shadow: 0 2px 8px #D4AF37aa;
+    border-radius: 8px;
+    margin-top: 8px;
+}
+
+.btn-primary, .page-link.active, .btn-success {
+    background: linear-gradient(90deg, #FFD700 0%, #D4AF37 100%);
+    border: none;
+    color: #222;
+    font-weight: 600;
+}
+
+.btn-primary:hover, .btn-success:hover {
+    background: #D4AF37;
+    color: #fff;
+}
+
+.table {
+    background: #181818;
+    border-radius: 14px;
+    overflow: hidden;
+    box-shadow: 0 2px 12px rgba(44,44,44,0.18);
+    margin-bottom: 0;
+}
+
+.table thead th {
+    background: linear-gradient(90deg, #FFD700 0%, #D4AF37 100%);
+    color: #222;
+    font-weight: 700;
+    border-bottom: 2px solid #D4AF37;
+    position: sticky;
+    top: 0;
+    z-index: 2;
+    padding: 14px 10px;
+    font-size: 1.05em;
+}
+
+.table td, .table th {
+    padding: 12px 10px;
+    vertical-align: middle;
+}
+
+.table-striped > tbody > tr:nth-of-type(odd) {
+    background-color: #222;
+}
+
+.table-striped > tbody > tr:nth-of-type(even) {
+    background-color: #181818;
+}
+
+.table tbody tr:hover {
+    background: #333;
+    transition: background 0.2s;
+}
+
+.pagination {
+    margin-top: 32px;
+}
+
+.pagination .page-link {
+    color: #D4AF37;
+    border: 1px solid #D4AF37;
+    background: #181818;
+}
+
+.pagination .page-item.active .page-link, .pagination .page-link.active {
+    background: linear-gradient(90deg, #FFD700 0%, #D4AF37 100%);
+    color: #222;
+    border: none;
+}
+
+.form-label {
+    color: #D4AF37;
+    font-weight: 600;
+}
+
+.form-select, .form-control {
+    border-radius: 8px;
+    border: 1.5px solid #D4AF37;
+    background: #222;
+    color: #f5f5f5;
+}
+
+.form-select:focus, .form-control:focus {
+    background: #222;
+    color: #fff;
+    border-color: #FFD700;
+}
+
+.modal-content {
+    border-radius: 18px;
+    background: #181818;
+    color: #f5f5f5;
+    box-shadow: 0 4px 24px rgba(44,44,44,0.22);
+}
+
+#qrcode {
+    margin: 0 auto 8px auto;
+    display: inline-block;
+    background: #fff;
+    padding: 8px;
+    border-radius: 8px;
+    box-shadow: 0 2px 8px rgba(44,44,44,0.18);
+}
+
+#qrCodeLabel {
+    color: #D4AF37;
+    font-weight: 700;
+    font-size: 1.1em;
+    letter-spacing: 1px;
+}
+
+.btn-danger {
+    background: #b71c1c;
+    border: none;
+    border-radius: 6px;
+    font-size: 0.98em;
+    padding: 6px 16px;
+    transition: background 0.2s, color 0.2s;
+}
+
+.btn-danger:hover {
+    background: #d32f2f;
+    color: #fff;
+}
+
+@media (max-width: 900px) {
+    .container {
+        padding: 12px 2vw 12px 2vw;
+    }
+    .filters-row {
+        flex-direction: column;
+        gap: 8px;
+    }
+    .table thead th, .table td {
+        font-size: 0.98em;
+        padding: 8px 4px;
+    }
+}
+
+@media (max-width: 600px) {
+    .container {
+        padding: 4px 0 4px 0;
+    }
+    .header-logo img {
+        height: 44px;
+    }
+    h1 {
+        font-size: 1.2em;
+    }
+    .table {
+        font-size: 0.92em;
+    }
+} 
