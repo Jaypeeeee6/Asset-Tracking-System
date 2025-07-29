@@ -6,7 +6,216 @@
     <title>Asset Tracking System</title>
     <link rel="icon" type="image/png" href="{{ url_for('static', filename='MAA_Logo 32x32.png') }}">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link rel="stylesheet" href="/static/style.css">
+    <style>
+        /* Print styles for bulk QR codes */
+        @media print {
+            body * {
+                visibility: hidden;
+            }
+            #bulkQrContainer, #bulkQrContainer * {
+                visibility: visible;
+            }
+            #bulkQrContainer {
+                position: absolute;
+                left: 0;
+                top: 0;
+                width: 100%;
+            }
+            .thermal-page {
+                page-break-after: always;
+                margin: 0;
+                padding: 10px;
+                width: 100%;
+                min-height: 100vh;
+            }
+            .thermal-page:last-child {
+                page-break-after: avoid;
+            }
+            .thermal-qr-item {
+                display: inline-block;
+                text-align: center;
+                margin: 10px;
+                page-break-inside: avoid;
+            }
+            .thermal-qr-code {
+                border: 1px solid #000;
+                padding: 5px;
+                background: white;
+                margin-bottom: 5px;
+            }
+            .thermal-qr-label {
+                font-size: 10px;
+                font-weight: bold;
+                color: #000;
+                text-align: center;
+                margin-top: 2px;
+            }
+            .thermal-layout-3 .thermal-qr-item {
+                width: 30%;
+                margin: 5px 1.5%;
+            }
+            .thermal-layout-4 .thermal-qr-item {
+                width: 22%;
+                margin: 5px 1%;
+            }
+            .thermal-layout-5 .thermal-qr-item {
+                width: 18%;
+                margin: 5px 1%;
+            }
+        }
+        
+        /* QR code grid styling */
+        #bulkQrContainer .col-md-4 {
+            min-height: 120px;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+        }
+        
+        #bulkQrContainer img {
+            max-width: 100%;
+            height: auto;
+        }
+        
+        /* Optimize for smaller QR codes */
+        #bulkQrContainer .col-md-4 .small {
+            font-size: 0.75rem;
+        }
+        
+        /* Modal improvements */
+        .modal-open {
+            overflow: hidden;
+        }
+        
+        .modal-xl {
+            max-width: 90% !important;
+        }
+        
+        .modal-body {
+            padding: 1.5rem;
+        }
+        
+        /* Better list group styling for long lists */
+        .list-group {
+            border-radius: 0.375rem;
+        }
+        
+        .list-group-item {
+            border-left: none;
+            border-right: none;
+        }
+        
+        .list-group-item:first-child {
+            border-top: none;
+        }
+        
+        .list-group-item:last-child {
+            border-bottom: none;
+        }
+        
+        /* Compact form styling */
+        .modal-body .mb-4 {
+            margin-bottom: 1.5rem !important;
+        }
+        
+        .modal-body h6 {
+            margin-bottom: 0.75rem;
+            color: #495057;
+            font-weight: 600;
+        }
+        
+        /* Improved search form styling */
+        .card-body {
+            padding: 1.5rem;
+        }
+        
+        .form-label {
+            font-weight: 500;
+            color: #495057;
+            margin-bottom: 0.5rem;
+        }
+        
+        .btn-group .btn {
+            border-radius: 0.375rem;
+        }
+        
+        .btn-group .btn:not(:last-child) {
+            border-top-right-radius: 0;
+            border-bottom-right-radius: 0;
+        }
+        
+        .btn-group .btn:not(:first-child) {
+            border-top-left-radius: 0;
+            border-bottom-left-radius: 0;
+        }
+        
+        /* Better spacing for filter rows */
+        .row.mb-3 {
+            margin-bottom: 1rem !important;
+        }
+        
+        /* Improved button styling */
+        .btn-outline-primary:hover,
+        .btn-outline-success:hover,
+        .btn-outline-info:hover {
+            transform: translateY(-1px);
+            transition: transform 0.2s ease;
+        }
+        
+        /* Search form card improvements */
+        .card {
+            border: none;
+            box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.075);
+        }
+        
+        .card-header {
+            background: linear-gradient(135deg, #000000 0%, #333333 100%);
+            color: white;
+            border: none;
+            padding: 1rem 1.5rem;
+        }
+        
+        .card-header h5 {
+            margin: 0;
+            font-weight: 600;
+        }
+        
+        /* No owner checkbox styling */
+        .form-check {
+            margin-bottom: 0.5rem;
+        }
+        
+        .form-check-input:checked {
+            background-color: #dc3545;
+            border-color: #dc3545;
+        }
+        
+        .form-check-label {
+            color: #ffd700;
+            font-weight: 500;
+        }
+        
+        .form-check-label i {
+            color: #dc3545;
+        }
+        
+        /* Disabled owner dropdown styling */
+        .form-select:disabled {
+            cursor: not-allowed;
+        }
+        
+        .form-text {
+            font-size: 0.875rem;
+            color: #ffd700;
+        }
+        
+        .form-text i {
+            color: #ffd700;
+        }
+    </style>
 </head>
 <body>
 <div class="container mt-5">
@@ -15,70 +224,354 @@
         <h1>Asset Tracking System</h1>
         <div class="gold-divider"></div>
     </div>
-    <form class="filters-row" method="get" id="filterForm">
-        <div style="flex:1; min-width:180px;">
-            <label for="building" class="form-label">Building</label>
-            <select class="form-select" id="buildingFilter" name="building" onchange="document.getElementById('filterForm').submit()">
-                <option value="">All</option>
-                {% for b in buildings %}
-                    <option value="{{ b }}" {% if b == building_filter %}selected{% endif %}>{{ b }}</option>
-                {% endfor %}
-            </select>
+
+    <!-- User Info and Logout -->
+    <div class="row mb-3">
+        <div class="col-md-12">
+            <div class="d-flex justify-content-between align-items-center">
+                <div class="user-info">
+                    <span class="badge me-2" style="background: #ffd700; color: #000000;">
+                        <i class="fas fa-user"></i> {{ current_user.username }}
+                    </span>
+                    <span class="badge" style="background: #333333; color: #ffd700;">
+                        <i class="fas fa-shield-alt"></i> {{ current_user.role|title }}
+                    </span>
+                </div>
+                <div class="logout-section">
+                    {% if current_user.role == 'admin' %}
+                        <a href="{{ url_for('manage_users') }}" class="btn btn-sm me-2" style="border-color: #ffd700; color: #ffd700;">
+                            <i class="fas fa-users"></i> Manage Users
+                        </a>
+                        <a href="{{ url_for('add_auth_user') }}" class="btn btn-sm me-2" style="border-color: #ffd700; color: #ffd700;">
+                            <i class="fas fa-user-plus"></i> Add User
+                        </a>
+                        <a href="{{ url_for('forgot_password') }}" class="btn btn-sm me-2" style="border-color: #ffd700; color: #ffd700;">
+                            <i class="fas fa-key"></i> Password Recovery
+                        </a>
+                    {% endif %}
+                    <a href="{{ url_for('logout') }}" class="btn btn-sm" style="border-color: #dc3545; color: #dc3545;">
+                        <i class="fas fa-sign-out-alt"></i> Logout
+                    </a>
+                </div>
+            </div>
         </div>
-        <div style="flex:1; min-width:180px;">
-            <label for="department" class="form-label">Department/Section</label>
-            <select class="form-select" id="departmentFilter" name="department" onchange="document.getElementById('filterForm').submit()">
-                <option value="">All</option>
-                {% for d in departments %}
-                    <option value="{{ d }}" {% if d == department_filter %}selected{% endif %}>{{ d }}</option>
-                {% endfor %}
-            </select>
+    </div>
+
+    <!-- Flash Messages -->
+    {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+            <div class="row mb-3">
+                <div class="col-md-12">
+                    {% for category, message in messages %}
+                        <div class="alert alert-{{ 'danger' if category == 'error' else category }} alert-dismissible fade show" role="alert">
+                            {{ message }}
+                            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                        </div>
+                    {% endfor %}
+                </div>
+            </div>
+        {% endif %}
+    {% endwith %}
+
+    <!-- Quick Stats Dashboard -->
+    <div class="row mb-4">
+        <div class="col-md-3">
+            <div class="card bg-primary text-white">
+                <div class="card-body text-center">
+                    <i class="fas fa-boxes fa-2x mb-2"></i>
+                    <h5 id="totalAssets">{{ assets|length }}</h5>
+                    <small>Total Assets</small>
+                </div>
+            </div>
         </div>
-        <input type="hidden" name="sort_by" value="{{ sort_by }}">
-        <input type="hidden" name="sort_dir" value="{{ sort_dir }}">
-        <button type="button" class="btn btn-primary" id="addAssetBtn" data-bs-toggle="modal" data-bs-target="#addAssetModal">Add New Asset</button>
+        <div class="col-md-3">
+            <div class="card bg-success text-white">
+                <div class="card-body text-center">
+                    <i class="fas fa-check-circle fa-2x mb-2"></i>
+                    <h5 id="usedAssets">{{ assets|selectattr("used_status", "equalto", "Used")|list|length }}</h5>
+                    <small>Used Assets</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card bg-warning text-white">
+                <div class="card-body text-center">
+                    <i class="fas fa-clock fa-2x mb-2"></i>
+                    <h5 id="notUsedAssets">{{ assets|selectattr("used_status", "equalto", "Not Used")|list|length }}</h5>
+                    <small>Not Used Assets</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card bg-danger text-white">
+                <div class="card-body text-center">
+                    <i class="fas fa-exclamation-triangle fa-2x mb-2"></i>
+                    <h5 id="outOfServiceAssets">{{ assets|selectattr("used_status", "equalto", "Out of Service")|list|length }}</h5>
+                    <small>Out of Service</small>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Buildings Info -->
+    <div class="row mb-4">
+        <div class="col-md-12">
+            <div class="card bg-info text-white">
+                <div class="card-body text-center">
+                    <i class="fas fa-building fa-2x mb-2"></i>
+                    <h5>{{ buildings|length }} Buildings Available</h5>
+                    <small>Total number of buildings in the system</small>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Advanced Search and Filters -->
+    <div class="card mb-4">
+        <div class="card-header">
+            <h5 class="mb-0"><i class="fas fa-search"></i> Search & Filters</h5>
+        </div>
+        <div class="card-body">
+            <form method="get" id="searchForm">
+                <!-- Search and Filters Row -->
+                <div class="row mb-3">
+                    <div class="col-md-6">
+                        <label for="globalSearch" class="form-label">Global Search</label>
+                        <input type="text" class="form-control" id="globalSearch" name="search" 
+                               value="{{ request.args.get('search', '') }}" 
+                               placeholder="Search names, owners, codes, asset types, etc...">
+                    </div>
+                    <div class="col-md-2">
+                        <label for="building" class="form-label">Building</label>
+                        <select class="form-select" id="buildingFilter" name="building" onchange="document.getElementById('searchForm').submit()">
+                            <option value="">All Buildings</option>
+                            {% for b in buildings %}
+                                <option value="{{ b }}" {% if b == building_filter %}selected{% endif %}>{{ b }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-md-2">
+                        <label for="department" class="form-label">Department</label>
+                        <select class="form-select" id="departmentFilter" name="department" onchange="document.getElementById('searchForm').submit()">
+                            <option value="">All Departments</option>
+                            {% for d in departments %}
+                                <option value="{{ d }}" {% if d == department_filter %}selected{% endif %}>{{ d }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-md-2">
+                        <label for="itemsPerPage" class="form-label">Items per Page</label>
+                        <select class="form-select" id="itemsPerPage" name="per_page" onchange="document.getElementById('searchForm').submit()">
+                            <option value="10" {% if request.args.get('per_page') == '10' %}selected{% endif %}>10</option>
+                            <option value="25" {% if request.args.get('per_page') == '25' %}selected{% endif %}>25</option>
+                            <option value="50" {% if request.args.get('per_page') == '50' %}selected{% endif %}>50</option>
+                            <option value="100" {% if request.args.get('per_page') == '100' %}selected{% endif %}>100</option>
+                        </select>
+                    </div>
+                </div>
+                
+                <!-- Additional Filters Row -->
+                <div class="row mb-3">
+                    <div class="col-md-3">
+                        <label for="statusFilter" class="form-label">Status</label>
+                        <select class="form-select" id="statusFilter" name="status" onchange="document.getElementById('searchForm').submit()">
+                            <option value="">All Status</option>
+                            <option value="Used" {% if request.args.get('status') == 'Used' %}selected{% endif %}>Used</option>
+                            <option value="Not Used" {% if request.args.get('status') == 'Not Used' %}selected{% endif %}>Not Used</option>
+                            <option value="Out of Service" {% if request.args.get('status') == 'Out of Service' %}selected{% endif %}>Out of Service</option>
+                        </select>
+                    </div>
+                    <div class="col-md-3">
+                        <label for="assetTypeFilter" class="form-label">Asset Type</label>
+                        <select class="form-select" id="assetTypeFilter" name="asset_type" onchange="document.getElementById('searchForm').submit()">
+                            <option value="">All Types</option>
+                            <option value="Technical Device" {% if request.args.get('asset_type') == 'Technical Device' %}selected{% endif %}>Technical Device</option>
+                            <option value="Furniture" {% if request.args.get('asset_type') == 'Furniture' %}selected{% endif %}>Furniture</option>
+                            <option value="Office Supplies" {% if request.args.get('asset_type') == 'Office Supplies' %}selected{% endif %}>Office Supplies</option>
+                        </select>
+                    </div>
+                    <div class="col-md-6 d-flex align-items-end">
+                        <div class="btn-group me-2" role="group">
+                            <button type="submit" class="btn btn-primary">
+                                <i class="fas fa-search"></i> Search
+                            </button>
+                            <a href="/" class="btn btn-secondary">
+                                <i class="fas fa-times"></i> Clear
+                            </a>
+                        </div>
+                        <button type="button" class="btn btn-info me-2" id="selectAllBtn">
+                            <i class="fas fa-check-square"></i> Select All
+                        </button>
+                    </div>
+                </div>
+                
+                <!-- Action Buttons Row -->
+                <div class="row mb-3">
+                    <div class="col-md-6">
+                        <div class="btn-group" role="group" aria-label="Management Tools">
+                            <button type="button" class="btn btn-outline-primary" id="manageBuildingsBtn" data-bs-toggle="modal" data-bs-target="#buildingManagementModal">
+                                <i class="fas fa-building"></i> Manage Buildings
+                            </button>
+                            <button type="button" class="btn btn-outline-success" id="manageDepartmentsBtn" data-bs-toggle="modal" data-bs-target="#departmentManagementModal">
+                                <i class="fas fa-sitemap"></i> Manage Departments
+                            </button>
+                            <button type="button" class="btn btn-outline-info" id="manageUsersBtn" data-bs-toggle="modal" data-bs-target="#userManagementModal">
+                                <i class="fas fa-users"></i> Manage Employees
+                            </button>
+                        </div>
+                    </div>
+                    <div class="col-md-6 text-end">
+                        <button type="button" class="btn btn-success me-2" id="addAssetBtn" data-bs-toggle="modal" data-bs-target="#addAssetModal">
+                            <i class="fas fa-plus"></i> Add New Asset
+                        </button>
+                        <button type="button" class="btn btn-info" id="departmentQRBtn" data-bs-toggle="modal" data-bs-target="#departmentQRModal">
+                            <i class="fas fa-qrcode"></i> Department QR Codes
+                        </button>
+                    </div>
+                </div>
+                
+                <input type="hidden" name="sort_by" value="{{ sort_by }}">
+                <input type="hidden" name="sort_dir" value="{{ sort_dir }}">
+            </form>
+        </div>
+    </div>
+
+    <form class="filters-row" method="get" id="filterForm" style="display: none;">
+        <!-- Hidden form for backward compatibility -->
     </form>
+    
     <table class="table table-bordered table-striped">
         <thead>
             <tr>
+                <th><input type="checkbox" id="selectAllCheckbox" title="Select All"></th>
                 <th>#</th>
-                <th><a href="?sort_by=name&sort_dir={{ 'desc' if sort_by == 'name' and sort_dir == 'asc' else 'asc' }}&building={{ building_filter }}&department={{ department_filter }}">Name{% if sort_by == 'name' %} {% if sort_dir == 'asc' %}▲{% else %}▼{% endif %}{% endif %}</a></th>
-                <th><a href="?sort_by=quantity&sort_dir={{ 'desc' if sort_by == 'quantity' and sort_dir == 'asc' else 'asc' }}&building={{ building_filter }}&department={{ department_filter }}">Quantity{% if sort_by == 'quantity' %} {% if sort_dir == 'asc' %}▲{% else %}▼{% endif %}{% endif %}</a></th>
-                <th><a href="?sort_by=owner&sort_dir={{ 'desc' if sort_by == 'owner' and sort_dir == 'asc' else 'asc' }}&building={{ building_filter }}&department={{ department_filter }}">Owner{% if sort_by == 'owner' %} {% if sort_dir == 'asc' %}▲{% else %}▼{% endif %}{% endif %}</a></th>
-                <th><a href="?sort_by=building&sort_dir={{ 'desc' if sort_by == 'building' and sort_dir == 'asc' else 'asc' }}&building={{ building_filter }}&department={{ department_filter }}">Building{% if sort_by == 'building' %} {% if sort_dir == 'asc' %}▲{% else %}▼{% endif %}{% endif %}</a></th>
-                <th><a href="?sort_by=department&sort_dir={{ 'desc' if sort_by == 'department' and sort_dir == 'asc' else 'asc' }}&building={{ building_filter }}&department={{ department_filter }}">Department/Section{% if sort_by == 'department' %} {% if sort_dir == 'asc' %}▲{% else %}▼{% endif %}{% endif %}</a></th>
+                <th><a href="?sort_by=name&sort_dir={{ 'desc' if sort_by == 'name' and sort_dir == 'asc' else 'asc' }}&building={{ building_filter }}&department={{ department_filter }}&search={{ request.args.get('search', '') }}&status={{ request.args.get('status', '') }}&asset_type={{ request.args.get('asset_type', '') }}&per_page={{ request.args.get('per_page', '10') }}">Name{% if sort_by == 'name' %} {% if sort_dir == 'asc' %}▲{% else %}▼{% endif %}{% endif %}</a></th>
+                <th><a href="?sort_by=asset_type&sort_dir={{ 'desc' if sort_by == 'asset_type' and sort_dir == 'asc' else 'asc' }}&building={{ building_filter }}&department={{ department_filter }}&search={{ request.args.get('search', '') }}&status={{ request.args.get('status', '') }}&asset_type={{ request.args.get('asset_type', '') }}&per_page={{ request.args.get('per_page', '10') }}">Type{% if sort_by == 'asset_type' %} {% if sort_dir == 'asc' %}▲{% else %}▼{% endif %}{% endif %}</a></th>
+                <th><a href="?sort_by=quantity&sort_dir={{ 'desc' if sort_by == 'quantity' and sort_dir == 'asc' else 'asc' }}&building={{ building_filter }}&department={{ department_filter }}&search={{ request.args.get('search', '') }}&status={{ request.args.get('status', '') }}&per_page={{ request.args.get('per_page', '10') }}">Quantity{% if sort_by == 'quantity' %} {% if sort_dir == 'asc' %}▲{% else %}▼{% endif %}{% endif %}</a></th>
+                <th><a href="?sort_by=owner&sort_dir={{ 'desc' if sort_by == 'owner' and sort_dir == 'asc' else 'asc' }}&building={{ building_filter }}&department={{ department_filter }}&search={{ request.args.get('search', '') }}&status={{ request.args.get('status', '') }}&per_page={{ request.args.get('per_page', '10') }}">Owner{% if sort_by == 'owner' %} {% if sort_dir == 'asc' %}▲{% else %}▼{% endif %}{% endif %}</a></th>
+                <th><a href="?sort_by=building&sort_dir={{ 'desc' if sort_by == 'building' and sort_dir == 'asc' else 'asc' }}&building={{ building_filter }}&department={{ department_filter }}&search={{ request.args.get('search', '') }}&status={{ request.args.get('status', '') }}&per_page={{ request.args.get('per_page', '10') }}">Building{% if sort_by == 'building' %} {% if sort_dir == 'asc' %}▲{% else %}▼{% endif %}{% endif %}</a></th>
+                <th><a href="?sort_by=department&sort_dir={{ 'desc' if sort_by == 'department' and sort_dir == 'asc' else 'asc' }}&building={{ building_filter }}&department={{ department_filter }}&search={{ request.args.get('search', '') }}&status={{ request.args.get('status', '') }}&per_page={{ request.args.get('per_page', '10') }}">Department/Section{% if sort_by == 'department' %} {% if sort_dir == 'asc' %}▲{% else %}▼{% endif %}{% endif %}</a></th>
+                <th><a href="?sort_by=used_status&sort_dir={{ 'desc' if sort_by == 'used_status' and sort_dir == 'asc' else 'asc' }}&building={{ building_filter }}&department={{ department_filter }}&search={{ request.args.get('search', '') }}&status={{ request.args.get('status', '') }}&per_page={{ request.args.get('per_page', '10') }}">Status{% if sort_by == 'used_status' %} {% if sort_dir == 'asc' %}▲{% else %}▼{% endif %}{% endif %}</a></th>
                 <th>QR CODE</th>
-                <th>Action</th>
             </tr>
         </thead>
         <tbody>
         {% for asset in assets %}
             <tr>
-                <td>{{ loop.index + (page-1)*10 }}</td>
-                <td>{{ asset.name }}</td>
+                <td><input type="checkbox" class="asset-checkbox" data-asset-id="{{ asset.id }}" data-asset-name="{{ asset.name }}"></td>
+                <td>{{ loop.index + (page-1)*per_page }}</td>
+                <td>
+                    <strong>{{ asset.name }}</strong>
+                    <br><small class="text-muted">{{ asset.asset_code }}</small>
+                </td>
+                <td>
+                    {% if asset.asset_type %}
+                        <span class="badge bg-info">{{ asset.asset_type }}</span>
+                    {% else %}
+                        <span class="text-muted">-</span>
+                    {% endif %}
+                </td>
                 <td>{{ asset.quantity }}</td>
                 <td>{{ asset.owner }}</td>
                 <td>{{ asset.building }}</td>
                 <td>{{ asset.department }}</td>
+                <td>
+                    <select class="form-select form-select-sm status-select" data-asset-id="{{ asset.id }}" style="min-width: 120px;">
+                        <option value="Used" {% if asset.used_status == 'Used' %}selected{% endif %}>Used</option>
+                        <option value="Not Used" {% if asset.used_status == 'Not Used' %}selected{% endif %}>Not Used</option>
+                        <option value="Out of Service" {% if asset.used_status == 'Out of Service' %}selected{% endif %}>Out of Service</option>
+                    </select>
+                </td>
                 <td><a href="#" class="view-qr-link" data-asset-id="{{ asset.id }}">View QR</a></td>
-                <td><button class="btn btn-danger btn-sm delete-asset-btn" data-asset-id="{{ asset.id }}">Delete</button></td>
             </tr>
         {% endfor %}
         </tbody>
     </table>
-<!-- Pagination controls -->
+
+    <!-- Bulk Actions Bar -->
+    <div id="bulkActionsBar" class="alert alert-primary border-primary" style="display: none;">
+        <div class="d-flex justify-content-between align-items-center">
+            <span><i class="fas fa-info-circle"></i> <strong><span id="selectedCount">0</span> items selected</strong> - Use the buttons to perform actions on selected items</span>
+            <div>
+                <button class="btn btn-info btn-sm me-2" id="bulkPrintQrBtn">
+                    <i class="fas fa-qrcode"></i> Print QR Codes
+                </button>
+                <button class="btn btn-warning btn-sm me-2" id="bulkUpdateStatusBtn">
+                    <i class="fas fa-edit"></i> Update Status
+                </button>
+                <button class="btn btn-danger btn-sm me-2" id="bulkDeleteBtn">
+                    <i class="fas fa-trash"></i> Delete Selected
+                </button>
+                <button class="btn btn-outline-secondary btn-sm" id="clearSelectionBtn">
+                    <i class="fas fa-times"></i> Clear Selection
+                </button>
+            </div>
+        </div>
+    </div>
+<!-- Enhanced Pagination controls -->
 <nav aria-label="Page navigation">
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <div>
+            <span class="text-muted">
+                Showing {{ (page-1)*per_page + 1 }} to {{ [page*per_page, total_assets]|min }} of {{ total_assets }} assets
+            </span>
+        </div>
+        <div class="d-flex align-items-center">
+            <span class="me-3" style="color: white;">Jump to page:</span>
+            <input type="number" id="jumpToPage" class="form-control me-2" style="width: 80px; color: white;" 
+                   min="1" max="{{ total_pages }}" value="{{ page }}" 
+                   onkeypress="if(event.key==='Enter') jumpToPage()">
+            <span class="text-muted">of {{ total_pages }}</span>
+        </div>
+    </div>
   <ul class="pagination justify-content-center">
     <li class="page-item {% if page == 1 %}disabled{% endif %}">
-      <a class="page-link" href="?page={{ page - 1 if page > 1 else 1 }}&sort_by={{ sort_by }}&sort_dir={{ sort_dir }}&building={{ building_filter }}&department={{ department_filter }}">Previous</a>
+            <a class="page-link" href="?page=1&sort_by={{ sort_by }}&sort_dir={{ sort_dir }}&building={{ building_filter }}&department={{ department_filter }}&search={{ request.args.get('search', '') }}&status={{ request.args.get('status', '') }}&per_page={{ request.args.get('per_page', '10') }}">
+                <i class="fas fa-angle-double-left"></i>
+            </a>
     </li>
-    {% for p in range(1, total_pages + 1) %}
+        <li class="page-item {% if page == 1 %}disabled{% endif %}">
+            <a class="page-link" href="?page={{ page - 1 if page > 1 else 1 }}&sort_by={{ sort_by }}&sort_dir={{ sort_dir }}&building={{ building_filter }}&department={{ department_filter }}&search={{ request.args.get('search', '') }}&status={{ request.args.get('status', '') }}&per_page={{ request.args.get('per_page', '10') }}">
+                <i class="fas fa-angle-left"></i>
+            </a>
+        </li>
+        
+        {% set start_page = [1, page - 2]|max %}
+        {% set end_page = [total_pages, page + 2]|min %}
+        
+        {% if start_page > 1 %}
+            <li class="page-item">
+                <a class="page-link" href="?page=1&sort_by={{ sort_by }}&sort_dir={{ sort_dir }}&building={{ building_filter }}&department={{ department_filter }}&search={{ request.args.get('search', '') }}&status={{ request.args.get('status', '') }}&per_page={{ request.args.get('per_page', '10') }}">1</a>
+    </li>
+            {% if start_page > 2 %}
+                <li class="page-item disabled"><span class="page-link">...</span></li>
+            {% endif %}
+        {% endif %}
+        
+        {% for p in range(start_page, end_page + 1) %}
       <li class="page-item {% if p == page %}active{% endif %}">
-        <a class="page-link" href="?page={{ p }}&sort_by={{ sort_by }}&sort_dir={{ sort_dir }}&building={{ building_filter }}&department={{ department_filter }}">{{ p }}</a>
+                <a class="page-link" href="?page={{ p }}&sort_by={{ sort_by }}&sort_dir={{ sort_dir }}&building={{ building_filter }}&department={{ department_filter }}&search={{ request.args.get('search', '') }}&status={{ request.args.get('status', '') }}&per_page={{ request.args.get('per_page', '10') }}">{{ p }}</a>
       </li>
     {% endfor %}
+        
+        {% if end_page < total_pages %}
+            {% if end_page < total_pages - 1 %}
+                <li class="page-item disabled"><span class="page-link">...</span></li>
+            {% endif %}
+            <li class="page-item">
+                <a class="page-link" href="?page={{ total_pages }}&sort_by={{ sort_by }}&sort_dir={{ sort_dir }}&building={{ building_filter }}&department={{ department_filter }}&search={{ request.args.get('search', '') }}&status={{ request.args.get('status', '') }}&per_page={{ request.args.get('per_page', '10') }}">{{ total_pages }}</a>
+            </li>
+        {% endif %}
+        
     <li class="page-item {% if page == total_pages %}disabled{% endif %}">
-      <a class="page-link" href="?page={{ page + 1 if page < total_pages else total_pages }}&sort_by={{ sort_by }}&sort_dir={{ sort_dir }}&building={{ building_filter }}&department={{ department_filter }}">Next</a>
+            <a class="page-link" href="?page={{ page + 1 if page < total_pages else total_pages }}&sort_by={{ sort_by }}&sort_dir={{ sort_dir }}&building={{ building_filter }}&department={{ department_filter }}&search={{ request.args.get('search', '') }}&status={{ request.args.get('status', '') }}&per_page={{ request.args.get('per_page', '10') }}">
+                <i class="fas fa-angle-right"></i>
+            </a>
+        </li>
+    <li class="page-item {% if page == total_pages %}disabled{% endif %}">
+            <a class="page-link" href="?page={{ total_pages }}&sort_by={{ sort_by }}&sort_dir={{ sort_dir }}&building={{ building_filter }}&department={{ department_filter }}&search={{ request.args.get('search', '') }}&status={{ request.args.get('status', '') }}&per_page={{ request.args.get('per_page', '10') }}">
+                <i class="fas fa-angle-double-right"></i>
+            </a>
     </li>
   </ul>
 </nav>
@@ -86,38 +579,69 @@
 
 <!-- Add Asset Modal -->
 <div class="modal fade" id="addAssetModal" tabindex="-1" aria-labelledby="addAssetModalLabel" aria-hidden="true">
-  <div class="modal-dialog">
+  <div class="modal-dialog modal-lg" style="max-width: 70%;">
     <div class="modal-content">
       <div class="modal-header">
         <h5 class="modal-title" id="addAssetModalLabel">Add New Asset</h5>
         <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
       </div>
-      <form id="addAssetForm" method="post" action="/add">
-        <div class="modal-body">
+            <form id="addAssetForm" method="post" action="/add">
+        <div class="modal-body" style="overflow-y: auto; max-height: 70vh;">
+          <div class="alert alert-info mb-3">
+            <i class="fas fa-info-circle"></i> 
+            <strong>Need to add buildings, departments, or users?</strong> 
+            Use the management buttons on the main page to set up your infrastructure first.
+          </div>
             <div class="mb-3">
                 <label for="name" class="form-label">Asset Name</label>
                 <input type="text" class="form-control" id="name" name="name" required>
+            </div>
+            <div class="mb-3">
+                <label for="asset_type" class="form-label">Asset Type</label>
+                <select class="form-select" id="asset_type" name="asset_type" required>
+                    <option value="">Select Asset Type</option>
+                    <option value="Technical Device">Technical Device</option>
+                    <option value="Furniture">Furniture</option>
+                    <option value="Office Supplies">Office Supplies</option>
+                </select>
             </div>
             <div class="mb-3">
                 <label for="quantity" class="form-label">Quantity</label>
                 <input type="number" class="form-control" id="quantity" name="quantity" min="1" value="1" required>
             </div>
             <div class="mb-3">
-                <label for="owner" class="form-label">Owner</label>
-                <input type="text" class="form-control" id="owner" name="owner" required>
-            </div>
-            <div class="mb-3">
                 <label for="building" class="form-label">Building</label>
                 <select class="form-select" id="building" name="building" required>
                     <option value="">Select Building</option>
-                    <option value="HO">HO (Head Office)</option>
-                    <option value="Kucu Maabela">Kucu Maabela</option>
                 </select>
             </div>
             <div class="mb-3">
                 <label for="department" class="form-label">Department/Section</label>
                 <select class="form-select" id="department" name="department" required>
-                    <option value="">Select Department/Section</option>
+                    <option value="">Select Building First</option>
+                </select>
+            </div>
+            <div class="mb-3">
+                <div class="form-check mb-2">
+                    <input class="form-check-input" type="checkbox" id="noOwnerCheck" name="no_owner">
+                    <label class="form-check-label" for="noOwnerCheck">
+                        <i class="fas fa-user-slash"></i> No Owner Required
+                    </label>
+                </div>
+                <label for="owner" class="form-label">Owner</label>
+                <select class="form-select" id="owner" name="owner" required>
+                    <option value="">Select Department First</option>
+                </select>
+                <div class="form-text" id="ownerHelp">
+                    <i class="fas fa-info-circle"></i> Select "No Owner Required" for shared assets or when no specific owner is needed
+                </div>
+            </div>
+            <div class="mb-3">
+                <label for="used_status" class="form-label">Status</label>
+                <select class="form-select" id="used_status" name="used_status" required>
+                    <option value="Used">Used</option>
+                    <option value="Not Used">Not Used</option>
+                    <option value="Out of Service">Out of Service</option>
                 </select>
             </div>
         </div>
@@ -132,15 +656,312 @@
 
 <!-- QR Code Modal -->
 <div class="modal fade" id="qrModal" tabindex="-1" aria-labelledby="qrModalLabel" aria-hidden="true">
-  <div class="modal-dialog modal-dialog-centered">
+  <div class="modal-dialog modal-lg modal-dialog-centered" style="max-width: 60%;">
     <div class="modal-content">
       <div class="modal-header">
         <h5 class="modal-title" id="qrModalLabel">Asset QR Code</h5>
         <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
       </div>
-      <div class="modal-body text-center" id="qrModalBody">
+      <div class="modal-body text-center" id="qrModalBody" style="overflow-y: auto; max-height: 70vh;">
         <div id="qrcode"></div>
         <div class="fw-bold mt-2" id="qrCodeLabel"></div>
+        <button class="btn btn-primary mt-3" id="printQrBtn">Print QR Code</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Building Management Modal -->
+<div class="modal fade" id="buildingManagementModal" tabindex="-1" aria-labelledby="buildingManagementModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-lg" style="max-width: 70%;">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="buildingManagementModalLabel">Manage Buildings</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body" style="overflow-y: auto; max-height: 70vh;">
+        <!-- Add New Building Form -->
+        <div class="mb-4">
+          <h6>Add New Building</h6>
+          <div class="input-group">
+            <input type="text" class="form-control" id="newBuildingName" placeholder="Enter building name" maxlength="100">
+            <button class="btn btn-success" type="button" id="addBuildingBtn">Add</button>
+          </div>
+        </div>
+        
+        <!-- Buildings List -->
+        <div>
+          <h6>Existing Buildings</h6>
+          <div id="buildingsList" class="list-group" style="max-height: 400px; overflow-y: auto;">
+            <!-- Buildings will be loaded here -->
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Department & User Management Modal -->
+<div class="modal fade" id="departmentManagementModal" tabindex="-1" aria-labelledby="departmentManagementModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-xl" style="max-width: 90%; max-height: 90vh;">
+    <div class="modal-content" style="height: 90vh;">
+      <div class="modal-header">
+        <h5 class="modal-title" id="departmentManagementModalLabel">Manage Departments & Users</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body" style="overflow-y: auto; max-height: calc(90vh - 120px);">
+        <!-- Departments Management -->
+        <div class="mt-3">
+            <div class="mt-3">
+              <!-- Add New Department Form -->
+              <div class="mb-4">
+                <h6>Add New Department</h6>
+                <div class="row">
+                  <div class="col-md-4">
+                    <select class="form-select" id="newDepartmentBuilding" required>
+                      <option value="">Select Building</option>
+                    </select>
+                  </div>
+                  <div class="col-md-6">
+                    <input type="text" class="form-control" id="newDepartmentName" placeholder="Enter department name" maxlength="100">
+                  </div>
+                  <div class="col-md-2">
+                    <button class="btn btn-success w-100" type="button" id="addDepartmentBtn">Add</button>
+                  </div>
+                </div>
+              </div>
+              
+              <!-- Departments List -->
+              <div>
+                <h6>Existing Departments</h6>
+                <div class="mb-3">
+                  <label for="departmentFilterBuilding" class="form-label">Filter by Building:</label>
+                  <select class="form-select" id="departmentFilterBuilding">
+                    <option value="">All Buildings</option>
+                  </select>
+                </div>
+                <div id="departmentsList" class="list-group" style="max-height: 400px; overflow-y: auto;">
+                  <!-- Departments will be loaded here -->
+                </div>
+              </div>
+            </div>
+          </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Department QR Codes Modal -->
+<div class="modal fade" id="departmentQRModal" tabindex="-1" aria-labelledby="departmentQRModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-xl" style="max-width: 85%; max-height: 90vh;">
+    <div class="modal-content" style="height: 90vh;">
+      <div class="modal-header">
+        <h5 class="modal-title" id="departmentQRModalLabel">Department QR Codes</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body" style="overflow-y: auto; max-height: calc(90vh - 120px);">
+        <div class="alert alert-info">
+          <i class="fas fa-info-circle"></i>
+          <strong>Department QR Codes:</strong> Each QR code shows all items for that specific department and building combination.
+        </div>
+        <div id="departmentQRList" class="row">
+          <!-- Department QR codes will be loaded here -->
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- User Management Modal (for Owner field) -->
+<div class="modal fade" id="userManagementModal" tabindex="-1" aria-labelledby="userManagementModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-xl" style="max-width: 90%; max-height: 90vh;">
+    <div class="modal-content" style="height: 90vh;">
+      <div class="modal-header">
+        <h5 class="modal-title" id="userManagementModalLabel">
+          <i class="fas fa-users"></i> User Management
+        </h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body" style="overflow-y: auto; max-height: calc(90vh - 120px);">
+        <!-- Register New User Form -->
+        <div class="mb-4">
+          <h6><i class="fas fa-user-plus"></i> Register New User</h6>
+          <div class="row mb-2">
+            <div class="col-md-4">
+              <label for="userModalBuilding" class="form-label">Building</label>
+              <select class="form-select" id="userModalBuilding" required>
+                <option value="">Select Building</option>
+              </select>
+            </div>
+            <div class="col-md-4">
+              <label for="userModalDepartment" class="form-label">Department</label>
+              <select class="form-select" id="userModalDepartment" required>
+                <option value="">Select Building First</option>
+              </select>
+            </div>
+            <div class="col-md-4">
+              <label for="userModalName" class="form-label">Name</label>
+              <input type="text" class="form-control" id="userModalName" placeholder="Enter user name" maxlength="100" required>
+            </div>
+          </div>
+          <div class="row">
+            <div class="col-12">
+              <button class="btn btn-success" type="button" id="addUserModalBtn">
+                <i class="fas fa-user-plus"></i> Register User
+              </button>
+            </div>
+          </div>
+        </div>
+        
+        <!-- Bulk Add Users Form -->
+        <div class="mb-4">
+          <h6><i class="fas fa-users"></i> Bulk Add Users</h6>
+          <div class="row mb-2">
+            <div class="col-md-6">
+              <label for="bulkUserModalBuilding" class="form-label">Building</label>
+              <select class="form-select" id="bulkUserModalBuilding" required>
+                <option value="">Select Building</option>
+              </select>
+            </div>
+            <div class="col-md-6">
+              <label for="bulkUserModalDepartment" class="form-label">Department</label>
+              <select class="form-select" id="bulkUserModalDepartment" required>
+                <option value="">Select Building First</option>
+              </select>
+            </div>
+          </div>
+          <div class="row mb-2">
+            <div class="col-12">
+              <label for="bulkUserNames" class="form-label">User Names (one per line)</label>
+              <textarea class="form-control" id="bulkUserNames" rows="5" placeholder="Enter user names, one per line&#10;Example:&#10;John Doe&#10;Jane Smith&#10;Mike Johnson"></textarea>
+            </div>
+          </div>
+          <div class="row">
+            <div class="col-12">
+              <button class="btn btn-primary" type="button" id="addBulkUsersModalBtn">
+                <i class="fas fa-users"></i> Add Multiple Users
+              </button>
+            </div>
+          </div>
+        </div>
+        
+        <hr>
+        
+        <!-- Users List -->
+        <div>
+          <h6><i class="fas fa-list"></i> Existing Users</h6>
+          <div class="mb-3">
+            <label for="userModalFilterDepartment" class="form-label">Filter by Department:</label>
+            <select class="form-select" id="userModalFilterDepartment">
+              <option value="">All Departments</option>
+            </select>
+          </div>
+          <div id="userModalList" class="list-group" style="max-height: 400px; overflow-y: auto;">
+            <!-- Users will be loaded here -->
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Bulk QR Code Printing Modal -->
+<div class="modal fade" id="bulkQrModal" tabindex="-1" aria-labelledby="bulkQrModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-xl" style="max-width: 95%; max-height: 95vh;">
+    <div class="modal-content" style="height: 95vh;">
+      <div class="modal-header">
+        <h5 class="modal-title" id="bulkQrModalLabel">
+          <i class="fas fa-qrcode"></i> Bulk QR Code Printing
+        </h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body" style="overflow-y: auto; max-height: calc(95vh - 120px);">
+        <div id="bulkQrHeader" class="alert alert-primary mb-3">
+          <!-- Department/Building info will be displayed here -->
+        </div>
+        
+        <div class="row mb-3">
+          <div class="col-md-4">
+            <label for="printerTypeSelect" class="form-label">Printer Type:</label>
+            <select class="form-select" id="printerTypeSelect">
+              <option value="thermal" selected>Thermal Printer</option>
+              <option value="regular">Regular Printer</option>
+            </select>
+          </div>
+          <div class="col-md-4">
+            <label for="qrSizeSelect" class="form-label">QR Code Size:</label>
+            <select class="form-select" id="qrSizeSelect" style="width: auto;">
+              <option value="60" selected>Small (60px) - 5 per page</option>
+              <option value="80">Medium (80px) - 4 per page</option>
+              <option value="100">Large (100px) - 3 per page</option>
+            </select>
+          </div>
+          <div class="col-md-4">
+            <label for="layoutSelect" class="form-label">Layout:</label>
+            <select class="form-select" id="layoutSelect">
+              <option value="3" selected>3 QR codes per page</option>
+              <option value="4">4 QR codes per page</option>
+              <option value="5">5 QR codes per page</option>
+            </select>
+          </div>
+        </div>
+        
+        <div id="bulkQrContainer" class="row g-3">
+          <!-- QR codes will be displayed here -->
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-primary" id="printBulkQrBtn">
+          <i class="fas fa-print"></i> Print QR Codes
+        </button>
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Bulk Status Update Modal -->
+<div class="modal fade" id="bulkStatusModal" tabindex="-1" aria-labelledby="bulkStatusModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-lg" style="max-width: 60%;">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="bulkStatusModalLabel">
+          <i class="fas fa-edit"></i> Update Asset Status
+        </h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body">
+        <div class="alert alert-info">
+          <i class="fas fa-info-circle"></i>
+          <strong>Update Status:</strong> Change the status of <span id="bulkStatusCount">0</span> selected asset(s).
+        </div>
+        <div class="mb-3">
+          <label for="bulkStatusSelect" class="form-label">New Status:</label>
+          <select class="form-select" id="bulkStatusSelect" required>
+            <option value="">Select Status</option>
+            <option value="Used">Used</option>
+            <option value="Not Used">Not Used</option>
+            <option value="Out of Service">Out of Service</option>
+          </select>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+        <button type="button" class="btn btn-warning" id="confirmBulkStatusBtn">
+          <i class="fas fa-save"></i> Update Status
+        </button>
       </div>
     </div>
   </div>
@@ -149,23 +970,1141 @@
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 <script>
-    const departmentOptions = {
-        'HO': ['HR', 'Finance', 'IT', 'Purchasing', 'PR'],
-        'Kucu Maabela': ['Kitchen', 'Dining', 'Recipient', 'Store']
-    };
-    document.getElementById('building').addEventListener('change', function() {
-        const building = this.value;
-        const departmentSelect = document.getElementById('department');
-        departmentSelect.innerHTML = '<option value="">Select Department/Section</option>';
-        if (departmentOptions[building]) {
-            departmentOptions[building].forEach(function(dep) {
-                const opt = document.createElement('option');
-                opt.value = dep;
-                opt.textContent = dep;
-                departmentSelect.appendChild(opt);
+/**
+ * ASSET TRACKING SYSTEM - MAIN JAVASCRIPT
+ * ========================================
+ * 
+ * This file contains all JavaScript functionality for the Asset Tracking System.
+ * The code is organized into logical sections for easy navigation and debugging:
+ * 
+ * 1. GLOBAL VARIABLES - Shared state across functions
+ * 2. DATA LOADING - Functions to fetch and cache data
+ * 3. BUILDING MANAGEMENT - CRUD operations for buildings
+ * 4. DEPARTMENT MANAGEMENT - CRUD operations for departments
+ * 5. USER MANAGEMENT - CRUD operations for users
+ * 6. QR CODE FUNCTIONALITY - QR generation and display
+ * 7. BULK SELECTION - Multi-select and bulk operations
+ * 8. EVENT LISTENERS - All user interaction handlers
+ * 9. UTILITY FUNCTIONS - Helper functions
+ * 10. INITIALIZATION - Page load setup
+ * 
+ * DEBUGGING TIPS:
+ * - Use browser console to inspect global variables
+ * - Check network tab for API calls
+ * - Use breakpoints in specific function sections
+ * - Monitor selectedAssets array for bulk operations
+ */
+
+// ============================================================================
+// GLOBAL VARIABLES & STATE MANAGEMENT
+// ============================================================================
+let buildingsData = [];
+let departmentsData = [];
+let selectedAssets = [];
+
+// ============================================================================
+// DATA LOADING & INITIALIZATION
+// ============================================================================
+
+    /**
+     * Load buildings from database and update all related UI components
+     * Called on page load and after building operations
+     */
+    function loadBuildings() {
+        fetch('/buildings')
+            .then(response => response.json())
+            .then(data => {
+                buildingsData = data;
+                updateBuildingDropdown();
+                updateBuildingsList();
+                updateDepartmentBuildingDropdown();
+            })
+            .catch(error => {
+                console.error('Error loading buildings:', error);
+                alert('Failed to load buildings. Please refresh the page.');
             });
+    }
+
+    /**
+     * Load departments from database and update all related UI components
+     * Called on page load and after department operations
+     */
+    function loadDepartments() {
+        fetch('/departments')
+            .then(response => response.json())
+            .then(data => {
+                departmentsData = data;
+                updateDepartmentsList();
+                updateDepartmentQRList();
+                updateDepartmentFilterDropdown();
+            })
+            .catch(error => console.error('Error loading departments:', error));
+    }
+
+// ============================================================================
+// BUILDING MANAGEMENT FUNCTIONS
+// ============================================================================
+
+    // Update building dropdown options
+    function updateBuildingDropdown() {
+        const buildingSelect = document.getElementById('building');
+        buildingSelect.innerHTML = '<option value="">Select Building</option>';
+        buildingsData.forEach(building => {
+            const option = document.createElement('option');
+            option.value = building.name;
+            option.textContent = building.name;
+            buildingSelect.appendChild(option);
+        });
+    }
+
+    // Update department building dropdown in management modal
+    function updateDepartmentBuildingDropdown() {
+        const select = document.getElementById('newDepartmentBuilding');
+        select.innerHTML = '<option value="">Select Building</option>';
+        buildingsData.forEach(building => {
+            const option = document.createElement('option');
+            option.value = building.id;
+            option.textContent = building.name;
+            select.appendChild(option);
+        });
+    }
+
+    // Update buildings list in management modal
+    function updateBuildingsList() {
+        const buildingsList = document.getElementById('buildingsList');
+        buildingsList.innerHTML = '';
+        
+        buildingsData.forEach(building => {
+            const listItem = document.createElement('div');
+            listItem.className = 'list-group-item d-flex justify-content-between align-items-center';
+            listItem.innerHTML = `
+                <span class="building-name" data-id="${building.id}">${building.name}</span>
+                <div>
+                    <button class="btn btn-sm btn-outline-primary edit-building-btn me-2" data-id="${building.id}" data-name="${building.name}">
+                        <i class="fas fa-edit"></i> Edit
+                    </button>
+                    <button class="btn btn-sm btn-outline-danger delete-building-btn" data-id="${building.id}" data-name="${building.name}">
+                        <i class="fas fa-trash"></i> Delete
+                    </button>
+                </div>
+            `;
+            buildingsList.appendChild(listItem);
+        });
+
+        // Add event listeners for edit and delete buttons
+        document.querySelectorAll('.edit-building-btn').forEach(btn => {
+            btn.addEventListener('click', handleEditBuilding);
+        });
+        
+        document.querySelectorAll('.delete-building-btn').forEach(btn => {
+            btn.addEventListener('click', handleDeleteBuilding);
+        });
+    }
+
+// ============================================================================
+// DEPARTMENT MANAGEMENT FUNCTIONS
+// ============================================================================
+
+    // Update departments list in management modal
+    function updateDepartmentsList() {
+        const departmentsList = document.getElementById('departmentsList');
+        const filterSelect = document.getElementById('departmentFilterBuilding');
+        const selectedBuilding = filterSelect ? filterSelect.value : '';
+        
+        departmentsList.innerHTML = '';
+        
+        // Filter departments based on selected building
+        let filteredDepartments = departmentsData;
+        if (selectedBuilding) {
+            filteredDepartments = departmentsData.filter(dept => dept.building_name === selectedBuilding);
+        }
+        
+        if (filteredDepartments.length === 0) {
+            departmentsList.innerHTML = '<div class="text-center text-muted p-3">No departments found</div>';
+            return;
+        }
+        
+        // Group departments by building
+        const departmentsByBuilding = {};
+        filteredDepartments.forEach(department => {
+            if (!departmentsByBuilding[department.building_name]) {
+                departmentsByBuilding[department.building_name] = [];
+            }
+            departmentsByBuilding[department.building_name].push(department);
+        });
+        
+        // Create organized list
+        Object.keys(departmentsByBuilding).sort().forEach(buildingName => {
+            if (!selectedBuilding) {
+                // Only show building headers when not filtering
+                const buildingHeader = document.createElement('div');
+                buildingHeader.className = 'list-group-item list-group-item-info fw-bold';
+                buildingHeader.innerHTML = `<i class="fas fa-building"></i> ${buildingName}`;
+                departmentsList.appendChild(buildingHeader);
+            }
+            
+            departmentsByBuilding[buildingName].forEach(department => {
+                const listItem = document.createElement('div');
+                listItem.className = 'list-group-item d-flex justify-content-between align-items-center';
+                listItem.innerHTML = `
+                    <div>
+                        <span class="department-name fw-bold" data-id="${department.id}">${department.name}</span>
+                        ${selectedBuilding ? '' : `<small class="text-muted d-block"><i class="fas fa-building"></i> ${department.building_name}</small>`}
+                    </div>
+                    <div>
+                        <button class="btn btn-sm btn-outline-primary edit-department-btn me-2" 
+                                data-id="${department.id}" 
+                                data-name="${department.name}"
+                                data-building="${department.building_name}">
+                            <i class="fas fa-edit"></i> Edit
+                        </button>
+                        <button class="btn btn-sm btn-outline-danger delete-department-btn" 
+                                data-id="${department.id}" 
+                                data-name="${department.name}"
+                                data-building="${department.building_name}">
+                            <i class="fas fa-trash"></i> Delete
+                        </button>
+                    </div>
+                `;
+                departmentsList.appendChild(listItem);
+            });
+        });
+
+        // Add event listeners for edit and delete buttons
+        document.querySelectorAll('.edit-department-btn').forEach(btn => {
+            btn.addEventListener('click', handleEditDepartment);
+        });
+        
+        document.querySelectorAll('.delete-department-btn').forEach(btn => {
+            btn.addEventListener('click', handleDeleteDepartment);
+        });
+    }
+
+    // Update department filter dropdown
+    function updateDepartmentFilterDropdown() {
+        const filterSelect = document.getElementById('departmentFilterBuilding');
+        if (!filterSelect) return;
+        
+        filterSelect.innerHTML = '<option value="">All Buildings</option>';
+        
+        const uniqueBuildings = [...new Set(departmentsData.map(dept => dept.building_name))].sort();
+        uniqueBuildings.forEach(building => {
+            const option = document.createElement('option');
+            option.value = building;
+            option.textContent = building;
+            filterSelect.appendChild(option);
+        });
+        
+        // Add change listener
+        filterSelect.addEventListener('change', function() {
+            updateDepartmentsList();
+        });
+    }
+
+    // Update department QR codes list
+    function updateDepartmentQRList() {
+        const qrList = document.getElementById('departmentQRList');
+        qrList.innerHTML = '';
+        
+        if (departmentsData.length === 0) {
+            qrList.innerHTML = '<div class="col-12 text-center text-muted">No departments found</div>';
+            return;
+        }
+        
+        departmentsData.forEach(department => {
+            const colDiv = document.createElement('div');
+            colDiv.className = 'col-md-6 col-lg-4 mb-4';
+            colDiv.innerHTML = `
+                <div class="card h-100">
+                    <div class="card-body text-center">
+                        <h6 class="card-title text-primary">${department.name}</h6>
+                        <p class="card-text text-muted small">${department.building_name}</p>
+                        <div class="mb-3">
+                            <img src="/department_qr/${encodeURIComponent(department.building_name)}/${encodeURIComponent(department.name)}" 
+                                 alt="QR Code for ${department.name}" 
+                                 class="img-fluid" 
+                                 style="max-width: 120px; height: auto;">
+                        </div>
+                        <button class="btn btn-sm btn-outline-primary view-dept-qr-btn" 
+                                data-building="${department.building_name}" 
+                                data-department="${department.name}">
+                            <i class="fas fa-eye"></i> View Large
+                        </button>
+                        <button class="btn btn-sm btn-outline-success print-dept-qr-btn" 
+                                data-building="${department.building_name}" 
+                                data-department="${department.name}">
+                            <i class="fas fa-print"></i> Print
+                        </button>
+                    </div>
+                </div>
+            `;
+            qrList.appendChild(colDiv);
+        });
+
+        // Add event listeners for view and print buttons
+        document.querySelectorAll('.view-dept-qr-btn').forEach(btn => {
+            btn.addEventListener('click', handleViewDepartmentQR);
+        });
+        
+        document.querySelectorAll('.print-dept-qr-btn').forEach(btn => {
+            btn.addEventListener('click', handlePrintDepartmentQR);
+        });
+    }
+
+    // Handle viewing department QR code in large size
+    function handleViewDepartmentQR(e) {
+        const building = e.currentTarget.getAttribute('data-building');
+        const department = e.currentTarget.getAttribute('data-department');
+        
+        // Update the existing QR modal with department QR
+        document.getElementById('qrModalLabel').innerText = `${department} - ${building}`;
+        document.getElementById('qrcode').innerHTML = `
+            <img src="/department_qr/${encodeURIComponent(building)}/${encodeURIComponent(department)}" 
+                 alt="QR Code for ${department}" 
+                 style="max-width: 200px; height: auto;">
+        `;
+        document.getElementById('qrCodeLabel').innerText = `${department} (${building})`;
+        
+        // Show the QR modal
+        var qrModal = new bootstrap.Modal(document.getElementById('qrModal'));
+        qrModal.show();
+    }
+
+    // Handle printing department QR code
+    function handlePrintDepartmentQR(e) {
+        const building = e.currentTarget.getAttribute('data-building');
+        const department = e.currentTarget.getAttribute('data-department');
+        
+        var printContents = `
+            <img src="/department_qr/${encodeURIComponent(building)}/${encodeURIComponent(department)}" 
+                 alt="QR Code for ${department}" 
+                 style="max-width: 200px; height: auto;">
+            <div style="margin-top:12px;font-weight:bold;font-size:1.2em;text-align:center;">
+                ${department}<br>
+                <small style="font-size:0.8em;color:#666;">${building}</small>
+            </div>
+        `;
+        
+        var win = window.open('', '', 'height=400,width=400');
+        win.document.write('<html><head><title>Print Department QR Code</title>');
+        win.document.write('<style>body{background:#fff;text-align:center;} img{margin:0 auto;display:block;} div{color:#222;}</style>');
+        win.document.write('</head><body>');
+        win.document.write(printContents);
+        win.document.write('</body></html>');
+        win.document.close();
+        win.focus();
+        setTimeout(function(){ win.print(); win.close(); }, 500);
+    }
+
+// ============================================================================
+// EVENT LISTENERS - BUILDING MANAGEMENT
+// ============================================================================
+
+    // Handle adding new building
+    document.getElementById('addBuildingBtn').addEventListener('click', function() {
+        const nameInput = document.getElementById('newBuildingName');
+        const name = nameInput.value.trim();
+        
+        if (!name) {
+            alert('Please enter a building name.');
+            return;
+        }
+
+        const formData = new FormData();
+        formData.append('name', name);
+
+        fetch('/buildings', {
+            method: 'POST',
+            body: formData
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                nameInput.value = '';
+                loadBuildings(); // Reload the buildings list
+            } else {
+                alert(data.error || 'Failed to add building.');
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('Failed to add building.');
+        });
+    });
+
+// ============================================================================
+// EVENT LISTENERS - DEPARTMENT MANAGEMENT
+// ============================================================================
+
+    // Handle adding new department
+    document.getElementById('addDepartmentBtn').addEventListener('click', function() {
+        const nameInput = document.getElementById('newDepartmentName');
+        const buildingSelect = document.getElementById('newDepartmentBuilding');
+        const name = nameInput.value.trim();
+        const buildingId = buildingSelect.value;
+        
+        if (!name) {
+            alert('Please enter a department name.');
+            return;
+        }
+
+        if (!buildingId) {
+            alert('Please select a building.');
+            return;
+        }
+
+        const formData = new FormData();
+        formData.append('name', name);
+        formData.append('building_id', buildingId);
+
+        fetch('/departments', {
+            method: 'POST',
+            body: formData
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                nameInput.value = '';
+                buildingSelect.value = '';
+                loadDepartments(); // Reload the departments list
+                updateDepartmentQRList(); // Refresh the QR list
+            } else {
+                alert(data.error || 'Failed to add department.');
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('Failed to add department.');
+        });
+    });
+
+
+
+// ============================================================================
+// EVENT LISTENERS - USER MANAGEMENT
+// ============================================================================
+
+    // USER MODAL EVENT LISTENERS
+    document.getElementById('addUserModalBtn').addEventListener('click', handleAddUserModal);
+    document.getElementById('addBulkUsersModalBtn').addEventListener('click', handleAddBulkUsersModal);
+    
+    document.getElementById('userModalBuilding').addEventListener('change', function() {
+        updateUserModalDepartments(this.value);
+    });
+    
+    document.getElementById('bulkUserModalBuilding').addEventListener('change', function() {
+        updateBulkUserModalDepartments(this.value);
+    });
+    
+    document.getElementById('userModalFilterDepartment').addEventListener('change', function() {
+        loadUserModalUsers(this.value);
+    });
+    
+    document.getElementById('userModalName').addEventListener('keypress', function(e) {
+        if (e.key === 'Enter') {
+            handleAddUserModal();
         }
     });
+
+// ============================================================================
+// EVENT LISTENERS - DYNAMIC DROPDOWNS
+// ============================================================================
+
+    // Handle department change to update owner dropdown
+    document.getElementById('department').addEventListener('change', function() {
+        loadOwnersForDepartment(this.value);
+        checkNoOwnerOption();
+    });
+
+    // Handle no owner checkbox
+    document.getElementById('noOwnerCheck').addEventListener('change', function() {
+        const ownerSelect = document.getElementById('owner');
+        const noOwnerCheck = document.getElementById('noOwnerCheck');
+        
+        if (noOwnerCheck.checked) {
+            ownerSelect.disabled = true;
+            ownerSelect.value = '';
+            ownerSelect.style.opacity = '0.6';
+            ownerSelect.style.backgroundColor = '#f8f9fa';
+            ownerSelect.removeAttribute('required');
+        } else {
+            ownerSelect.disabled = false;
+            ownerSelect.style.opacity = '1';
+            ownerSelect.style.backgroundColor = '';
+            ownerSelect.setAttribute('required', 'required');
+            // Reload owners for current department
+            loadOwnersForDepartment(document.getElementById('department').value);
+        }
+    });
+
+    // Function to check if department should have no owner option
+    function checkNoOwnerOption() {
+        const departmentSelect = document.getElementById('department');
+        const noOwnerCheck = document.getElementById('noOwnerCheck');
+        const ownerSelect = document.getElementById('owner');
+        
+        const selectedDepartment = departmentSelect.value;
+        
+        if (selectedDepartment) {
+            // Show the checkbox and enable it for all departments
+            noOwnerCheck.parentElement.style.display = 'block';
+            noOwnerCheck.disabled = false;
+            
+            // If checkbox is checked, keep owner disabled
+            if (noOwnerCheck.checked) {
+                ownerSelect.disabled = true;
+                ownerSelect.style.opacity = '0.6';
+                ownerSelect.style.backgroundColor = '#f8f9fa';
+            }
+        } else {
+            // Hide the checkbox when no department is selected
+            noOwnerCheck.parentElement.style.display = 'none';
+            noOwnerCheck.checked = false;
+            ownerSelect.disabled = false;
+            ownerSelect.style.opacity = '1';
+            ownerSelect.style.backgroundColor = '';
+        }
+    }
+
+    /**
+     * Dynamically load owners for a selected department
+     * Updates the owner dropdown based on department selection
+     * @param {string} departmentName - The selected department name
+     */
+    function loadOwnersForDepartment(departmentName) {
+        const ownerSelect = document.getElementById('owner');
+        
+        // Clear existing options
+        ownerSelect.innerHTML = '<option value="">Loading...</option>';
+        
+        if (!departmentName) {
+            ownerSelect.innerHTML = '<option value="">Select Department First</option>';
+            return;
+        }
+        
+        // Find department ID by name
+        fetch('/departments')
+            .then(response => response.json())
+            .then(departments => {
+                const department = departments.find(d => d.name === departmentName);
+                if (!department) {
+                    ownerSelect.innerHTML = '<option value="">Department not found</option>';
+                    return;
+                }
+                
+                // Fetch users for this department
+                return fetch(`/users?department_id=${department.id}`);
+            })
+            .then(response => response.json())
+            .then(users => {
+                ownerSelect.innerHTML = '<option value="">Select Owner</option>';
+                
+                if (users.length === 0) {
+                    const option = document.createElement('option');
+                    option.value = '';
+                    option.textContent = 'No users in this department';
+                    option.disabled = true;
+                    ownerSelect.appendChild(option);
+                } else {
+                    users.sort((a, b) => a.name.localeCompare(b.name)).forEach(user => {
+                        const option = document.createElement('option');
+                        option.value = user.name;
+                        option.textContent = user.name;
+                        ownerSelect.appendChild(option);
+                    });
+                }
+            })
+            .catch(error => {
+                console.error('Error loading owners:', error);
+                ownerSelect.innerHTML = '<option value="">Error loading owners</option>';
+            });
+    }
+
+    // Handle editing building
+    function handleEditBuilding(e) {
+        const buildingId = e.currentTarget.getAttribute('data-id');
+        const currentName = e.currentTarget.getAttribute('data-name');
+        const newName = prompt('Enter new building name:', currentName);
+        
+        if (newName && newName.trim() !== currentName) {
+            const formData = new FormData();
+            formData.append('name', newName.trim());
+
+            fetch(`/buildings/${buildingId}`, {
+                method: 'PUT',
+                body: formData
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    loadBuildings(); // Reload the buildings list
+                    loadDepartments(); // Reload departments list to update building names
+                } else {
+                    alert(data.error || 'Failed to update building.');
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('Failed to update building.');
+            });
+        }
+    }
+
+    // Handle editing department
+    function handleEditDepartment(e) {
+        const departmentId = e.currentTarget.getAttribute('data-id');
+        const currentName = e.currentTarget.getAttribute('data-name');
+        const buildingName = e.currentTarget.getAttribute('data-building');
+        
+        const newName = prompt(`Edit department name for "${buildingName}":\n\nCurrent name: ${currentName}\nEnter new name:`, currentName);
+        
+        if (newName && newName.trim() !== currentName) {
+            const formData = new FormData();
+            formData.append('name', newName.trim());
+
+            fetch(`/departments/${departmentId}`, {
+                method: 'PUT',
+                body: formData
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    loadDepartments(); // Reload the departments list
+                } else {
+                    alert(data.error || 'Failed to update department.');
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('Failed to update department.');
+            });
+        }
+    }
+
+    // Handle deleting building
+    function handleDeleteBuilding(e) {
+        const buildingId = e.currentTarget.getAttribute('data-id');
+        const buildingName = e.currentTarget.getAttribute('data-name');
+        
+        if (confirm(`Are you sure you want to delete "${buildingName}"? This will also delete all its departments.`)) {
+            fetch(`/buildings/${buildingId}`, {
+                method: 'DELETE'
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    loadBuildings(); // Reload the buildings list
+                    loadDepartments(); // Reload departments list
+                } else {
+                    alert(data.error || 'Failed to delete building.');
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('Failed to delete building.');
+            });
+        }
+    }
+
+    // Handle deleting department
+    function handleDeleteDepartment(e) {
+        const departmentId = e.currentTarget.getAttribute('data-id');
+        const departmentName = e.currentTarget.getAttribute('data-name');
+        const buildingName = e.currentTarget.getAttribute('data-building');
+        
+        if (confirm(`Are you sure you want to delete "${departmentName}" from "${buildingName}"?`)) {
+            fetch(`/departments/${departmentId}`, {
+                method: 'DELETE'
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    loadDepartments(); // Reload the departments list
+                } else {
+                    alert(data.error || 'Failed to delete department.');
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('Failed to delete department.');
+            });
+        }
+    }
+
+
+
+    // ===== USER MODAL FUNCTIONS =====
+
+    // Load data for user modal
+    function loadUserModalData() {
+        loadUserModalBuildings();
+        loadBulkUserModalBuildings();
+        loadUserModalUsers();
+        loadUserModalFilterDropdown();
+    }
+
+    // Load buildings for user modal
+    function loadUserModalBuildings() {
+        fetch('/buildings')
+            .then(response => response.json())
+            .then(buildings => {
+                const buildingSelect = document.getElementById('userModalBuilding');
+                buildingSelect.innerHTML = '<option value="">Select Building</option>';
+                
+                buildings.forEach(building => {
+                    const option = document.createElement('option');
+                    option.value = building.id;
+                    option.textContent = building.name;
+                    buildingSelect.appendChild(option);
+                });
+            })
+            .catch(error => {
+                console.error('Error loading buildings for user modal:', error);
+            });
+    }
+
+    // Load buildings for bulk user modal
+    function loadBulkUserModalBuildings() {
+        fetch('/buildings')
+            .then(response => response.json())
+            .then(buildings => {
+                const buildingSelect = document.getElementById('bulkUserModalBuilding');
+                buildingSelect.innerHTML = '<option value="">Select Building</option>';
+                
+                buildings.forEach(building => {
+                    const option = document.createElement('option');
+                    option.value = building.id;
+                    option.textContent = building.name;
+                    buildingSelect.appendChild(option);
+                });
+            })
+            .catch(error => {
+                console.error('Error loading buildings for bulk user modal:', error);
+            });
+    }
+
+    // Update departments in user modal based on building
+    function updateUserModalDepartments(buildingId) {
+        const departmentSelect = document.getElementById('userModalDepartment');
+        
+        if (!buildingId) {
+            departmentSelect.innerHTML = '<option value="">Select Building First</option>';
+            return;
+        }
+        
+        departmentSelect.innerHTML = '<option value="">Loading...</option>';
+        
+        fetch(`/departments?building_id=${buildingId}`)
+            .then(response => response.json())
+            .then(departments => {
+                departmentSelect.innerHTML = '<option value="">Select Department</option>';
+                
+                departments.forEach(dept => {
+                    const option = document.createElement('option');
+                    option.value = dept.id;
+                    option.textContent = dept.name;
+                    departmentSelect.appendChild(option);
+                });
+            })
+            .catch(error => {
+                console.error('Error loading departments for user modal:', error);
+                departmentSelect.innerHTML = '<option value="">Error loading departments</option>';
+            });
+    }
+
+    // Load users for user modal
+    function loadUserModalUsers(filterDepartmentId = '') {
+        const url = filterDepartmentId ? `/users?department_id=${filterDepartmentId}` : '/users';
+        
+        fetch(url)
+            .then(response => response.json())
+            .then(users => {
+                const usersList = document.getElementById('userModalList');
+                usersList.innerHTML = '';
+                
+                if (users.length === 0) {
+                    usersList.innerHTML = '<div class="list-group-item text-muted">No users found.</div>';
+                    return;
+                }
+                
+                // Group users by building and department
+                const usersByGroup = {};
+                users.forEach(user => {
+                    const key = `${user.building_name} - ${user.department_name}`;
+                    if (!usersByGroup[key]) {
+                        usersByGroup[key] = [];
+                    }
+                    usersByGroup[key].push(user);
+                });
+                
+                // Display users grouped by department
+                Object.keys(usersByGroup).sort().forEach(groupKey => {
+                    // Add group header
+                    const groupHeader = document.createElement('div');
+                    groupHeader.className = 'list-group-item list-group-item-light fw-bold';
+                    groupHeader.innerHTML = `<i class="fas fa-building"></i> ${groupKey}`;
+                    usersList.appendChild(groupHeader);
+                    
+                    // Add users in this group
+                    usersByGroup[groupKey].sort((a, b) => a.name.localeCompare(b.name)).forEach(user => {
+                        const userItem = document.createElement('div');
+                        userItem.className = 'list-group-item d-flex justify-content-between align-items-center';
+                        userItem.innerHTML = `
+                            <span><i class="fas fa-user"></i> ${user.name}</span>
+                            <div>
+                                <button class="btn btn-sm btn-outline-primary me-1" onclick="handleEditUserModal(event)" 
+                                        data-id="${user.id}" data-name="${user.name}" data-department="${user.department_name}" 
+                                        title="Edit User">
+                                    <i class="fas fa-edit"></i>
+                                </button>
+                                <button class="btn btn-sm btn-outline-danger" onclick="handleDeleteUserModal(event)" 
+                                        data-id="${user.id}" data-name="${user.name}" data-department="${user.department_name}" 
+                                        title="Delete User">
+                                    <i class="fas fa-trash"></i>
+                                </button>
+                            </div>
+                        `;
+                        usersList.appendChild(userItem);
+                    });
+                });
+            })
+            .catch(error => {
+                console.error('Error loading users for modal:', error);
+            });
+    }
+
+    // Load filter dropdown for user modal
+    function loadUserModalFilterDropdown() {
+        fetch('/departments')
+            .then(response => response.json())
+            .then(departments => {
+                const filterSelect = document.getElementById('userModalFilterDepartment');
+                filterSelect.innerHTML = '<option value="">All Departments</option>';
+                
+                // Group departments by building
+                const departmentsByBuilding = {};
+                departments.forEach(dept => {
+                    if (!departmentsByBuilding[dept.building_name]) {
+                        departmentsByBuilding[dept.building_name] = [];
+                    }
+                    departmentsByBuilding[dept.building_name].push(dept);
+                });
+                
+                // Add options grouped by building
+                Object.keys(departmentsByBuilding).sort().forEach(buildingName => {
+                    const group = document.createElement('optgroup');
+                    group.label = buildingName;
+                    
+                    departmentsByBuilding[buildingName].sort((a, b) => a.name.localeCompare(b.name)).forEach(dept => {
+                        const option = document.createElement('option');
+                        option.value = dept.id;
+                        option.textContent = dept.name;
+                        group.appendChild(option);
+                    });
+                    
+                    filterSelect.appendChild(group);
+                });
+            })
+            .catch(error => {
+                console.error('Error loading departments for filter:', error);
+            });
+    }
+
+    // Handle adding user from modal
+    function handleAddUserModal() {
+        const buildingId = document.getElementById('userModalBuilding').value;
+        const departmentId = document.getElementById('userModalDepartment').value;
+        const name = document.getElementById('userModalName').value.trim();
+        
+        if (!buildingId) {
+            alert('Please select a building.');
+            return;
+        }
+        
+        if (!departmentId) {
+            alert('Please select a department.');
+            return;
+        }
+        
+        if (!name) {
+            alert('Please enter a user name.');
+            return;
+        }
+        
+        fetch('/users', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                name: name,
+                department_id: parseInt(departmentId)
+            })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.id) {
+                document.getElementById('userModalName').value = '';
+                document.getElementById('userModalBuilding').value = '';
+                document.getElementById('userModalDepartment').value = '';
+                document.getElementById('userModalDepartment').innerHTML = '<option value="">Select Building First</option>';
+                loadUserModalUsers(); // Reload the users list
+                loadOwnersForDepartment(document.getElementById('department').value); // Refresh owner dropdown
+                alert(`✅ User "${name}" registered successfully!`);
+            } else {
+                alert(data.error || 'Failed to register user.');
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('Failed to register user.');
+        });
+    }
+
+    // Handle editing user from modal
+    function handleEditUserModal(e) {
+        const userId = e.currentTarget.getAttribute('data-id');
+        const currentName = e.currentTarget.getAttribute('data-name');
+        const departmentName = e.currentTarget.getAttribute('data-department');
+        
+        const newName = prompt(`Edit user name for "${departmentName}" department:`, currentName);
+        if (newName && newName.trim() && newName.trim() !== currentName) {
+            fetch(`/users/${userId}`, {
+                method: 'PUT',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    name: newName.trim()
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    loadUserModalUsers(); // Reload the users list
+                    loadOwnersForDepartment(document.getElementById('department').value); // Refresh owner dropdown
+                } else {
+                    alert(data.error || 'Failed to update user.');
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('Failed to update user.');
+            });
+        }
+    }
+
+    // Handle deleting user from modal
+    function handleDeleteUserModal(e) {
+        const userId = e.currentTarget.getAttribute('data-id');
+        const userName = e.currentTarget.getAttribute('data-name');
+        const departmentName = e.currentTarget.getAttribute('data-department');
+        
+        if (confirm(`Are you sure you want to delete "${userName}" from "${departmentName}"?`)) {
+            fetch(`/users/${userId}`, {
+                method: 'DELETE'
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    loadUserModalUsers(); // Reload the users list
+                    loadOwnersForDepartment(document.getElementById('department').value); // Refresh owner dropdown
+                } else {
+                    alert(data.error || 'Failed to delete user.');
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('Failed to delete user.');
+            });
+        }
+    }
+
+    // Handle bulk adding users from modal
+    function handleAddBulkUsersModal() {
+        const buildingId = document.getElementById('bulkUserModalBuilding').value;
+        const departmentId = document.getElementById('bulkUserModalDepartment').value;
+        const userNamesText = document.getElementById('bulkUserNames').value.trim();
+        
+        if (!buildingId) {
+            alert('Please select a building.');
+            return;
+        }
+        
+        if (!departmentId) {
+            alert('Please select a department.');
+            return;
+        }
+        
+        if (!userNamesText) {
+            alert('Please enter user names.');
+            return;
+        }
+        
+        // Split the text into individual names and filter out empty lines
+        const userNames = userNamesText.split('\n')
+            .map(name => name.trim())
+            .filter(name => name.length > 0);
+        
+        if (userNames.length === 0) {
+            alert('Please enter at least one valid user name.');
+            return;
+        }
+        
+        // Show confirmation with count
+        if (!confirm(`Add ${userNames.length} user(s) to the selected department?\n\nUsers to add:\n${userNames.join('\n')}`)) {
+            return;
+        }
+        
+        fetch('/users/bulk', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                users: userNames,
+                department_id: parseInt(departmentId)
+            })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.added_users) {
+                // Clear the form
+                document.getElementById('bulkUserNames').value = '';
+                document.getElementById('bulkUserModalBuilding').value = '';
+                document.getElementById('bulkUserModalDepartment').value = '';
+                document.getElementById('bulkUserModalDepartment').innerHTML = '<option value="">Select Building First</option>';
+                
+                // Reload data
+                loadUserModalUsers();
+                loadOwnersForDepartment(document.getElementById('department').value);
+                
+                // Show results
+                let message = `✅ Successfully added ${data.total_added} user(s)!`;
+                if (data.total_errors > 0) {
+                    message += `\n\n❌ ${data.total_errors} user(s) could not be added:\n${data.errors.join('\n')}`;
+                }
+                alert(message);
+            } else {
+                alert(data.error || 'Failed to add users.');
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('Failed to add users.');
+        });
+    }
+
+    // Update bulk user modal departments when building changes
+    function updateBulkUserModalDepartments(buildingId) {
+        const departmentSelect = document.getElementById('bulkUserModalDepartment');
+        departmentSelect.innerHTML = '<option value="">Loading...</option>';
+        
+        if (!buildingId) {
+            departmentSelect.innerHTML = '<option value="">Select Building First</option>';
+            return;
+        }
+        
+        fetch(`/departments?building_id=${buildingId}`)
+            .then(response => response.json())
+            .then(departments => {
+                departmentSelect.innerHTML = '<option value="">Select Department</option>';
+                departments.forEach(department => {
+                    const option = document.createElement('option');
+                    option.value = department.id;
+                    option.textContent = department.name;
+                    departmentSelect.appendChild(option);
+                });
+            })
+            .catch(error => {
+                console.error('Error loading departments:', error);
+                departmentSelect.innerHTML = '<option value="">Error loading departments</option>';
+            });
+    }
+
+// ============================================================================
+// INITIALIZATION
+// ============================================================================
+
+    // Initialize data on page load
+    document.addEventListener('DOMContentLoaded', function() {
+        loadBuildings();
+        loadDepartments();
+        loadUserModalData();
+        
+        // Refresh user modal data when modal is shown
+        document.getElementById('userManagementModal').addEventListener('show.bs.modal', function() {
+            loadUserModalData();
+        });
+        
+        // Refresh building management data when modal is shown
+        document.getElementById('buildingManagementModal').addEventListener('show.bs.modal', function() {
+            loadBuildings();
+        });
+        
+        // Refresh department management data when modal is shown
+        document.getElementById('departmentManagementModal').addEventListener('show.bs.modal', function() {
+            loadDepartments();
+        });
+        
+        // Initialize add asset modal
+        document.getElementById('addAssetModal').addEventListener('show.bs.modal', function() {
+            // Reset the no owner checkbox
+            const noOwnerCheck = document.getElementById('noOwnerCheck');
+            noOwnerCheck.checked = false;
+            noOwnerCheck.parentElement.style.display = 'none';
+            
+            // Reset owner dropdown
+            const ownerSelect = document.getElementById('owner');
+            ownerSelect.disabled = false;
+            ownerSelect.style.opacity = '1';
+            ownerSelect.style.backgroundColor = '';
+            ownerSelect.innerHTML = '<option value="">Select Department First</option>';
+        });
+    });
+
+    // Handle Enter key in new building input
+    document.getElementById('newBuildingName').addEventListener('keypress', function(e) {
+        if (e.key === 'Enter') {
+            document.getElementById('addBuildingBtn').click();
+        }
+    });
+
+    // Handle Enter key in new department input
+    document.getElementById('newDepartmentName').addEventListener('keypress', function(e) {
+        if (e.key === 'Enter') {
+            document.getElementById('addDepartmentBtn').click();
+        }
+    });
+
+    document.getElementById('building').addEventListener('change', function() {
+        const selectedBuilding = this.value;
+        const departmentSelect = document.getElementById('department');
+        departmentSelect.innerHTML = '<option value="">Select Department/Section</option>';
+        
+        if (selectedBuilding) {
+            // Find the building ID
+            const building = buildingsData.find(b => b.name === selectedBuilding);
+            if (building) {
+                // Load departments for this building
+                fetch(`/departments?building_id=${building.id}`)
+                    .then(response => response.json())
+                    .then(departments => {
+                        departments.forEach(department => {
+                            const option = document.createElement('option');
+                            option.value = department.name;
+                            option.textContent = department.name;
+                            departmentSelect.appendChild(option);
+                        });
+                    })
+                    .catch(error => console.error('Error loading departments:', error));
+            }
+        }
+    });
+
+// ============================================================================
+// EVENT LISTENERS - QR CODE FUNCTIONALITY
+// ============================================================================
 
     // QR Modal logic
     document.querySelectorAll('.view-qr-link').forEach(function(link) {
@@ -180,14 +2119,8 @@
                         document.getElementById('qrCodeLabel').innerHTML = '<div class="text-danger">QR data not found.</div>';
                     } else {
                         document.getElementById('qrcode').innerHTML = '';
-                        // Build info string for QR
-                        const qrString =
-                            `Asset Code: ${data.asset_code}\n` +
-                            `Name: ${data.name}\n` +
-                            `Owner: ${data.owner}\n` +
-                            `Building: ${data.building}\n` +
-                            `Department/Section: ${data.department}\n` +
-                            `Quantity: ${data.quantity}`;
+                        // Build URL for QR
+                        const qrString = window.location.origin + '/asset/' + data.asset_code;
                         new QRCode(document.getElementById('qrcode'), {
                             text: qrString,
                             width: 200,
@@ -201,22 +2134,519 @@
         });
     });
 
-    document.querySelectorAll('.delete-asset-btn').forEach(function(btn) {
-        btn.addEventListener('click', function(e) {
-            e.preventDefault();
-            if (confirm('Are you sure you want to delete this asset?')) {
-                const assetId = this.getAttribute('data-asset-id');
-                fetch(`/delete/${assetId}`, { method: 'POST' })
-                    .then(response => response.json())
-                    .then(data => {
-                        if (data.success) {
-                            location.reload();
-                        } else {
-                            alert('Failed to delete asset.');
-                        }
-                    });
+
+
+    // Print QR code button logic
+    document.getElementById('printQrBtn').onclick = function() {
+        var printContents = document.getElementById('qrcode').innerHTML + '<div style="margin-top:12px;font-weight:bold;font-size:1.2em;text-align:center;">' + document.getElementById('qrCodeLabel').innerText + '</div>';
+        var win = window.open('', '', 'height=400,width=400');
+        win.document.write('<html><head><title>Print QR Code</title>');
+        win.document.write('<style>body{background:#fff;text-align:center;} img{margin:0 auto;display:block;} div{color:#222;}</style>');
+        win.document.write('</head><body>');
+        win.document.write(printContents);
+        win.document.write('</body></html>');
+        win.document.close();
+        win.focus();
+        setTimeout(function(){ win.print(); win.close(); }, 500);
+    };
+
+// ============================================================================
+// EVENT LISTENERS - STATUS UPDATES
+// ============================================================================
+
+    // Status change functionality
+    document.querySelectorAll('.status-select').forEach(function(select) {
+        select.addEventListener('change', function(e) {
+            const assetId = this.getAttribute('data-asset-id');
+            const newStatus = this.value;
+            
+            const formData = new FormData();
+            formData.append('used_status', newStatus);
+            
+            fetch(`/update_status/${assetId}`, {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (!data.success) {
+                    alert('Failed to update status.');
+                    // Revert the select value
+                    location.reload();
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('Failed to update status.');
+                location.reload();
+            });
+        });
+    });
+
+// ============================================================================
+// BULK SELECTION & ACTIONS
+// ============================================================================
+
+    // Bulk selection functionality
+    
+    function updateBulkActionsBar() {
+        const bulkBar = document.getElementById('bulkActionsBar');
+        const selectedCount = document.getElementById('selectedCount');
+        
+        if (selectedAssets.length > 0) {
+            bulkBar.style.display = 'block';
+            selectedCount.textContent = selectedAssets.length;
+        } else {
+            bulkBar.style.display = 'none';
+        }
+    }
+
+// ============================================================================
+// EVENT LISTENERS - BULK SELECTION
+// ============================================================================
+
+    // Select all checkbox functionality
+    document.getElementById('selectAllCheckbox').addEventListener('change', function() {
+        const checkboxes = document.querySelectorAll('.asset-checkbox');
+        const isChecked = this.checked;
+        
+        selectedAssets = [];
+        checkboxes.forEach(checkbox => {
+            checkbox.checked = isChecked;
+            if (isChecked) {
+                selectedAssets.push({
+                    id: checkbox.getAttribute('data-asset-id'),
+                    name: checkbox.getAttribute('data-asset-name')
+                });
             }
         });
+        
+        updateBulkActionsBar();
+    });
+
+    // Individual checkbox functionality
+    document.querySelectorAll('.asset-checkbox').forEach(function(checkbox) {
+        checkbox.addEventListener('change', function() {
+            const assetId = this.getAttribute('data-asset-id');
+            const assetName = this.getAttribute('data-asset-name');
+            
+            if (this.checked) {
+                selectedAssets.push({ id: assetId, name: assetName });
+            } else {
+                selectedAssets = selectedAssets.filter(asset => asset.id !== assetId);
+                document.getElementById('selectAllCheckbox').checked = false;
+            }
+            
+            updateBulkActionsBar();
+        });
+    });
+
+// ============================================================================
+// EVENT LISTENERS - BULK ACTIONS
+// ============================================================================
+
+    // Select All button
+    document.getElementById('selectAllBtn').addEventListener('click', function() {
+        document.getElementById('selectAllCheckbox').click();
+    });
+
+    // Clear selection
+    document.getElementById('clearSelectionBtn').addEventListener('click', function() {
+        selectedAssets = [];
+        document.querySelectorAll('.asset-checkbox').forEach(cb => cb.checked = false);
+        document.getElementById('selectAllCheckbox').checked = false;
+        updateBulkActionsBar();
+    });
+
+    // Bulk update status
+    document.getElementById('bulkUpdateStatusBtn').addEventListener('click', function() {
+        if (selectedAssets.length === 0) {
+            alert('Please select at least one asset to update status.');
+            return;
+        }
+        
+        // Update the count in the modal
+        document.getElementById('bulkStatusCount').textContent = selectedAssets.length;
+        
+        // Reset the status select
+        document.getElementById('bulkStatusSelect').value = '';
+        
+        // Show the bulk status modal
+        const bulkStatusModal = new bootstrap.Modal(document.getElementById('bulkStatusModal'));
+        bulkStatusModal.show();
+    });
+
+    // Confirm bulk status update
+    document.getElementById('confirmBulkStatusBtn').addEventListener('click', function() {
+        const newStatus = document.getElementById('bulkStatusSelect').value;
+        
+        if (!newStatus) {
+            alert('Please select a status.');
+            return;
+        }
+        
+        if (confirm(`Update ${selectedAssets.length} asset(s) to status "${newStatus}"?`)) {
+            const formData = new FormData();
+            selectedAssets.forEach(asset => formData.append('asset_ids[]', asset.id));
+            formData.append('used_status', newStatus);
+            
+            fetch('/bulk_update_status', {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    // Close the modal
+                    const bulkStatusModal = bootstrap.Modal.getInstance(document.getElementById('bulkStatusModal'));
+                    bulkStatusModal.hide();
+                    
+                    // Reload the page
+                    location.reload();
+                } else {
+                    alert('Failed to update assets.');
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('Failed to update assets.');
+            });
+        }
+    });
+
+    // Bulk delete
+    document.getElementById('bulkDeleteBtn').addEventListener('click', function() {
+        if (selectedAssets.length === 0) return;
+        
+        const assetNames = selectedAssets.map(asset => asset.name).join(', ');
+        if (confirm(`Are you sure you want to delete ${selectedAssets.length} items?\n\n${assetNames.substring(0, 200)}${assetNames.length > 200 ? '...' : ''}`)) {
+            const formData = new FormData();
+            selectedAssets.forEach(asset => formData.append('asset_ids[]', asset.id));
+            
+            fetch('/bulk_delete', {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    location.reload();
+                } else {
+                    alert('Failed to delete assets.');
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('Failed to delete assets.');
+            });
+        }
+    });
+
+    // Bulk QR code printing
+    document.getElementById('bulkPrintQrBtn').addEventListener('click', function() {
+        if (selectedAssets.length === 0) {
+            alert('Please select at least one asset to print QR codes.');
+            return;
+        }
+        
+        // Show the bulk QR modal
+        const bulkQrModal = new bootstrap.Modal(document.getElementById('bulkQrModal'));
+        bulkQrModal.show();
+        
+        // Display QR codes for selected assets
+        displayBulkQrCodes();
+    });
+
+    // QR size change handler
+    document.getElementById('qrSizeSelect').addEventListener('change', function() {
+        displayBulkQrCodes();
+    });
+
+    // Printer type change handler
+    document.getElementById('printerTypeSelect').addEventListener('change', function() {
+        displayBulkQrCodes();
+    });
+
+    // Layout change handler
+    document.getElementById('layoutSelect').addEventListener('change', function() {
+        displayBulkQrCodes();
+    });
+
+    // Print button handler
+    document.getElementById('printBulkQrBtn').addEventListener('click', function() {
+        window.print();
+    });
+
+// ============================================================================
+// UTILITY FUNCTIONS
+// ============================================================================
+
+    /**
+     * Display bulk QR codes for selected assets
+     * Creates a layout optimized for thermal printer or regular printer
+     */
+    function displayBulkQrCodes() {
+        const container = document.getElementById('bulkQrContainer');
+        const header = document.getElementById('bulkQrHeader');
+        const printerType = document.getElementById('printerTypeSelect').value;
+        const qrSize = parseInt(document.getElementById('qrSizeSelect').value);
+        const layoutPerPage = parseInt(document.getElementById('layoutSelect').value);
+        
+        // Clear existing QR codes
+        container.innerHTML = '';
+        
+        if (selectedAssets.length === 0) {
+            container.innerHTML = '<div class="col-12 text-center text-muted">No assets selected</div>';
+            header.innerHTML = '';
+            return;
+        }
+        
+        // Get department/building info for selected assets
+        fetch('/assets')
+            .then(response => response.json())
+            .then(allAssets => {
+                const selectedAssetDetails = allAssets.filter(asset => 
+                    selectedAssets.some(selected => selected.id == asset.id)
+                );
+                
+                // Group assets by building and department
+                const groupedAssets = {};
+                selectedAssetDetails.forEach(asset => {
+                    const key = `${asset.building} - ${asset.department}`;
+                    if (!groupedAssets[key]) {
+                        groupedAssets[key] = [];
+                    }
+                    groupedAssets[key].push(asset);
+                });
+                
+                // Display header with department/building info
+                const buildingDeptKeys = Object.keys(groupedAssets);
+                if (buildingDeptKeys.length === 1) {
+                    // All assets from same building/department
+                    const [building, department] = buildingDeptKeys[0].split(' - ');
+                    header.innerHTML = `
+                        <i class="fas fa-building"></i> <strong>${building}</strong> - 
+                        <i class="fas fa-sitemap"></i> <strong>${department}</strong>
+                        <br><small class="text-muted">${selectedAssets.length} asset(s) selected - ${printerType === 'thermal' ? 'Thermal Printer Layout' : 'Regular Printer Layout'}</small>
+                    `;
+                } else {
+                    // Assets from multiple buildings/departments
+                    header.innerHTML = `
+                        <i class="fas fa-info-circle"></i> <strong>Multiple Departments Selected</strong>
+                        <br><small class="text-muted">
+                            ${buildingDeptKeys.length} department(s): ${buildingDeptKeys.join(', ')} - ${printerType === 'thermal' ? 'Thermal Printer Layout' : 'Regular Printer Layout'}
+                        </small>
+                    `;
+                }
+                
+                if (printerType === 'thermal') {
+                    // Thermal printer layout - organize into pages
+                    const totalPages = Math.ceil(selectedAssets.length / layoutPerPage);
+                    
+                    for (let page = 0; page < totalPages; page++) {
+                        const pageDiv = document.createElement('div');
+                        pageDiv.className = `thermal-page thermal-layout-${layoutPerPage}`;
+                        pageDiv.style.cssText = 'border: 1px dashed #ccc; margin-bottom: 20px; padding: 20px; background: #f9f9f9;';
+                        
+                        const pageHeader = document.createElement('div');
+                        pageHeader.className = 'text-center mb-3';
+                        pageHeader.innerHTML = `<strong>Page ${page + 1} of ${totalPages}</strong>`;
+                        pageDiv.appendChild(pageHeader);
+                        
+                        const startIndex = page * layoutPerPage;
+                        const endIndex = Math.min(startIndex + layoutPerPage, selectedAssets.length);
+                        
+                        for (let i = startIndex; i < endIndex; i++) {
+                            const asset = selectedAssets[i];
+                            const assetDetail = selectedAssetDetails.find(detail => detail.id == asset.id);
+                            
+                            const qrItem = document.createElement('div');
+                            qrItem.className = 'thermal-qr-item';
+                            
+                            const qrElement = document.createElement('div');
+                            qrElement.id = `bulk-qr-${asset.id}`;
+                            qrElement.className = 'thermal-qr-code';
+                            
+                            const labelElement = document.createElement('div');
+                            labelElement.className = 'thermal-qr-label';
+                            labelElement.innerHTML = `
+                                ${asset.name}<br>
+                                <small>${assetDetail ? assetDetail.asset_code : 'Loading...'}</small>
+                            `;
+                            
+                            qrItem.appendChild(qrElement);
+                            qrItem.appendChild(labelElement);
+                            pageDiv.appendChild(qrItem);
+                            
+                            // Generate QR code
+                            fetch(`/qrdata/${asset.id}`)
+                                .then(response => response.json())
+                                .then(data => {
+                                    if (data.error) {
+                                        qrElement.innerHTML = '<div class="text-danger small">QR data not found</div>';
+                                    } else {
+                                        qrElement.innerHTML = '';
+                                        const qrString = window.location.origin + '/asset/' + data.asset_code;
+                                        
+                                        new QRCode(qrElement, {
+                                            text: qrString,
+                                            width: qrSize,
+                                            height: qrSize,
+                                            colorDark: "#000000",
+                                            colorLight: "#ffffff",
+                                            correctLevel: QRCode.CorrectLevel.H
+                                        });
+                                        
+                                        labelElement.innerHTML = `
+                                            ${asset.name}<br>
+                                            <small>${data.asset_code}</small>
+                                        `;
+                                    }
+                                })
+                                .catch(error => {
+                                    console.error('Error displaying QR code for asset:', asset.id, error);
+                                    qrElement.innerHTML = '<div class="text-danger small">Error loading QR</div>';
+                                });
+                        }
+                        
+                        container.appendChild(pageDiv);
+                    }
+                } else {
+                    // Regular printer layout - grid format
+                    selectedAssets.forEach((asset, index) => {
+                        const qrDiv = document.createElement('div');
+                        qrDiv.className = 'col-md-4 col-sm-6 text-center mb-3';
+                        qrDiv.style.pageBreakInside = 'avoid';
+                        
+                        const qrElement = document.createElement('div');
+                        qrElement.id = `bulk-qr-${asset.id}`;
+                        qrElement.className = 'd-inline-block';
+                        
+                        const assetInfo = document.createElement('div');
+                        assetInfo.className = 'mt-2';
+                        assetInfo.innerHTML = `
+                            <div class="fw-bold small">${asset.name}</div>
+                            <div class="text-muted small">Asset #${asset.id}</div>
+                        `;
+                        
+                        qrDiv.appendChild(qrElement);
+                        qrDiv.appendChild(assetInfo);
+                        container.appendChild(qrDiv);
+                        
+                        // Get QR code data and display
+                        fetch(`/qrdata/${asset.id}`)
+                            .then(response => response.json())
+                            .then(data => {
+                                if (data.error) {
+                                    qrElement.innerHTML = '<div class="text-danger small">QR data not found</div>';
+                                } else {
+                                    qrElement.innerHTML = '';
+                                    const qrString = window.location.origin + '/asset/' + data.asset_code;
+                                    
+                                    new QRCode(qrElement, {
+                                        text: qrString,
+                                        width: qrSize,
+                                        height: qrSize,
+                                        colorDark: "#000000",
+                                        colorLight: "#ffffff",
+                                        correctLevel: QRCode.CorrectLevel.H
+                                    });
+                                    
+                                    assetInfo.innerHTML = `
+                                        <div class="fw-bold small">${asset.name}</div>
+                                        <div class="text-muted small">${data.asset_code}</div>
+                                    `;
+                                }
+                            })
+                            .catch(error => {
+                                console.error('Error displaying QR code for asset:', asset.id, error);
+                                qrElement.innerHTML = '<div class="text-danger small">Error loading QR</div>';
+                            });
+                    });
+                }
+            })
+            .catch(error => {
+                console.error('Error fetching asset details:', error);
+                header.innerHTML = '<div class="text-danger">Error loading asset information</div>';
+            });
+    }
+
+    /**
+     * Debug helper - Log current state to console
+     * Useful for troubleshooting data issues
+     */
+    function debugState() {
+        console.log('=== DEBUG STATE ===');
+        console.log('Buildings:', buildingsData);
+        console.log('Departments:', departmentsData);
+        console.log('Selected Assets:', selectedAssets);
+        console.log('==================');
+    }
+
+    // Jump to page functionality
+    function jumpToPage() {
+        const pageInput = document.getElementById('jumpToPage');
+        const pageNumber = parseInt(pageInput.value);
+        const maxPages = parseInt(pageInput.getAttribute('max'));
+        
+        if (pageNumber >= 1 && pageNumber <= maxPages) {
+            const currentUrl = new URL(window.location);
+            currentUrl.searchParams.set('page', pageNumber);
+            window.location.href = currentUrl.toString();
+        } else {
+            alert(`Please enter a page number between 1 and ${maxPages}`);
+            pageInput.value = parseInt('{{ page }}');
+        }
+    }
+
+// ============================================================================
+// EVENT LISTENERS - SEARCH & NAVIGATION
+// ============================================================================
+
+    // Global search functionality
+    document.getElementById('globalSearch').addEventListener('keypress', function(e) {
+        if (e.key === 'Enter') {
+            document.getElementById('searchForm').submit();
+        }
+    });
+
+    // Keyboard shortcuts
+    document.addEventListener('keydown', function(e) {
+        // Ctrl/Cmd + F for search
+        if ((e.ctrlKey || e.metaKey) && e.key === 'f') {
+            e.preventDefault();
+            document.getElementById('globalSearch').focus();
+        }
+        
+        // Ctrl/Cmd + A for select all
+        if ((e.ctrlKey || e.metaKey) && e.key === 'a' && !e.target.matches('input, textarea')) {
+            e.preventDefault();
+            document.getElementById('selectAllCheckbox').click();
+        }
+        
+        // Escape to clear selection
+        if (e.key === 'Escape') {
+            if (selectedAssets.length > 0) {
+                document.getElementById('clearSelectionBtn').click();
+            }
+        }
+        
+        // Ctrl/Cmd + D for debug state
+        if ((e.ctrlKey || e.metaKey) && e.key === 'd') {
+            e.preventDefault();
+            debugState();
+        }
+    });
+
+    // Auto-submit search after 500ms of no typing
+    let searchTimeout;
+    document.getElementById('globalSearch').addEventListener('input', function() {
+        clearTimeout(searchTimeout);
+        searchTimeout = setTimeout(() => {
+            if (this.value.length >= 2 || this.value.length === 0) {
+                document.getElementById('searchForm').submit();
+            }
+        }, 500);
     });
 </script>
 </body>

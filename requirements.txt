@@ -1,4 +1,5 @@
 Flask
 qrcode
-Pillow 
-gunicorn
+Pillow
+Flask-Login
+cryptography 

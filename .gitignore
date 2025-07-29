@@ -1,6 +1,41 @@
-__pycache__/
-*.pyc
-instance/
-.env
+# Database files
 *.db
-static/qrcodes/ 
+*.db-journal
+*.sqlite
+*.sqlite3
+
+# Encryption keys
+login_system/encryption_key.key
+encryption_key.key
+
+# Python cache
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+
+# Virtual environment
+venv/
+env/
+ENV/
+
+# IDE files
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+
+# Environment variables
+.env
+.env.local
+
+# Temporary files
+*.tmp
+*.temp 

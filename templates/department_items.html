@@ -1,0 +1,383 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>{{ department }} - {{ building }} Items</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        body {
+            background: #111;
+            color: #f5f5f5;
+            font-family: 'Montserrat', 'Roboto', Arial, sans-serif;
+            margin: 0;
+            padding: 10px;
+        }
+        .department-header {
+            background: #181818;
+            border-radius: 12px;
+            box-shadow: 0 4px 32px rgba(44,44,44,0.22);
+            padding: 20px;
+            margin-bottom: 20px;
+            text-align: center;
+        }
+        .department-title {
+            color: #D4AF37;
+            font-weight: 700;
+            letter-spacing: 1px;
+            margin-bottom: 0.5rem;
+            font-size: 1.5em;
+        }
+        .building-subtitle {
+            color: #AAA;
+            font-size: 1em;
+            margin-bottom: 1rem;
+        }
+        .gold-divider {
+            width: 80px;
+            height: 3px;
+            background: linear-gradient(90deg, #FFD700 0%, #D4AF37 100%);
+            border-radius: 2px;
+            margin: 0 auto 12px auto;
+        }
+        .search-section {
+            background: #181818;
+            border-radius: 12px;
+            padding: 15px;
+            margin-bottom: 20px;
+        }
+        .items-container {
+            margin-bottom: 20px;
+        }
+        .item-card {
+            background: #181818;
+            border-radius: 10px;
+            box-shadow: 0 2px 16px rgba(44,44,44,0.15);
+            padding: 15px;
+            margin-bottom: 12px;
+            border-left: 4px solid #D4AF37;
+        }
+        .item-name {
+            color: #FFD700;
+            font-weight: 600;
+            font-size: 1.1em;
+            margin-bottom: 6px;
+        }
+        .item-code {
+            color: #888;
+            font-size: 0.85em;
+            margin-bottom: 8px;
+        }
+        .item-details {
+            color: #CCC;
+            font-size: 0.9em;
+        }
+        .item-detail-row {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 3px;
+            flex-wrap: wrap;
+        }
+        .detail-label {
+            font-weight: 500;
+            color: #999;
+            min-width: 70px;
+        }
+        .detail-value {
+            text-align: right;
+            flex: 1;
+        }
+        .status-badge {
+            display: inline-block;
+            padding: 3px 8px;
+            border-radius: 12px;
+            font-size: 0.8em;
+            font-weight: 500;
+        }
+        .status-used {
+            background: rgba(40, 167, 69, 0.2);
+            color: #28a745;
+            border: 1px solid #28a745;
+        }
+        .status-not-used {
+            background: rgba(255, 193, 7, 0.2);
+            color: #ffc107;
+            border: 1px solid #ffc107;
+        }
+        .status-out-of-service {
+            background: rgba(220, 53, 69, 0.2);
+            color: #dc3545;
+            border: 1px solid #dc3545;
+        }
+        .no-items {
+            text-align: center;
+            color: #888;
+            font-style: italic;
+            margin: 40px 0;
+            padding: 40px 20px;
+            background: #181818;
+            border-radius: 12px;
+        }
+        .back-btn {
+            background: linear-gradient(90deg, #FFD700 0%, #D4AF37 100%);
+            color: #222;
+            font-weight: 600;
+            border: none;
+            border-radius: 8px;
+            padding: 12px 20px;
+            width: 100%;
+            margin-bottom: 20px;
+        }
+        .back-btn:hover {
+            background: #D4AF37;
+            color: #fff;
+        }
+        .pagination-section {
+            background: #181818;
+            border-radius: 12px;
+            padding: 15px;
+            margin-bottom: 20px;
+        }
+        .pagination .page-link {
+            background: #222;
+            border: 1px solid #444;
+            color: #D4AF37;
+        }
+        .pagination .page-link:hover {
+            background: #333;
+            color: #FFD700;
+        }
+        .pagination .page-item.active .page-link {
+            background: #D4AF37;
+            border-color: #D4AF37;
+            color: #222;
+        }
+        .form-control, .form-select {
+            background: #222;
+            border: 1px solid #444;
+            color: #fff;
+        }
+        .form-control:focus, .form-select:focus {
+            background: #333;
+            border-color: #D4AF37;
+            color: #fff;
+            box-shadow: 0 0 0 0.2rem rgba(212, 175, 55, 0.25);
+        }
+        .btn-primary {
+            background: #D4AF37;
+            border-color: #D4AF37;
+        }
+        .btn-primary:hover {
+            background: #B8941F;
+            border-color: #B8941F;
+        }
+        .btn-secondary {
+            background: #444;
+            border-color: #444;
+        }
+        .stats-info {
+            color: #888;
+            font-size: 0.9em;
+            text-align: center;
+            margin-bottom: 10px;
+        }
+        @media (max-width: 600px) {
+            body { padding: 8px; }
+            .department-header, .search-section, .pagination-section { 
+                padding: 12px; 
+                margin-bottom: 15px;
+            }
+            .item-card { padding: 12px; }
+            .item-detail-row {
+                flex-direction: column;
+                margin-bottom: 5px;
+            }
+            .detail-value {
+                text-align: left;
+                margin-top: 2px;
+            }
+            .department-title { font-size: 1.3em; }
+            .pagination {
+                font-size: 0.9em;
+            }
+        }
+    </style>
+</head>
+<body>
+<div class="department-header">
+    <h1 class="department-title">{{ department }}</h1>
+    <div class="building-subtitle">{{ building }}</div>
+    <div class="gold-divider"></div>
+    <div class="stats-info">
+        {% if total_assets > 0 %}
+            Showing {{ (page-1)*per_page + 1 }} to {{ [page*per_page, total_assets]|min }} of {{ total_assets }} item{{ 's' if total_assets != 1 else '' }}
+        {% else %}
+            No items found
+        {% endif %}
+    </div>
+</div>
+
+<!-- Search and Filter Section -->
+<div class="search-section">
+    <form method="get" class="row g-2">
+        <div class="col-md-6">
+            <input type="text" class="form-control" name="search" 
+                   value="{{ search_query }}" 
+                   placeholder="Search items, owners, codes..." 
+                   id="searchInput">
+        </div>
+        <div class="col-md-3">
+            <select class="form-select" name="per_page" onchange="this.form.submit()">
+                <option value="5" {% if per_page == 5 %}selected{% endif %}>5 per page</option>
+                <option value="10" {% if per_page == 10 %}selected{% endif %}>10 per page</option>
+                <option value="20" {% if per_page == 20 %}selected{% endif %}>20 per page</option>
+                <option value="50" {% if per_page == 50 %}selected{% endif %}>All</option>
+            </select>
+        </div>
+        <div class="col-md-3">
+            <div class="d-grid gap-2">
+                <button type="submit" class="btn btn-primary">
+                    <i class="fas fa-search"></i> Search
+                </button>
+            </div>
+        </div>
+        <input type="hidden" name="page" value="1">
+    </form>
+    {% if search_query %}
+        <div class="mt-2">
+            <a href="?page=1" class="btn btn-secondary btn-sm">
+                <i class="fas fa-times"></i> Clear Search
+            </a>
+        </div>
+    {% endif %}
+</div>
+
+<div class="items-container">
+    {% if assets %}
+        {% for asset in assets %}
+        <div class="item-card">
+            <div class="item-name">{{ asset.name }}</div>
+            <div class="item-code">{{ asset.asset_code }}</div>
+            <div class="item-details">
+                <div class="item-detail-row">
+                    <span class="detail-label"><i class="fas fa-user"></i> Owner:</span>
+                    <span class="detail-value">{{ asset.owner }}</span>
+                </div>
+                <div class="item-detail-row">
+                    <span class="detail-label"><i class="fas fa-boxes"></i> Qty:</span>
+                    <span class="detail-value">{{ asset.quantity }}</span>
+                </div>
+                <div class="item-detail-row">
+                    <span class="detail-label"><i class="fas fa-info-circle"></i> Status:</span>
+                    <span class="detail-value">
+                        <span class="status-badge {% if asset.used_status == 'Used' %}status-used{% elif asset.used_status == 'Not Used' %}status-not-used{% elif asset.used_status == 'Out of Service' %}status-out-of-service{% endif %}">
+                            {{ asset.used_status or 'Not Used' }}
+                        </span>
+                    </span>
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+    {% else %}
+        <div class="no-items">
+            <i class="fas fa-inbox fa-3x mb-3" style="color: #555;"></i>
+            <div>
+                {% if search_query %}
+                    No items found matching "{{ search_query }}"
+                {% else %}
+                    No items found in this department
+                {% endif %}
+            </div>
+        </div>
+    {% endif %}
+</div>
+
+<!-- Pagination -->
+{% if total_pages > 1 %}
+<div class="pagination-section">
+    <nav aria-label="Page navigation">
+        <ul class="pagination pagination-sm justify-content-center mb-3">
+            <li class="page-item {% if page == 1 %}disabled{% endif %}">
+                <a class="page-link" href="?page=1&search={{ search_query }}&per_page={{ per_page }}">
+                    <i class="fas fa-angle-double-left"></i>
+                </a>
+            </li>
+            <li class="page-item {% if page == 1 %}disabled{% endif %}">
+                <a class="page-link" href="?page={{ page - 1 if page > 1 else 1 }}&search={{ search_query }}&per_page={{ per_page }}">
+                    <i class="fas fa-angle-left"></i>
+                </a>
+            </li>
+            
+            {% set start_page = [1, page - 1]|max %}
+            {% set end_page = [total_pages, page + 1]|min %}
+            
+            {% for p in range(start_page, end_page + 1) %}
+                <li class="page-item {% if p == page %}active{% endif %}">
+                    <a class="page-link" href="?page={{ p }}&search={{ search_query }}&per_page={{ per_page }}">{{ p }}</a>
+                </li>
+            {% endfor %}
+            
+            <li class="page-item {% if page == total_pages %}disabled{% endif %}">
+                <a class="page-link" href="?page={{ page + 1 if page < total_pages else total_pages }}&search={{ search_query }}&per_page={{ per_page }}">
+                    <i class="fas fa-angle-right"></i>
+                </a>
+            </li>
+            <li class="page-item {% if page == total_pages %}disabled{% endif %}">
+                <a class="page-link" href="?page={{ total_pages }}&search={{ search_query }}&per_page={{ per_page }}">
+                    <i class="fas fa-angle-double-right"></i>
+                </a>
+            </li>
+        </ul>
+        
+        <!-- Jump to page for mobile -->
+        <div class="d-flex justify-content-center align-items-center">
+            <span class="me-2 text-muted small">Page:</span>
+            <input type="number" id="jumpToPage" class="form-control me-2" style="width: 60px; font-size: 0.9em;" 
+                   min="1" max="{{ total_pages }}" value="{{ page }}" 
+                   onkeypress="if(event.key==='Enter') jumpToPageMobile()">
+            <span class="text-muted small">of {{ total_pages }}</span>
+        </div>
+    </nav>
+</div>
+{% endif %}
+
+<a href="/" class="btn back-btn">
+    <i class="fas fa-home"></i> Back to Main System
+</a>
+
+<script>
+    // Auto-submit search after typing
+    let searchTimeout;
+    document.getElementById('searchInput').addEventListener('input', function() {
+        clearTimeout(searchTimeout);
+        searchTimeout = setTimeout(() => {
+            if (this.value.length >= 2 || this.value.length === 0) {
+                this.form.submit();
+            }
+        }, 600);
+    });
+
+    // Jump to page functionality
+    function jumpToPageMobile() {
+        const pageInput = document.getElementById('jumpToPage');
+        const pageNumber = parseInt(pageInput.value);
+        const maxPages = parseInt(pageInput.getAttribute('max'));
+        
+        if (pageNumber >= 1 && pageNumber <= maxPages) {
+            const currentUrl = new URL(window.location);
+            currentUrl.searchParams.set('page', pageNumber);
+            window.location.href = currentUrl.toString();
+        } else {
+            alert(`Please enter a page number between 1 and ${maxPages}`);
+            pageInput.value = parseInt('{{ page }}');
+        }
+    }
+
+    // Focus search on page load if no results and no search query
+    if (document.querySelectorAll('.item-card').length === 0 && !document.getElementById('searchInput').value) {
+        document.getElementById('searchInput').focus();
+    }
+</script>
+
+</body>
+</html> 

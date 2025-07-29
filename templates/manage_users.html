@@ -1,0 +1,361 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Manage Users - Asset Tracking System</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        body {
+            background: linear-gradient(135deg, #000000 0%, #333333 100%);
+            min-height: 100vh;
+            padding: 20px 0;
+        }
+        
+        .manage-users-container {
+            background: white;
+            border-radius: 10px;
+            box-shadow: 0 15px 35px rgba(0, 0, 0, 0.1);
+            padding: 2rem;
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        
+        .header-section {
+            text-align: center;
+            margin-bottom: 2rem;
+        }
+        
+        .header-section img {
+            width: 60px;
+            height: 60px;
+            margin-bottom: 1rem;
+        }
+        
+        .header-section h1 {
+            color: #333;
+            font-size: 1.8rem;
+            margin-bottom: 0.5rem;
+        }
+        
+        .header-section p {
+            color: #666;
+            font-size: 0.9rem;
+        }
+        
+        .user-card {
+            border: 1px solid #e1e5e9;
+            border-radius: 8px;
+            padding: 1rem;
+            margin-bottom: 1rem;
+            transition: box-shadow 0.3s ease;
+        }
+        
+        .user-card:hover {
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
+        }
+        
+        .role-badge {
+            font-size: 0.8rem;
+            padding: 0.25rem 0.5rem;
+        }
+        
+        .role-admin {
+            background-color: #dc3545;
+            color: white;
+        }
+        
+        .role-purchasing {
+            background-color: #fd7e14;
+            color: white;
+        }
+        
+        .user-info {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+        
+        .user-details {
+            flex: 1;
+        }
+        
+        .user-actions {
+            display: flex;
+            gap: 0.5rem;
+        }
+        
+        .btn-sm {
+            padding: 0.25rem 0.5rem;
+            font-size: 0.8rem;
+        }
+        
+        .stats-card {
+            background: linear-gradient(135deg, #ffd700 0%, #ffed4e 100%);
+            color: #000000;
+            border-radius: 8px;
+            padding: 1rem;
+            margin-bottom: 1rem;
+        }
+        
+        .stats-card h5 {
+            margin-bottom: 0.5rem;
+        }
+        
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1rem;
+            margin-bottom: 2rem;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="manage-users-container">
+            <div class="header-section">
+                <img src="{{ url_for('static', filename='MAA_Logo.png') }}" alt="MAA Logo">
+                <h1>Manage Users</h1>
+                <p>View and manage all user accounts</p>
+            </div>
+
+            <!-- Flash Messages -->
+            {% with messages = get_flashed_messages(with_categories=true) %}
+                {% if messages %}
+                    {% for category, message in messages %}
+                        <div class="alert alert-{{ 'danger' if category == 'error' else category }} alert-dismissible fade show" role="alert">
+                            {{ message }}
+                            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                        </div>
+                    {% endfor %}
+                {% endif %}
+            {% endwith %}
+
+            <!-- Statistics -->
+            <div class="stats-grid">
+                <div class="stats-card">
+                    <h5><i class="fas fa-users"></i> Total Users</h5>
+                    <h3>{{ users|length }}</h3>
+                </div>
+                <div class="stats-card">
+                    <h5><i class="fas fa-shield-alt"></i> Administrators</h5>
+                    <h3>{{ users|selectattr('2', 'equalto', 'admin')|list|length }}</h3>
+                </div>
+                <div class="stats-card">
+                    <h5><i class="fas fa-shopping-cart"></i> Purchasing Users</h5>
+                    <h3>{{ users|selectattr('2', 'equalto', 'purchasing')|list|length }}</h3>
+                </div>
+            </div>
+
+            <!-- Action Buttons -->
+            <div class="d-flex justify-content-between align-items-center mb-3">
+                <h4><i class="fas fa-list"></i> User List</h4>
+                <div>
+                    <button class="btn btn-danger me-2" id="bulkDeleteBtn" style="display: none;">
+                        <i class="fas fa-trash"></i> Delete Selected
+                    </button>
+                    <a href="{{ url_for('add_auth_user') }}" class="btn btn-success">
+                        <i class="fas fa-user-plus"></i> Add New User
+                    </a>
+                    <a href="{{ url_for('dashboard') }}" class="btn btn-secondary ms-2">
+                        <i class="fas fa-arrow-left"></i> Back to Dashboard
+                    </a>
+                </div>
+            </div>
+
+            <!-- Users List -->
+            {% if users %}
+                {% for user in users %}
+                    <div class="user-card">
+                        <div class="user-info">
+                            <div class="user-details">
+                                {% if user[1] != 'admin' and user[1] != 'purchasing' %}
+                                    <div class="form-check" style="margin-bottom: 0.5rem;">
+                                        <input class="form-check-input user-checkbox" type="checkbox" value="{{ user[0] }}" id="user_{{ user[0] }}">
+                                        <label class="form-check-label" for="user_{{ user[0] }}">
+                                            <small>Select for bulk delete</small>
+                                        </label>
+                                    </div>
+                                {% endif %}
+                                <div class="d-flex align-items-center mb-2">
+                                    <h5 class="mb-0 me-3">{{ user[1] }}</h5>
+                                    <span class="badge role-badge role-{{ user[2] }}">
+                                        {{ user[2]|title }}
+                                    </span>
+                                </div>
+                                <div class="text-muted">
+                                    <small>
+                                        <i class="fas fa-calendar"></i> Created: {{ user[3]|string|truncate(19, true, '') }}
+                                    </small>
+                                </div>
+                            </div>
+                            <div class="user-actions">
+                                <button class="btn btn-outline-info btn-sm" onclick="showUserDetails('{{ user[1] }}', '{{ user[2] }}')">
+                                    <i class="fas fa-eye"></i> View
+                                </button>
+                                {% if user[1] != 'admin' and user[1] != 'purchasing' %}
+                                    <button class="btn btn-outline-warning btn-sm" onclick="resetPassword('{{ user[1] }}')">
+                                        <i class="fas fa-key"></i> Reset Password
+                                    </button>
+                                    <button class="btn btn-outline-danger btn-sm" onclick="deleteUser('{{ user[0] }}', '{{ user[1] }}')">
+                                        <i class="fas fa-trash"></i> Delete
+                                    </button>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+                {% endfor %}
+            {% else %}
+                <div class="text-center py-4">
+                    <i class="fas fa-users fa-3x text-muted mb-3"></i>
+                    <h5 class="text-muted">No users found</h5>
+                    <p class="text-muted">Start by adding your first user account.</p>
+                    <a href="{{ url_for('add_auth_user') }}" class="btn btn-primary">
+                        <i class="fas fa-user-plus"></i> Add First User
+                    </a>
+                </div>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- User Details Modal -->
+    <div class="modal fade" id="userDetailsModal" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">User Details</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div id="userDetailsContent">
+                        <!-- Content will be populated by JavaScript -->
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        function showUserDetails(username, role) {
+            const modal = new bootstrap.Modal(document.getElementById('userDetailsModal'));
+            const content = document.getElementById('userDetailsContent');
+            
+            content.innerHTML = `
+                <div class="row">
+                    <div class="col-md-6">
+                        <strong>Username:</strong><br>
+                        <span class="text-muted">${username}</span>
+                    </div>
+                    <div class="col-md-6">
+                        <strong>Role:</strong><br>
+                        <span class="badge role-${role}">${role.charAt(0).toUpperCase() + role.slice(1)}</span>
+                    </div>
+                </div>
+                <hr>
+                <div class="row">
+                    <div class="col-12">
+                        <strong>Permissions:</strong><br>
+                        <ul class="mt-2">
+                            ${role === 'admin' ? 
+                                '<li>Full access to all features</li><li>User management</li><li>Password recovery</li><li>System administration</li>' :
+                                '<li>Asset management</li><li>View all assets</li><li>Add/edit/delete assets</li><li>Department management</li>'
+                            }
+                        </ul>
+                    </div>
+                </div>
+            `;
+            
+            modal.show();
+        }
+
+        function resetPassword(username) {
+            if (confirm(`Are you sure you want to reset the password for user "${username}"?`)) {
+                // This would typically make an AJAX call to reset the password
+                alert('Password reset functionality would be implemented here.');
+            }
+        }
+
+        function deleteUser(userId, username) {
+            if (confirm(`Are you sure you want to delete user "${username}"? This action cannot be undone.`)) {
+                // Use fetch to make the delete request
+                fetch(`/delete_auth_user/${parseInt(userId)}`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/x-www-form-urlencoded',
+                    }
+                })
+                .then(response => {
+                    if (response.redirected) {
+                        window.location.href = response.url;
+                    } else {
+                        // Reload the page to show updated user list
+                        window.location.reload();
+                    }
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    alert('Failed to delete user. Please try again.');
+                });
+            }
+        }
+
+        // Bulk delete functionality
+        document.addEventListener('DOMContentLoaded', function() {
+            const checkboxes = document.querySelectorAll('.user-checkbox');
+            const bulkDeleteBtn = document.getElementById('bulkDeleteBtn');
+
+            // Show/hide bulk delete button based on selections
+            function updateBulkDeleteButton() {
+                const checkedBoxes = document.querySelectorAll('.user-checkbox:checked');
+                if (checkedBoxes.length > 0) {
+                    bulkDeleteBtn.style.display = 'inline-block';
+                    bulkDeleteBtn.textContent = `Delete Selected (${checkedBoxes.length})`;
+                } else {
+                    bulkDeleteBtn.style.display = 'none';
+                }
+            }
+
+            // Add event listeners to checkboxes
+            checkboxes.forEach(checkbox => {
+                checkbox.addEventListener('change', updateBulkDeleteButton);
+            });
+
+            // Bulk delete button click handler
+            bulkDeleteBtn.addEventListener('click', function() {
+                const checkedBoxes = document.querySelectorAll('.user-checkbox:checked');
+                const userIds = Array.from(checkedBoxes).map(cb => cb.value);
+                
+                if (confirm(`Are you sure you want to delete ${userIds.length} selected user(s)? This action cannot be undone.`)) {
+                    // Delete users one by one using fetch
+                    let completed = 0;
+                    userIds.forEach(userId => {
+                        fetch(`/delete_auth_user/${parseInt(userId)}`, {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/x-www-form-urlencoded',
+                            }
+                        })
+                        .then(response => {
+                            completed++;
+                            if (completed === userIds.length) {
+                                // All deletions completed, reload the page
+                                window.location.reload();
+                            }
+                        })
+                        .catch(error => {
+                            console.error('Error:', error);
+                            alert('Failed to delete some users. Please try again.');
+                        });
+                    });
+                }
+            });
+        });
+    </script>
+</body>
+</html> 
