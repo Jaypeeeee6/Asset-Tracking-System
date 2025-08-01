@@ -59,10 +59,10 @@
                     <button class="btn btn-danger me-2" id="bulkDeleteBtn" style="display: none;">
                         <i class="fas fa-trash"></i> Delete Selected
                     </button>
-                    <a href="{{ url_for('add_auth_user') }}" class="btn btn-success">
+                    <a href="{{ url_for('auth.add_auth_user') }}" class="btn btn-success">
                         <i class="fas fa-user-plus"></i> Add New User
                     </a>
-                    <a href="{{ url_for('dashboard') }}" class="btn btn-secondary ms-2">
+                    <a href="{{ url_for('assets.dashboard') }}" class="btn btn-secondary ms-2">
                         <i class="fas fa-arrow-left"></i> Back to Dashboard
                     </a>
                 </div>
@@ -99,9 +99,6 @@
                                     <i class="fas fa-eye"></i> View
                                 </button>
                                 {% if user[1] != 'admin' and user[1] != 'purchasing' %}
-                                    <button class="btn btn-outline-warning btn-sm" onclick="resetPassword('{{ user[1] }}')">
-                                        <i class="fas fa-key"></i> Reset Password
-                                    </button>
                                     <button class="btn btn-outline-danger btn-sm" onclick="deleteUser('{{ user[0] }}', '{{ user[1] }}')">
                                         <i class="fas fa-trash"></i> Delete
                                     </button>
@@ -115,7 +112,7 @@
                     <i class="fas fa-users fa-3x text-muted mb-3"></i>
                     <h5 class="text-muted">No users found</h5>
                     <p class="text-muted">Start by adding your first user account.</p>
-                    <a href="{{ url_for('add_auth_user') }}" class="btn btn-primary">
+                    <a href="{{ url_for('auth.add_auth_user') }}" class="btn btn-primary">
                         <i class="fas fa-user-plus"></i> Add First User
                     </a>
                 </div>
@@ -166,7 +163,7 @@
                         <strong>Permissions:</strong><br>
                         <ul class="mt-2">
                             ${role === 'admin' ? 
-                                '<li>Full access to all features</li><li>User management</li><li>Password recovery</li><li>System administration</li>' :
+                                '<li>Full access to all features</li><li>User management</li><li>System administration</li>' :
                                 '<li>Asset management</li><li>View all assets</li><li>Add/edit/delete assets</li><li>Department management</li>'
                             }
                         </ul>
@@ -177,17 +174,12 @@
             modal.show();
         }
 
-        function resetPassword(username) {
-            if (confirm(`Are you sure you want to reset the password for user "${username}"?`)) {
-                // This would typically make an AJAX call to reset the password
-                alert('Password reset functionality would be implemented here.');
-            }
-        }
+
 
         function deleteUser(userId, username) {
             if (confirm(`Are you sure you want to delete user "${username}"? This action cannot be undone.`)) {
                 // Use fetch to make the delete request
-                fetch(`/delete_auth_user/${parseInt(userId)}`, {
+                fetch(`/auth/delete_auth_user/${parseInt(userId)}`, {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/x-www-form-urlencoded',
@@ -238,7 +230,7 @@
                     // Delete users one by one using fetch
                     let completed = 0;
                     userIds.forEach(userId => {
-                        fetch(`/delete_auth_user/${parseInt(userId)}`, {
+                        fetch(`/auth/delete_auth_user/${parseInt(userId)}`, {
                             method: 'POST',
                             headers: {
                                 'Content-Type': 'application/x-www-form-urlencoded',

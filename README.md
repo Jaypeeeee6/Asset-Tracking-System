@@ -167,7 +167,7 @@ python app.py
 ### Authentication
 - `GET/POST /` - Login page and authentication
 - `GET /logout` - User logout
-- `GET /forgot_password` - Password recovery (admin only)
+
 
 ### Asset Management
 - `GET /dashboard` - Main asset dashboard

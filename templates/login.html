@@ -23,6 +23,11 @@
     </style>
 </head>
 <body>
+    <!-- Dark Mode Toggle -->
+    <button id="darkModeToggle" class="btn btn-sm" style="position: fixed; top: 20px; right: 20px; border-color: #6c757d; color: #6c757d; background: rgba(255,255,255,0.9);">
+        <i class="fas fa-moon"></i><span> Dark Mode</span>
+    </button>
+    
     <div class="login-container">
         <div class="logo">
             <img src="{{ url_for('static', filename='MAA_Logo.png') }}" alt="MAA Logo">
@@ -42,7 +47,7 @@
             {% endwith %}
         </div>
 
-        <form method="POST" action="{{ url_for('login') }}">
+        <form method="POST" action="{{ url_for('auth.login') }}">
             <div class="form-group">
                 <label for="username">Username</label>
                 <input type="text" id="username" name="username" required>
@@ -57,9 +62,62 @@
         </form>
 
         <div class="forgot-password">
-            <small class="text-muted">Contact the IT Department for password recovery</small>
+                            <small class="text-muted">Contact the IT Department for account access</small>
         </div>
 
     </div>
+
+    <script>
+        // Dark mode toggle functionality
+        document.addEventListener('DOMContentLoaded', function() {
+            const darkModeToggle = document.getElementById('darkModeToggle');
+            const body = document.body;
+            
+            // Debug: Check if button exists
+            if (!darkModeToggle) {
+                console.error('Dark mode toggle button not found!');
+                return;
+            }
+            
+            // Check for saved dark mode preference
+            const darkMode = localStorage.getItem('darkMode') === 'true';
+            
+            // Apply dark mode if previously enabled
+            if (darkMode) {
+                body.classList.add('dark-mode');
+                updateDarkModeButton(true);
+            }
+            
+            // Toggle dark mode
+            darkModeToggle.addEventListener('click', function() {
+                console.log('Dark mode toggle clicked!');
+                body.classList.toggle('dark-mode');
+                const isDarkMode = body.classList.contains('dark-mode');
+                
+                // Save preference to localStorage
+                localStorage.setItem('darkMode', isDarkMode);
+                
+                // Update button appearance
+                updateDarkModeButton(isDarkMode);
+            });
+            
+            function updateDarkModeButton(isDarkMode) {
+                const icon = darkModeToggle.querySelector('i');
+                const text = darkModeToggle.querySelector('span');
+                
+                if (isDarkMode) {
+                    icon.className = 'fas fa-sun';
+                    text.textContent = ' Light Mode';
+                    darkModeToggle.style.borderColor = '#ffd700';
+                    darkModeToggle.style.color = '#ffd700';
+                } else {
+                    icon.className = 'fas fa-moon';
+                    text.textContent = ' Dark Mode';
+                    darkModeToggle.style.borderColor = '#6c757d';
+                    darkModeToggle.style.color = '#6c757d';
+                }
+            }
+        });
+    </script>
 </body>
 </html> 

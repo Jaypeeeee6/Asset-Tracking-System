@@ -1,14 +1,14 @@
 body {
-    background: #111;
+    background: #f8f9fa;
     font-family: 'Montserrat', 'Roboto', Arial, sans-serif;
-    color: #f5f5f5;
+    color: #333;
 }
 
 .container {
     max-width: 1000px;
-    background: #181818;
+    background: #ffffff;
     border-radius: 18px;
-    box-shadow: 0 4px 32px rgba(44,44,44,0.22);
+    box-shadow: 0 4px 32px rgba(0,0,0,0.1);
     padding: 36px 36px 28px 36px;
     margin-top: 48px;
 }
@@ -78,10 +78,10 @@ h1, .modal-title {
 }
 
 .table {
-    background: #181818;
+    background: #ffffff;
     border-radius: 14px;
     overflow: hidden;
-    box-shadow: 0 2px 12px rgba(44,44,44,0.18);
+    box-shadow: 0 2px 12px rgba(0,0,0,0.1);
     margin-bottom: 0;
 }
 
@@ -103,15 +103,15 @@ h1, .modal-title {
 }
 
 .table-striped > tbody > tr:nth-of-type(odd) {
-    background-color: #222;
+    background-color: #f8f9fa;
 }
 
 .table-striped > tbody > tr:nth-of-type(even) {
-    background-color: #181818;
+    background-color: #ffffff;
 }
 
 .table tbody tr:hover {
-    background: #333;
+    background: #e9ecef;
     transition: background 0.2s;
 }
 
@@ -139,21 +139,21 @@ h1, .modal-title {
 .form-select, .form-control {
     border-radius: 8px;
     border: 1.5px solid #D4AF37;
-    background: #222;
-    color: #f5f5f5;
+    background: #ffffff;
+    color: #333;
 }
 
 .form-select:focus, .form-control:focus {
-    background: #222;
-    color: #fff;
+    background: #ffffff;
+    color: #333;
     border-color: #FFD700;
 }
 
 .modal-content {
     border-radius: 18px;
-    background: #181818;
-    color: #f5f5f5;
-    box-shadow: 0 4px 24px rgba(44,44,44,0.22);
+    background: #ffffff;
+    color: #333;
+    box-shadow: 0 4px 24px rgba(0,0,0,0.15);
 }
 
 #qrcode {
@@ -511,9 +511,9 @@ h1, .modal-title {
 
 /* ===== ASSET INFO PAGE STYLES ===== */
 .asset-card {
-    background: #181818;
+    background: #ffffff;
     border-radius: 18px;
-    box-shadow: 0 4px 32px rgba(44,44,44,0.22);
+    box-shadow: 0 4px 32px rgba(0,0,0,0.1);
     padding: 36px 32px 28px 32px;
     margin: 48px auto 0 auto;
     max-width: 500px;
@@ -528,8 +528,8 @@ h1, .modal-title {
 }
 
 .list-group-item {
-    background: #222;
-    color: #FFD700;
+    background: #f8f9fa;
+    color: #333;
     border: none;
     font-size: 1.08em;
     margin-bottom: 6px;
@@ -538,9 +538,9 @@ h1, .modal-title {
 
 /* ===== DEPARTMENT ITEMS PAGE STYLES ===== */
 .department-header {
-    background: #181818;
+    background: #ffffff;
     border-radius: 12px;
-    box-shadow: 0 4px 32px rgba(44,44,44,0.22);
+    box-shadow: 0 4px 32px rgba(0,0,0,0.1);
     padding: 20px;
     margin-bottom: 20px;
     text-align: center;
@@ -561,7 +561,7 @@ h1, .modal-title {
 }
 
 .search-section {
-    background: #181818;
+    background: #ffffff;
     border-radius: 12px;
     padding: 15px;
     margin-bottom: 20px;
@@ -572,9 +572,9 @@ h1, .modal-title {
 }
 
 .item-card {
-    background: #181818;
+    background: #ffffff;
     border-radius: 10px;
-    box-shadow: 0 2px 16px rgba(44,44,44,0.15);
+    box-shadow: 0 2px 16px rgba(0,0,0,0.1);
     padding: 15px;
     margin-bottom: 12px;
     border-left: 4px solid #D4AF37;
@@ -644,11 +644,11 @@ h1, .modal-title {
 
 .no-items {
     text-align: center;
-    color: #888;
+    color: #666;
     font-style: italic;
     margin: 40px 0;
     padding: 40px 20px;
-    background: #181818;
+    background: #ffffff;
     border-radius: 12px;
 }
 
@@ -669,20 +669,20 @@ h1, .modal-title {
 }
 
 .pagination-section {
-    background: #181818;
+    background: #ffffff;
     border-radius: 12px;
     padding: 15px;
     margin-bottom: 20px;
 }
 
 .pagination .page-link {
-    background: #222;
-    border: 1px solid #444;
+    background: #ffffff;
+    border: 1px solid #dee2e6;
     color: #D4AF37;
 }
 
 .pagination .page-link:hover {
-    background: #333;
+    background: #f8f9fa;
     color: #FFD700;
 }
 
@@ -693,7 +693,7 @@ h1, .modal-title {
 }
 
 .stats-info {
-    color: #888;
+    color: #666;
     font-size: 0.9em;
     text-align: center;
     margin-bottom: 10px;
@@ -917,8 +917,8 @@ h1, .modal-title {
 }
 
 .card-header {
-    background: linear-gradient(135deg, #000000 0%, #333333 100%);
-    color: white;
+    background: linear-gradient(135deg, #FFD700 0%, #D4AF37 100%);
+    color: #333;
     border: none;
     padding: 1rem 1.5rem;
 }
@@ -959,4 +959,165 @@ h1, .modal-title {
 
 .form-text i {
     color: #ffd700;
+}
+
+/* ===== DARK MODE STYLES ===== */
+body.dark-mode {
+    background: #111;
+    color: #f5f5f5;
+    transition: all 0.3s ease;
+}
+
+body.dark-mode .container {
+    background: #181818;
+    box-shadow: 0 4px 32px rgba(0,0,0,0.3);
+    transition: all 0.3s ease;
+}
+
+body.dark-mode .table {
+    background: #181818;
+    box-shadow: 0 2px 12px rgba(0,0,0,0.3);
+    transition: all 0.3s ease;
+}
+
+body.dark-mode .table-striped > tbody > tr:nth-of-type(odd) {
+    background: #222;
+}
+
+body.dark-mode .table-striped > tbody > tr:nth-of-type(even) {
+    background: #181818;
+}
+
+body.dark-mode .table tbody tr:hover {
+    background: #333;
+}
+
+body.dark-mode .form-select,
+body.dark-mode .form-control {
+    background: #222;
+    color: #f5f5f5;
+    border-color: #444;
+    transition: all 0.3s ease;
+}
+
+body.dark-mode .form-select:focus,
+body.dark-mode .form-control:focus {
+    background: #222;
+    border-color: #ffd700;
+    color: #f5f5f5;
+    box-shadow: 0 0 0 0.25rem rgba(255, 215, 0, 0.25);
+}
+
+body.dark-mode .modal-content {
+    background: #181818;
+    color: #f5f5f5;
+    box-shadow: 0 4px 32px rgba(0,0,0,0.5);
+    transition: all 0.3s ease;
+}
+
+body.dark-mode .asset-card {
+    background: #181818;
+    box-shadow: 0 2px 12px rgba(0,0,0,0.3);
+    transition: all 0.3s ease;
+}
+
+body.dark-mode .list-group-item {
+    background: #222;
+    color: #f5f5f5;
+    transition: all 0.3s ease;
+}
+
+body.dark-mode .department-header {
+    background: #181818;
+    box-shadow: 0 2px 12px rgba(0,0,0,0.3);
+    transition: all 0.3s ease;
+}
+
+body.dark-mode .search-section {
+    background: #181818;
+    transition: all 0.3s ease;
+}
+
+body.dark-mode .item-card {
+    background: #181818;
+    box-shadow: 0 2px 12px rgba(0,0,0,0.3);
+    transition: all 0.3s ease;
+}
+
+body.dark-mode .no-items {
+    background: #181818;
+    color: #888;
+    transition: all 0.3s ease;
+}
+
+body.dark-mode .pagination-section {
+    background: #181818;
+    transition: all 0.3s ease;
+}
+
+body.dark-mode .pagination .page-link {
+    background: #222;
+    border-color: #444;
+    color: #f5f5f5;
+    transition: all 0.3s ease;
+}
+
+body.dark-mode .pagination .page-link:hover {
+    background: #333;
+}
+
+body.dark-mode .stats-info {
+    color: #888;
+}
+
+body.dark-mode .card-header {
+    background: linear-gradient(135deg, #000000 0%, #333333 100%);
+    color: white;
+    transition: all 0.3s ease;
+}
+
+body.dark-mode .card {
+    background: #181818;
+    color: #f5f5f5;
+    transition: all 0.3s ease;
+}
+
+/* Dark mode for login page */
+body.dark-mode .login-container {
+    background: #181818;
+    color: #f5f5f5;
+    transition: all 0.3s ease;
+}
+
+body.dark-mode .logo h1 {
+    color: #ffd700;
+    transition: all 0.3s ease;
+}
+
+body.dark-mode .logo p {
+    color: #ccc;
+    transition: all 0.3s ease;
+}
+
+body.dark-mode .form-group label {
+    color: #f5f5f5;
+    transition: all 0.3s ease;
+}
+
+/* Dark mode for form labels */
+body.dark-mode .form-label {
+    color: #e9ecef;
+}
+
+/* Dark mode for input groups */
+body.dark-mode .input-group .form-control {
+    background-color: #2b3035;
+    border-color: #495057;
+    color: #e9ecef;
+}
+
+body.dark-mode .input-group .form-control:focus {
+    background-color: #2b3035;
+    border-color: #ffd700;
+    color: #e9ecef;
 } 

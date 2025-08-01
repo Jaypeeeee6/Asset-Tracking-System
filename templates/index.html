@@ -30,18 +30,21 @@
                     </span>
                 </div>
                 <div class="logout-section">
+                    <!-- Dark Mode Toggle -->
+                    <button id="darkModeToggle" class="btn btn-sm me-2" type="button" onclick="toggleDarkMode()" style="border-color: #6c757d; color: #6c757d; background: rgba(255,255,255,0.9); z-index: 1000;">
+                        <i class="fas fa-moon"></i><span> Dark Mode</span>
+                    </button>
+                    
                     {% if current_user.role == 'admin' %}
-                        <a href="{{ url_for('manage_users') }}" class="btn btn-sm me-2" style="border-color: #ffd700; color: #ffd700;">
+                        <a href="{{ url_for('auth.manage_users') }}" class="btn btn-sm me-2" style="border-color: #ffd700; color: #ffd700;">
                             <i class="fas fa-users"></i> Manage Users
                         </a>
-                        <a href="{{ url_for('add_auth_user') }}" class="btn btn-sm me-2" style="border-color: #ffd700; color: #ffd700;">
+                        <a href="{{ url_for('auth.add_auth_user') }}" class="btn btn-sm me-2" style="border-color: #ffd700; color: #ffd700;">
                             <i class="fas fa-user-plus"></i> Add User
                         </a>
-                        <a href="{{ url_for('forgot_password') }}" class="btn btn-sm me-2" style="border-color: #ffd700; color: #ffd700;">
-                            <i class="fas fa-key"></i> Password Recovery
-                        </a>
+                        
                     {% endif %}
-                    <a href="{{ url_for('logout') }}" class="btn btn-sm" style="border-color: #dc3545; color: #dc3545;">
+                                            <a href="{{ url_for('auth.logout') }}" class="btn btn-sm" style="border-color: #dc3545; color: #dc3545;">
                         <i class="fas fa-sign-out-alt"></i> Logout
                     </a>
                 </div>
@@ -120,53 +123,69 @@
 
     <!-- Advanced Search and Filters -->
     <div class="card mb-4">
-        <div class="card-header">
+        <div class="card-header d-flex justify-content-between align-items-center">
             <h5 class="mb-0"><i class="fas fa-search"></i> Search & Filters</h5>
+            <div class="d-flex gap-2">
+                <button type="button" class="btn btn-success btn-sm" id="addAssetBtn" data-bs-toggle="modal" data-bs-target="#addAssetModal">
+                    <i class="fas fa-plus"></i> Add Asset
+                </button>
+                <button type="button" class="btn btn-info btn-sm" id="departmentQRBtn" data-bs-toggle="modal" data-bs-target="#departmentQRModal">
+                    <i class="fas fa-qrcode"></i> QR Codes
+                </button>
+            </div>
         </div>
         <div class="card-body">
             <form method="get" id="searchForm">
-                <!-- Search and Filters Row -->
+                <!-- Search Row -->
                 <div class="row mb-3">
-                    <div class="col-md-6">
+                    <div class="col-md-8">
                         <label for="globalSearch" class="form-label">Global Search</label>
+                        <div class="input-group">
                         <input type="text" class="form-control" id="globalSearch" name="search" 
                                value="{{ request.args.get('search', '') }}" 
                                placeholder="Search names, owners, codes, asset types, etc...">
+                            <button type="submit" class="btn btn-primary">
+                                <i class="fas fa-search"></i> Search
+                            </button>
+                            <button type="button" class="btn btn-outline-secondary" onclick="clearFilters()">
+                                <i class="fas fa-times"></i> Clear
+                            </button>
                     </div>
-                    <div class="col-md-2">
+                    </div>
+                    <div class="col-md-4">
+                        <label for="itemsPerPage" class="form-label">Items per Page</label>
+                        <select class="form-select" id="itemsPerPage" name="per_page">
+                            <option value="10" {% if request.args.get('per_page') == '10' %}selected{% endif %}>10 items</option>
+                            <option value="25" {% if request.args.get('per_page') == '25' %}selected{% endif %}>25 items</option>
+                            <option value="50" {% if request.args.get('per_page') == '50' %}selected{% endif %}>50 items</option>
+                            <option value="100" {% if request.args.get('per_page') == '100' %}selected{% endif %}>100 items</option>
+                        </select>
+                    </div>
+                </div>
+                
+                <!-- Filters Row -->
+                <div class="row mb-3">
+                    <div class="col-md-3">
                         <label for="building" class="form-label">Building</label>
-                        <select class="form-select" id="buildingFilter" name="building" onchange="document.getElementById('searchForm').submit()">
+                        <select class="form-select" id="buildingFilter" name="building">
                             <option value="">All Buildings</option>
                             {% for b in buildings %}
                                 <option value="{{ b }}" {% if b == building_filter %}selected{% endif %}>{{ b }}</option>
                             {% endfor %}
                         </select>
                     </div>
-                    <div class="col-md-2">
+                    <div class="col-md-3">
                         <label for="department" class="form-label">Department</label>
-                        <select class="form-select" id="departmentFilter" name="department" onchange="document.getElementById('searchForm').submit()">
+                        <select class="form-select" id="departmentFilter" name="department">
                             <option value="">All Departments</option>
                             {% for d in departments %}
                                 <option value="{{ d }}" {% if d == department_filter %}selected{% endif %}>{{ d }}</option>
                             {% endfor %}
                         </select>
                     </div>
-                    <div class="col-md-2">
-                        <label for="itemsPerPage" class="form-label">Items per Page</label>
-                        <select class="form-select" id="itemsPerPage" name="per_page" onchange="document.getElementById('searchForm').submit()">
-                            <option value="10" {% if request.args.get('per_page') == '10' %}selected{% endif %}>10</option>
-                            <option value="25" {% if request.args.get('per_page') == '25' %}selected{% endif %}>25</option>
-                            <option value="50" {% if request.args.get('per_page') == '50' %}selected{% endif %}>50</option>
-                            <option value="100" {% if request.args.get('per_page') == '100' %}selected{% endif %}>100</option>
-                        </select>
-                    </div>
-                </div>
-                
-                <!-- Additional Filters Row -->
-                <div class="row mb-3">
                     <div class="col-md-3">
                         <label for="statusFilter" class="form-label">Status</label>
-                        <select class="form-select" id="statusFilter" name="status" onchange="document.getElementById('searchForm').submit()">
+                        <select class="form-select" id="statusFilter" name="status">
                             <option value="">All Status</option>
                             <option value="Used" {% if request.args.get('status') == 'Used' %}selected{% endif %}>Used</option>
                             <option value="Not Used" {% if request.args.get('status') == 'Not Used' %}selected{% endif %}>Not Used</option>
@@ -175,52 +194,35 @@
                     </div>
                     <div class="col-md-3">
                         <label for="assetTypeFilter" class="form-label">Asset Type</label>
-                        <select class="form-select" id="assetTypeFilter" name="asset_type" onchange="document.getElementById('searchForm').submit()">
+                        <select class="form-select" id="assetTypeFilter" name="asset_type">
                             <option value="">All Types</option>
-                            <option value="Technical Device" {% if request.args.get('asset_type') == 'Technical Device' %}selected{% endif %}>Technical Device</option>
+                            <option value="Electronics" {% if request.args.get('asset_type') == 'Electronics' %}selected{% endif %}>Electronics</option>
                             <option value="Furniture" {% if request.args.get('asset_type') == 'Furniture' %}selected{% endif %}>Furniture</option>
-                            <option value="Office Supplies" {% if request.args.get('asset_type') == 'Office Supplies' %}selected{% endif %}>Office Supplies</option>
+                            <option value="Equipment" {% if request.args.get('asset_type') == 'Equipment' %}selected{% endif %}>Equipment</option>
+                            <option value="Vehicles" {% if request.args.get('asset_type') == 'Vehicles' %}selected{% endif %}>Vehicles</option>
+                            <option value="Others" {% if request.args.get('asset_type') == 'Others' %}selected{% endif %}>Others</option>
                         </select>
-                    </div>
-                    <div class="col-md-6 d-flex align-items-end">
-                        <div class="btn-group me-2" role="group">
-                            <button type="submit" class="btn btn-primary">
-                                <i class="fas fa-search"></i> Search
-                            </button>
-                            <a href="/" class="btn btn-secondary">
-                                <i class="fas fa-times"></i> Clear
-                            </a>
-                        </div>
-                        <button type="button" class="btn btn-info me-2" id="selectAllBtn">
-                            <i class="fas fa-check-square"></i> Select All
-                        </button>
                     </div>
                 </div>
                 
-                <!-- Action Buttons Row -->
+                <!-- Admin Management Tools -->
+                {% if current_user.role == 'admin' %}
                 <div class="row mb-3">
-                    <div class="col-md-6">
-                        <div class="btn-group" role="group" aria-label="Management Tools">
-                            <button type="button" class="btn btn-outline-primary" id="manageBuildingsBtn" data-bs-toggle="modal" data-bs-target="#buildingManagementModal">
+                    <div class="col-md-12">
+                        <div class="d-flex gap-2 flex-wrap">
+                            <button type="button" class="btn btn-outline-primary btn-sm" id="manageBuildingsBtn" data-bs-toggle="modal" data-bs-target="#buildingManagementModal">
                                 <i class="fas fa-building"></i> Manage Buildings
                             </button>
-                            <button type="button" class="btn btn-outline-success" id="manageDepartmentsBtn" data-bs-toggle="modal" data-bs-target="#departmentManagementModal">
+                            <button type="button" class="btn btn-outline-success btn-sm" id="manageDepartmentsBtn" data-bs-toggle="modal" data-bs-target="#departmentManagementModal">
                                 <i class="fas fa-sitemap"></i> Manage Departments
                             </button>
-                            <button type="button" class="btn btn-outline-info" id="manageUsersBtn" data-bs-toggle="modal" data-bs-target="#userManagementModal">
+                            <button type="button" class="btn btn-outline-info btn-sm" id="manageUsersBtn" data-bs-toggle="modal" data-bs-target="#userManagementModal">
                                 <i class="fas fa-users"></i> Manage Employees
                             </button>
                         </div>
                     </div>
-                    <div class="col-md-6 text-end">
-                        <button type="button" class="btn btn-success me-2" id="addAssetBtn" data-bs-toggle="modal" data-bs-target="#addAssetModal">
-                            <i class="fas fa-plus"></i> Add New Asset
-                        </button>
-                        <button type="button" class="btn btn-info" id="departmentQRBtn" data-bs-toggle="modal" data-bs-target="#departmentQRModal">
-                            <i class="fas fa-qrcode"></i> Department QR Codes
-                        </button>
                     </div>
-                </div>
+                {% endif %}
                 
                 <input type="hidden" name="sort_by" value="{{ sort_by }}">
                 <input type="hidden" name="sort_dir" value="{{ sort_dir }}">
@@ -245,6 +247,7 @@
                 <th><a href="?sort_by=department&sort_dir={{ 'desc' if sort_by == 'department' and sort_dir == 'asc' else 'asc' }}&building={{ building_filter }}&department={{ department_filter }}&search={{ request.args.get('search', '') }}&status={{ request.args.get('status', '') }}&per_page={{ request.args.get('per_page', '10') }}">Department/Section{% if sort_by == 'department' %} {% if sort_dir == 'asc' %}▲{% else %}▼{% endif %}{% endif %}</a></th>
                 <th><a href="?sort_by=used_status&sort_dir={{ 'desc' if sort_by == 'used_status' and sort_dir == 'asc' else 'asc' }}&building={{ building_filter }}&department={{ department_filter }}&search={{ request.args.get('search', '') }}&status={{ request.args.get('status', '') }}&per_page={{ request.args.get('per_page', '10') }}">Status{% if sort_by == 'used_status' %} {% if sort_dir == 'asc' %}▲{% else %}▼{% endif %}{% endif %}</a></th>
                 <th>QR CODE</th>
+                <th>Actions</th>
             </tr>
         </thead>
         <tbody>
@@ -275,6 +278,21 @@
                     </select>
                 </td>
                 <td><a href="#" class="view-qr-link" data-asset-id="{{ asset.id }}">View QR</a></td>
+                <td>
+                    <button class="btn btn-primary btn-sm edit-asset-btn" 
+                            data-asset-id="{{ asset.id }}"
+                            data-asset-name="{{ asset.name }}"
+                            data-asset-type="{{ asset.asset_type or '' }}"
+                            data-asset-quantity="{{ asset.quantity }}"
+                            data-asset-owner="{{ asset.owner }}"
+                            data-asset-building="{{ asset.building }}"
+                            data-asset-department="{{ asset.department }}"
+                            data-asset-status="{{ asset.used_status }}"
+                            data-bs-toggle="modal" 
+                            data-bs-target="#editAssetModal">
+                        <i class="fas fa-edit"></i> Edit
+                    </button>
+                </td>
             </tr>
         {% endfor %}
         </tbody>
@@ -377,7 +395,7 @@
         <h5 class="modal-title" id="addAssetModalLabel">Add New Asset</h5>
         <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
       </div>
-            <form id="addAssetForm" method="post" action="/add">
+                            <form id="addAssetForm" method="post" action="{{ url_for('assets.add_asset') }}">
         <div class="modal-body" style="overflow-y: auto; max-height: 70vh;">
           <div class="alert alert-info mb-3">
             <i class="fas fa-info-circle"></i> 
@@ -385,17 +403,19 @@
             Use the management buttons on the main page to set up your infrastructure first.
           </div>
             <div class="mb-3">
-                <label for="name" class="form-label">Asset Name</label>
-                <input type="text" class="form-control" id="name" name="name" required>
-            </div>
-            <div class="mb-3">
                 <label for="asset_type" class="form-label">Asset Type</label>
                 <select class="form-select" id="asset_type" name="asset_type" required>
                     <option value="">Select Asset Type</option>
-                    <option value="Technical Device">Technical Device</option>
+                    <option value="Electronics">Electronics</option>
                     <option value="Furniture">Furniture</option>
-                    <option value="Office Supplies">Office Supplies</option>
+                    <option value="Equipment">Equipment</option>
+                    <option value="Vehicles">Vehicles</option>
+                    <option value="Others">Others</option>
                 </select>
+            </div>
+            <div class="mb-3">
+                <label for="name" class="form-label">Asset Name</label>
+                <input type="text" class="form-control" id="name" name="name" required>
             </div>
             <div class="mb-3">
                 <label for="quantity" class="form-label">Quantity</label>
@@ -440,6 +460,85 @@
         <div class="modal-footer">
           <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
           <button type="submit" class="btn btn-success">Add Asset</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<!-- Edit Asset Modal -->
+<div class="modal fade" id="editAssetModal" tabindex="-1" aria-labelledby="editAssetModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-lg">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="editAssetModalLabel">Edit Asset</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <form id="editAssetForm" method="post">
+        <div class="modal-body" style="overflow-y: auto; max-height: 70vh;">
+          <div class="alert alert-info mb-3">
+            <i class="fas fa-info-circle"></i> 
+            <strong>Editing Asset:</strong> 
+            <span id="editAssetName"></span>
+          </div>
+            <div class="mb-3">
+                <label for="edit_asset_type" class="form-label">Asset Type</label>
+                <select class="form-select" id="edit_asset_type" name="asset_type" required>
+                    <option value="">Select Asset Type</option>
+                    <option value="Electronics">Electronics</option>
+                    <option value="Furniture">Furniture</option>
+                    <option value="Equipment">Equipment</option>
+                    <option value="Vehicles">Vehicles</option>
+                    <option value="Others">Others</option>
+                </select>
+            </div>
+            <div class="mb-3">
+                <label for="edit_name" class="form-label">Asset Name</label>
+                <input type="text" class="form-control" id="edit_name" name="name" required>
+            </div>
+            <div class="mb-3">
+                <label for="edit_quantity" class="form-label">Quantity</label>
+                <input type="number" class="form-control" id="edit_quantity" name="quantity" min="1" value="1" required>
+            </div>
+            <div class="mb-3">
+                <label for="edit_building" class="form-label">Building</label>
+                <select class="form-select" id="edit_building" name="building" required>
+                    <option value="">Select Building</option>
+                </select>
+            </div>
+            <div class="mb-3">
+                <label for="edit_department" class="form-label">Department/Section</label>
+                <select class="form-select" id="edit_department" name="department" required>
+                    <option value="">Select Building First</option>
+                </select>
+            </div>
+            <div class="mb-3">
+                <div class="form-check mb-2">
+                    <input class="form-check-input" type="checkbox" id="edit_noOwnerCheck" name="no_owner">
+                    <label class="form-check-label" for="edit_noOwnerCheck">
+                        <i class="fas fa-user-slash"></i> No Owner Required
+                    </label>
+                </div>
+                <label for="edit_owner" class="form-label">Owner</label>
+                <select class="form-select" id="edit_owner" name="owner" required>
+                    <option value="">Select Department First</option>
+                </select>
+                <div class="form-text" id="edit_ownerHelp">
+                    <i class="fas fa-info-circle"></i> Select "No Owner Required" for shared assets or when no specific owner is needed
+                </div>
+            </div>
+            <div class="mb-3">
+                <label for="edit_used_status" class="form-label">Status</label>
+                <select class="form-select" id="edit_used_status" name="used_status" required>
+                    <option value="Used">Used</option>
+                    <option value="Not Used">Not Used</option>
+                    <option value="Out of Service">Out of Service</option>
+                </select>
+            </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+          <button type="submit" class="btn btn-primary">Update Asset</button>
         </div>
       </form>
     </div>
@@ -567,6 +666,9 @@
         </div>
       </div>
       <div class="modal-footer">
+        <button type="button" class="btn btn-success" id="exportDepartmentQRPdfBtn">
+          <i class="fas fa-file-pdf"></i> Export to PDF
+        </button>
         <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
       </div>
     </div>
@@ -803,7 +905,7 @@ let selectedAssets = [];
      * Called on page load and after building operations
      */
     function loadBuildings() {
-        fetch('/buildings')
+        fetch('/admin/buildings')
             .then(response => response.json())
             .then(data => {
                 buildingsData = data;
@@ -822,7 +924,7 @@ let selectedAssets = [];
      * Called on page load and after department operations
      */
     function loadDepartments() {
-        fetch('/departments')
+        fetch('/admin/departments')
             .then(response => response.json())
             .then(data => {
                 departmentsData = data;
@@ -1009,10 +1111,10 @@ let selectedAssets = [];
             colDiv.innerHTML = `
                 <div class="card h-100">
                     <div class="card-body text-center">
-                        <h6 class="card-title text-primary">${department.name}</h6>
-                        <p class="card-text text-muted small">${department.building_name}</p>
+                        <h6 class="card-title text-primary">MAA-${department.building_name.replace(/\s+/g, '').toUpperCase()}-${department.name.replace(/\s+/g, '').toUpperCase()}</h6>
+                        <p class="card-text text-muted small">${department.building_name} - ${department.name}</p>
                         <div class="mb-3">
-                            <img src="/department_qr/${encodeURIComponent(department.building_name)}/${encodeURIComponent(department.name)}" 
+                            <img src="/assets/department_qr/${encodeURIComponent(department.building_name)}/${encodeURIComponent(department.name)}" 
                                  alt="QR Code for ${department.name}" 
                                  class="img-fluid" 
                                  style="max-width: 120px; height: auto;">
@@ -1049,13 +1151,14 @@ let selectedAssets = [];
         const department = e.currentTarget.getAttribute('data-department');
         
         // Update the existing QR modal with department QR
-        document.getElementById('qrModalLabel').innerText = `${department} - ${building}`;
+        const departmentCode = `MAA-${building.replace(/\s+/g, '').toUpperCase()}-${department.replace(/\s+/g, '').toUpperCase()}`;
+        document.getElementById('qrModalLabel').innerText = departmentCode;
         document.getElementById('qrcode').innerHTML = `
-            <img src="/department_qr/${encodeURIComponent(building)}/${encodeURIComponent(department)}" 
+            <img src="/assets/department_qr/${encodeURIComponent(building)}/${encodeURIComponent(department)}" 
                  alt="QR Code for ${department}" 
                  style="max-width: 200px; height: auto;">
         `;
-        document.getElementById('qrCodeLabel').innerText = `${department} (${building})`;
+        document.getElementById('qrCodeLabel').innerText = departmentCode;
         
         // Show the QR modal
         var qrModal = new bootstrap.Modal(document.getElementById('qrModal'));
@@ -1067,13 +1170,14 @@ let selectedAssets = [];
         const building = e.currentTarget.getAttribute('data-building');
         const department = e.currentTarget.getAttribute('data-department');
         
+        const departmentCode = `MAA-${building.replace(/\s+/g, '').toUpperCase()}-${department.replace(/\s+/g, '').toUpperCase()}`;
         var printContents = `
-            <img src="/department_qr/${encodeURIComponent(building)}/${encodeURIComponent(department)}" 
+            <img src="/assets/department_qr/${encodeURIComponent(building)}/${encodeURIComponent(department)}" 
                  alt="QR Code for ${department}" 
                  style="max-width: 200px; height: auto;">
             <div style="margin-top:12px;font-weight:bold;font-size:1.2em;text-align:center;">
-                ${department}<br>
-                <small style="font-size:0.8em;color:#666;">${building}</small>
+                ${departmentCode}<br>
+                <small style="font-size:0.8em;color:#666;">${department} - ${building}</small>
             </div>
         `;
         
@@ -1086,6 +1190,77 @@ let selectedAssets = [];
         win.document.close();
         win.focus();
         setTimeout(function(){ win.print(); win.close(); }, 500);
+    }
+
+    // Handle exporting department QR codes to PDF
+    function handleExportDepartmentQRPdf() {
+        if (departmentsData.length === 0) {
+            alert('No department QR codes to export.');
+            return;
+        }
+
+        // Create PDF content
+        let pdfContent = `
+            <html>
+            <head>
+                <title>Department QR Codes</title>
+                <style>
+                    body { font-family: Arial, sans-serif; margin: 20px; }
+                    .header { text-align: center; margin-bottom: 30px; }
+                    .qr-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; }
+                    .qr-item { text-align: center; padding: 15px; border: 1px solid #ddd; }
+                    .qr-code { margin-bottom: 10px; }
+                    .qr-label { font-weight: bold; font-size: 14px; margin-bottom: 5px; }
+                    .qr-subtitle { font-size: 12px; color: #666; }
+                    @media print {
+                        .qr-grid { grid-template-columns: repeat(3, 1fr); }
+                        .qr-item { page-break-inside: avoid; }
+                    }
+                </style>
+            </head>
+            <body>
+                <div class="header">
+                    <h1>Department QR Codes</h1>
+                    <p>Generated on ${new Date().toLocaleDateString()}</p>
+                </div>
+                <div class="qr-grid">
+        `;
+
+        // Add each department QR code
+        departmentsData.forEach(dept => {
+            const departmentCode = `MAA-${dept.building_name.replace(/\s+/g, '').toUpperCase()}-${dept.name.replace(/\s+/g, '').toUpperCase()}`;
+            pdfContent += `
+                <div class="qr-item">
+                    <div class="qr-code">
+                        <img src="/assets/department_qr/${encodeURIComponent(dept.building_name)}/${encodeURIComponent(dept.name)}" 
+                             alt="QR Code for ${dept.name}" 
+                             style="width: 120px; height: 120px;">
+                    </div>
+                    <div class="qr-label">${departmentCode}</div>
+                    <div class="qr-subtitle">${dept.name} - ${dept.building_name}</div>
+                </div>
+            `;
+        });
+
+        pdfContent += `
+                </div>
+            </body>
+            </html>
+        `;
+
+        // Create a new window for PDF generation
+        const pdfWindow = window.open('', '_blank', 'width=800,height=600');
+        pdfWindow.document.write(pdfContent);
+        pdfWindow.document.close();
+        
+        // Wait for images to load, then print
+        setTimeout(() => {
+            pdfWindow.focus();
+            pdfWindow.print();
+            setTimeout(() => {
+                pdfWindow.close();
+            }, 1000);
+        }, 1000);
     }
 
 // ============================================================================
@@ -1105,7 +1280,7 @@ let selectedAssets = [];
         const formData = new FormData();
         formData.append('name', name);
 
-        fetch('/buildings', {
+        fetch('/admin/buildings', {
             method: 'POST',
             body: formData
         })
@@ -1149,7 +1324,7 @@ let selectedAssets = [];
         formData.append('name', name);
         formData.append('building_id', buildingId);
 
-        fetch('/departments', {
+        fetch('/admin/departments', {
             method: 'POST',
             body: formData
         })
@@ -1275,7 +1450,7 @@ let selectedAssets = [];
         }
         
         // Find department ID by name
-        fetch('/departments')
+        fetch('/admin/departments')
             .then(response => response.json())
             .then(departments => {
                 const department = departments.find(d => d.name === departmentName);
@@ -1285,7 +1460,7 @@ let selectedAssets = [];
                 }
                 
                 // Fetch users for this department
-                return fetch(`/users?department_id=${department.id}`);
+                return fetch(`/admin/users?department_id=${department.id}`);
             })
             .then(response => response.json())
             .then(users => {
@@ -1322,7 +1497,7 @@ let selectedAssets = [];
             const formData = new FormData();
             formData.append('name', newName.trim());
 
-            fetch(`/buildings/${buildingId}`, {
+            fetch(`/admin/buildings/${buildingId}`, {
                 method: 'PUT',
                 body: formData
             })
@@ -1354,7 +1529,7 @@ let selectedAssets = [];
             const formData = new FormData();
             formData.append('name', newName.trim());
 
-            fetch(`/departments/${departmentId}`, {
+            fetch(`/admin/departments/${departmentId}`, {
                 method: 'PUT',
                 body: formData
             })
@@ -1379,7 +1554,7 @@ let selectedAssets = [];
         const buildingName = e.currentTarget.getAttribute('data-name');
         
         if (confirm(`Are you sure you want to delete "${buildingName}"? This will also delete all its departments.`)) {
-            fetch(`/buildings/${buildingId}`, {
+            fetch(`/admin/buildings/${buildingId}`, {
                 method: 'DELETE'
             })
             .then(response => response.json())
@@ -1405,7 +1580,7 @@ let selectedAssets = [];
         const buildingName = e.currentTarget.getAttribute('data-building');
         
         if (confirm(`Are you sure you want to delete "${departmentName}" from "${buildingName}"?`)) {
-            fetch(`/departments/${departmentId}`, {
+            fetch(`/admin/departments/${departmentId}`, {
                 method: 'DELETE'
             })
             .then(response => response.json())
@@ -1437,7 +1612,7 @@ let selectedAssets = [];
 
     // Load buildings for user modal
     function loadUserModalBuildings() {
-        fetch('/buildings')
+        fetch('/admin/buildings')
             .then(response => response.json())
             .then(buildings => {
                 const buildingSelect = document.getElementById('userModalBuilding');
@@ -1457,7 +1632,7 @@ let selectedAssets = [];
 
     // Load buildings for bulk user modal
     function loadBulkUserModalBuildings() {
-        fetch('/buildings')
+        fetch('/admin/buildings')
             .then(response => response.json())
             .then(buildings => {
                 const buildingSelect = document.getElementById('bulkUserModalBuilding');
@@ -1486,7 +1661,7 @@ let selectedAssets = [];
         
         departmentSelect.innerHTML = '<option value="">Loading...</option>';
         
-        fetch(`/departments?building_id=${buildingId}`)
+        fetch(`/admin/departments?building_id=${buildingId}`)
             .then(response => response.json())
             .then(departments => {
                 departmentSelect.innerHTML = '<option value="">Select Department</option>';
@@ -1506,7 +1681,7 @@ let selectedAssets = [];
 
     // Load users for user modal
     function loadUserModalUsers(filterDepartmentId = '') {
-        const url = filterDepartmentId ? `/users?department_id=${filterDepartmentId}` : '/users';
+        const url = filterDepartmentId ? `/admin/users?department_id=${filterDepartmentId}` : '/admin/users';
         
         fetch(url)
             .then(response => response.json())
@@ -1567,7 +1742,7 @@ let selectedAssets = [];
 
     // Load filter dropdown for user modal
     function loadUserModalFilterDropdown() {
-        fetch('/departments')
+        fetch('/admin/departments')
             .then(response => response.json())
             .then(departments => {
                 const filterSelect = document.getElementById('userModalFilterDepartment');
@@ -1623,7 +1798,7 @@ let selectedAssets = [];
             return;
         }
         
-        fetch('/users', {
+        fetch('/admin/users', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json'
@@ -1661,7 +1836,7 @@ let selectedAssets = [];
         
         const newName = prompt(`Edit user name for "${departmentName}" department:`, currentName);
         if (newName && newName.trim() && newName.trim() !== currentName) {
-            fetch(`/users/${userId}`, {
+            fetch(`/admin/users/${userId}`, {
                 method: 'PUT',
                 headers: {
                     'Content-Type': 'application/json'
@@ -1693,7 +1868,7 @@ let selectedAssets = [];
         const departmentName = e.currentTarget.getAttribute('data-department');
         
         if (confirm(`Are you sure you want to delete "${userName}" from "${departmentName}"?`)) {
-            fetch(`/users/${userId}`, {
+            fetch(`/admin/users/${userId}`, {
                 method: 'DELETE'
             })
             .then(response => response.json())
@@ -1748,7 +1923,7 @@ let selectedAssets = [];
             return;
         }
         
-        fetch('/users/bulk', {
+        fetch('/admin/users/bulk', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json'
@@ -1797,7 +1972,7 @@ let selectedAssets = [];
             return;
         }
         
-        fetch(`/departments?building_id=${buildingId}`)
+        fetch(`/admin/departments?building_id=${buildingId}`)
             .then(response => response.json())
             .then(departments => {
                 departmentSelect.innerHTML = '<option value="">Select Department</option>';
@@ -1853,6 +2028,199 @@ let selectedAssets = [];
             ownerSelect.style.backgroundColor = '';
             ownerSelect.innerHTML = '<option value="">Select Department First</option>';
         });
+        
+        // Initialize edit asset modal
+        document.getElementById('editAssetModal').addEventListener('show.bs.modal', function(event) {
+            const button = event.relatedTarget;
+            const assetId = button.getAttribute('data-asset-id');
+            const assetName = button.getAttribute('data-asset-name');
+            const assetType = button.getAttribute('data-asset-type');
+            const assetQuantity = button.getAttribute('data-asset-quantity');
+            const assetOwner = button.getAttribute('data-asset-owner');
+            const assetBuilding = button.getAttribute('data-asset-building');
+            const assetDepartment = button.getAttribute('data-asset-department');
+            const assetStatus = button.getAttribute('data-asset-status');
+            
+            console.log('Edit modal data:', {
+                assetId, assetName, assetType, assetQuantity, 
+                assetOwner, assetBuilding, assetDepartment, assetStatus
+            });
+            
+            // Update modal title and form action
+            document.getElementById('editAssetName').textContent = assetName;
+            document.getElementById('editAssetForm').action = `/assets/update/${assetId}`;
+            
+            // Populate form fields
+            document.getElementById('edit_name').value = assetName;
+            document.getElementById('edit_quantity').value = assetQuantity;
+            document.getElementById('edit_used_status').value = assetStatus;
+            
+            // Set asset type immediately since it's a static dropdown
+            console.log('Setting asset type to:', assetType);
+            console.log('Available asset type options:', Array.from(document.getElementById('edit_asset_type').options).map(opt => opt.value));
+            
+            // Handle old asset type values that might not match new options
+            let assetTypeToSet = assetType;
+            if (assetType === 'Technical Device') {
+                assetTypeToSet = 'Electronics';
+            } else if (assetType === 'Office Supplies') {
+                assetTypeToSet = 'Others';
+            }
+            
+            document.getElementById('edit_asset_type').value = assetTypeToSet;
+            console.log('Asset type dropdown value after setting:', document.getElementById('edit_asset_type').value);
+            console.log('Asset type dropdown selected option:', document.getElementById('edit_asset_type').selectedOptions[0]?.text);
+            
+            // Handle no owner case
+            const editNoOwnerCheck = document.getElementById('edit_noOwnerCheck');
+            const editOwnerSelect = document.getElementById('edit_owner');
+            
+            if (assetOwner === 'No Owner') {
+                editNoOwnerCheck.checked = true;
+                editOwnerSelect.disabled = true;
+                editOwnerSelect.style.opacity = '0.5';
+                editOwnerSelect.style.backgroundColor = '#f8f9fa';
+            } else {
+                editNoOwnerCheck.checked = false;
+                editOwnerSelect.disabled = false;
+                editOwnerSelect.style.opacity = '1';
+                editOwnerSelect.style.backgroundColor = '';
+            }
+            
+            // Load buildings and populate building dropdown, then chain the other loads
+            loadEditBuildings(assetBuilding).then(() => {
+                // After buildings are loaded, load departments
+                return loadEditDepartments(assetBuilding, assetDepartment);
+            }).then(() => {
+                // After departments are loaded, load owners
+                return loadEditOwners(assetBuilding, assetDepartment, assetOwner);
+            }).catch(error => {
+                console.error('Error loading edit data:', error);
+            });
+        });
+        
+        // Handle edit no owner checkbox
+        document.getElementById('edit_noOwnerCheck').addEventListener('change', function() {
+            const editOwnerSelect = document.getElementById('edit_owner');
+            if (this.checked) {
+                editOwnerSelect.disabled = true;
+                editOwnerSelect.style.opacity = '0.5';
+                editOwnerSelect.style.backgroundColor = '#f8f9fa';
+                editOwnerSelect.value = '';
+            } else {
+                editOwnerSelect.disabled = false;
+                editOwnerSelect.style.opacity = '1';
+                editOwnerSelect.style.backgroundColor = '';
+            }
+        });
+        
+        // Handle edit building change
+        document.getElementById('edit_building').addEventListener('change', function() {
+            const selectedBuilding = this.value;
+            const departmentSelect = document.getElementById('edit_department');
+            const ownerSelect = document.getElementById('edit_owner');
+            
+            departmentSelect.innerHTML = '<option value="">Select Department/Section</option>';
+            ownerSelect.innerHTML = '<option value="">Select Department First</option>';
+            
+            if (selectedBuilding) {
+                // Find the building ID by fetching buildings data
+                fetch('/admin/buildings')
+                    .then(response => response.json())
+                    .then(buildings => {
+                        const building = buildings.find(b => b.name === selectedBuilding);
+                        if (building) {
+                            // Load departments for this building
+                            return fetch(`/admin/departments?building_id=${building.id}`);
+                        }
+                        return Promise.reject('Building not found');
+                    })
+                    .then(response => response.json())
+                    .then(departments => {
+                        departments.forEach(department => {
+                            const option = document.createElement('option');
+                            option.value = department.name;
+                            option.textContent = department.name;
+                            departmentSelect.appendChild(option);
+                        });
+                    })
+                    .catch(error => console.error('Error loading departments:', error));
+            }
+        });
+        
+        // Handle edit department change
+        document.getElementById('edit_department').addEventListener('change', function() {
+            const selectedDepartment = this.value;
+            const selectedBuilding = document.getElementById('edit_building').value;
+            const ownerSelect = document.getElementById('edit_owner');
+            
+            ownerSelect.innerHTML = '<option value="">Select Owner</option>';
+            
+            if (selectedDepartment && selectedBuilding) {
+                // Find department ID by fetching departments data
+                fetch('/admin/departments')
+                    .then(response => response.json())
+                    .then(departments => {
+                        const department = departments.find(d => 
+                            d.building_name === selectedBuilding && d.name === selectedDepartment
+                        );
+                        
+                        if (department) {
+                            // Load users for this department
+                            return fetch(`/admin/users?department_id=${department.id}`);
+                        }
+                        return Promise.reject('Department not found');
+                    })
+                    .then(response => response.json())
+                    .then(users => {
+                        users.forEach(user => {
+                            const option = document.createElement('option');
+                            option.value = user.name;
+                            option.textContent = user.name;
+                            ownerSelect.appendChild(option);
+                        });
+                    })
+                    .catch(error => console.error('Error loading users:', error));
+            }
+        });
+        
+        // Handle edit form submission
+        document.getElementById('editAssetForm').addEventListener('submit', function(e) {
+            e.preventDefault();
+            
+            // Get the asset name for confirmation
+            const assetName = document.getElementById('edit_name').value;
+            
+            // Show confirmation dialog
+            if (!confirm(`Are you sure you want to update the asset "${assetName}"?`)) {
+                return; // User cancelled
+            }
+            
+            const formData = new FormData(this);
+            
+            fetch(this.action, {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    // Close modal and refresh page
+                    const modal = bootstrap.Modal.getInstance(document.getElementById('editAssetModal'));
+                    modal.hide();
+                    window.location.reload();
+                } else {
+                    alert('Error updating asset: ' + (data.error || 'Unknown error'));
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('Error updating asset. Please try again.');
+            });
+        });
+        
+        // Initialize department QR PDF export
+        document.getElementById('exportDepartmentQRPdfBtn').addEventListener('click', handleExportDepartmentQRPdf);
     });
 
     // Handle Enter key in new building input
@@ -1879,7 +2247,7 @@ let selectedAssets = [];
             const building = buildingsData.find(b => b.name === selectedBuilding);
             if (building) {
                 // Load departments for this building
-                fetch(`/departments?building_id=${building.id}`)
+                fetch(`/admin/departments?building_id=${building.id}`)
                     .then(response => response.json())
                     .then(departments => {
                         departments.forEach(department => {
@@ -1903,7 +2271,7 @@ let selectedAssets = [];
         link.addEventListener('click', function(e) {
             e.preventDefault();
             const assetId = this.getAttribute('data-asset-id');
-            fetch(`/qrdata/${assetId}`)
+            fetch(`/assets/qrdata/${assetId}`)
                 .then(response => response.json())
                 .then(data => {
                     if (data.error) {
@@ -1955,7 +2323,7 @@ let selectedAssets = [];
             const formData = new FormData();
             formData.append('used_status', newStatus);
             
-            fetch(`/update_status/${assetId}`, {
+            fetch(`/assets/update_status/${assetId}`, {
                 method: 'POST',
                 body: formData
             })
@@ -2037,10 +2405,7 @@ let selectedAssets = [];
 // EVENT LISTENERS - BULK ACTIONS
 // ============================================================================
 
-    // Select All button
-    document.getElementById('selectAllBtn').addEventListener('click', function() {
-        document.getElementById('selectAllCheckbox').click();
-    });
+
 
     // Clear selection
     document.getElementById('clearSelectionBtn').addEventListener('click', function() {
@@ -2082,7 +2447,7 @@ let selectedAssets = [];
             selectedAssets.forEach(asset => formData.append('asset_ids[]', asset.id));
             formData.append('used_status', newStatus);
             
-            fetch('/bulk_update_status', {
+            fetch('/assets/bulk_update_status', {
                 method: 'POST',
                 body: formData
             })
@@ -2115,7 +2480,7 @@ let selectedAssets = [];
             const formData = new FormData();
             selectedAssets.forEach(asset => formData.append('asset_ids[]', asset.id));
             
-            fetch('/bulk_delete', {
+            fetch('/assets/bulk_delete', {
                 method: 'POST',
                 body: formData
             })
@@ -2194,7 +2559,7 @@ let selectedAssets = [];
         }
         
         // Get department/building info for selected assets
-        fetch('/assets')
+                    fetch('/assets/assets')
             .then(response => response.json())
             .then(allAssets => {
                 const selectedAssetDetails = allAssets.filter(asset => 
@@ -2271,7 +2636,7 @@ let selectedAssets = [];
                             pageDiv.appendChild(qrItem);
                             
                             // Generate QR code
-                            fetch(`/qrdata/${asset.id}`)
+                            fetch(`/assets/qrdata/${asset.id}`)
                                 .then(response => response.json())
                                 .then(data => {
                                     if (data.error) {
@@ -2326,7 +2691,7 @@ let selectedAssets = [];
                         container.appendChild(qrDiv);
                         
                         // Get QR code data and display
-                        fetch(`/qrdata/${asset.id}`)
+                        fetch(`/assets/qrdata/${asset.id}`)
                             .then(response => response.json())
                             .then(data => {
                                 if (data.error) {
@@ -2430,16 +2795,336 @@ let selectedAssets = [];
         }
     });
 
-    // Auto-submit search after 500ms of no typing
-    let searchTimeout;
-    document.getElementById('globalSearch').addEventListener('input', function() {
-        clearTimeout(searchTimeout);
-        searchTimeout = setTimeout(() => {
-            if (this.value.length >= 2 || this.value.length === 0) {
+
+
+// ============================================================================
+// DARK MODE FUNCTIONALITY
+// ============================================================================
+
+    // Dark mode toggle functionality - Simplified and more robust
+    function initializeDarkMode() {
+        const darkModeToggle = document.getElementById('darkModeToggle');
+        const body = document.body;
+        
+        if (!darkModeToggle) {
+            console.error('Dark mode toggle button not found!');
+            return;
+        }
+        
+        console.log('Dark mode toggle button found:', darkModeToggle);
+        
+        // Check for saved dark mode preference
+        const darkMode = localStorage.getItem('darkMode') === 'true';
+        
+        // Apply dark mode if previously enabled
+        if (darkMode) {
+            body.classList.add('dark-mode');
+            updateDarkModeButton(true);
+        }
+        
+        // Toggle dark mode with direct click handler
+        darkModeToggle.onclick = function(e) {
+            e.preventDefault();
+            console.log('Dark mode toggle clicked!');
+            
+            body.classList.toggle('dark-mode');
+            const isDarkMode = body.classList.contains('dark-mode');
+            
+            // Save preference to localStorage
+            localStorage.setItem('darkMode', isDarkMode);
+            
+            // Update button appearance
+            updateDarkModeButton(isDarkMode);
+            
+            console.log('Dark mode toggled:', isDarkMode);
+        };
+        
+        function updateDarkModeButton(isDarkMode) {
+            const icon = darkModeToggle.querySelector('i');
+            const text = darkModeToggle.querySelector('span');
+            
+            if (isDarkMode) {
+                icon.className = 'fas fa-sun';
+                text.textContent = ' Light Mode';
+                darkModeToggle.style.borderColor = '#ffd700';
+                darkModeToggle.style.color = '#ffd700';
+            } else {
+                icon.className = 'fas fa-moon';
+                text.textContent = ' Dark Mode';
+                darkModeToggle.style.borderColor = '#6c757d';
+                darkModeToggle.style.color = '#6c757d';
+            }
+        }
+    }
+    
+    // Initialize dark mode when DOM is ready
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', initializeDarkMode);
+    } else {
+        initializeDarkMode();
+    }
+    
+    // Additional debug: Check if button exists after a short delay
+    setTimeout(function() {
+        const btn = document.getElementById('darkModeToggle');
+        console.log('Dark mode button check after delay:', btn);
+        if (btn) {
+            console.log('Button is clickable:', btn.onclick);
+        }
+    }, 1000);
+    
+    // Global function for inline onclick
+    function toggleDarkMode() {
+        console.log('Global toggleDarkMode called!');
+        const body = document.body;
+        const darkModeToggle = document.getElementById('darkModeToggle');
+        
+        body.classList.toggle('dark-mode');
+        const isDarkMode = body.classList.contains('dark-mode');
+        
+        // Save preference to localStorage
+        localStorage.setItem('darkMode', isDarkMode);
+        
+        // Update button appearance
+        if (darkModeToggle) {
+            const icon = darkModeToggle.querySelector('i');
+            const text = darkModeToggle.querySelector('span');
+            
+            if (isDarkMode) {
+                icon.className = 'fas fa-sun';
+                text.textContent = ' Light Mode';
+                darkModeToggle.style.borderColor = '#ffd700';
+                darkModeToggle.style.color = '#ffd700';
+            } else {
+                icon.className = 'fas fa-moon';
+                text.textContent = ' Dark Mode';
+                darkModeToggle.style.borderColor = '#6c757d';
+                darkModeToggle.style.color = '#6c757d';
+            }
+        }
+        
+        console.log('Dark mode toggled via global function:', isDarkMode);
+    }
+    
+    // Clear filters function
+    function clearFilters() {
+        console.log('Clearing filters...');
+        
+        // Clear the search input
+        document.getElementById('globalSearch').value = '';
+        
+        // Reset all select dropdowns to their first option (usually "All")
+        const selects = [
+            'buildingFilter',
+            'departmentFilter', 
+            'statusFilter',
+            'assetTypeFilter',
+            'itemsPerPage'
+        ];
+        
+        selects.forEach(selectId => {
+            const select = document.getElementById(selectId);
+            if (select) {
+                select.selectedIndex = 0;
+            }
+        });
+        
+        // Submit the form to refresh the page with cleared filters
                 document.getElementById('searchForm').submit();
             }
-        }, 500);
+    
+    // AJAX filter function - updates results without page refresh
+    function applyFilters() {
+        console.log('Applying filters via AJAX...');
+        
+        const formData = new FormData(document.getElementById('searchForm'));
+        const params = new URLSearchParams();
+        
+        // Add all form data to URL parameters
+        for (let [key, value] of formData.entries()) {
+            if (value) {
+                params.append(key, value);
+            }
+        }
+        
+        // Update URL without page refresh
+        const newUrl = window.location.pathname + '?' + params.toString();
+        window.history.pushState({}, '', newUrl);
+        
+        // Show loading indicator
+        const tableBody = document.querySelector('.table tbody');
+        if (tableBody) {
+            tableBody.innerHTML = '<tr><td colspan="9" class="text-center"><i class="fas fa-spinner fa-spin"></i> Loading...</td></tr>';
+        }
+        
+        // Fetch updated results
+        fetch(newUrl)
+            .then(response => response.text())
+            .then(html => {
+                // Create a temporary div to parse the HTML
+                const tempDiv = document.createElement('div');
+                tempDiv.innerHTML = html;
+                
+                // Extract the table body content
+                const newTableBody = tempDiv.querySelector('.table tbody');
+                const newPagination = tempDiv.querySelector('.pagination');
+                const newStats = tempDiv.querySelectorAll('.card-body h5');
+                
+                // Update the table body
+                if (newTableBody && tableBody) {
+                    tableBody.innerHTML = newTableBody.innerHTML;
+                }
+                
+                // Update pagination
+                const currentPagination = document.querySelector('.pagination');
+                if (newPagination && currentPagination) {
+                    currentPagination.innerHTML = newPagination.innerHTML;
+                }
+                
+                // Update stats cards
+                newStats.forEach((stat, index) => {
+                    const currentStat = document.querySelectorAll('.card-body h5')[index];
+                    if (currentStat && stat) {
+                        currentStat.textContent = stat.textContent;
+                    }
+                });
+                
+                console.log('Filters applied successfully');
+            })
+            .catch(error => {
+                console.error('Error applying filters:', error);
+                // Fallback to page refresh if AJAX fails
+                window.location.reload();
+            });
+    }
+    
+    // Add event listeners to all filter dropdowns
+    document.addEventListener('DOMContentLoaded', function() {
+        const filterSelects = [
+            'buildingFilter',
+            'departmentFilter',
+            'statusFilter',
+            'assetTypeFilter',
+            'itemsPerPage'
+        ];
+        
+        filterSelects.forEach(selectId => {
+            const select = document.getElementById(selectId);
+            if (select) {
+                select.addEventListener('change', function() {
+                    console.log(`${selectId} changed to:`, this.value);
+                    applyFilters();
+                });
+            }
+        });
     });
+    
+    // Helper functions for edit modal
+    function loadEditBuildings(selectedBuilding) {
+        console.log('Loading buildings for edit, selected:', selectedBuilding);
+        return fetch('/admin/buildings')
+            .then(response => response.json())
+            .then(buildings => {
+                const buildingSelect = document.getElementById('edit_building');
+                buildingSelect.innerHTML = '<option value="">Select Building</option>';
+                
+                buildings.forEach(building => {
+                    const option = document.createElement('option');
+                    option.value = building.name;
+                    option.textContent = building.name;
+                    buildingSelect.appendChild(option);
+                });
+                
+                // Set the selected building after populating options
+                if (selectedBuilding) {
+                    buildingSelect.value = selectedBuilding;
+                    console.log('Set building to:', selectedBuilding);
+                }
+            })
+            .catch(error => {
+                console.error('Error loading buildings for edit:', error);
+                throw error;
+            });
+    }
+    
+    function loadEditDepartments(selectedBuilding, selectedDepartment) {
+        console.log('Loading departments for edit, building:', selectedBuilding, 'department:', selectedDepartment);
+        if (!selectedBuilding) return Promise.resolve();
+        
+        // Find the building ID by fetching buildings data
+        return fetch('/admin/buildings')
+            .then(response => response.json())
+            .then(buildings => {
+                const building = buildings.find(b => b.name === selectedBuilding);
+                if (building) {
+                    return fetch(`/admin/departments?building_id=${building.id}`);
+                }
+                return Promise.reject('Building not found');
+            })
+            .then(response => response.json())
+            .then(departments => {
+                const departmentSelect = document.getElementById('edit_department');
+                departmentSelect.innerHTML = '<option value="">Select Department/Section</option>';
+                
+                departments.forEach(department => {
+                    const option = document.createElement('option');
+                    option.value = department.name;
+                    option.textContent = department.name;
+                    departmentSelect.appendChild(option);
+                });
+                
+                // Set the selected department after populating options
+                if (selectedDepartment) {
+                    departmentSelect.value = selectedDepartment;
+                    console.log('Set department to:', selectedDepartment);
+                }
+            })
+            .catch(error => {
+                console.error('Error loading departments for edit:', error);
+                throw error;
+            });
+    }
+    
+    function loadEditOwners(selectedBuilding, selectedDepartment, selectedOwner) {
+        console.log('Loading owners for edit, building:', selectedBuilding, 'department:', selectedDepartment, 'owner:', selectedOwner);
+        if (!selectedBuilding || !selectedDepartment) return Promise.resolve();
+        
+        // Find department ID
+        return fetch('/admin/departments')
+            .then(response => response.json())
+            .then(departments => {
+                const department = departments.find(d => 
+                    d.building_name === selectedBuilding && d.name === selectedDepartment
+                );
+                
+                if (department) {
+                    return fetch(`/admin/users?department_id=${department.id}`);
+                }
+                return Promise.reject('Department not found');
+            })
+            .then(response => response.json())
+            .then(users => {
+                const ownerSelect = document.getElementById('edit_owner');
+                ownerSelect.innerHTML = '<option value="">Select Owner</option>';
+                
+                users.forEach(user => {
+                    const option = document.createElement('option');
+                    option.value = user.name;
+                    option.textContent = user.name;
+                    ownerSelect.appendChild(option);
+                });
+                
+                // Set the selected owner after populating options
+                if (selectedOwner && selectedOwner !== 'No Owner') {
+                    ownerSelect.value = selectedOwner;
+                    console.log('Set owner to:', selectedOwner);
+                }
+            })
+            .catch(error => {
+                console.error('Error loading users for edit:', error);
+                throw error;
+            });
+    }
 </script>
 </body>
 </html> 

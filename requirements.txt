@@ -2,4 +2,4 @@ Flask
 qrcode
 Pillow
 Flask-Login
-cryptography 
+bcrypt 
