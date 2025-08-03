@@ -8,6 +8,171 @@
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link rel="stylesheet" href="/static/style.css">
+    <style>
+        /* Multi-select Asset Names Styles */
+        .asset-names-container {
+            position: relative;
+            border: 1px solid #ced4da;
+            border-radius: 0.375rem;
+            background-color: #fff;
+            min-height: 38px;
+            padding: 2px;
+        }
+        
+        .selected-asset-names {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 4px;
+            padding: 2px;
+        }
+        
+        .asset-name-tag {
+            display: inline-flex;
+            align-items: center;
+            background-color: #007bff;
+            color: white;
+            border-radius: 16px;
+            padding: 4px 12px;
+            font-size: 14px;
+            margin: 2px;
+            max-width: 200px;
+        }
+        
+        .asset-name-tag .asset-name-text {
+            flex: 1;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+        
+        .asset-name-tag .remove-btn {
+            background: none;
+            border: none;
+            color: white;
+            margin-left: 8px;
+            cursor: pointer;
+            padding: 0;
+            font-size: 12px;
+            line-height: 1;
+        }
+        
+        .asset-name-tag .remove-btn:hover {
+            color: #ffc107;
+        }
+        
+        .asset-name-input {
+            border: none !important;
+            outline: none !important;
+            box-shadow: none !important;
+            flex: 1;
+            min-width: 150px;
+        }
+        
+        .asset-names-container:focus-within {
+            border-color: #86b7fe;
+            box-shadow: 0 0 0 0.25rem rgba(13, 110, 253, 0.25);
+        }
+        
+        /* Dark Mode Styles */
+        .dark-mode {
+            background-color: #1a1a1a !important;
+            color: #ffffff !important;
+        }
+        
+        .dark-mode .card {
+            background-color: #2d2d2d !important;
+            border-color: #404040 !important;
+        }
+        
+        .dark-mode .table {
+            background-color: #2d2d2d !important;
+            color: #ffffff !important;
+        }
+        
+        .dark-mode .table thead th {
+            background-color: #404040 !important;
+            color: #ffffff !important;
+            border-color: #555555 !important;
+        }
+        
+        .dark-mode .table tbody td {
+            border-color: #404040 !important;
+        }
+        
+        .dark-mode .form-control,
+        .dark-mode .form-select {
+            background-color: #404040 !important;
+            border-color: #555555 !important;
+            color: #ffffff !important;
+        }
+        
+        .dark-mode .form-control:focus,
+        .dark-mode .form-select:focus {
+            background-color: #404040 !important;
+            border-color: #86b7fe !important;
+            color: #ffffff !important;
+        }
+        
+        .dark-mode .btn {
+            border-color: #555555 !important;
+        }
+        
+        .dark-mode .btn-outline-secondary {
+            color: #ffffff !important;
+            border-color: #6c757d !important;
+        }
+        
+        .dark-mode .btn-outline-secondary:hover {
+            background-color: #6c757d !important;
+            color: #ffffff !important;
+        }
+        
+        .dark-mode .pagination .page-link {
+            background-color: #404040 !important;
+            border-color: #555555 !important;
+            color: #ffffff !important;
+        }
+        
+        .dark-mode .pagination .page-item.active .page-link {
+            background-color: #007bff !important;
+            border-color: #007bff !important;
+        }
+        
+        .dark-mode .pagination .page-link:hover {
+            background-color: #555555 !important;
+            color: #ffffff !important;
+        }
+        
+        .dark-mode .alert {
+            background-color: #2d2d2d !important;
+            border-color: #404040 !important;
+        }
+        
+        .dark-mode .text-muted {
+            color: #b0b0b0 !important;
+        }
+        
+        .dark-mode .badge.bg-secondary {
+            background-color: #6c757d !important;
+        }
+        
+        .dark-mode .badge.bg-success {
+            background-color: #28a745 !important;
+        }
+        
+        .dark-mode .badge.bg-warning {
+            background-color: #ffc107 !important;
+            color: #000000 !important;
+        }
+        
+        .dark-mode .badge.bg-danger {
+            background-color: #dc3545 !important;
+        }
+        
+        .dark-mode .badge.bg-info {
+            background-color: #17a2b8 !important;
+        }
+    </style>
 </head>
 <body>
 <div class="container mt-5">
@@ -41,6 +206,9 @@
                         </a>
                         <a href="{{ url_for('auth.add_auth_user') }}" class="btn btn-sm me-2" style="border-color: #ffd700; color: #ffd700;">
                             <i class="fas fa-user-plus"></i> Add User
+                        </a>
+                        <a href="{{ url_for('assets.archive') }}" class="btn btn-sm me-2" style="border-color: #6c757d; color: #6c757d;">
+                            <i class="fas fa-archive"></i> Asset Archive
                         </a>
                         
                     {% endif %}
@@ -196,11 +364,6 @@
                         <label for="assetTypeFilter" class="form-label">Asset Type</label>
                         <select class="form-select" id="assetTypeFilter" name="asset_type">
                             <option value="">All Types</option>
-                            <option value="Electronics" {% if request.args.get('asset_type') == 'Electronics' %}selected{% endif %}>Electronics</option>
-                            <option value="Furniture" {% if request.args.get('asset_type') == 'Furniture' %}selected{% endif %}>Furniture</option>
-                            <option value="Equipment" {% if request.args.get('asset_type') == 'Equipment' %}selected{% endif %}>Equipment</option>
-                            <option value="Vehicles" {% if request.args.get('asset_type') == 'Vehicles' %}selected{% endif %}>Vehicles</option>
-                            <option value="Others" {% if request.args.get('asset_type') == 'Others' %}selected{% endif %}>Others</option>
                         </select>
                     </div>
                 </div>
@@ -218,6 +381,9 @@
                             </button>
                             <button type="button" class="btn btn-outline-info btn-sm" id="manageUsersBtn" data-bs-toggle="modal" data-bs-target="#userManagementModal">
                                 <i class="fas fa-users"></i> Manage Employees
+                            </button>
+                            <button type="button" class="btn btn-outline-warning btn-sm" id="manageAssetsBtn" data-bs-toggle="modal" data-bs-target="#assetManagementModal">
+                                <i class="fas fa-boxes"></i> Manage Assets
                             </button>
                         </div>
                     </div>
@@ -399,23 +565,25 @@
         <div class="modal-body" style="overflow-y: auto; max-height: 70vh;">
           <div class="alert alert-info mb-3">
             <i class="fas fa-info-circle"></i> 
-            <strong>Need to add buildings, departments, or users?</strong> 
-            Use the management buttons on the main page to set up your infrastructure first.
+            <strong>Need to add buildings, departments, users, or asset names?</strong> 
+            Use the management buttons on the main page to set up your infrastructure first. You can select multiple asset names from the same asset type. Each selected asset name will be added as a separate asset in the table. Asset names must be predefined in the "Manage Assets" section.
           </div>
             <div class="mb-3">
                 <label for="asset_type" class="form-label">Asset Type</label>
                 <select class="form-select" id="asset_type" name="asset_type" required>
                     <option value="">Select Asset Type</option>
-                    <option value="Electronics">Electronics</option>
-                    <option value="Furniture">Furniture</option>
-                    <option value="Equipment">Equipment</option>
-                    <option value="Vehicles">Vehicles</option>
-                    <option value="Others">Others</option>
                 </select>
             </div>
             <div class="mb-3">
-                <label for="name" class="form-label">Asset Name</label>
-                <input type="text" class="form-control" id="name" name="name" required>
+                <label for="name" class="form-label">Asset Names</label>
+                <div class="asset-names-container" id="assetNamesContainer">
+                    <div class="selected-asset-names" id="selectedAssetNames"></div>
+                    <input type="text" class="form-control asset-name-input" id="name" name="name" list="assetNameList" placeholder="Type to select asset names..." autocomplete="off">
+                    <datalist id="assetNameList">
+                        <option value="">Select Asset Type First</option>
+                    </datalist>
+                </div>
+                <input type="hidden" id="selectedAssetNamesInput" name="selected_asset_names" value="">
             </div>
             <div class="mb-3">
                 <label for="quantity" class="form-label">Quantity</label>
@@ -485,16 +653,14 @@
                 <label for="edit_asset_type" class="form-label">Asset Type</label>
                 <select class="form-select" id="edit_asset_type" name="asset_type" required>
                     <option value="">Select Asset Type</option>
-                    <option value="Electronics">Electronics</option>
-                    <option value="Furniture">Furniture</option>
-                    <option value="Equipment">Equipment</option>
-                    <option value="Vehicles">Vehicles</option>
-                    <option value="Others">Others</option>
                 </select>
             </div>
             <div class="mb-3">
                 <label for="edit_name" class="form-label">Asset Name</label>
-                <input type="text" class="form-control" id="edit_name" name="name" required>
+                <input type="text" class="form-control" id="edit_name" name="name" list="editAssetNameList" placeholder="Select Asset Type First" required autocomplete="off">
+                <datalist id="editAssetNameList">
+                    <option value="">Select Asset Type First</option>
+                </datalist>
             </div>
             <div class="mb-3">
                 <label for="edit_quantity" class="form-label">Quantity</label>
@@ -761,6 +927,89 @@
           </div>
           <div id="userModalList" class="list-group" style="max-height: 400px; overflow-y: auto;">
             <!-- Users will be loaded here -->
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Asset Management Modal -->
+<div class="modal fade" id="assetManagementModal" tabindex="-1" aria-labelledby="assetManagementModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-xl" style="max-width: 90%; max-height: 90vh;">
+    <div class="modal-content" style="height: 90vh;">
+      <div class="modal-header">
+        <h5 class="modal-title" id="assetManagementModalLabel">
+          <i class="fas fa-boxes"></i> Manage Asset Types & Names
+        </h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body" style="overflow-y: auto; max-height: calc(90vh - 120px);">
+        <!-- Asset Types Management -->
+        <div class="mb-4">
+          <h6><i class="fas fa-tags"></i> Asset Types Management</h6>
+          <!-- Add New Asset Type Form -->
+          <div class="mb-3">
+            <div class="row">
+              <div class="col-md-8">
+                <input type="text" class="form-control" id="newAssetTypeName" placeholder="Enter asset type name" maxlength="100">
+              </div>
+              <div class="col-md-4">
+                <button class="btn btn-success w-100" type="button" id="addAssetTypeBtn">
+                  <i class="fas fa-plus"></i> Add Asset Type
+                </button>
+              </div>
+            </div>
+          </div>
+          
+          <!-- Asset Types List -->
+          <div>
+            <h6>Existing Asset Types</h6>
+            <div id="assetTypesList" class="list-group" style="max-height: 200px; overflow-y: auto;">
+              <!-- Asset types will be loaded here -->
+            </div>
+          </div>
+        </div>
+        
+        <hr>
+        
+        <!-- Asset Names Management -->
+        <div class="mb-4">
+          <h6><i class="fas fa-box"></i> Asset Names Management</h6>
+          <!-- Add New Asset Name Form -->
+          <div class="mb-3">
+            <div class="row">
+              <div class="col-md-4">
+                <select class="form-select" id="newAssetNameType" required>
+                  <option value="">Select Asset Type</option>
+                </select>
+              </div>
+              <div class="col-md-6">
+                <input type="text" class="form-control" id="newAssetName" placeholder="Enter asset name" maxlength="100">
+              </div>
+              <div class="col-md-2">
+                <button class="btn btn-success w-100" type="button" id="addAssetNameBtn">
+                  <i class="fas fa-plus"></i> Add
+                </button>
+              </div>
+            </div>
+          </div>
+          
+          <!-- Asset Names List -->
+          <div>
+            <h6>Existing Asset Names</h6>
+            <div class="mb-3">
+              <label for="assetNameFilterType" class="form-label">Filter by Asset Type:</label>
+              <select class="form-select" id="assetNameFilterType">
+                <option value="">All Asset Types</option>
+              </select>
+            </div>
+            <div id="assetNamesList" class="list-group" style="max-height: 300px; overflow-y: auto;">
+              <!-- Asset names will be loaded here -->
+            </div>
           </div>
         </div>
       </div>
@@ -1300,6 +1549,453 @@ let selectedAssets = [];
     });
 
 // ============================================================================
+// ASSET MANAGEMENT FUNCTIONS
+// ============================================================================
+
+    /**
+     * Load asset types from database and update all related UI components
+     * Called on page load and after asset type operations
+     */
+    function loadAssetTypes() {
+        fetch('/admin/asset-types')
+            .then(response => response.json())
+            .then(data => {
+                updateAssetTypesList();
+                updateAssetTypeDropdowns();
+            })
+            .catch(error => {
+                console.error('Error loading asset types:', error);
+                alert('Failed to load asset types. Please refresh the page.');
+            });
+    }
+
+    /**
+     * Load asset names from database and update all related UI components
+     * Called on page load and after asset name operations
+     */
+    function loadAssetNames() {
+        fetch('/admin/asset-names')
+            .then(response => response.json())
+            .then(data => {
+                updateAssetNamesList();
+                updateAssetNameFilterDropdown();
+            })
+            .catch(error => {
+                console.error('Error loading asset names:', error);
+                alert('Failed to load asset names. Please refresh the page.');
+            });
+    }
+
+    // Update asset types list in management modal
+    function updateAssetTypesList() {
+        const assetTypesList = document.getElementById('assetTypesList');
+        assetTypesList.innerHTML = '';
+        
+        fetch('/admin/asset-types')
+            .then(response => response.json())
+            .then(assetTypes => {
+                if (assetTypes.length === 0) {
+                    assetTypesList.innerHTML = '<div class="text-center text-muted p-3">No asset types found</div>';
+                    return;
+                }
+                
+                assetTypes.forEach(assetType => {
+                    const listItem = document.createElement('div');
+                    listItem.className = 'list-group-item d-flex justify-content-between align-items-center';
+                    listItem.innerHTML = `
+                        <span class="asset-type-name" data-id="${assetType.id}">${assetType.name}</span>
+                        <div>
+                            <button class="btn btn-sm btn-outline-primary edit-asset-type-btn me-2" data-id="${assetType.id}" data-name="${assetType.name}">
+                                <i class="fas fa-edit"></i> Edit
+                            </button>
+                            <button class="btn btn-sm btn-outline-danger delete-asset-type-btn" data-id="${assetType.id}" data-name="${assetType.name}">
+                                <i class="fas fa-trash"></i> Delete
+                            </button>
+                        </div>
+                    `;
+                    assetTypesList.appendChild(listItem);
+                });
+
+                // Add event listeners for edit and delete buttons
+                document.querySelectorAll('.edit-asset-type-btn').forEach(btn => {
+                    btn.addEventListener('click', handleEditAssetType);
+                });
+                
+                document.querySelectorAll('.delete-asset-type-btn').forEach(btn => {
+                    btn.addEventListener('click', handleDeleteAssetType);
+                });
+            })
+            .catch(error => {
+                console.error('Error loading asset types:', error);
+                assetTypesList.innerHTML = '<div class="text-center text-danger p-3">Error loading asset types</div>';
+            });
+    }
+
+    // Update asset names list in management modal
+    function updateAssetNamesList() {
+        const assetNamesList = document.getElementById('assetNamesList');
+        const filterSelect = document.getElementById('assetNameFilterType');
+        const selectedAssetType = filterSelect ? filterSelect.value : '';
+        
+        assetNamesList.innerHTML = '';
+        
+        fetch('/admin/asset-names')
+            .then(response => response.json())
+            .then(assetNames => {
+                // Filter asset names based on selected asset type
+                let filteredAssetNames = assetNames;
+                if (selectedAssetType) {
+                    filteredAssetNames = assetNames.filter(assetName => assetName.asset_type_id == selectedAssetType);
+                }
+                
+                if (filteredAssetNames.length === 0) {
+                    assetNamesList.innerHTML = '<div class="text-center text-muted p-3">No asset names found</div>';
+                    return;
+                }
+                
+                // Group asset names by asset type
+                const assetNamesByType = {};
+                filteredAssetNames.forEach(assetName => {
+                    if (!assetNamesByType[assetName.asset_type_name]) {
+                        assetNamesByType[assetName.asset_type_name] = [];
+                    }
+                    assetNamesByType[assetName.asset_type_name].push(assetName);
+                });
+                
+                // Create organized list
+                Object.keys(assetNamesByType).sort().forEach(assetTypeName => {
+                    if (!selectedAssetType) {
+                        // Only show asset type headers when not filtering
+                        const assetTypeHeader = document.createElement('div');
+                        assetTypeHeader.className = 'list-group-item list-group-item-info fw-bold';
+                        assetTypeHeader.innerHTML = `<i class="fas fa-tag"></i> ${assetTypeName}`;
+                        assetNamesList.appendChild(assetTypeHeader);
+                    }
+                    
+                    assetNamesByType[assetTypeName].forEach(assetName => {
+                        const listItem = document.createElement('div');
+                        listItem.className = 'list-group-item d-flex justify-content-between align-items-center';
+                        listItem.innerHTML = `
+                            <div>
+                                <span class="asset-name-name fw-bold" data-id="${assetName.id}">${assetName.name}</span>
+                                ${selectedAssetType ? '' : `<small class="text-muted d-block"><i class="fas fa-tag"></i> ${assetName.asset_type_name}</small>`}
+                            </div>
+                            <div>
+                                <button class="btn btn-sm btn-outline-primary edit-asset-name-btn me-2" 
+                                        data-id="${assetName.id}" 
+                                        data-name="${assetName.name}"
+                                        data-asset-type="${assetName.asset_type_name}">
+                                    <i class="fas fa-edit"></i> Edit
+                                </button>
+                                <button class="btn btn-sm btn-outline-danger delete-asset-name-btn" 
+                                        data-id="${assetName.id}" 
+                                        data-name="${assetName.name}"
+                                        data-asset-type="${assetName.asset_type_name}">
+                                    <i class="fas fa-trash"></i> Delete
+                                </button>
+                            </div>
+                        `;
+                        assetNamesList.appendChild(listItem);
+                    });
+                });
+
+                // Add event listeners for edit and delete buttons
+                document.querySelectorAll('.edit-asset-name-btn').forEach(btn => {
+                    btn.addEventListener('click', handleEditAssetName);
+                });
+                
+                document.querySelectorAll('.delete-asset-name-btn').forEach(btn => {
+                    btn.addEventListener('click', handleDeleteAssetName);
+                });
+            })
+            .catch(error => {
+                console.error('Error loading asset names:', error);
+                assetNamesList.innerHTML = '<div class="text-center text-danger p-3">Error loading asset names</div>';
+            });
+    }
+
+    // Update asset type dropdowns
+    function updateAssetTypeDropdowns() {
+        fetch('/admin/asset-types')
+            .then(response => response.json())
+            .then(assetTypes => {
+                // Update new asset name type dropdown
+                const newAssetNameTypeSelect = document.getElementById('newAssetNameType');
+                if (newAssetNameTypeSelect) {
+                    newAssetNameTypeSelect.innerHTML = '<option value="">Select Asset Type</option>';
+                    assetTypes.forEach(assetType => {
+                        const option = document.createElement('option');
+                        option.value = assetType.id;
+                        option.textContent = assetType.name;
+                        newAssetNameTypeSelect.appendChild(option);
+                    });
+                }
+                
+                // Update asset name filter dropdown
+                const assetNameFilterSelect = document.getElementById('assetNameFilterType');
+                if (assetNameFilterSelect) {
+                    assetNameFilterSelect.innerHTML = '<option value="">All Asset Types</option>';
+                    assetTypes.forEach(assetType => {
+                        const option = document.createElement('option');
+                        option.value = assetType.id;
+                        option.textContent = assetType.name;
+                        assetNameFilterSelect.appendChild(option);
+                    });
+                }
+                
+                // Update add asset modal asset type dropdown
+                const addAssetTypeSelect = document.getElementById('asset_type');
+                if (addAssetTypeSelect) {
+                    addAssetTypeSelect.innerHTML = '<option value="">Select Asset Type</option>';
+                    assetTypes.forEach(assetType => {
+                        const option = document.createElement('option');
+                        option.value = assetType.name;
+                        option.textContent = assetType.name;
+                        addAssetTypeSelect.appendChild(option);
+                    });
+                }
+                
+                // Update edit asset modal asset type dropdown
+                const editAssetTypeSelect = document.getElementById('edit_asset_type');
+                if (editAssetTypeSelect) {
+                    editAssetTypeSelect.innerHTML = '<option value="">Select Asset Type</option>';
+                    assetTypes.forEach(assetType => {
+                        const option = document.createElement('option');
+                        option.value = assetType.name;
+                        option.textContent = assetType.name;
+                        editAssetTypeSelect.appendChild(option);
+                    });
+                }
+                
+                // Update main page asset type filter dropdown
+                const assetTypeFilterSelect = document.getElementById('assetTypeFilter');
+                if (assetTypeFilterSelect) {
+                    assetTypeFilterSelect.innerHTML = '<option value="">All Types</option>';
+                    assetTypes.forEach(assetType => {
+                        const option = document.createElement('option');
+                        option.value = assetType.name;
+                        option.textContent = assetType.name;
+                        // Check if this option should be selected based on current filter
+                        if (new URLSearchParams(window.location.search).get('asset_type') === assetType.name) {
+                            option.selected = true;
+                        }
+                        assetTypeFilterSelect.appendChild(option);
+                    });
+                }
+            })
+            .catch(error => {
+                console.error('Error loading asset types for dropdowns:', error);
+            });
+    }
+
+    // Update asset name filter dropdown
+    function updateAssetNameFilterDropdown() {
+        const filterSelect = document.getElementById('assetNameFilterType');
+        if (!filterSelect) return;
+        
+        // Add change listener
+        filterSelect.addEventListener('change', function() {
+            updateAssetNamesList();
+        });
+    }
+
+    // Update asset name dropdowns for add/edit asset forms
+    function updateAssetNameDropdowns() {
+        fetch('/admin/asset-names')
+            .then(response => response.json())
+            .then(assetNames => {
+                // Group asset names by asset type
+                const assetNamesByType = {};
+                assetNames.forEach(assetName => {
+                    if (!assetNamesByType[assetName.asset_type_name]) {
+                        assetNamesByType[assetName.asset_type_name] = [];
+                    }
+                    assetNamesByType[assetName.asset_type_name].push(assetName);
+                });
+                
+                // Store the grouped data for use in change handlers
+                window.assetNamesByType = assetNamesByType;
+            })
+            .catch(error => {
+                console.error('Error loading asset names for dropdowns:', error);
+            });
+    }
+
+    // Update asset name datalist based on selected asset type
+    function updateAssetNameDropdown(assetTypeName, inputId) {
+        const input = document.getElementById(inputId);
+        const datalistId = inputId === 'name' ? 'assetNameList' : 'editAssetNameList';
+        const datalist = document.getElementById(datalistId);
+        
+        if (!input || !datalist) return;
+        
+        // Clear existing options
+        datalist.innerHTML = '';
+        
+        if (!assetTypeName || !window.assetNamesByType || !window.assetNamesByType[assetTypeName]) {
+            const option = document.createElement('option');
+            option.value = '';
+            option.textContent = 'No asset names available for this type';
+            datalist.appendChild(option);
+            return;
+        }
+        
+        // Add all asset names for the selected type
+        window.assetNamesByType[assetTypeName].forEach(assetName => {
+            const option = document.createElement('option');
+            option.value = assetName.name;
+            option.textContent = assetName.name;
+            datalist.appendChild(option);
+        });
+        
+        // Set initial placeholder
+        const totalOptions = window.assetNamesByType[assetTypeName].length;
+        input.placeholder = `Type to search predefined names (${totalOptions} available)`;
+        
+        // Add event listener for real-time filtering
+        input.addEventListener('input', function() {
+            filterAssetNameOptions(assetTypeName, inputId);
+        });
+        
+        // Add event listener for selection (only for add asset form)
+        if (inputId === 'name') {
+            input.addEventListener('change', function() {
+                const selectedValue = this.value.trim();
+                if (selectedValue && validateAssetName(assetTypeName, selectedValue)) {
+                    addAssetNameToSelection(selectedValue);
+                    this.value = '';
+                }
+            });
+        }
+    }
+
+    // Filter asset name options based on user input
+    function filterAssetNameOptions(assetTypeName, inputId) {
+        const input = document.getElementById(inputId);
+        const datalistId = inputId === 'name' ? 'assetNameList' : 'editAssetNameList';
+        const datalist = document.getElementById(datalistId);
+        
+        if (!input || !datalist || !window.assetNamesByType || !window.assetNamesByType[assetTypeName]) {
+            return;
+        }
+        
+        const userInput = input.value.toLowerCase().trim();
+        
+        // Clear existing options
+        datalist.innerHTML = '';
+        
+        if (!userInput) {
+            // If no input, show all asset names for the type
+            window.assetNamesByType[assetTypeName].forEach(assetName => {
+                const option = document.createElement('option');
+                option.value = assetName.name;
+                option.textContent = assetName.name;
+                datalist.appendChild(option);
+            });
+            return;
+        }
+        
+        // Filter asset names that start with the user input
+        const filteredNames = window.assetNamesByType[assetTypeName].filter(assetName => 
+            assetName.name.toLowerCase().startsWith(userInput)
+        );
+        
+        // Add filtered options
+        filteredNames.forEach(assetName => {
+            const option = document.createElement('option');
+            option.value = assetName.name;
+            option.textContent = assetName.name;
+            datalist.appendChild(option);
+        });
+        
+        // If no matches found, show a message
+        if (filteredNames.length === 0) {
+            const option = document.createElement('option');
+            option.value = '';
+            option.textContent = 'No matching asset names found';
+            datalist.appendChild(option);
+        }
+        
+        // Update placeholder to show available options
+        const totalOptions = window.assetNamesByType[assetTypeName].length;
+        const availableOptions = filteredNames.length;
+        if (userInput) {
+            input.placeholder = `Found ${availableOptions} of ${totalOptions} asset names (type to filter)`;
+        } else {
+            input.placeholder = `Type to search predefined names (${totalOptions} available)`;
+        }
+    }
+
+    // Validate asset name exists in predefined list
+    function validateAssetName(assetTypeName, assetName) {
+        if (!assetTypeName || !assetName || !window.assetNamesByType || !window.assetNamesByType[assetTypeName]) {
+            return false;
+        }
+        
+        const validNames = window.assetNamesByType[assetTypeName].map(item => item.name);
+        return validNames.includes(assetName);
+    }
+
+    // Multi-select asset names functionality
+    let selectedAssetNames = [];
+
+    // Add asset name to selected list
+    function addAssetNameToSelection(assetName) {
+        if (!selectedAssetNames.includes(assetName)) {
+            selectedAssetNames.push(assetName);
+            updateSelectedAssetNamesDisplay();
+            updateHiddenInput();
+        }
+    }
+
+    // Remove asset name from selected list
+    function removeAssetNameFromSelection(assetName) {
+        const index = selectedAssetNames.indexOf(assetName);
+        if (index > -1) {
+            selectedAssetNames.splice(index, 1);
+            updateSelectedAssetNamesDisplay();
+            updateHiddenInput();
+        }
+    }
+
+    // Update the display of selected asset names
+    function updateSelectedAssetNamesDisplay() {
+        const container = document.getElementById('selectedAssetNames');
+        if (!container) return;
+        
+        container.innerHTML = '';
+        
+        selectedAssetNames.forEach(assetName => {
+            const tag = document.createElement('div');
+            tag.className = 'asset-name-tag';
+            tag.innerHTML = `
+                <span class="asset-name-text">${assetName}</span>
+                <button type="button" class="remove-btn" onclick="removeAssetNameFromSelection('${assetName}')">
+                    <i class="fas fa-times"></i>
+                </button>
+            `;
+            container.appendChild(tag);
+        });
+    }
+
+    // Update hidden input with selected asset names
+    function updateHiddenInput() {
+        const hiddenInput = document.getElementById('selectedAssetNamesInput');
+        if (hiddenInput) {
+            hiddenInput.value = selectedAssetNames.join(',');
+        }
+    }
+
+    // Clear selected asset names
+    function clearSelectedAssetNames() {
+        selectedAssetNames = [];
+        updateSelectedAssetNamesDisplay();
+        updateHiddenInput();
+    }
+
+
+
+// ============================================================================
 // EVENT LISTENERS - DEPARTMENT MANAGEMENT
 // ============================================================================
 
@@ -1598,7 +2294,201 @@ let selectedAssets = [];
         }
     }
 
+// ============================================================================
+// EVENT LISTENERS - ASSET MANAGEMENT
+// ============================================================================
 
+    // Handle adding new asset type
+    document.getElementById('addAssetTypeBtn').addEventListener('click', function() {
+        const nameInput = document.getElementById('newAssetTypeName');
+        const name = nameInput.value.trim();
+        
+        if (!name) {
+            alert('Please enter an asset type name.');
+            return;
+        }
+
+        const formData = new FormData();
+        formData.append('name', name);
+
+        fetch('/admin/asset-types', {
+            method: 'POST',
+            body: formData
+        })
+        .then(response => response.json())
+                    .then(data => {
+                if (data.success) {
+                    nameInput.value = '';
+                    loadAssetTypes(); // Reload the asset types list
+                    loadAssetNames(); // Reload asset names to update dropdowns
+                    updateAssetNameDropdowns(); // Update dropdown data
+                } else {
+                    alert(data.error || 'Failed to add asset type.');
+                }
+            })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('Failed to add asset type.');
+        });
+    });
+
+    // Handle adding new asset name
+    document.getElementById('addAssetNameBtn').addEventListener('click', function() {
+        const nameInput = document.getElementById('newAssetName');
+        const typeSelect = document.getElementById('newAssetNameType');
+        const name = nameInput.value.trim();
+        const assetTypeId = typeSelect.value;
+        
+        if (!name) {
+            alert('Please enter an asset name.');
+            return;
+        }
+
+        if (!assetTypeId) {
+            alert('Please select an asset type.');
+            return;
+        }
+
+        const formData = new FormData();
+        formData.append('name', name);
+        formData.append('asset_type_id', assetTypeId);
+
+        fetch('/admin/asset-names', {
+            method: 'POST',
+            body: formData
+        })
+        .then(response => response.json())
+                    .then(data => {
+                if (data.success) {
+                    nameInput.value = '';
+                    typeSelect.value = '';
+                    loadAssetNames(); // Reload the asset names list
+                    updateAssetNameDropdowns(); // Update dropdown data
+                } else {
+                    alert(data.error || 'Failed to add asset name.');
+                }
+            })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('Failed to add asset name.');
+        });
+    });
+
+    // Handle editing asset type
+    function handleEditAssetType(e) {
+        const assetTypeId = e.currentTarget.getAttribute('data-id');
+        const currentName = e.currentTarget.getAttribute('data-name');
+        
+        const newName = prompt('Enter new asset type name:', currentName);
+        
+        if (newName && newName.trim() !== currentName) {
+            const formData = new FormData();
+            formData.append('name', newName.trim());
+
+            fetch(`/admin/asset-types/${assetTypeId}`, {
+                method: 'PUT',
+                body: formData
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    loadAssetTypes(); // Reload the asset types list
+                    loadAssetNames(); // Reload asset names to update dropdowns
+                    updateAssetNameDropdowns(); // Update dropdown data
+                } else {
+                    alert(data.error || 'Failed to update asset type.');
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('Failed to update asset type.');
+            });
+        }
+    }
+
+    // Handle editing asset name
+    function handleEditAssetName(e) {
+        const assetNameId = e.currentTarget.getAttribute('data-id');
+        const currentName = e.currentTarget.getAttribute('data-name');
+        const assetTypeName = e.currentTarget.getAttribute('data-asset-type');
+        
+        const newName = prompt(`Edit asset name for "${assetTypeName}":\n\nCurrent name: ${currentName}\nEnter new name:`, currentName);
+        
+        if (newName && newName.trim() !== currentName) {
+            const formData = new FormData();
+            formData.append('name', newName.trim());
+
+            fetch(`/admin/asset-names/${assetNameId}`, {
+                method: 'PUT',
+                body: formData
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    loadAssetNames(); // Reload the asset names list
+                    updateAssetNameDropdowns(); // Update dropdown data
+                } else {
+                    alert(data.error || 'Failed to update asset name.');
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('Failed to update asset name.');
+            });
+        }
+    }
+
+    // Handle deleting asset type
+    function handleDeleteAssetType(e) {
+        const assetTypeId = e.currentTarget.getAttribute('data-id');
+        const assetTypeName = e.currentTarget.getAttribute('data-name');
+        
+        if (confirm(`Are you sure you want to delete "${assetTypeName}"? This will also delete all its asset names.`)) {
+            fetch(`/admin/asset-types/${assetTypeId}`, {
+                method: 'DELETE'
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    loadAssetTypes(); // Reload the asset types list
+                    loadAssetNames(); // Reload asset names list
+                    updateAssetNameDropdowns(); // Update dropdown data
+                } else {
+                    alert(data.error || 'Failed to delete asset type.');
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('Failed to delete asset type.');
+            });
+        }
+    }
+
+    // Handle deleting asset name
+    function handleDeleteAssetName(e) {
+        const assetNameId = e.currentTarget.getAttribute('data-id');
+        const assetName = e.currentTarget.getAttribute('data-name');
+        const assetTypeName = e.currentTarget.getAttribute('data-asset-type');
+        
+        if (confirm(`Are you sure you want to delete "${assetName}" from "${assetTypeName}"?`)) {
+            fetch(`/admin/asset-names/${assetNameId}`, {
+                method: 'DELETE'
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    loadAssetNames(); // Reload the asset names list
+                    updateAssetNameDropdowns(); // Update dropdown data
+                } else {
+                    alert(data.error || 'Failed to delete asset name.');
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('Failed to delete asset name.');
+            });
+        }
+    }
 
     // ===== USER MODAL FUNCTIONS =====
 
@@ -1998,6 +2888,48 @@ let selectedAssets = [];
         loadBuildings();
         loadDepartments();
         loadUserModalData();
+            loadAssetTypes();
+            loadAssetNames();
+            updateAssetNameDropdowns();
+            
+            // Add event listeners for asset type changes
+            document.getElementById('asset_type').addEventListener('change', function() {
+                updateAssetNameDropdown(this.value, 'name');
+            });
+            
+            document.getElementById('edit_asset_type').addEventListener('change', function() {
+                updateAssetNameDropdown(this.value, 'edit_name');
+            });
+            
+            // Add form validation for add asset form
+            document.getElementById('addAssetForm').addEventListener('submit', function(e) {
+                const assetType = document.getElementById('asset_type').value;
+                const selectedAssetNamesInput = document.getElementById('selectedAssetNamesInput');
+                
+                if (!assetType) {
+                    e.preventDefault();
+                    alert('Please select an asset type.');
+                    return;
+                }
+                
+                if (!selectedAssetNamesInput || !selectedAssetNamesInput.value.trim()) {
+                    e.preventDefault();
+                    alert('Please select at least one asset name.');
+                    return;
+                }
+                
+                // Validate that all selected asset names exist in the predefined list
+                const selectedNames = selectedAssetNamesInput.value.split(',').filter(name => name.trim());
+                for (const assetName of selectedNames) {
+                    if (!validateAssetName(assetType, assetName.trim())) {
+                        e.preventDefault();
+                        alert(`Asset name "${assetName.trim()}" does not exist. Please select from the available asset names or add it first through the "Manage Assets" button.`);
+                        return;
+                    }
+                }
+            });
+            
+
         
         // Refresh user modal data when modal is shown
         document.getElementById('userManagementModal').addEventListener('show.bs.modal', function() {
@@ -2014,6 +2946,13 @@ let selectedAssets = [];
             loadDepartments();
         });
         
+        // Refresh asset management data when modal is shown
+        document.getElementById('assetManagementModal').addEventListener('show.bs.modal', function() {
+            loadAssetTypes();
+            loadAssetNames();
+            updateAssetNameDropdowns();
+        });
+        
         // Initialize add asset modal
         document.getElementById('addAssetModal').addEventListener('show.bs.modal', function() {
             // Reset the no owner checkbox
@@ -2027,6 +2966,14 @@ let selectedAssets = [];
             ownerSelect.style.opacity = '1';
             ownerSelect.style.backgroundColor = '';
             ownerSelect.innerHTML = '<option value="">Select Department First</option>';
+            
+            // Load asset types and asset names for the dropdowns
+            loadAssetTypes();
+            loadAssetNames();
+            updateAssetNameDropdowns();
+            
+            // Clear selected asset names
+            clearSelectedAssetNames();
         });
         
         // Initialize edit asset modal
@@ -2051,13 +2998,8 @@ let selectedAssets = [];
             document.getElementById('editAssetForm').action = `/assets/update/${assetId}`;
             
             // Populate form fields
-            document.getElementById('edit_name').value = assetName;
             document.getElementById('edit_quantity').value = assetQuantity;
             document.getElementById('edit_used_status').value = assetStatus;
-            
-            // Set asset type immediately since it's a static dropdown
-            console.log('Setting asset type to:', assetType);
-            console.log('Available asset type options:', Array.from(document.getElementById('edit_asset_type').options).map(opt => opt.value));
             
             // Handle old asset type values that might not match new options
             let assetTypeToSet = assetType;
@@ -2066,10 +3008,6 @@ let selectedAssets = [];
             } else if (assetType === 'Office Supplies') {
                 assetTypeToSet = 'Others';
             }
-            
-            document.getElementById('edit_asset_type').value = assetTypeToSet;
-            console.log('Asset type dropdown value after setting:', document.getElementById('edit_asset_type').value);
-            console.log('Asset type dropdown selected option:', document.getElementById('edit_asset_type').selectedOptions[0]?.text);
             
             // Handle no owner case
             const editNoOwnerCheck = document.getElementById('edit_noOwnerCheck');
@@ -2086,6 +3024,27 @@ let selectedAssets = [];
                 editOwnerSelect.style.opacity = '1';
                 editOwnerSelect.style.backgroundColor = '';
             }
+            
+            // Load asset types and asset names for the dropdowns, then set the asset type
+            loadAssetTypes();
+            loadAssetNames();
+            updateAssetNameDropdowns();
+            
+            // Set asset type after dropdowns are loaded
+            setTimeout(() => {
+                console.log('Setting asset type to:', assetTypeToSet);
+                console.log('Available asset type options:', Array.from(document.getElementById('edit_asset_type').options).map(opt => opt.value));
+                
+                document.getElementById('edit_asset_type').value = assetTypeToSet;
+                console.log('Asset type dropdown value after setting:', document.getElementById('edit_asset_type').value);
+                console.log('Asset type dropdown selected option:', document.getElementById('edit_asset_type').selectedOptions[0]?.text);
+                
+                // Set asset name after asset type is set
+                updateAssetNameDropdown(assetTypeToSet, 'edit_name');
+                setTimeout(() => {
+                    document.getElementById('edit_name').value = assetName;
+                }, 100);
+            }, 300);
             
             // Load buildings and populate building dropdown, then chain the other loads
             loadEditBuildings(assetBuilding).then(() => {
@@ -2188,8 +3147,25 @@ let selectedAssets = [];
         document.getElementById('editAssetForm').addEventListener('submit', function(e) {
             e.preventDefault();
             
-            // Get the asset name for confirmation
-            const assetName = document.getElementById('edit_name').value;
+            // Form validation
+            const assetType = document.getElementById('edit_asset_type').value;
+            const assetName = document.getElementById('edit_name').value.trim();
+            
+            if (!assetType) {
+                alert('Please select an asset type.');
+                return;
+            }
+            
+            if (!assetName) {
+                alert('Please enter an asset name.');
+                return;
+            }
+            
+            // Validate that the asset name exists in the predefined list
+            if (!validateAssetName(assetType, assetName)) {
+                alert(`Asset name "${assetName}" does not exist. Please select from the available asset names or add it first through the "Manage Assets" button.`);
+                return;
+            }
             
             // Show confirmation dialog
             if (!confirm(`Are you sure you want to update the asset "${assetName}"?`)) {
@@ -2476,9 +3452,12 @@ let selectedAssets = [];
         if (selectedAssets.length === 0) return;
         
         const assetNames = selectedAssets.map(asset => asset.name).join(', ');
-        if (confirm(`Are you sure you want to delete ${selectedAssets.length} items?\n\n${assetNames.substring(0, 200)}${assetNames.length > 200 ? '...' : ''}`)) {
+        const archiveReason = prompt(`Are you sure you want to archive ${selectedAssets.length} items?\n\n${assetNames.substring(0, 200)}${assetNames.length > 200 ? '...' : ''}\n\nPlease provide a reason for archiving (optional):`);
+        
+        if (archiveReason !== null) { // User didn't cancel
             const formData = new FormData();
             selectedAssets.forEach(asset => formData.append('asset_ids[]', asset.id));
+            formData.append('archive_reason', archiveReason || 'Assets bulk archived by user');
             
             fetch('/assets/bulk_delete', {
                 method: 'POST',
@@ -2489,12 +3468,12 @@ let selectedAssets = [];
                 if (data.success) {
                     location.reload();
                 } else {
-                    alert('Failed to delete assets.');
+                    alert('Failed to archive assets.');
                 }
             })
             .catch(error => {
                 console.error('Error:', error);
-                alert('Failed to delete assets.');
+                alert('Failed to archive assets.');
             });
         }
     });
@@ -3127,4 +4106,5 @@ let selectedAssets = [];
     }
 </script>
 </body>
+</html> 
 </html> 

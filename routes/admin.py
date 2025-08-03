@@ -443,3 +443,239 @@ def delete_user(user_id):
     conn.close()
     
     return jsonify({'success': True}) 
+
+# ===== ASSET TYPE MANAGEMENT API =====
+
+@admin_bp.route('/asset-types', methods=['GET'])
+@login_required
+def get_asset_types():
+    conn = get_db_connection()
+    cur = conn.cursor()
+    cur.execute('SELECT id, name FROM asset_types ORDER BY name')
+    asset_types = [{'id': row[0], 'name': row[1]} for row in cur.fetchall()]
+    conn.close()
+    return jsonify(asset_types)
+
+@admin_bp.route('/asset-types', methods=['POST'])
+@login_required
+def add_asset_type():
+    # Only admin users can add asset types
+    if current_user.role != 'admin':
+        return jsonify({'error': 'Access denied. Only administrators can add asset types.'}), 403
+    
+    name = request.form.get('name', '').strip()
+    if not name:
+        return jsonify({'error': 'Asset type name is required'}), 400
+    
+    conn = get_db_connection()
+    cur = conn.cursor()
+    try:
+        cur.execute('INSERT INTO asset_types (name) VALUES (?)', (name,))
+        asset_type_id = cur.lastrowid
+        conn.commit()
+        conn.close()
+        return jsonify({'success': True, 'id': asset_type_id, 'name': name})
+    except sqlite3.IntegrityError:
+        conn.close()
+        return jsonify({'error': 'Asset type name already exists'}), 400
+
+@admin_bp.route('/asset-types/<int:asset_type_id>', methods=['PUT'])
+@login_required
+def update_asset_type(asset_type_id):
+    # Only admin users can update asset types
+    if current_user.role != 'admin':
+        return jsonify({'error': 'Access denied. Only administrators can update asset types.'}), 403
+    
+    name = request.form.get('name', '').strip()
+    if not name:
+        return jsonify({'error': 'Asset type name is required'}), 400
+    
+    conn = get_db_connection()
+    cur = conn.cursor()
+    try:
+        # Check if asset type exists
+        cur.execute('SELECT name FROM asset_types WHERE id = ?', (asset_type_id,))
+        old_asset_type = cur.fetchone()
+        if not old_asset_type:
+            conn.close()
+            return jsonify({'error': 'Asset type not found'}), 404
+        
+        old_name = old_asset_type[0]
+        
+        # Update asset type name
+        cur.execute('UPDATE asset_types SET name = ? WHERE id = ?', (name, asset_type_id))
+        
+        # Update all assets that reference this asset type
+        cur.execute('UPDATE assets SET asset_type = ? WHERE asset_type = ?', (name, old_name))
+        
+        conn.commit()
+        conn.close()
+        return jsonify({'success': True, 'id': asset_type_id, 'name': name})
+    except sqlite3.IntegrityError:
+        conn.close()
+        return jsonify({'error': 'Asset type name already exists'}), 400
+
+@admin_bp.route('/asset-types/<int:asset_type_id>', methods=['DELETE'])
+@login_required
+def delete_asset_type(asset_type_id):
+    # Only admin users can delete asset types
+    if current_user.role != 'admin':
+        return jsonify({'error': 'Access denied. Only administrators can delete asset types.'}), 403
+    
+    conn = get_db_connection()
+    cur = conn.cursor()
+    
+    # Check if asset type exists
+    cur.execute('SELECT name FROM asset_types WHERE id = ?', (asset_type_id,))
+    asset_type = cur.fetchone()
+    if not asset_type:
+        conn.close()
+        return jsonify({'error': 'Asset type not found'}), 404
+    
+    asset_type_name = asset_type[0]
+    
+    # Check if asset type is being used by any assets
+    cur.execute('SELECT COUNT(*) FROM assets WHERE asset_type = ?', (asset_type_name,))
+    asset_count = cur.fetchone()[0]
+    
+    if asset_count > 0:
+        conn.close()
+        return jsonify({'error': f'Cannot delete asset type. It is being used by {asset_count} asset(s)'}), 400
+    
+    # Delete the asset type and its asset names
+    cur.execute('DELETE FROM asset_names WHERE asset_type_id = ?', (asset_type_id,))
+    cur.execute('DELETE FROM asset_types WHERE id = ?', (asset_type_id,))
+    conn.commit()
+    conn.close()
+    
+    return jsonify({'success': True})
+
+# ===== ASSET NAME MANAGEMENT API =====
+
+@admin_bp.route('/asset-names', methods=['GET'])
+@login_required
+def get_asset_names():
+    asset_type_id = request.args.get('asset_type_id')
+    conn = get_db_connection()
+    cur = conn.cursor()
+    
+    if asset_type_id:
+        cur.execute('SELECT id, name FROM asset_names WHERE asset_type_id = ? ORDER BY name', (asset_type_id,))
+    else:
+        cur.execute('''
+            SELECT an.id, an.name, an.asset_type_id, at.name as asset_type_name 
+            FROM asset_names an 
+            JOIN asset_types at ON an.asset_type_id = at.id 
+            ORDER BY at.name, an.name
+        ''')
+    
+    if asset_type_id:
+        asset_names = [{'id': row[0], 'name': row[1]} for row in cur.fetchall()]
+    else:
+        asset_names = [{'id': row[0], 'name': row[1], 'asset_type_id': row[2], 'asset_type_name': row[3]} for row in cur.fetchall()]
+    
+    conn.close()
+    return jsonify(asset_names)
+
+@admin_bp.route('/asset-names', methods=['POST'])
+@login_required
+def add_asset_name():
+    # Only admin users can add asset names
+    if current_user.role != 'admin':
+        return jsonify({'error': 'Access denied. Only administrators can add asset names.'}), 403
+    
+    name = request.form.get('name', '').strip()
+    asset_type_id = request.form.get('asset_type_id')
+    
+    if not name:
+        return jsonify({'error': 'Asset name is required'}), 400
+    
+    if not asset_type_id:
+        return jsonify({'error': 'Asset type is required'}), 400
+    
+    try:
+        asset_type_id = int(asset_type_id)
+    except ValueError:
+        return jsonify({'error': 'Invalid asset type ID'}), 400
+    
+    conn = get_db_connection()
+    cur = conn.cursor()
+    try:
+        cur.execute('INSERT INTO asset_names (name, asset_type_id) VALUES (?, ?)', (name, asset_type_id))
+        asset_name_id = cur.lastrowid
+        conn.commit()
+        conn.close()
+        return jsonify({'success': True, 'id': asset_name_id, 'name': name, 'asset_type_id': asset_type_id})
+    except sqlite3.IntegrityError:
+        conn.close()
+        return jsonify({'error': 'Asset name already exists for this asset type'}), 400
+
+@admin_bp.route('/asset-names/<int:asset_name_id>', methods=['PUT'])
+@login_required
+def update_asset_name(asset_name_id):
+    # Only admin users can update asset names
+    if current_user.role != 'admin':
+        return jsonify({'error': 'Access denied. Only administrators can update asset names.'}), 403
+    
+    name = request.form.get('name', '').strip()
+    if not name:
+        return jsonify({'error': 'Asset name is required'}), 400
+    
+    conn = get_db_connection()
+    cur = conn.cursor()
+    try:
+        # Check if asset name exists
+        cur.execute('SELECT an.name, at.name as asset_type_name FROM asset_names an JOIN asset_types at ON an.asset_type_id = at.id WHERE an.id = ?', (asset_name_id,))
+        result = cur.fetchone()
+        if not result:
+            conn.close()
+            return jsonify({'error': 'Asset name not found'}), 404
+        
+        old_name, asset_type_name = result
+        
+        # Update asset name
+        cur.execute('UPDATE asset_names SET name = ? WHERE id = ?', (name, asset_name_id))
+        
+        # Update all assets that reference this asset name and asset type
+        cur.execute('UPDATE assets SET name = ? WHERE name = ? AND asset_type = ?', (name, old_name, asset_type_name))
+        
+        conn.commit()
+        conn.close()
+        return jsonify({'success': True, 'id': asset_name_id, 'name': name})
+    except sqlite3.IntegrityError:
+        conn.close()
+        return jsonify({'error': 'Asset name already exists for this asset type'}), 400
+
+@admin_bp.route('/asset-names/<int:asset_name_id>', methods=['DELETE'])
+@login_required
+def delete_asset_name(asset_name_id):
+    # Only admin users can delete asset names
+    if current_user.role != 'admin':
+        return jsonify({'error': 'Access denied. Only administrators can delete asset names.'}), 403
+    
+    conn = get_db_connection()
+    cur = conn.cursor()
+    
+    # Check if asset name exists
+    cur.execute('SELECT an.name, at.name as asset_type_name FROM asset_names an JOIN asset_types at ON an.asset_type_id = at.id WHERE an.id = ?', (asset_name_id,))
+    result = cur.fetchone()
+    if not result:
+        conn.close()
+        return jsonify({'error': 'Asset name not found'}), 404
+    
+    asset_name, asset_type_name = result
+    
+    # Check if asset name is being used by any assets
+    cur.execute('SELECT COUNT(*) FROM assets WHERE name = ? AND asset_type = ?', (asset_name, asset_type_name))
+    asset_count = cur.fetchone()[0]
+    
+    if asset_count > 0:
+        conn.close()
+        return jsonify({'error': f'Cannot delete asset name. It is being used by {asset_count} asset(s)'}), 400
+    
+    # Delete the asset name
+    cur.execute('DELETE FROM asset_names WHERE id = ?', (asset_name_id,))
+    conn.commit()
+    conn.close()
+    
+    return jsonify({'success': True}) 

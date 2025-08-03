@@ -98,6 +98,37 @@ The system automatically creates the following tables:
 - **Individual Assets**: Scan QR codes to view asset details
 - **Department QR Codes**: Scan to view all assets in a department
 - **Mobile Friendly**: QR codes work on mobile devices
+- **Configurable URLs**: QR codes can be configured for different environments
+
+## 🔧 QR Code Configuration
+
+### Environment Setup
+The QR codes use a configurable base URL to work across different environments:
+
+1. **Local Development** (default):
+   - QR codes will use localhost URLs
+   - Works when running locally
+
+2. **Production/Network Access**:
+   - Set the `BASE_URL` environment variable to your domain
+   - Example: `export BASE_URL="https://yourdomain.com"`
+   - Example: `export BASE_URL="http://192.168.1.100:5000"` (for local network)
+
+3. **Testing Different Environments**:
+   - You can change the base URL without regenerating QR codes
+   - Just update the environment variable and restart the application
+
+### Setting Base URL
+```bash
+# For production
+export BASE_URL="https://yourcompany.com"
+
+# For local network access
+export BASE_URL="http://192.168.1.100:5000"
+
+# For development (default)
+# Leave BASE_URL unset
+```
 
 ## 🔐 Security
 

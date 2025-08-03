@@ -13,6 +13,139 @@
             min-height: 100vh;
             padding: 20px 0;
         }
+        
+        /* Dark Mode Styles */
+        .dark-mode {
+            background: linear-gradient(135deg, #1a1a1a 0%, #2d2d2d 100%) !important;
+            color: #ffffff !important;
+        }
+        
+        .dark-mode .manage-users-container {
+            background-color: #2d2d2d !important;
+        }
+        
+        .dark-mode .user-card {
+            background-color: #404040 !important;
+            border-color: #555555 !important;
+        }
+        
+        .dark-mode .stats-card {
+            background-color: #404040 !important;
+            border-color: #555555 !important;
+        }
+        
+        .dark-mode .text-muted {
+            color: #b0b0b0 !important;
+        }
+        
+        .dark-mode .form-control,
+        .dark-mode .form-select {
+            background-color: #404040 !important;
+            border-color: #555555 !important;
+            color: #ffffff !important;
+        }
+        
+        .dark-mode .form-control:focus,
+        .dark-mode .form-select:focus {
+            background-color: #404040 !important;
+            border-color: #86b7fe !important;
+            color: #ffffff !important;
+        }
+        
+        .dark-mode .btn {
+            border-color: #555555 !important;
+        }
+        
+        .dark-mode .alert {
+            background-color: #2d2d2d !important;
+            border-color: #404040 !important;
+        }
+        
+        .dark-mode .badge {
+            color: #ffffff !important;
+        }
+        
+        .dark-mode .role-badge.role-admin {
+            background-color: #dc3545 !important;
+        }
+        
+        .dark-mode .role-badge.role-purchasing {
+            background-color: #28a745 !important;
+        }
+        
+        /* Ensure all text is visible in dark mode */
+        .dark-mode h1,
+        .dark-mode h2,
+        .dark-mode h3,
+        .dark-mode h4,
+        .dark-mode h5,
+        .dark-mode h6 {
+            color: #ffffff !important;
+        }
+        
+        .dark-mode p {
+            color: #ffffff !important;
+        }
+        
+        .dark-mode label {
+            color: #ffffff !important;
+        }
+        
+        .dark-mode small {
+            color: #b0b0b0 !important;
+        }
+        
+        .dark-mode .header-section h1,
+        .dark-mode .header-section p {
+            color: #ffffff !important;
+        }
+        
+        .dark-mode .stats-card h5,
+        .dark-mode .stats-card h3 {
+            color: #ffffff !important;
+        }
+        
+        .dark-mode .user-card h5 {
+            color: #ffffff !important;
+        }
+        
+        .dark-mode .form-check-label {
+            color: #ffffff !important;
+        }
+        
+        .dark-mode .btn-close {
+            filter: invert(1);
+        }
+        
+        /* Light mode styles to ensure visibility */
+        body:not(.dark-mode) {
+            color: #000000 !important;
+        }
+        
+        body:not(.dark-mode) h1,
+        body:not(.dark-mode) h2,
+        body:not(.dark-mode) h3,
+        body:not(.dark-mode) h4,
+        body:not(.dark-mode) h5,
+        body:not(.dark-mode) h6 {
+            color: #000000 !important;
+        }
+        
+        body:not(.dark-mode) p {
+            color: #000000 !important;
+        }
+        
+        body:not(.dark-mode) label {
+            color: #000000 !important;
+        }
+        
+        body:not(.dark-mode) .text-muted {
+            color: #6c757d !important;
+        }
+        
+        body:not(.dark-mode) small {
+            color: #6c757d !important;
+        }
     </style>
 </head>
 <body>
@@ -56,6 +189,10 @@
             <div class="d-flex justify-content-between align-items-center mb-3">
                 <h4><i class="fas fa-list"></i> User List</h4>
                 <div>
+                    <!-- Dark Mode Toggle -->
+                    <button id="darkModeToggle" class="btn btn-sm me-2" type="button" onclick="toggleDarkMode()" style="border-color: #6c757d; color: #6c757d; background: rgba(255,255,255,0.9); z-index: 1000;">
+                        <i class="fas fa-moon"></i><span> Dark Mode</span>
+                    </button>
                     <button class="btn btn-danger me-2" id="bulkDeleteBtn" style="display: none;">
                         <i class="fas fa-trash"></i> Delete Selected
                     </button>
@@ -250,6 +387,51 @@
                     });
                 }
             });
+        });
+        
+        // Dark mode functionality
+        function toggleDarkMode() {
+            const body = document.body;
+            const isDarkMode = body.classList.contains('dark-mode');
+            
+            if (isDarkMode) {
+                body.classList.remove('dark-mode');
+                localStorage.setItem('darkMode', 'false');
+                updateDarkModeButton(false);
+            } else {
+                body.classList.add('dark-mode');
+                localStorage.setItem('darkMode', 'true');
+                updateDarkModeButton(true);
+            }
+        }
+        
+        function updateDarkModeButton(isDark) {
+            const button = document.getElementById('darkModeToggle');
+            const icon = button.querySelector('i');
+            const text = button.querySelector('span');
+            
+            if (isDark) {
+                icon.className = 'fas fa-sun';
+                text.textContent = ' Light Mode';
+                button.style.borderColor = '#ffd700';
+                button.style.color = '#ffd700';
+            } else {
+                icon.className = 'fas fa-moon';
+                text.textContent = ' Dark Mode';
+                button.style.borderColor = '#6c757d';
+                button.style.color = '#6c757d';
+            }
+        }
+        
+        // Initialize dark mode on page load
+        document.addEventListener('DOMContentLoaded', function() {
+            const savedDarkMode = localStorage.getItem('darkMode');
+            const body = document.body;
+            
+            if (savedDarkMode === 'true') {
+                body.classList.add('dark-mode');
+                updateDarkModeButton(true);
+            }
         });
     </script>
 </body>

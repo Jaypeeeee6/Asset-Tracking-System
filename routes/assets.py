@@ -93,7 +93,7 @@ def dashboard():
 @assets_bp.route('/add', methods=['POST'])
 @login_required
 def add_asset():
-    name = request.form['name']
+    selected_asset_names = request.form.get('selected_asset_names', '')
     asset_type = request.form.get('asset_type', '')
     owner = request.form.get('owner', '')
     building = request.form['building']
@@ -106,23 +106,28 @@ def add_asset():
     if no_owner:
         owner = 'No Owner'
     
+    # Parse selected asset names
+    asset_names = [name.strip() for name in selected_asset_names.split(',') if name.strip()]
+    
+    if not asset_names:
+        return redirect(url_for('assets.dashboard'))
+    
     conn = get_db_connection()
     cur = conn.cursor()
     
+    # Create individual assets for each selected asset name
+    for asset_name in asset_names:
     # Check for existing asset with same name, building, and department
-    cur.execute('SELECT id, quantity, asset_code, qr_random_code FROM assets WHERE name=? AND building=? AND department=?', (name, building, department))
+        cur.execute('SELECT id, quantity, asset_code, qr_random_code FROM assets WHERE name=? AND building=? AND department=?', (asset_name, building, department))
     row = cur.fetchone()
     if row:
         new_quantity = row[1] + quantity
         cur.execute('UPDATE assets SET quantity=?, used_status=?, asset_type=?, owner=? WHERE id=?', (new_quantity, used_status, asset_type, owner, row[0]))
-        asset_id = row[0]
-        asset_code = row[2]
-        qr_random_code = row[3]
     else:
         asset_code = generate_asset_code(building, department)
         qr_random_code = str(uuid.uuid4())
-        cur.execute('INSERT INTO assets (name, quantity, owner, building, department, asset_code, qr_random_code, used_status, asset_type) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)', (name, quantity, owner, building, department, asset_code, qr_random_code, used_status, asset_type))
-        asset_id = cur.lastrowid
+        cur.execute('INSERT INTO assets (name, quantity, owner, building, department, asset_code, qr_random_code, used_status, asset_type) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)', (asset_name, quantity, owner, building, department, asset_code, qr_random_code, used_status, asset_type))
+    
     conn.commit()
     conn.close()
     return redirect(url_for('assets.dashboard'))
@@ -165,9 +170,34 @@ def update_asset(asset_id):
 @assets_bp.route('/delete/<int:asset_id>', methods=['POST'])
 @login_required
 def delete_asset(asset_id):
+    archive_reason = request.form.get('archive_reason', 'Asset deleted by user')
+    
     conn = get_db_connection()
     cur = conn.cursor()
+    
+    # Get the asset data before deleting
+    cur.execute('SELECT * FROM assets WHERE id=?', (asset_id,))
+    asset = cur.fetchone()
+    
+    if not asset:
+        conn.close()
+        return jsonify({'error': 'Asset not found'}), 404
+    
+    # Insert into archived_assets table
+    cur.execute('''
+        INSERT INTO archived_assets 
+        (original_id, name, quantity, owner, building, department, asset_code, qr_random_code, used_status, asset_type, archived_by, archive_reason)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    ''', (
+        asset['id'], asset['name'], asset['quantity'], asset['owner'], 
+        asset['building'], asset['department'], asset['asset_code'], 
+        asset['qr_random_code'], asset['used_status'], asset['asset_type'],
+        current_user.username, archive_reason
+    ))
+    
+    # Delete from assets table
     cur.execute('DELETE FROM assets WHERE id=?', (asset_id,))
+    
     conn.commit()
     conn.close()
     return jsonify({'success': True})
@@ -213,6 +243,7 @@ def bulk_update_status():
 @login_required
 def bulk_delete():
     asset_ids = request.form.getlist('asset_ids[]')
+    archive_reason = request.form.get('archive_reason', 'Assets bulk deleted by user')
     
     if not asset_ids:
         return jsonify({'error': 'No assets selected'}), 400
@@ -220,13 +251,31 @@ def bulk_delete():
     conn = get_db_connection()
     cur = conn.cursor()
     
+    # Get all assets to be deleted
     placeholders = ','.join(['?'] * len(asset_ids))
+    cur.execute(f'SELECT * FROM assets WHERE id IN ({placeholders})', asset_ids)
+    assets = cur.fetchall()
+    
+    # Insert into archived_assets table
+    for asset in assets:
+        cur.execute('''
+            INSERT INTO archived_assets 
+            (original_id, name, quantity, owner, building, department, asset_code, qr_random_code, used_status, asset_type, archived_by, archive_reason)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        ''', (
+            asset['id'], asset['name'], asset['quantity'], asset['owner'], 
+            asset['building'], asset['department'], asset['asset_code'], 
+            asset['qr_random_code'], asset['used_status'], asset['asset_type'],
+            current_user.username, archive_reason
+        ))
+    
+    # Delete from assets table
     cur.execute(f'DELETE FROM assets WHERE id IN ({placeholders})', asset_ids)
     
     conn.commit()
     conn.close()
     
-    return jsonify({'success': True, 'deleted': len(asset_ids)})
+    return jsonify({'success': True, 'archived': len(assets)})
 
 @assets_bp.route('/qrcode/<int:asset_id>')
 def qrcode_image(asset_id):
@@ -237,7 +286,12 @@ def qrcode_image(asset_id):
     conn.close()
     if not row or not row['asset_code']:
         abort(404)
-    qr_url = f"{request.host_url.rstrip('/')}/asset/{row['asset_code']}"
+    
+    # Use configurable base URL or fallback to request.host_url
+    import os
+    base_url = os.environ.get('BASE_URL', request.host_url.rstrip('/'))
+    qr_url = f"{base_url}/asset/{row['asset_code']}"
+    
     qr = qrcode.QRCode(
         version=1,
         error_correction=qrcode.constants.ERROR_CORRECT_H,
@@ -254,7 +308,16 @@ def qrcode_image(asset_id):
 
 @assets_bp.route('/department_qr/<building>/<department>')
 def department_qrcode_image(building, department):
-    qr_url = f"{request.host_url.rstrip('/')}/department_items/{building}/{department}"
+    # Decode URL-encoded parameters for QR generation
+    from urllib.parse import unquote
+    import os
+    building = unquote(building)
+    department = unquote(department)
+    
+    # Use configurable base URL or fallback to request.host_url
+    base_url = os.environ.get('BASE_URL', request.host_url.rstrip('/'))
+    qr_url = f"{base_url}/assets/department_items/{building}/{department}"
+    
     qr = qrcode.QRCode(
         version=1,
         error_correction=qrcode.constants.ERROR_CORRECT_H,
@@ -271,6 +334,11 @@ def department_qrcode_image(building, department):
 
 @assets_bp.route('/department_items/<building>/<department>')
 def department_items(building, department):
+    # Decode URL-encoded parameters
+    from urllib.parse import unquote
+    building = unquote(building)
+    department = unquote(department)
+    
     page = int(request.args.get('page', 1))
     search_query = request.args.get('search', '')
     per_page = int(request.args.get('per_page', 10))
@@ -365,3 +433,275 @@ def get_assets():
     assets = [dict(zip([desc[0] for desc in cur.description], row)) for row in cur.fetchall()]
     conn.close()
     return jsonify(assets) 
+
+@assets_bp.route('/archive')
+@login_required
+def archive():
+    if current_user.role != 'admin':
+        return redirect(url_for('assets.dashboard'))
+    
+    page = int(request.args.get('page', 1))
+    sort_by = request.args.get('sort_by', 'archived_at')
+    sort_dir = request.args.get('sort_dir', 'desc')
+    search_query = request.args.get('search', '')
+    per_page = int(request.args.get('per_page', 10))
+    
+    offset = (page - 1) * per_page
+    conn = get_db_connection()
+    cur = conn.cursor()
+    
+    # Build WHERE clause for search
+    where_clauses = []
+    params = []
+    
+    if search_query:
+        search_clauses = [
+            'name LIKE ?',
+            'owner LIKE ?',
+            'asset_code LIKE ?',
+            'building LIKE ?',
+            'department LIKE ?',
+            'asset_type LIKE ?',
+            'archived_by LIKE ?',
+            'archive_reason LIKE ?'
+        ]
+        where_clauses.append(f"({' OR '.join(search_clauses)})")
+        search_param = f'%{search_query}%'
+        params.extend([search_param] * 8)
+    
+    where_sql = ('WHERE ' + ' AND '.join(where_clauses)) if where_clauses else ''
+    valid_sort_fields = ['id', 'name', 'quantity', 'owner', 'building', 'department', 'used_status', 'asset_type', 'archived_at', 'archived_by']
+    if sort_by not in valid_sort_fields:
+        sort_by = 'archived_at'
+    sort_dir = 'desc' if sort_dir == 'desc' else 'asc'
+    
+    # Get total count
+    cur.execute(f'SELECT COUNT(*) FROM archived_assets {where_sql}', params)
+    total_archived = cur.fetchone()[0]
+    total_pages = (total_archived + per_page - 1) // per_page
+    
+    # Get paginated results
+    cur.execute(f'SELECT * FROM archived_assets {where_sql} ORDER BY {sort_by} {sort_dir} LIMIT ? OFFSET ?', params + [per_page, offset])
+    archived_assets = [dict(zip([desc[0] for desc in cur.description], row)) for row in cur.fetchall()]
+    conn.close()
+    
+    return render_template('archive.html', 
+                         archived_assets=archived_assets, 
+                         page=page, 
+                         total_pages=total_pages, 
+                         total_archived=total_archived,
+                         per_page=per_page,
+                         sort_by=sort_by, 
+                         sort_dir=sort_dir, 
+                         search_query=search_query)
+
+@assets_bp.route('/restore/<int:archived_id>', methods=['POST'])
+@login_required
+def restore_asset(archived_id):
+    if current_user.role != 'admin':
+        return jsonify({'error': 'Access denied. Only administrators can restore assets.'}), 403
+    
+    conn = get_db_connection()
+    cur = conn.cursor()
+    
+    # Get the archived asset data
+    cur.execute('SELECT * FROM archived_assets WHERE id=?', (archived_id,))
+    archived_asset = cur.fetchone()
+    
+    if not archived_asset:
+        conn.close()
+        return jsonify({'error': 'Archived asset not found'}), 404
+    
+    try:
+        # Check if an asset with the same name, building, and department already exists
+        cur.execute('SELECT id, quantity FROM assets WHERE name=? AND building=? AND department=?', 
+                   (archived_asset['name'], archived_asset['building'], archived_asset['department']))
+        existing_asset = cur.fetchone()
+        
+        if existing_asset:
+            # Update existing asset quantity
+            new_quantity = existing_asset[1] + archived_asset['quantity']
+            cur.execute('UPDATE assets SET quantity=?, used_status=?, asset_type=? WHERE id=?', 
+                       (new_quantity, archived_asset['used_status'], archived_asset['asset_type'], existing_asset[0]))
+        else:
+            # Create new asset
+            asset_code = generate_asset_code(archived_asset['building'], archived_asset['department'])
+            qr_random_code = str(uuid.uuid4())
+            cur.execute('''
+                INSERT INTO assets (name, quantity, owner, building, department, asset_code, qr_random_code, used_status, asset_type)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+            ''', (
+                archived_asset['name'], archived_asset['quantity'], archived_asset['owner'],
+                archived_asset['building'], archived_asset['department'], asset_code, qr_random_code,
+                archived_asset['used_status'], archived_asset['asset_type']
+            ))
+        
+        # Delete from archived_assets table
+        cur.execute('DELETE FROM archived_assets WHERE id=?', (archived_id,))
+        
+        conn.commit()
+        conn.close()
+        return jsonify({'success': True, 'message': 'Asset restored successfully'})
+        
+    except Exception as e:
+        conn.rollback()
+        conn.close()
+        return jsonify({'error': f'Failed to restore asset: {str(e)}'}), 500
+
+@assets_bp.route('/bulk_restore', methods=['POST'])
+@login_required
+def bulk_restore_assets():
+    if current_user.role != 'admin':
+        return jsonify({'error': 'Access denied. Only administrators can restore assets.'}), 403
+    
+    archived_ids = request.form.getlist('archived_ids[]')
+    
+    if not archived_ids:
+        return jsonify({'error': 'No assets selected for restoration'}), 400
+    
+    conn = get_db_connection()
+    cur = conn.cursor()
+    
+    restored_count = 0
+    errors = []
+    
+    try:
+        for archived_id in archived_ids:
+            # Get the archived asset data
+            cur.execute('SELECT * FROM archived_assets WHERE id=?', (archived_id,))
+            archived_asset = cur.fetchone()
+            
+            if not archived_asset:
+                errors.append(f'Archived asset ID {archived_id} not found')
+                continue
+            
+            # Check if an asset with the same name, building, and department already exists
+            cur.execute('SELECT id, quantity FROM assets WHERE name=? AND building=? AND department=?', 
+                       (archived_asset['name'], archived_asset['building'], archived_asset['department']))
+            existing_asset = cur.fetchone()
+            
+            if existing_asset:
+                # Update existing asset quantity
+                new_quantity = existing_asset[1] + archived_asset['quantity']
+                cur.execute('UPDATE assets SET quantity=?, used_status=?, asset_type=? WHERE id=?', 
+                           (new_quantity, archived_asset['used_status'], archived_asset['asset_type'], existing_asset[0]))
+            else:
+                # Create new asset
+                asset_code = generate_asset_code(archived_asset['building'], archived_asset['department'])
+                qr_random_code = str(uuid.uuid4())
+                cur.execute('''
+                    INSERT INTO assets (name, quantity, owner, building, department, asset_code, qr_random_code, used_status, asset_type)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                ''', (
+                    archived_asset['name'], archived_asset['quantity'], archived_asset['owner'],
+                    archived_asset['building'], archived_asset['department'], asset_code, qr_random_code,
+                    archived_asset['used_status'], archived_asset['asset_type']
+                ))
+            
+            # Delete from archived_assets table
+            cur.execute('DELETE FROM archived_assets WHERE id=?', (archived_id,))
+            restored_count += 1
+        
+        conn.commit()
+        conn.close()
+        
+        if errors:
+            return jsonify({
+                'success': True, 
+                'restored': restored_count, 
+                'errors': errors,
+                'message': f'Restored {restored_count} assets with {len(errors)} errors'
+            })
+        else:
+            return jsonify({
+                'success': True, 
+                'restored': restored_count,
+                'message': f'Successfully restored {restored_count} assets'
+            })
+        
+    except Exception as e:
+        conn.rollback()
+        conn.close()
+        return jsonify({'error': f'Failed to restore assets: {str(e)}'}), 500
+
+@assets_bp.route('/permanent_delete/<int:archived_id>', methods=['POST'])
+@login_required
+def permanent_delete_archived_asset(archived_id):
+    if current_user.role != 'admin':
+        return jsonify({'error': 'Access denied. Only administrators can permanently delete assets.'}), 403
+    
+    conn = get_db_connection()
+    cur = conn.cursor()
+    
+    # Get the archived asset data for confirmation
+    cur.execute('SELECT name, building, department FROM archived_assets WHERE id=?', (archived_id,))
+    archived_asset = cur.fetchone()
+    
+    if not archived_asset:
+        conn.close()
+        return jsonify({'error': 'Archived asset not found'}), 404
+    
+    try:
+        # Permanently delete from archived_assets table
+        cur.execute('DELETE FROM archived_assets WHERE id=?', (archived_id,))
+        conn.commit()
+        conn.close()
+        return jsonify({'success': True, 'message': f'Asset "{archived_asset["name"]}" permanently deleted'})
+        
+    except Exception as e:
+        conn.rollback()
+        conn.close()
+        return jsonify({'error': f'Failed to permanently delete asset: {str(e)}'}), 500
+
+@assets_bp.route('/bulk_permanent_delete', methods=['POST'])
+@login_required
+def bulk_permanent_delete_archived_assets():
+    if current_user.role != 'admin':
+        return jsonify({'error': 'Access denied. Only administrators can permanently delete assets.'}), 403
+    
+    archived_ids = request.form.getlist('archived_ids[]')
+    
+    if not archived_ids:
+        return jsonify({'error': 'No assets selected for permanent deletion'}), 400
+    
+    conn = get_db_connection()
+    cur = conn.cursor()
+    
+    deleted_count = 0
+    errors = []
+    
+    try:
+        for archived_id in archived_ids:
+            # Get the archived asset data for confirmation
+            cur.execute('SELECT name FROM archived_assets WHERE id=?', (archived_id,))
+            archived_asset = cur.fetchone()
+            
+            if not archived_asset:
+                errors.append(f'Archived asset ID {archived_id} not found')
+                continue
+            
+            # Permanently delete from archived_assets table
+            cur.execute('DELETE FROM archived_assets WHERE id=?', (archived_id,))
+            deleted_count += 1
+        
+        conn.commit()
+        conn.close()
+        
+        if errors:
+            return jsonify({
+                'success': True, 
+                'deleted': deleted_count, 
+                'errors': errors,
+                'message': f'Permanently deleted {deleted_count} assets with {len(errors)} errors'
+            })
+        else:
+            return jsonify({
+                'success': True, 
+                'deleted': deleted_count,
+                'message': f'Successfully permanently deleted {deleted_count} assets'
+            })
+        
+    except Exception as e:
+        conn.rollback()
+        conn.close()
+        return jsonify({'error': f'Failed to permanently delete assets: {str(e)}'}), 500 

@@ -98,6 +98,52 @@ def init_db():
     if 'asset_type' not in columns:
         cur.execute('ALTER TABLE assets ADD COLUMN asset_type TEXT')
     
+    # Create asset_types table
+    cur.execute('''
+        CREATE TABLE IF NOT EXISTS asset_types (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            name TEXT NOT NULL UNIQUE,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+    ''')
+    
+    # Create asset_names table
+    cur.execute('''
+        CREATE TABLE IF NOT EXISTS asset_names (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            name TEXT NOT NULL,
+            asset_type_id INTEGER NOT NULL,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (asset_type_id) REFERENCES asset_types (id),
+            UNIQUE(name, asset_type_id)
+        )
+    ''')
+    
+    # Create archived_assets table
+    cur.execute('''
+        CREATE TABLE IF NOT EXISTS archived_assets (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            original_id INTEGER,
+            name TEXT NOT NULL,
+            quantity INTEGER NOT NULL,
+            owner TEXT NOT NULL,
+            building TEXT NOT NULL,
+            department TEXT NOT NULL,
+            asset_code TEXT,
+            qr_random_code TEXT,
+            used_status TEXT DEFAULT 'Not Used',
+            asset_type TEXT,
+            archived_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            archived_by TEXT,
+            archive_reason TEXT
+        )
+    ''')
+    
+    # Insert default asset types if they don't exist
+    default_asset_types = ['Electronics', 'Furniture', 'Equipment', 'Vehicles', 'Others']
+    for asset_type in default_asset_types:
+        cur.execute('INSERT OR IGNORE INTO asset_types (name) VALUES (?)', (asset_type,))
+    
     # Note: Default buildings, departments, and users seeding has been removed
     # Users can now add their own buildings, departments, and users as needed
     
