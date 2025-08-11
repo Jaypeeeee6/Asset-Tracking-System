@@ -14,6 +14,41 @@
             margin: 0;
             padding: 10px;
         }
+        
+        .department-value-info {
+            margin-top: 15px;
+            text-align: center;
+        }
+        
+        .value-badge {
+            display: inline-flex;
+            align-items: center;
+            background: linear-gradient(135deg, #28a745, #20c997);
+            color: white;
+            padding: 10px 20px;
+            border-radius: 25px;
+            font-weight: 600;
+            box-shadow: 0 4px 15px rgba(40, 167, 69, 0.3);
+        }
+        
+        .value-badge i {
+            margin-right: 8px;
+            font-size: 1.1em;
+        }
+        
+        .value-text {
+            font-size: 1.1em;
+        }
+        
+        .price-badge {
+            background: linear-gradient(135deg, #ffc107, #fd7e14);
+            color: #000;
+            padding: 4px 8px;
+            border-radius: 12px;
+            font-weight: 600;
+            font-size: 0.9em;
+            display: inline-block;
+        }
     </style>
 </head>
 <body>
@@ -28,6 +63,14 @@
             No items found
         {% endif %}
     </div>
+    {% if total_department_value > 0 %}
+    <div class="department-value-info">
+        <div class="value-badge">
+            <i class="fas fa-coins"></i>
+            <span class="value-text">Total Department Value: OMR {{ "%.3f"|format(total_department_value) }}</span>
+        </div>
+    </div>
+    {% endif %}
 </div>
 
 <!-- Search and Filter Section -->
@@ -85,6 +128,14 @@
                     <span class="detail-value">
                         <span class="status-badge {% if asset.used_status == 'Used' %}status-used{% elif asset.used_status == 'Not Used' %}status-not-used{% elif asset.used_status == 'Out of Service' %}status-out-of-service{% endif %}">
                             {{ asset.used_status or 'Not Used' }}
+                        </span>
+                    </span>
+                </div>
+                <div class="item-detail-row">
+                    <span class="detail-label"><i class="fas fa-coins"></i> Price:</span>
+                    <span class="detail-value">
+                        <span class="price-badge">
+                            OMR {{ "%.3f"|format(asset.price or 0.0) }} × {{ asset.quantity }} = OMR {{ "%.3f"|format((asset.price or 0.0) * asset.quantity) }}
                         </span>
                     </span>
                 </div>
@@ -154,9 +205,7 @@
 </div>
 {% endif %}
 
-<a href="/" class="btn back-btn">
-    <i class="fas fa-home"></i> Back to Main System
-</a>
+
 
 <script>
     // Auto-submit search after typing

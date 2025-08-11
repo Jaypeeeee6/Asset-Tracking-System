@@ -8,15 +8,21 @@
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link rel="stylesheet" href="/static/style.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
     <style>
         /* Multi-select Asset Names Styles */
         .asset-names-container {
-            position: relative;
-            border: 1px solid #ced4da;
-            border-radius: 0.375rem;
-            background-color: #fff;
-            min-height: 38px;
+            display: flex;
+            flex-wrap: wrap;
+            align-items: flex-start;
+            gap: 4px;
             padding: 2px;
+            border: 2px solid #86b7fe;
+            border-radius: 8px;
+            background: #f8f9fa;
+            min-height: 48px;
+            transition: box-shadow 0.2s;
         }
         
         .selected-asset-names {
@@ -29,13 +35,15 @@
         .asset-name-tag {
             display: inline-flex;
             align-items: center;
-            background-color: #007bff;
-            color: white;
-            border-radius: 16px;
-            padding: 4px 12px;
-            font-size: 14px;
-            margin: 2px;
-            max-width: 200px;
+            background: linear-gradient(90deg, #007bff 60%, #0056b3 100%);
+            color: #fff;
+            border-radius: 18px;
+            padding: 6px 14px 6px 12px;
+            font-size: 15px;
+            margin: 3px 4px 3px 0;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+            font-weight: 500;
+            transition: background 0.2s, box-shadow 0.2s;
         }
         
         .asset-name-tag .asset-name-text {
@@ -43,20 +51,24 @@
             overflow: hidden;
             text-overflow: ellipsis;
             white-space: nowrap;
+            max-width: 120px;
         }
         
         .asset-name-tag .remove-btn {
             background: none;
             border: none;
-            color: white;
-            margin-left: 8px;
+            color: #fff;
+            margin-left: 10px;
             cursor: pointer;
-            padding: 0;
-            font-size: 12px;
+            padding: 0 2px;
+            font-size: 15px;
             line-height: 1;
+            border-radius: 50%;
+            transition: background 0.2s, color 0.2s;
         }
         
         .asset-name-tag .remove-btn:hover {
+            background: #fff2;
             color: #ffc107;
         }
         
@@ -66,12 +78,54 @@
             box-shadow: none !important;
             flex: 1;
             min-width: 150px;
+            background: transparent;
+            font-size: 15px;
+            padding: 6px 0 6px 6px;
         }
         
-        .asset-names-container:focus-within {
-            border-color: #86b7fe;
-            box-shadow: 0 0 0 0.25rem rgba(13, 110, 253, 0.25);
-        }
+                    .asset-names-container:focus-within {
+                border-color: #007bff;
+                box-shadow: 0 0 0 0.15rem #007bff33;
+            }
+            
+            .custom-dropdown {
+                position: absolute;
+                top: 100%;
+                left: 0;
+                right: 0;
+                background: white;
+                border: 1px solid #ddd;
+                border-radius: 4px;
+                box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+                max-height: 200px;
+                overflow-y: auto;
+                z-index: 1000;
+                margin-top: 2px;
+            }
+            
+            .dropdown-list {
+                padding: 0;
+                margin: 0;
+            }
+            
+            .dropdown-item {
+                padding: 8px 12px;
+                cursor: pointer;
+                border-bottom: 1px solid #f0f0f0;
+                transition: background-color 0.2s;
+            }
+            
+            .dropdown-item:hover {
+                background-color: #f8f9fa;
+            }
+            
+            .dropdown-item:last-child {
+                border-bottom: none;
+            }
+            
+            .asset-names-container {
+                position: relative;
+            }
         
         /* Dark Mode Styles */
         .dark-mode {
@@ -113,6 +167,50 @@
             color: #ffffff !important;
         }
         
+        .dark-mode .form-control.asset-name-input,
+        .dark-mode input.form-control.asset-name-input {
+            background-color: #404040 !important;
+            border-color: #555555 !important;
+            color: #ffffff !important;
+        }
+        
+        .dark-mode .form-control.asset-name-input:focus,
+        .dark-mode input.form-control.asset-name-input:focus {
+            background-color: #404040 !important;
+            border-color: #86b7fe !important;
+            color: #ffffff !important;
+        }
+        
+        .dark-mode .form-control.asset-name-input::placeholder,
+        .dark-mode input.form-control.asset-name-input::placeholder {
+            color: #b0b0b0 !important;
+        }
+        
+        .dark-mode .asset-names-container {
+            border-color: #555555 !important;
+        }
+        
+        .dark-mode .asset-names-container:focus-within {
+            border-color: #007bff !important;
+            box-shadow: 0 0 0 0.15rem #007bff33 !important;
+        }
+        
+        .dark-mode .custom-dropdown {
+            background-color: #404040 !important;
+            border-color: #555555 !important;
+        }
+        
+        .dark-mode .dropdown-item {
+            background-color: #404040 !important;
+            color: #ffffff !important;
+            border-bottom-color: #555555 !important;
+        }
+        
+        .dark-mode .dropdown-item:hover {
+            background-color: #555555 !important;
+            color: #ffffff !important;
+        }
+        
         .dark-mode .btn {
             border-color: #555555 !important;
         }
@@ -149,6 +247,263 @@
         }
         
         .dark-mode .text-muted {
+            color: #adb5bd !important;
+        }
+        
+        /* System Value Text - Responsive to theme */
+        .system-value-text {
+            color: #000000 !important; /* Default dark text for light mode */
+        }
+        
+        .dark-mode .system-value-text {
+            color: #ffffff !important; /* White text for dark mode */
+        }
+        
+        /* Admin Menu Button Styles */
+        .admin-menu-button {
+            position: absolute;
+            left: 20px;
+            top: 20px;
+            z-index: 1000;
+        }
+        
+        .menu-button {
+            width: 50px;
+            height: 50px;
+            background: linear-gradient(135deg, #2c3e50, #34495e);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+            transition: all 0.3s ease;
+            color: white;
+        }
+        
+        .menu-button:hover {
+            transform: scale(1.1);
+            box-shadow: 0 6px 20px rgba(0,0,0,0.3);
+        }
+        
+        .menu-button i {
+            font-size: 1.2em;
+        }
+        
+        .admin-menu-dropdown {
+            position: absolute;
+            top: 60px;
+            left: 0;
+            background: linear-gradient(180deg, #2c3e50, #34495e);
+            border-radius: 10px;
+            box-shadow: 0 8px 25px rgba(0,0,0,0.3);
+            min-width: 220px;
+            opacity: 0;
+            visibility: hidden;
+            transform: translateY(-10px);
+            transition: all 0.3s ease;
+            overflow: hidden;
+        }
+        
+        .admin-menu-dropdown.show {
+            opacity: 1;
+            visibility: visible;
+            transform: translateY(0);
+        }
+        
+        .menu-header {
+            padding: 15px 20px;
+            border-bottom: 1px solid #34495e;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            color: white;
+            font-weight: 600;
+        }
+        
+        .menu-header i {
+            font-size: 1.1em;
+        }
+        
+        .menu-items {
+            list-style: none;
+            padding: 10px 0;
+            margin: 0;
+        }
+        
+        .menu-item {
+            margin: 0;
+        }
+        
+        .menu-link {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 12px 20px;
+            color: #ecf0f1;
+            text-decoration: none;
+            transition: all 0.3s ease;
+            white-space: nowrap;
+        }
+        
+        .menu-link:hover {
+            background: rgba(52, 152, 219, 0.2);
+            color: #3498db;
+            text-decoration: none;
+        }
+        
+        .menu-link i {
+            font-size: 1em;
+            min-width: 16px;
+            text-align: center;
+        }
+        
+        /* Submenu Styles */
+        .has-submenu {
+            position: relative;
+        }
+        
+        .submenu-trigger {
+            justify-content: space-between;
+        }
+        
+        .submenu-arrow {
+            transition: transform 0.3s ease;
+        }
+        
+        .has-submenu.open .submenu-arrow {
+            transform: rotate(90deg);
+        }
+        
+        .submenu {
+            list-style: none;
+            padding: 0;
+            margin: 0;
+            background: rgba(0, 0, 0, 0.1);
+            max-height: 0;
+            overflow: hidden;
+            transition: max-height 0.3s ease;
+            border-top: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        
+        .has-submenu.open .submenu {
+            max-height: 300px;
+        }
+        
+        .submenu-trigger:hover {
+            background: rgba(52, 152, 219, 0.1);
+        }
+        
+        .submenu-item {
+            margin: 0;
+        }
+        
+        .submenu-link {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 10px 20px 10px 40px;
+            color: #ecf0f1;
+            text-decoration: none;
+            transition: all 0.3s ease;
+            white-space: nowrap;
+            font-size: 0.9em;
+        }
+        
+        .submenu-link:hover {
+            background: rgba(52, 152, 219, 0.2);
+            color: #3498db;
+            text-decoration: none;
+        }
+        
+        .submenu-link i {
+            font-size: 0.9em;
+            min-width: 14px;
+            text-align: center;
+        }
+        
+        /* Dark mode adjustments */
+        .dark-mode .menu-button {
+            background: linear-gradient(135deg, #1a1a1a, #2d2d2d);
+        }
+        
+        .dark-mode .admin-menu-dropdown {
+            background: linear-gradient(180deg, #1a1a1a, #2d2d2d);
+        }
+        
+        .dark-mode .menu-header {
+            border-bottom-color: #404040;
+        }
+        
+
+        
+        /* Table Responsive Styles */
+        .table-responsive {
+            overflow-x: auto;
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            width: 100%;
+            max-width: none;
+        }
+        
+        .table {
+            margin-bottom: 0;
+        }
+        
+        .table th {
+            white-space: nowrap;
+            min-width: 100px;
+        }
+        
+        .table th:first-child {
+            min-width: 50px;
+        }
+        
+        .table th:nth-child(2) {
+            min-width: 60px;
+        }
+        
+        .table th:nth-child(3) {
+            min-width: 200px;
+        }
+        
+        .table th:nth-child(4) {
+            min-width: 120px;
+        }
+        
+        .table th:nth-child(5) {
+            min-width: 100px;
+        }
+        
+        .table th:nth-child(6) {
+            min-width: 120px;
+        }
+        
+        .table th:nth-child(7) {
+            min-width: 120px;
+        }
+        
+        .table th:nth-child(8) {
+            min-width: 120px;
+        }
+        
+        .table th:nth-child(9) {
+            min-width: 150px;
+        }
+        
+        .table th:nth-child(10) {
+            min-width: 120px;
+        }
+        
+        .table th:nth-child(11) {
+            min-width: 100px;
+        }
+        
+                .table th:last-child {
+            min-width: 100px;
+        }
+        
+        .dark-mode .text-muted {
             color: #b0b0b0 !important;
         }
         
@@ -172,10 +527,358 @@
         .dark-mode .badge.bg-info {
             background-color: #17a2b8 !important;
         }
+        
+        /* Pagination Text Styles */
+        .pagination-text {
+            color: #2c3e50;
+            font-weight: 500;
+        }
+        
+        .dark-mode .pagination-text {
+            color: #ecf0f1;
+        }
+        
+        /* Pagination Input Styles */
+        .pagination-input {
+            color: #2c3e50;
+            background-color: #ffffff;
+            border: 1px solid #ced4da;
+        }
+        
+        .dark-mode .pagination-input {
+            color: #ecf0f1;
+            background-color: #2d2d2d;
+            border-color: #404040;
+        }
+        
+        /* Price Analysis Modal Filter Styles */
+        .price-analysis-filter-label {
+            color: #2c3e50;
+            font-weight: 500;
+            font-size: 0.9rem;
+        }
+        
+        .dark-mode .price-analysis-filter-label {
+            color: #ecf0f1;
+        }
+        
+        .price-analysis-filter-select {
+            color: #2c3e50;
+            background-color: #ffffff;
+            border: 1px solid #ced4da;
+        }
+        
+        .dark-mode .price-analysis-filter-select {
+            color: #ecf0f1;
+            background-color: #2d2d2d;
+            border-color: #404040;
+        }
+        
+        /* Modal Dark Mode Styles */
+        .dark-mode .modal-content {
+            background-color: #343a40 !important;
+            border-color: #495057 !important;
+            color: #e9ecef !important;
+        }
+        
+        .dark-mode .modal-header {
+            background-color: #495057 !important;
+            border-bottom-color: #6c757d !important;
+            color: #e9ecef !important;
+        }
+        
+        .dark-mode .modal-footer {
+            background-color: #495057 !important;
+            border-top-color: #6c757d !important;
+        }
+        
+        .dark-mode .modal-title {
+            color: #e9ecef !important;
+        }
+        
+        .dark-mode .btn-close {
+            filter: invert(1) grayscale(100%) brightness(200%);
+        }
+        
+        /* Dropdown Dark Mode Styles */
+        .dark-mode .dropdown-menu {
+            background-color: #343a40 !important;
+            border-color: #495057 !important;
+            color: #e9ecef !important;
+        }
+        
+        .dark-mode .dropdown-item {
+            color: #e9ecef !important;
+        }
+        
+        .dark-mode .dropdown-item:hover {
+            background-color: #495057 !important;
+            color: #fff !important;
+        }
+        
+        .dark-mode .dropdown-item.active {
+            background-color: #ffd700 !important;
+            color: #000 !important;
+        }
+        
+        /* Custom dropdown selection styles for both light and dark modes */
+        .dropdown-item.selected {
+            background-color: #007bff !important;
+            color: white !important;
+        }
+        
+        .dark-mode .dropdown-item.selected {
+            background-color: #007bff !important;
+            color: white !important;
+        }
+        
+        /* Alert Dark Mode Styles */
+        .dark-mode .alert-info {
+            background-color: #1a4a5e !important;
+            border-color: #17a2b8 !important;
+            color: #b8e6f3 !important;
+        }
+        
+        .dark-mode .alert-success {
+            background-color: #1e4a2e !important;
+            border-color: #28a745 !important;
+            color: #b8f3c8 !important;
+        }
+        
+        .dark-mode .alert-warning {
+            background-color: #4a3e1a !important;
+            border-color: #ffc107 !important;
+            color: #ffeaa7 !important;
+        }
+        
+        .dark-mode .alert-danger {
+            background-color: #4a1e1e !important;
+            border-color: #dc3545 !important;
+            color: #f5b7b7 !important;
+        }
+        
+        /* Form Validation Dark Mode */
+        .dark-mode .is-valid {
+            border-color: #28a745 !important;
+            background-color: #1e4a2e !important;
+        }
+        
+        .dark-mode .is-invalid {
+            border-color: #dc3545 !important;
+            background-color: #4a1e1e !important;
+        }
+        
+        .dark-mode .valid-feedback {
+            color: #b8f3c8 !important;
+        }
+        
+        .dark-mode .invalid-feedback {
+            color: #f5b7b7 !important;
+        }
+        
+        /* Tooltip and Popover Dark Mode */
+        .dark-mode .tooltip-inner {
+            background-color: #343a40 !important;
+            color: #e9ecef !important;
+        }
+        
+        .dark-mode .popover {
+            background-color: #343a40 !important;
+            border-color: #495057 !important;
+            color: #e9ecef !important;
+        }
+        
+        .dark-mode .popover-header {
+            background-color: #495057 !important;
+            border-bottom-color: #6c757d !important;
+            color: #e9ecef !important;
+        }
+        
+        /* Loading Spinner Dark Mode */
+        .dark-mode .spinner-border {
+            color: #ffd700 !important;
+        }
+        
+        .dark-mode .spinner-grow {
+            color: #ffd700 !important;
+        }
+        
+        /* QR Code Styles - Matching Archive */
+        .qr-code-container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .qr-code-img {
+            transition: transform 0.2s ease;
+        }
+        
+        .qr-code-img:hover {
+            transform: scale(1.1);
+            cursor: pointer;
+            box-shadow: 0 4px 12px rgba(212, 175, 55, 0.3);
+            border-color: #FFD700;
+        }
+        
+        /* Print Styles for Thermal Printer QR Codes */
+        @media print {
+            body {
+                margin: 0;
+                padding: 0;
+                background: white;
+            }
+            
+            .modal-header,
+            .modal-footer,
+            .btn,
+            .form-control,
+            .form-select {
+                display: none !important;
+            }
+            
+            .modal-content {
+                border: none !important;
+                box-shadow: none !important;
+                background: white !important;
+            }
+            
+            .modal-body {
+                padding: 0 !important;
+                overflow: visible !important;
+                max-height: none !important;
+            }
+            
+            #bulkQrHeader {
+                display: none !important;
+            }
+            
+            .row.mb-3 {
+                display: none !important;
+            }
+            
+            .thermal-page {
+                page-break-after: always !important;
+                page-break-inside: avoid !important;
+                margin: 0 !important;
+                padding: 20px !important;
+                border: none !important;
+                background: white !important;
+                min-height: 100vh !important;
+                display: flex !important;
+                flex-direction: column !important;
+                justify-content: center !important;
+                align-items: center !important;
+            }
+            
+            .thermal-page:last-child {
+                page-break-after: auto !important;
+            }
+            
+            .qr-code-img {
+                border: 2px solid #000 !important;
+                background: white !important;
+                margin-bottom: 20px !important;
+            }
+            
+            .qr-code-container {
+                text-align: center !important;
+                display: flex !important;
+                flex-direction: column !important;
+                align-items: center !important;
+                justify-content: center !important;
+            }
+        }
     </style>
 </head>
 <body>
-<div class="container mt-5">
+        <!-- Admin Menu Button -->
+        {% if current_user.role == 'admin' %}
+        <div class="admin-menu-button" id="adminMenuButton">
+            <div class="menu-button" onclick="toggleAdminMenu()">
+                <i class="fas fa-bars"></i>
+            </div>
+            <div class="admin-menu-dropdown" id="adminMenuDropdown">
+                <div class="menu-header">
+                    <i class="fas fa-cogs"></i>
+                    <span>Admin Menu</span>
+                </div>
+                <ul class="menu-items">
+                    <li class="menu-item has-submenu">
+                        <a href="#" class="menu-link submenu-trigger">
+                            <i class="fas fa-users"></i>
+                            <span>Users</span>
+                            <i class="fas fa-chevron-right submenu-arrow"></i>
+                        </a>
+                        <ul class="submenu">
+                            <li class="submenu-item">
+                                <a href="{{ url_for('auth.manage_users') }}" class="submenu-link">
+                                    <i class="fas fa-user-cog"></i>
+                                    <span>Manage Users</span>
+                                </a>
+                            </li>
+                            <li class="submenu-item">
+                                <a href="{{ url_for('auth.add_auth_user') }}" class="submenu-link">
+                                    <i class="fas fa-user-plus"></i>
+                                    <span>Add User</span>
+                                </a>
+                            </li>
+                        </ul>
+                    </li>
+                    <li class="menu-item has-submenu">
+                        <a href="#" class="menu-link submenu-trigger">
+                            <i class="fas fa-tools"></i>
+                            <span>Manage</span>
+                            <i class="fas fa-chevron-right submenu-arrow"></i>
+                        </a>
+                        <ul class="submenu">
+                            <li class="submenu-item">
+                                <a href="#" class="submenu-link" data-bs-toggle="modal" data-bs-target="#buildingManagementModal">
+                                    <i class="fas fa-building"></i>
+                                    <span>Manage Buildings</span>
+                                </a>
+                            </li>
+                            <li class="submenu-item">
+                                <a href="#" class="submenu-link" data-bs-toggle="modal" data-bs-target="#departmentManagementModal">
+                                    <i class="fas fa-sitemap"></i>
+                                    <span>Manage Departments</span>
+                                </a>
+                            </li>
+                            <li class="submenu-item">
+                                <a href="#" class="submenu-link" data-bs-toggle="modal" data-bs-target="#userManagementModal">
+                                    <i class="fas fa-user-tie"></i>
+                                    <span>Manage Employees</span>
+                                </a>
+                            </li>
+                            <li class="submenu-item">
+                                <a href="#" class="submenu-link" data-bs-toggle="modal" data-bs-target="#assetManagementModal">
+                                    <i class="fas fa-boxes"></i>
+                                    <span>Manage Assets</span>
+                                </a>
+                            </li>
+                        </ul>
+                    </li>
+                    <li class="menu-item">
+                        <a href="{{ url_for('assets.archive') }}" class="menu-link">
+                            <i class="fas fa-archive"></i>
+                            <span>Asset Archive</span>
+                        </a>
+                    </li>
+                    <li class="menu-item">
+                        <a href="#" class="menu-link" data-bs-toggle="modal" data-bs-target="#priceAnalysisModal">
+                            <i class="fas fa-coins"></i>
+                            <span>View Price Analysis</span>
+                        </a>
+                    </li>
+                </ul>
+            </div>
+        </div>
+        
+
+        {% endif %}
+
+<div class="container-fluid mt-5 px-4">
     <div class="header-logo">
         <img src="{{ url_for('static', filename='MAA_Logo.png') }}" alt="MAA Group Logo">
         <h1>Asset Tracking System</h1>
@@ -199,20 +902,7 @@
                     <button id="darkModeToggle" class="btn btn-sm me-2" type="button" onclick="toggleDarkMode()" style="border-color: #6c757d; color: #6c757d; background: rgba(255,255,255,0.9); z-index: 1000;">
                         <i class="fas fa-moon"></i><span> Dark Mode</span>
                     </button>
-                    
-                    {% if current_user.role == 'admin' %}
-                        <a href="{{ url_for('auth.manage_users') }}" class="btn btn-sm me-2" style="border-color: #ffd700; color: #ffd700;">
-                            <i class="fas fa-users"></i> Manage Users
-                        </a>
-                        <a href="{{ url_for('auth.add_auth_user') }}" class="btn btn-sm me-2" style="border-color: #ffd700; color: #ffd700;">
-                            <i class="fas fa-user-plus"></i> Add User
-                        </a>
-                        <a href="{{ url_for('assets.archive') }}" class="btn btn-sm me-2" style="border-color: #6c757d; color: #6c757d;">
-                            <i class="fas fa-archive"></i> Asset Archive
-                        </a>
-                        
-                    {% endif %}
-                                            <a href="{{ url_for('auth.logout') }}" class="btn btn-sm" style="border-color: #dc3545; color: #dc3545;">
+                    <a href="{{ url_for('auth.logout') }}" class="btn btn-sm" style="border-color: #dc3545; color: #dc3545;">
                         <i class="fas fa-sign-out-alt"></i> Logout
                     </a>
                 </div>
@@ -236,58 +926,46 @@
         {% endif %}
     {% endwith %}
 
-    <!-- Quick Stats Dashboard -->
+
+
+    <!-- Asset Statistics Charts -->
     <div class="row mb-4">
-        <div class="col-md-3">
-            <div class="card bg-primary text-white">
-                <div class="card-body text-center">
-                    <i class="fas fa-boxes fa-2x mb-2"></i>
-                    <h5 id="totalAssets">{{ assets|length }}</h5>
-                    <small>Total Assets</small>
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0"><i class="fas fa-chart-pie"></i> Asset Status Distribution</h5>
+                </div>
+                <div class="card-body">
+                    <canvas id="assetStatusChart" width="400" height="200"></canvas>
                 </div>
             </div>
         </div>
-        <div class="col-md-3">
-            <div class="card bg-success text-white">
-                <div class="card-body text-center">
-                    <i class="fas fa-check-circle fa-2x mb-2"></i>
-                    <h5 id="usedAssets">{{ assets|selectattr("used_status", "equalto", "Used")|list|length }}</h5>
-                    <small>Used Assets</small>
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0"><i class="fas fa-chart-bar"></i> Assets by Building</h5>
                 </div>
-            </div>
-        </div>
-        <div class="col-md-3">
-            <div class="card bg-warning text-white">
-                <div class="card-body text-center">
-                    <i class="fas fa-clock fa-2x mb-2"></i>
-                    <h5 id="notUsedAssets">{{ assets|selectattr("used_status", "equalto", "Not Used")|list|length }}</h5>
-                    <small>Not Used Assets</small>
-                </div>
-            </div>
-        </div>
-        <div class="col-md-3">
-            <div class="card bg-danger text-white">
-                <div class="card-body text-center">
-                    <i class="fas fa-exclamation-triangle fa-2x mb-2"></i>
-                    <h5 id="outOfServiceAssets">{{ assets|selectattr("used_status", "equalto", "Out of Service")|list|length }}</h5>
-                    <small>Out of Service</small>
+                <div class="card-body">
+                    <canvas id="buildingChart" width="400" height="200"></canvas>
                 </div>
             </div>
         </div>
     </div>
 
-    <!-- Buildings Info -->
-    <div class="row mb-4">
-        <div class="col-md-12">
-            <div class="card bg-info text-white">
-                <div class="card-body text-center">
-                    <i class="fas fa-building fa-2x mb-2"></i>
-                    <h5>{{ buildings|length }} Buildings Available</h5>
-                    <small>Total number of buildings in the system</small>
-                </div>
-            </div>
-        </div>
-    </div>
+
+
+    <!-- Chart Data -->
+    <script>
+        window.chartData = {
+            statusCounts: {{ chart_data.status_counts|tojson }},
+            buildingCounts: {{ chart_data.building_counts|tojson }},
+            buildingPrices: {{ chart_data.building_prices|tojson }},
+            departmentPrices: {{ chart_data.department_prices|tojson }},
+            totalSystemValue: {{ chart_data.total_system_value }}
+        };
+    </script>
+
+
 
     <!-- Advanced Search and Filters -->
     <div class="card mb-4">
@@ -368,27 +1046,7 @@
                     </div>
                 </div>
                 
-                <!-- Admin Management Tools -->
-                {% if current_user.role == 'admin' %}
-                <div class="row mb-3">
-                    <div class="col-md-12">
-                        <div class="d-flex gap-2 flex-wrap">
-                            <button type="button" class="btn btn-outline-primary btn-sm" id="manageBuildingsBtn" data-bs-toggle="modal" data-bs-target="#buildingManagementModal">
-                                <i class="fas fa-building"></i> Manage Buildings
-                            </button>
-                            <button type="button" class="btn btn-outline-success btn-sm" id="manageDepartmentsBtn" data-bs-toggle="modal" data-bs-target="#departmentManagementModal">
-                                <i class="fas fa-sitemap"></i> Manage Departments
-                            </button>
-                            <button type="button" class="btn btn-outline-info btn-sm" id="manageUsersBtn" data-bs-toggle="modal" data-bs-target="#userManagementModal">
-                                <i class="fas fa-users"></i> Manage Employees
-                            </button>
-                            <button type="button" class="btn btn-outline-warning btn-sm" id="manageAssetsBtn" data-bs-toggle="modal" data-bs-target="#assetManagementModal">
-                                <i class="fas fa-boxes"></i> Manage Assets
-                            </button>
-                        </div>
-                    </div>
-                    </div>
-                {% endif %}
+
                 
                 <input type="hidden" name="sort_by" value="{{ sort_by }}">
                 <input type="hidden" name="sort_dir" value="{{ sort_dir }}">
@@ -400,7 +1058,8 @@
         <!-- Hidden form for backward compatibility -->
     </form>
     
-    <table class="table table-bordered table-striped">
+    <div class="table-responsive">
+        <table class="table table-bordered table-striped" style="width: 100%; min-width: 1400px;">
         <thead>
             <tr>
                 <th><input type="checkbox" id="selectAllCheckbox" title="Select All"></th>
@@ -408,6 +1067,7 @@
                 <th><a href="?sort_by=name&sort_dir={{ 'desc' if sort_by == 'name' and sort_dir == 'asc' else 'asc' }}&building={{ building_filter }}&department={{ department_filter }}&search={{ request.args.get('search', '') }}&status={{ request.args.get('status', '') }}&asset_type={{ request.args.get('asset_type', '') }}&per_page={{ request.args.get('per_page', '10') }}">Name{% if sort_by == 'name' %} {% if sort_dir == 'asc' %}▲{% else %}▼{% endif %}{% endif %}</a></th>
                 <th><a href="?sort_by=asset_type&sort_dir={{ 'desc' if sort_by == 'asset_type' and sort_dir == 'asc' else 'asc' }}&building={{ building_filter }}&department={{ department_filter }}&search={{ request.args.get('search', '') }}&status={{ request.args.get('status', '') }}&asset_type={{ request.args.get('asset_type', '') }}&per_page={{ request.args.get('per_page', '10') }}">Type{% if sort_by == 'asset_type' %} {% if sort_dir == 'asc' %}▲{% else %}▼{% endif %}{% endif %}</a></th>
                 <th><a href="?sort_by=quantity&sort_dir={{ 'desc' if sort_by == 'quantity' and sort_dir == 'asc' else 'asc' }}&building={{ building_filter }}&department={{ department_filter }}&search={{ request.args.get('search', '') }}&status={{ request.args.get('status', '') }}&per_page={{ request.args.get('per_page', '10') }}">Quantity{% if sort_by == 'quantity' %} {% if sort_dir == 'asc' %}▲{% else %}▼{% endif %}{% endif %}</a></th>
+                <th><a href="?sort_by=price&sort_dir={{ 'desc' if sort_by == 'price' and sort_dir == 'asc' else 'asc' }}&building={{ building_filter }}&department={{ department_filter }}&search={{ request.args.get('search', '') }}&status={{ request.args.get('status', '') }}&per_page={{ request.args.get('per_page', '10') }}">Price (OMR){% if sort_by == 'price' %} {% if sort_dir == 'asc' %}▲{% else %}▼{% endif %}{% endif %}</a></th>
                 <th><a href="?sort_by=owner&sort_dir={{ 'desc' if sort_by == 'owner' and sort_dir == 'asc' else 'asc' }}&building={{ building_filter }}&department={{ department_filter }}&search={{ request.args.get('search', '') }}&status={{ request.args.get('status', '') }}&per_page={{ request.args.get('per_page', '10') }}">Owner{% if sort_by == 'owner' %} {% if sort_dir == 'asc' %}▲{% else %}▼{% endif %}{% endif %}</a></th>
                 <th><a href="?sort_by=building&sort_dir={{ 'desc' if sort_by == 'building' and sort_dir == 'asc' else 'asc' }}&building={{ building_filter }}&department={{ department_filter }}&search={{ request.args.get('search', '') }}&status={{ request.args.get('status', '') }}&per_page={{ request.args.get('per_page', '10') }}">Building{% if sort_by == 'building' %} {% if sort_dir == 'asc' %}▲{% else %}▼{% endif %}{% endif %}</a></th>
                 <th><a href="?sort_by=department&sort_dir={{ 'desc' if sort_by == 'department' and sort_dir == 'asc' else 'asc' }}&building={{ building_filter }}&department={{ department_filter }}&search={{ request.args.get('search', '') }}&status={{ request.args.get('status', '') }}&per_page={{ request.args.get('per_page', '10') }}">Department/Section{% if sort_by == 'department' %} {% if sort_dir == 'asc' %}▲{% else %}▼{% endif %}{% endif %}</a></th>
@@ -433,6 +1093,7 @@
                     {% endif %}
                 </td>
                 <td>{{ asset.quantity }}</td>
+                <td>OMR {{ "%.3f"|format(asset.price or 0.0) }}</td>
                 <td>{{ asset.owner }}</td>
                 <td>{{ asset.building }}</td>
                 <td>{{ asset.department }}</td>
@@ -443,13 +1104,30 @@
                         <option value="Out of Service" {% if asset.used_status == 'Out of Service' %}selected{% endif %}>Out of Service</option>
                     </select>
                 </td>
-                <td><a href="#" class="view-qr-link" data-asset-id="{{ asset.id }}">View QR</a></td>
+                <td class="text-center">
+                    {% if asset.asset_code %}
+                        <div class="qr-code-container">
+                            <img src="/assets/qrcode/{{ asset.id }}"  
+                                 alt="QR Code for {{ asset.name }}" 
+                                 class="qr-code-img" 
+                                 style="width: 60px; height: 60px; border: 2px solid #D4AF37; border-radius: 4px; cursor: pointer;"
+                                 onclick="showQRModal('{{ asset.id }}', '{{ asset.asset_code }}', '{{ asset.name }}')"
+                                 title="Click to view larger QR code">
+                            <div class="qr-code-text" style="font-size: 0.7em; color: #6c757d; margin-top: 2px; word-break: break-all;">
+                                {{ asset.asset_code }}
+                            </div>
+                        </div>
+                    {% else %}
+                        <span class="text-muted">N/A</span>
+                    {% endif %}
+                </td>
                 <td>
                     <button class="btn btn-primary btn-sm edit-asset-btn" 
                             data-asset-id="{{ asset.id }}"
                             data-asset-name="{{ asset.name }}"
                             data-asset-type="{{ asset.asset_type or '' }}"
                             data-asset-quantity="{{ asset.quantity }}"
+                            data-asset-price="{{ asset.price or 0.0 }}"
                             data-asset-owner="{{ asset.owner }}"
                             data-asset-building="{{ asset.building }}"
                             data-asset-department="{{ asset.department }}"
@@ -463,6 +1141,7 @@
         {% endfor %}
         </tbody>
     </table>
+    </div>
 
     <!-- Bulk Actions Bar -->
     <div id="bulkActionsBar" class="alert alert-primary border-primary" style="display: none;">
@@ -493,9 +1172,9 @@
             </span>
         </div>
         <div class="d-flex align-items-center">
-            <span class="me-3" style="color: white;">Jump to page:</span>
-            <input type="number" id="jumpToPage" class="form-control me-2" style="width: 80px; color: white;" 
-                   min="1" max="{{ total_pages }}" value="{{ page }}" 
+                                    <span class="me-3 pagination-text">Jump to page:</span>
+                          <input type="number" id="jumpToPage" class="form-control me-2 pagination-input" style="width: 80px;" 
+                     min="1" max="{{ total_pages }}" value="{{ page }}"  
                    onkeypress="if(event.key==='Enter') jumpToPage()">
             <span class="text-muted">of {{ total_pages }}</span>
         </div>
@@ -578,16 +1257,23 @@
                 <label for="name" class="form-label">Asset Names</label>
                 <div class="asset-names-container" id="assetNamesContainer">
                     <div class="selected-asset-names" id="selectedAssetNames"></div>
-                    <input type="text" class="form-control asset-name-input" id="name" name="name" list="assetNameList" placeholder="Type to select asset names..." autocomplete="off">
-                    <datalist id="assetNameList">
-                        <option value="">Select Asset Type First</option>
-                    </datalist>
+                    <input type="text" class="form-control asset-name-input" id="name" name="name" placeholder="Click to select asset names..." autocomplete="off">
+                    <div class="custom-dropdown" id="assetNameDropdown" style="display: none;">
+                        <div class="dropdown-list" id="assetNameList"></div>
+                    </div>
                 </div>
                 <input type="hidden" id="selectedAssetNamesInput" name="selected_asset_names" value="">
             </div>
             <div class="mb-3">
                 <label for="quantity" class="form-label">Quantity</label>
                 <input type="number" class="form-control" id="quantity" name="quantity" min="1" value="1" required>
+            </div>
+            <div class="mb-3">
+                <label for="price" class="form-label">Price (OMR)</label>
+                <input type="number" class="form-control" id="price" name="price" min="0" step="0.01" placeholder="0.00" required>
+                <div class="form-text">
+                    <i class="fas fa-info-circle"></i> Enter the price in Omani Rial (OMR)
+                </div>
             </div>
             <div class="mb-3">
                 <label for="building" class="form-label">Building</label>
@@ -667,6 +1353,13 @@
                 <input type="number" class="form-control" id="edit_quantity" name="quantity" min="1" value="1" required>
             </div>
             <div class="mb-3">
+                <label for="edit_price" class="form-label">Price (OMR)</label>
+                <input type="number" class="form-control" id="edit_price" name="price" min="0" step="0.01" placeholder="0.00" required>
+                <div class="form-text">
+                    <i class="fas fa-info-circle"></i> Enter the price in Omani Rial (OMR)
+                </div>
+            </div>
+            <div class="mb-3">
                 <label for="edit_building" class="form-label">Building</label>
                 <select class="form-select" id="edit_building" name="building" required>
                     <option value="">Select Building</option>
@@ -720,9 +1413,15 @@
         <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
       </div>
       <div class="modal-body text-center" id="qrModalBody" style="overflow-y: auto; max-height: 70vh;">
-        <div id="qrcode"></div>
-        <div class="fw-bold mt-2" id="qrCodeLabel"></div>
+        <!-- For image-based QR codes -->
+        <img id="qrModalImage" src="" alt="QR Code" style="max-width: 100%; height: auto; margin-bottom: 15px;">
+        <div class="fw-bold mt-2" id="qrModalAssetName"></div>
+        <div class="text-muted" id="qrModalAssetCode"></div>
         <button class="btn btn-primary mt-3" id="printQrBtn">Print QR Code</button>
+        
+        <!-- For legacy JavaScript-generated QR codes -->
+        <div id="qrcode" style="display: none;"></div>
+        <div class="fw-bold mt-2" id="qrCodeLabel" style="display: none;"></div>
       </div>
     </div>
   </div>
@@ -1022,42 +1721,33 @@
 
 <!-- Bulk QR Code Printing Modal -->
 <div class="modal fade" id="bulkQrModal" tabindex="-1" aria-labelledby="bulkQrModalLabel" aria-hidden="true">
-  <div class="modal-dialog modal-xl" style="max-width: 95%; max-height: 95vh;">
-    <div class="modal-content" style="height: 95vh;">
+  <div class="modal-dialog modal-xl">
+    <div class="modal-content">
       <div class="modal-header">
         <h5 class="modal-title" id="bulkQrModalLabel">
           <i class="fas fa-qrcode"></i> Bulk QR Code Printing
         </h5>
         <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
       </div>
-      <div class="modal-body" style="overflow-y: auto; max-height: calc(95vh - 120px);">
+      <div class="modal-body">
         <div id="bulkQrHeader" class="alert alert-primary mb-3">
-          <!-- Department/Building info will be displayed here -->
+          <!-- Asset info will be displayed here -->
         </div>
         
         <div class="row mb-3">
-          <div class="col-md-4">
-            <label for="printerTypeSelect" class="form-label">Printer Type:</label>
-            <select class="form-select" id="printerTypeSelect">
-              <option value="thermal" selected>Thermal Printer</option>
-              <option value="regular">Regular Printer</option>
-            </select>
-          </div>
-          <div class="col-md-4">
+          <div class="col-md-6">
             <label for="qrSizeSelect" class="form-label">QR Code Size:</label>
-            <select class="form-select" id="qrSizeSelect" style="width: auto;">
-              <option value="60" selected>Small (60px) - 5 per page</option>
-              <option value="80">Medium (80px) - 4 per page</option>
-              <option value="100">Large (100px) - 3 per page</option>
+            <select class="form-select" id="qrSizeSelect">
+              <option value="120" selected>Large (120px)</option>
+              <option value="150">Extra Large (150px)</option>
+              <option value="200">Thermal Size (200px)</option>
             </select>
           </div>
-          <div class="col-md-4">
-            <label for="layoutSelect" class="form-label">Layout:</label>
-            <select class="form-select" id="layoutSelect">
-              <option value="3" selected>3 QR codes per page</option>
-              <option value="4">4 QR codes per page</option>
-              <option value="5">5 QR codes per page</option>
-            </select>
+          <div class="col-md-6">
+            <div class="alert alert-info">
+              <i class="fas fa-info-circle"></i>
+              <strong>Thermal Printer Mode:</strong> 1 QR code per page
+            </div>
           </div>
         </div>
         
@@ -1110,6 +1800,282 @@
   </div>
 </div>
 
+    <!-- Management Modals -->
+    <!-- Manage Buildings Modal -->
+    <div class="modal fade" id="manageBuildingsModal" tabindex="-1" aria-labelledby="manageBuildingsModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="manageBuildingsModalLabel">
+                        <i class="fas fa-building"></i> Manage Buildings
+                    </h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="text-center">
+                        <i class="fas fa-building fa-3x text-primary mb-3"></i>
+                        <h4>Building Management</h4>
+                        <p class="text-muted">Add, edit, and manage building information</p>
+                        <div class="alert alert-info">
+                            <i class="fas fa-info-circle"></i>
+                            Building management functionality will be implemented here.
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                    <button type="button" class="btn btn-primary">Save Changes</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Manage Departments Modal -->
+    <div class="modal fade" id="manageDepartmentsModal" tabindex="-1" aria-labelledby="manageDepartmentsModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="manageDepartmentsModalLabel">
+                        <i class="fas fa-sitemap"></i> Manage Departments
+                    </h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="text-center">
+                        <i class="fas fa-sitemap fa-3x text-primary mb-3"></i>
+                        <h4>Department Management</h4>
+                        <p class="text-muted">Organize and manage department structure</p>
+                        <div class="alert alert-info">
+                            <i class="fas fa-info-circle"></i>
+                            Department management functionality will be implemented here.
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                    <button type="button" class="btn btn-primary">Save Changes</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Manage Employees Modal -->
+    <div class="modal fade" id="manageEmployeesModal" tabindex="-1" aria-labelledby="manageEmployeesModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="manageEmployeesModalLabel">
+                        <i class="fas fa-user-tie"></i> Manage Employees
+                    </h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="text-center">
+                        <i class="fas fa-user-tie fa-3x text-primary mb-3"></i>
+                        <h4>Employee Management</h4>
+                        <p class="text-muted">Manage employee information and assignments</p>
+                        <div class="alert alert-info">
+                            <i class="fas fa-info-circle"></i>
+                            Employee management functionality will be implemented here.
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                    <button type="button" class="btn btn-primary">Save Changes</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Manage Assets Modal -->
+    <div class="modal fade" id="manageAssetsModal" tabindex="-1" aria-labelledby="manageAssetsModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="manageAssetsModalLabel">
+                        <i class="fas fa-boxes"></i> Manage Assets
+                    </h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="text-center">
+                        <i class="fas fa-boxes fa-3x text-primary mb-3"></i>
+                        <h4>Asset Management</h4>
+                        <p class="text-muted">Comprehensive asset management system</p>
+                        <div class="alert alert-info">
+                            <i class="fas fa-info-circle"></i>
+                            Asset management functionality will be implemented here.
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                    <button type="button" class="btn btn-primary">Save Changes</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Price Analysis Modal -->
+    <div class="modal fade" id="priceAnalysisModal" tabindex="-1" aria-labelledby="priceAnalysisModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-xl" style="max-width: 95%; max-height: 95vh;">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="priceAnalysisModalLabel">
+          <i class="fas fa-coins"></i> Asset Price Analysis
+        </h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body" style="overflow-y: auto; max-height: 80vh;">
+                       <!-- System Summary -->
+               <div class="row mb-4">
+                 <div class="col-md-12">
+                   <div class="alert alert-success">
+                     <h6><i class="fas fa-info-circle"></i> System Overview</h6>
+                     <p class="mb-0 system-value-text" style="font-weight: 500;">Total System Value: <strong class="system-value-text">OMR {{ "%.3f"|format(chart_data.total_system_value) }}</strong></p>
+                   </div>
+                 </div>
+               </div>
+
+        <!-- Building Analysis -->
+        <div class="row mb-4">
+          <div class="col-md-6">
+            <div class="card">
+                                   <div class="card-header d-flex justify-content-between align-items-center">
+                       <h6 class="mb-0"><i class="fas fa-building"></i> Total Value by Building</h6>
+                       <div class="d-flex align-items-center">
+                         <label class="form-label me-2 mb-0 price-analysis-filter-label">Filter by:</label>
+                         <select class="form-select form-select-sm price-analysis-filter-select" style="width: auto;" onchange="filterBuildingTable(this.value)">
+                           <option value="">All Buildings</option>
+                           {% for building in chart_data.building_prices.keys() %}
+                           <option value="{{ building }}">{{ building }}</option>
+                           {% endfor %}
+                         </select>
+                       </div>
+                     </div>
+              <div class="card-body">
+                <div class="table-responsive">
+                  <table class="table table-striped table-sm" id="buildingTable">
+                    <thead>
+                      <tr>
+                        <th>Building</th>
+                        <th class="text-end">Total Value (OMR)</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {% for building, value in chart_data.building_prices.items() %}
+                      <tr data-building="{{ building }}" data-value="{{ value }}">
+                        <td><strong>{{ building }}</strong></td>
+                        <td class="text-end"><span class="badge bg-success">{{ "%.3f"|format(value) }}</span></td>
+                      </tr>
+                      {% endfor %}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Department Analysis -->
+          <div class="col-md-6">
+            <div class="card">
+                                   <div class="card-header d-flex justify-content-between align-items-center">
+                       <h6 class="mb-0"><i class="fas fa-sitemap"></i> Total Value by Department</h6>
+                       <div class="d-flex align-items-center">
+                         <label class="form-label me-2 mb-0 price-analysis-filter-label">Filter by:</label>
+                         <select class="form-select form-select-sm price-analysis-filter-select" style="width: auto;" onchange="filterDepartmentTable(this.value)">
+                           <option value="">All Departments</option>
+                           {% for dept_key in chart_data.department_prices.keys() %}
+                           {% set building, department = dept_key.split('-', 1) %}
+                           <option value="{{ building }}-{{ department }}">{{ building }} - {{ department }}</option>
+                           {% endfor %}
+                         </select>
+                       </div>
+                     </div>
+              <div class="card-body">
+                <div class="table-responsive" style="max-height: 400px; overflow-y: auto;">
+                  <table class="table table-striped table-sm">
+                    <thead>
+                      <tr>
+                        <th>Department</th>
+                        <th class="text-end">Total Value (OMR)</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {% for dept_key, value in chart_data.department_prices.items() %}
+                      {% set building, department = dept_key.split('-', 1) %}
+                      <tr>
+                        <td><strong>{{ building }} - {{ department }}</strong></td>
+                        <td class="text-end"><span class="badge bg-info">{{ "%.3f"|format(value) }}</span></td>
+                      </tr>
+                      {% endfor %}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Detailed Breakdown -->
+        <div class="row">
+          <div class="col-md-12">
+            <div class="card">
+                                   <div class="card-header d-flex justify-content-between align-items-center">
+                       <h6 class="mb-0"><i class="fas fa-list"></i> Detailed Asset Breakdown</h6>
+                       <div class="d-flex align-items-center">
+                         <label class="form-label me-2 mb-0 price-analysis-filter-label">Filter by:</label>
+                         <select class="form-select form-select-sm price-analysis-filter-select" style="width: auto;" onchange="filterAssetTable(this.value)">
+                           <option value="">All Assets</option>
+                           {% for building in chart_data.building_prices.keys() %}
+                           <option value="{{ building }}">{{ building }}</option>
+                           {% endfor %}
+                         </select>
+                       </div>
+                     </div>
+              <div class="card-body">
+                <div class="table-responsive" style="max-height: 300px; overflow-y: auto;">
+                  <table class="table table-striped table-sm">
+                    <thead>
+                      <tr>
+                        <th>Asset Name</th>
+                        <th>Building</th>
+                        <th>Department</th>
+                        <th>Quantity</th>
+                        <th>Unit Price (OMR)</th>
+                        <th class="text-end">Total Value (OMR)</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {% for asset in assets %}
+                      <tr>
+                        <td><strong>{{ asset.name }}</strong><br><small class="text-muted">{{ asset.asset_code }}</small></td>
+                        <td>{{ asset.building }}</td>
+                        <td>{{ asset.department }}</td>
+                        <td>{{ asset.quantity }}</td>
+                        <td>{{ "%.3f"|format(asset.price or 0.0) }}</td>
+                        <td class="text-end"><span class="badge bg-primary">{{ "%.3f"|format((asset.price or 0.0) * asset.quantity) }}</span></td>
+                      </tr>
+                      {% endfor %}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+        <button type="button" class="btn btn-success" onclick="exportPriceAnalysis()">
+          <i class="fas fa-download"></i> Export Data
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 <script>
@@ -1144,6 +2110,66 @@
 let buildingsData = [];
 let departmentsData = [];
 let selectedAssets = [];
+
+// ============================================================================
+// ADMIN MENU TOGGLE FUNCTION
+// ============================================================================
+function toggleAdminMenu() {
+    const dropdown = document.getElementById('adminMenuDropdown');
+    if (dropdown) {
+        dropdown.classList.toggle('show');
+    }
+}
+
+// Close menu when clicking outside
+document.addEventListener('click', function(event) {
+    const menuButton = document.getElementById('adminMenuButton');
+    const dropdown = document.getElementById('adminMenuDropdown');
+    
+    if (menuButton && dropdown && !menuButton.contains(event.target)) {
+        dropdown.classList.remove('show');
+    }
+});
+
+// Handle submenu toggles
+document.addEventListener('click', function(event) {
+    const submenuTrigger = event.target.closest('.submenu-trigger');
+    if (submenuTrigger) {
+        event.preventDefault();
+        event.stopPropagation();
+        const menuItem = submenuTrigger.closest('.has-submenu');
+        if (menuItem) {
+            // Close other open submenus first
+            const otherOpenMenus = document.querySelectorAll('.has-submenu.open');
+            otherOpenMenus.forEach(openMenu => {
+                if (openMenu !== menuItem) {
+                    openMenu.classList.remove('open');
+                }
+            });
+            menuItem.classList.toggle('open');
+        }
+    }
+});
+
+// Initialize submenu functionality when DOM is loaded
+document.addEventListener('DOMContentLoaded', function() {
+    // Ensure submenu triggers are properly set up
+    const submenuTriggers = document.querySelectorAll('.submenu-trigger');
+    submenuTriggers.forEach(trigger => {
+        trigger.addEventListener('click', function(e) {
+            e.preventDefault();
+            e.stopPropagation();
+            const menuItem = this.closest('.has-submenu');
+            if (menuItem) {
+                menuItem.classList.toggle('open');
+            }
+        });
+    });
+});
+
+
+
+
 
 // ============================================================================
 // DATA LOADING & INITIALIZATION
@@ -1431,8 +2457,8 @@ let selectedAssets = [];
         `;
         
         var win = window.open('', '', 'height=400,width=400');
-        win.document.write('<html><head><title>Print Department QR Code</title>');
-        win.document.write('<style>body{background:#fff;text-align:center;} img{margin:0 auto;display:block;} div{color:#222;}</style>');
+        win.document.write('<html><head><title></title>');
+        win.document.write('<style>body{background:#fff;text-align:center;margin:0;padding:20px;display:flex;flex-direction:column;justify-content:center;min-height:100vh;} img{margin:0 auto;display:block;} div{color:#222;} @media print{body{margin:0;padding:20px;} @page{margin:0;size:auto;}}</style>');
         win.document.write('</head><body>');
         win.document.write(printContents);
         win.document.write('</body></html>');
@@ -2983,6 +4009,7 @@ let selectedAssets = [];
             const assetName = button.getAttribute('data-asset-name');
             const assetType = button.getAttribute('data-asset-type');
             const assetQuantity = button.getAttribute('data-asset-quantity');
+            const assetPrice = button.getAttribute('data-asset-price');
             const assetOwner = button.getAttribute('data-asset-owner');
             const assetBuilding = button.getAttribute('data-asset-building');
             const assetDepartment = button.getAttribute('data-asset-department');
@@ -2999,6 +4026,7 @@ let selectedAssets = [];
             
             // Populate form fields
             document.getElementById('edit_quantity').value = assetQuantity;
+            document.getElementById('edit_price').value = assetPrice;
             document.getElementById('edit_used_status').value = assetStatus;
             
             // Handle old asset type values that might not match new options
@@ -3242,7 +4270,23 @@ let selectedAssets = [];
 // EVENT LISTENERS - QR CODE FUNCTIONALITY
 // ============================================================================
 
-    // QR Modal logic
+    // QR Modal logic for image-based QR codes
+    function showQRModal(assetId, assetCode, assetName) {
+        const modalImage = document.getElementById('qrModalImage');
+        const modalAssetName = document.getElementById('qrModalAssetName');
+        const modalAssetCode = document.getElementById('qrModalAssetCode');
+        
+        // Set larger QR code image using our own endpoint with golden colors
+        modalImage.src = `/assets/qrcode/${assetId}`;
+        modalAssetName.textContent = assetName;
+        modalAssetCode.textContent = assetCode;
+        
+        // Show the modal
+        const qrModal = new bootstrap.Modal(document.getElementById('qrModal'));
+        qrModal.show();
+    }
+
+    // Legacy QR Modal logic (keeping for compatibility)
     document.querySelectorAll('.view-qr-link').forEach(function(link) {
         link.addEventListener('click', function(e) {
             e.preventDefault();
@@ -3260,7 +4304,9 @@ let selectedAssets = [];
                         new QRCode(document.getElementById('qrcode'), {
                             text: qrString,
                             width: 200,
-                            height: 200
+                            height: 200,
+                            colorDark: "#D4AF37",
+                            colorLight: "#181818"
                         });
                         document.getElementById('qrCodeLabel').innerText = data.asset_code;
                     }
@@ -3274,10 +4320,32 @@ let selectedAssets = [];
 
     // Print QR code button logic
     document.getElementById('printQrBtn').onclick = function() {
-        var printContents = document.getElementById('qrcode').innerHTML + '<div style="margin-top:12px;font-weight:bold;font-size:1.2em;text-align:center;">' + document.getElementById('qrCodeLabel').innerText + '</div>';
+        const modalImage = document.getElementById('qrModalImage');
+        const modalAssetName = document.getElementById('qrModalAssetName');
+        const modalAssetCode = document.getElementById('qrModalAssetCode');
+        const qrcodeDiv = document.getElementById('qrcode');
+        const qrCodeLabel = document.getElementById('qrCodeLabel');
+        
+        let printContents = '';
+        
+        // Check if we're using image-based QR code or JavaScript-generated
+        if (modalImage.src && modalImage.src !== window.location.href) {
+            // Image-based QR code
+            printContents = `
+                <img src="${modalImage.src}" alt="QR Code" style="max-width: 200px; height: auto; margin: 0 auto; display: block;">
+                <div style="margin-top:12px;font-weight:bold;font-size:1.2em;text-align:center;">
+                    ${modalAssetName.textContent}<br>
+                    <small style="font-size:0.8em;color:#666;">${modalAssetCode.textContent}</small>
+                </div>
+            `;
+        } else {
+            // Legacy JavaScript-generated QR code
+            printContents = qrcodeDiv.innerHTML + '<div style="margin-top:12px;font-weight:bold;font-size:1.2em;text-align:center;">' + qrCodeLabel.innerText + '</div>';
+        }
+        
         var win = window.open('', '', 'height=400,width=400');
-        win.document.write('<html><head><title>Print QR Code</title>');
-        win.document.write('<style>body{background:#fff;text-align:center;} img{margin:0 auto;display:block;} div{color:#222;}</style>');
+        win.document.write('<html><head><title></title>');
+        win.document.write('<style>body{background:#fff;text-align:center;margin:0;padding:20px;display:flex;flex-direction:column;justify-content:center;min-height:100vh;} img{margin:0 auto;display:block;} div{color:#222;} @media print{body{margin:0;padding:20px;} @page{margin:0;size:auto;}}</style>');
         win.document.write('</head><body>');
         win.document.write(printContents);
         win.document.write('</body></html>');
@@ -3498,15 +4566,7 @@ let selectedAssets = [];
         displayBulkQrCodes();
     });
 
-    // Printer type change handler
-    document.getElementById('printerTypeSelect').addEventListener('change', function() {
-        displayBulkQrCodes();
-    });
 
-    // Layout change handler
-    document.getElementById('layoutSelect').addEventListener('change', function() {
-        displayBulkQrCodes();
-    });
 
     // Print button handler
     document.getElementById('printBulkQrBtn').addEventListener('click', function() {
@@ -3519,14 +4579,12 @@ let selectedAssets = [];
 
     /**
      * Display bulk QR codes for selected assets
-     * Creates a layout optimized for thermal printer or regular printer
+     * Creates individual pages for thermal printer (1 QR code per page)
      */
     function displayBulkQrCodes() {
         const container = document.getElementById('bulkQrContainer');
         const header = document.getElementById('bulkQrHeader');
-        const printerType = document.getElementById('printerTypeSelect').value;
         const qrSize = parseInt(document.getElementById('qrSizeSelect').value);
-        const layoutPerPage = parseInt(document.getElementById('layoutSelect').value);
         
         // Clear existing QR codes
         container.innerHTML = '';
@@ -3537,173 +4595,61 @@ let selectedAssets = [];
             return;
         }
         
-        // Get department/building info for selected assets
-                    fetch('/assets/assets')
+        // Update header
+        header.innerHTML = `
+            <i class="fas fa-qrcode"></i> <strong>Thermal Printer QR Codes</strong>
+            <br><small class="text-muted">${selectedAssets.length} asset(s) selected - 1 QR code per page for thermal printer</small>
+        `;
+        
+        // Fetch full asset details to get asset codes
+        fetch('/assets/assets')
             .then(response => response.json())
             .then(allAssets => {
                 const selectedAssetDetails = allAssets.filter(asset => 
                     selectedAssets.some(selected => selected.id == asset.id)
                 );
                 
-                // Group assets by building and department
-                const groupedAssets = {};
-                selectedAssetDetails.forEach(asset => {
-                    const key = `${asset.building} - ${asset.department}`;
-                    if (!groupedAssets[key]) {
-                        groupedAssets[key] = [];
-                    }
-                    groupedAssets[key].push(asset);
-                });
-                
-                // Display header with department/building info
-                const buildingDeptKeys = Object.keys(groupedAssets);
-                if (buildingDeptKeys.length === 1) {
-                    // All assets from same building/department
-                    const [building, department] = buildingDeptKeys[0].split(' - ');
-                    header.innerHTML = `
-                        <i class="fas fa-building"></i> <strong>${building}</strong> - 
-                        <i class="fas fa-sitemap"></i> <strong>${department}</strong>
-                        <br><small class="text-muted">${selectedAssets.length} asset(s) selected - ${printerType === 'thermal' ? 'Thermal Printer Layout' : 'Regular Printer Layout'}</small>
-                    `;
-                } else {
-                    // Assets from multiple buildings/departments
-                    header.innerHTML = `
-                        <i class="fas fa-info-circle"></i> <strong>Multiple Departments Selected</strong>
-                        <br><small class="text-muted">
-                            ${buildingDeptKeys.length} department(s): ${buildingDeptKeys.join(', ')} - ${printerType === 'thermal' ? 'Thermal Printer Layout' : 'Regular Printer Layout'}
-                        </small>
-                    `;
-                }
-                
-                if (printerType === 'thermal') {
-                    // Thermal printer layout - organize into pages
-                    const totalPages = Math.ceil(selectedAssets.length / layoutPerPage);
+                // Create individual pages for each QR code
+                selectedAssetDetails.forEach((asset, index) => {
+                    // Create page container
+                    const pageDiv = document.createElement('div');
+                    pageDiv.className = 'thermal-page';
+                    pageDiv.style.cssText = 'page-break-after: always; margin-bottom: 20px; padding: 20px; border: 1px dashed #ccc; background: #f9f9f9; min-height: 300px; display: flex; flex-direction: column; justify-content: center; align-items: center;';
                     
-                    for (let page = 0; page < totalPages; page++) {
-                        const pageDiv = document.createElement('div');
-                        pageDiv.className = `thermal-page thermal-layout-${layoutPerPage}`;
-                        pageDiv.style.cssText = 'border: 1px dashed #ccc; margin-bottom: 20px; padding: 20px; background: #f9f9f9;';
-                        
-                        const pageHeader = document.createElement('div');
-                        pageHeader.className = 'text-center mb-3';
-                        pageHeader.innerHTML = `<strong>Page ${page + 1} of ${totalPages}</strong>`;
-                        pageDiv.appendChild(pageHeader);
-                        
-                        const startIndex = page * layoutPerPage;
-                        const endIndex = Math.min(startIndex + layoutPerPage, selectedAssets.length);
-                        
-                        for (let i = startIndex; i < endIndex; i++) {
-                            const asset = selectedAssets[i];
-                            const assetDetail = selectedAssetDetails.find(detail => detail.id == asset.id);
-                            
-                            const qrItem = document.createElement('div');
-                            qrItem.className = 'thermal-qr-item';
-                            
-                            const qrElement = document.createElement('div');
-                            qrElement.id = `bulk-qr-${asset.id}`;
-                            qrElement.className = 'thermal-qr-code';
-                            
-                            const labelElement = document.createElement('div');
-                            labelElement.className = 'thermal-qr-label';
-                            labelElement.innerHTML = `
-                                ${asset.name}<br>
-                                <small>${assetDetail ? assetDetail.asset_code : 'Loading...'}</small>
-                            `;
-                            
-                            qrItem.appendChild(qrElement);
-                            qrItem.appendChild(labelElement);
-                            pageDiv.appendChild(qrItem);
-                            
-                            // Generate QR code
-                            fetch(`/assets/qrdata/${asset.id}`)
-                                .then(response => response.json())
-                                .then(data => {
-                                    if (data.error) {
-                                        qrElement.innerHTML = '<div class="text-danger small">QR data not found</div>';
-                                    } else {
-                                        qrElement.innerHTML = '';
-                                        const qrString = window.location.origin + '/asset/' + data.asset_code;
-                                        
-                                        new QRCode(qrElement, {
-                                            text: qrString,
-                                            width: qrSize,
-                                            height: qrSize,
-                                            colorDark: "#000000",
-                                            colorLight: "#ffffff",
-                                            correctLevel: QRCode.CorrectLevel.H
-                                        });
-                                        
-                                        labelElement.innerHTML = `
-                                            ${asset.name}<br>
-                                            <small>${data.asset_code}</small>
-                                        `;
-                                    }
-                                })
-                                .catch(error => {
-                                    console.error('Error displaying QR code for asset:', asset.id, error);
-                                    qrElement.innerHTML = '<div class="text-danger small">Error loading QR</div>';
-                                });
-                        }
-                        
-                        container.appendChild(pageDiv);
-                    }
-                } else {
-                    // Regular printer layout - grid format
-                    selectedAssets.forEach((asset, index) => {
-                        const qrDiv = document.createElement('div');
-                        qrDiv.className = 'col-md-4 col-sm-6 text-center mb-3';
-                        qrDiv.style.pageBreakInside = 'avoid';
-                        
-                        const qrElement = document.createElement('div');
-                        qrElement.id = `bulk-qr-${asset.id}`;
-                        qrElement.className = 'd-inline-block';
-                        
-                        const assetInfo = document.createElement('div');
-                        assetInfo.className = 'mt-2';
-                        assetInfo.innerHTML = `
-                            <div class="fw-bold small">${asset.name}</div>
-                            <div class="text-muted small">Asset #${asset.id}</div>
-                        `;
-                        
-                        qrDiv.appendChild(qrElement);
-                        qrDiv.appendChild(assetInfo);
-                        container.appendChild(qrDiv);
-                        
-                        // Get QR code data and display
-                        fetch(`/assets/qrdata/${asset.id}`)
-                            .then(response => response.json())
-                            .then(data => {
-                                if (data.error) {
-                                    qrElement.innerHTML = '<div class="text-danger small">QR data not found</div>';
-                                } else {
-                                    qrElement.innerHTML = '';
-                                    const qrString = window.location.origin + '/asset/' + data.asset_code;
-                                    
-                                    new QRCode(qrElement, {
-                                        text: qrString,
-                                        width: qrSize,
-                                        height: qrSize,
-                                        colorDark: "#000000",
-                                        colorLight: "#ffffff",
-                                        correctLevel: QRCode.CorrectLevel.H
-                                    });
-                                    
-                                    assetInfo.innerHTML = `
-                                        <div class="fw-bold small">${asset.name}</div>
-                                        <div class="text-muted small">${data.asset_code}</div>
-                                    `;
-                                }
-                            })
-                            .catch(error => {
-                                console.error('Error displaying QR code for asset:', asset.id, error);
-                                qrElement.innerHTML = '<div class="text-danger small">Error loading QR</div>';
-                            });
-                    });
-                }
+                    // Page header
+                    const pageHeader = document.createElement('div');
+                    pageHeader.className = 'text-center mb-3';
+                    pageHeader.innerHTML = `<strong>Page ${index + 1} of ${selectedAssetDetails.length}</strong>`;
+                    pageDiv.appendChild(pageHeader);
+                    
+                    // QR code container
+                    const qrContainer = document.createElement('div');
+                    qrContainer.className = 'qr-code-container text-center';
+                    
+                    // QR code image
+                    const qrImage = document.createElement('img');
+                    qrImage.src = `/assets/qrcode/${asset.id}`;
+                    qrImage.alt = `QR Code for ${asset.name}`;
+                    qrImage.className = 'qr-code-img';
+                    qrImage.style.cssText = `width: ${qrSize}px; height: ${qrSize}px; border: 2px solid #D4AF37; border-radius: 4px; margin-bottom: 15px;`;
+                    
+                    // Asset info
+                    const assetInfo = document.createElement('div');
+                    assetInfo.className = 'text-center';
+                    assetInfo.innerHTML = `
+                        <div class="fw-bold" style="font-size: 16px; margin-bottom: 5px;">${asset.asset_code}</div>
+                        <div class="text-muted" style="font-size: 14px;">${asset.name}</div>
+                    `;
+                    
+                    qrContainer.appendChild(qrImage);
+                    qrContainer.appendChild(assetInfo);
+                    pageDiv.appendChild(qrContainer);
+                    container.appendChild(pageDiv);
+                });
             })
             .catch(error => {
                 console.error('Error fetching asset details:', error);
-                header.innerHTML = '<div class="text-danger">Error loading asset information</div>';
+                container.innerHTML = '<div class="col-12 text-center text-danger">Error loading asset information</div>';
             });
     }
 
@@ -4104,7 +5050,539 @@ let selectedAssets = [];
                 throw error;
             });
     }
-</script>
-</body>
-</html> 
+
+    // --- Improved Asset Name Multi-Select ---
+    const assetNameInput = document.getElementById('name');
+    const assetNameDropdown = document.getElementById('assetNameDropdown');
+    const assetNameList = document.getElementById('assetNameList');
+    let allAssetNames = [];
+    let filteredAssetNames = [];
+
+    // Helper: Populate allAssetNames from asset type selection
+    function updateAllAssetNames() {
+        const assetTypeSelect = document.getElementById('asset_type');
+        const selectedType = assetTypeSelect.value;
+        
+        if (selectedType && window.assetNamesByType && window.assetNamesByType[selectedType]) {
+            allAssetNames = window.assetNamesByType[selectedType].map(item => item.name);
+        } else {
+            allAssetNames = [];
+        }
+        renderAssetNameOptions('');
+    }
+
+    // Helper: Render custom dropdown options
+    function renderAssetNameOptions(filter = '') {
+        assetNameList.innerHTML = '';
+        dropdownItems = [];
+        const lowerFilter = filter.trim().toLowerCase();
+        
+        // Show all available options when no filter is applied
+        if (lowerFilter === '') {
+            filteredAssetNames = allAssetNames.filter(name => !selectedAssetNames.includes(name));
+        } else {
+            filteredAssetNames = allAssetNames.filter(name =>
+                !selectedAssetNames.includes(name) &&
+                name.toLowerCase().includes(lowerFilter)
+            );
+        }
+        
+        if (filteredAssetNames.length === 0) {
+            const item = document.createElement('div');
+            item.className = 'dropdown-item';
+            item.textContent = 'No asset names found';
+            item.style.color = '#6c757d';
+            item.style.fontStyle = 'italic';
+            assetNameList.appendChild(item);
+        } else {
+            filteredAssetNames.forEach((name, index) => {
+                const item = document.createElement('div');
+                item.className = 'dropdown-item';
+                item.textContent = name;
+                item.style.cursor = 'pointer';
+                item.dataset.index = index;
+                item.onclick = function(e) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    addAssetNameToSelection(name);
+                    assetNameInput.value = '';
+                    selectedIndex = -1;
+                    // Re-render options to remove the selected item
+                    renderAssetNameOptions('');
+                    // Keep dropdown open for next selection
+                    if (filteredAssetNames.length > 0) {
+                        assetNameInput.focus();
+                    } else {
+                        hideDropdown();
+                    }
+                };
+                assetNameList.appendChild(item);
+                dropdownItems.push(item);
+            });
+        }
+        // Reset selection when rendering new options
+        selectedIndex = -1;
+        updateDropdownSelection();
+    }
+
+    // Update dropdown selection highlighting
+    function updateDropdownSelection() {
+        dropdownItems.forEach((item, index) => {
+            if (index === selectedIndex) {
+                item.style.backgroundColor = '#007bff';
+                item.style.color = 'white';
+                item.classList.add('selected');
+            } else {
+                item.style.backgroundColor = '';
+                item.style.color = '';
+                item.classList.remove('selected');
+            }
+        });
+    }
+
+    // Show dropdown
+    function showDropdown() {
+        assetNameDropdown.style.display = 'block';
+        renderAssetNameOptions(assetNameInput.value);
+    }
+
+    // Hide dropdown
+    function hideDropdown() {
+        assetNameDropdown.style.display = 'none';
+    }
+
+    // On input: filter options
+    assetNameInput.addEventListener('input', function() {
+        showDropdown();
+        renderAssetNameOptions(assetNameInput.value);
+    });
+    
+    // Keep dropdown open when typing
+    assetNameInput.addEventListener('keyup', function() {
+        if (assetNameInput.value.trim() !== '') {
+            showDropdown();
+            renderAssetNameOptions(assetNameInput.value);
+        }
+    });
+
+    // On focus: show all options immediately
+    assetNameInput.addEventListener('focus', function() {
+        showDropdown();
+        renderAssetNameOptions('');
+    });
+
+    // On click: also show all options
+    assetNameInput.addEventListener('click', function() {
+        showDropdown();
+        renderAssetNameOptions('');
+    });
+
+    // Keyboard navigation variables
+    let selectedIndex = -1;
+    let dropdownItems = [];
+
+    // On Enter: add asset name as tag
+    assetNameInput.addEventListener('keydown', function(e) {
+        if (e.key === 'Enter') {
+            e.preventDefault();
+            const val = assetNameInput.value.trim();
+            if (val && filteredAssetNames.includes(val)) {
+                addAssetNameToSelection(val);
+                assetNameInput.value = '';
+                selectedIndex = -1;
+                renderAssetNameOptions('');
+                if (filteredAssetNames.length > 0) {
+                    assetNameInput.focus();
+                } else {
+                    hideDropdown();
+                }
+            } else if (selectedIndex >= 0 && dropdownItems[selectedIndex]) {
+                // Select highlighted item
+                const selectedName = dropdownItems[selectedIndex].textContent;
+                addAssetNameToSelection(selectedName);
+                assetNameInput.value = '';
+                selectedIndex = -1;
+                renderAssetNameOptions('');
+                if (filteredAssetNames.length > 0) {
+                    assetNameInput.focus();
+                } else {
+                    hideDropdown();
+                }
+            }
+        } else if (e.key === 'ArrowDown') {
+            e.preventDefault();
+            if (dropdownItems.length > 0) {
+                selectedIndex = Math.min(selectedIndex + 1, dropdownItems.length - 1);
+                updateDropdownSelection();
+            }
+        } else if (e.key === 'ArrowUp') {
+            e.preventDefault();
+            if (dropdownItems.length > 0) {
+                selectedIndex = Math.max(selectedIndex - 1, -1);
+                updateDropdownSelection();
+            }
+        } else if (e.key === 'Escape') {
+            e.preventDefault();
+            hideDropdown();
+            selectedIndex = -1;
+        } else if (e.key === 'Backspace' && assetNameInput.value === '') {
+            // Remove last tag if input is empty
+            if (selectedAssetNames.length > 0) {
+                removeAssetNameFromSelection(selectedAssetNames[selectedAssetNames.length - 1]);
+            }
+        }
+    });
+
+    // Hide dropdown when clicking outside
+    document.addEventListener('click', function(e) {
+        if (!assetNameInput.contains(e.target) && !assetNameDropdown.contains(e.target)) {
+            hideDropdown();
+        }
+    });
+    
+    // Prevent dropdown from closing when clicking inside it
+    assetNameDropdown.addEventListener('click', function(e) {
+        e.stopPropagation();
+    });
+
+    // When removing a tag, re-render options
+    function addAssetNameToSelection(assetName) {
+        if (!selectedAssetNames.includes(assetName)) {
+            selectedAssetNames.push(assetName);
+            updateSelectedAssetNamesDisplay();
+            updateHiddenInput();
+        }
+    }
+    
+    function removeAssetNameFromSelection(assetName) {
+        const index = selectedAssetNames.indexOf(assetName);
+        if (index > -1) {
+            selectedAssetNames.splice(index, 1);
+            updateSelectedAssetNamesDisplay();
+            updateHiddenInput();
+        }
+    }
+
+    // Update dropdown when asset type changes
+    document.getElementById('asset_type').addEventListener('change', function() {
+        updateAllAssetNames();
+    });
+
+    // Initialize Charts
+    document.addEventListener('DOMContentLoaded', function() {
+        // Asset Status Distribution Chart (Pie Chart)
+        const statusCtx = document.getElementById('assetStatusChart').getContext('2d');
+        
+        const statusChart = new Chart(statusCtx, {
+            type: 'doughnut',
+            data: {
+                labels: ['Used', 'Not Used', 'Out of Service'],
+                datasets: [{
+                    data: [
+                        window.chartData.statusCounts['Used'] || 0,
+                        window.chartData.statusCounts['Not Used'] || 0,
+                        window.chartData.statusCounts['Out of Service'] || 0
+                    ],
+                    backgroundColor: [
+                        '#28a745', // Green for Used
+                        '#ffc107', // Yellow for Not Used
+                        '#dc3545'  // Red for Out of Service
+                    ],
+                    borderColor: '#ffffff',
+                    borderWidth: 2
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        position: 'bottom',
+                        labels: {
+                            padding: 20,
+                            usePointStyle: true
+                        }
+                    },
+                    tooltip: {
+                        callbacks: {
+                            label: function(context) {
+                                const label = context.label || '';
+                                const value = context.parsed;
+                                const total = context.dataset.data.reduce((a, b) => a + b, 0);
+                                const percentage = ((value / total) * 100).toFixed(1);
+                                return `${label}: ${value} (${percentage}%)`;
+                            }
+                        }
+                    }
+                }
+            }
+        });
+
+        // Assets by Building Chart (Bar Chart)
+        const buildingCtx = document.getElementById('buildingChart').getContext('2d');
+        
+        const buildingLabels = Object.keys(window.chartData.buildingCounts);
+        const buildingCounts = Object.values(window.chartData.buildingCounts);
+        
+        const buildingChart = new Chart(buildingCtx, {
+            type: 'bar',
+            data: {
+                labels: buildingLabels,
+                datasets: [{
+                    label: 'Number of Assets',
+                    data: buildingCounts,
+                    backgroundColor: 'rgba(54, 162, 235, 0.8)',
+                    borderColor: 'rgba(54, 162, 235, 1)',
+                    borderWidth: 1
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        ticks: {
+                            stepSize: 1
+                        }
+                    }
+                },
+                plugins: {
+                    legend: {
+                        display: false
+                    },
+                    tooltip: {
+                        callbacks: {
+                            label: function(context) {
+                                return `Assets: ${context.parsed.y}`;
+                            }
+                        }
+                    }
+                }
+            }
+        });
+    });
+
+
+
+    // Filtering functions for price analysis modal tables
+    function filterBuildingTable(buildingFilter) {
+        const table = document.getElementById('buildingTable');
+        const tbody = table.querySelector('tbody');
+        const rows = Array.from(tbody.querySelectorAll('tr'));
+        
+        // Show/hide rows based on filter
+        rows.forEach(row => {
+            const firstCell = row.querySelector('td');
+            if (firstCell) {
+                const buildingName = firstCell.textContent.trim();
+                if (!buildingFilter || buildingName === buildingFilter || buildingName === 'TOTAL') {
+                    row.style.display = '';
+                } else {
+                    row.style.display = 'none';
+                }
+            }
+        });
+        
+        // Update totals if filtering
+        if (buildingFilter) {
+            updateBuildingTotal(buildingFilter);
+        } else {
+            restoreBuildingTotal();
+        }
+    }
+    
+    function filterDepartmentTable(deptFilter) {
+        const table = document.querySelector('#priceAnalysisModal .col-md-6:nth-child(2) table');
+        const tbody = table.querySelector('tbody');
+        const rows = Array.from(tbody.querySelectorAll('tr'));
+        
+        // Show/hide rows based on filter
+        rows.forEach(row => {
+            const cells = row.querySelectorAll('td');
+            if (cells.length >= 2) {
+                const deptName = cells[0].textContent.trim(); // First column is department name
+                if (!deptFilter) {
+                    row.style.display = '';
+                } else {
+                    // Convert dropdown value format to table format for comparison
+                    // Dropdown: "HO-IT", Table: "HO - IT"
+                    const formattedFilter = deptFilter.replace('-', ' - ');
+                    
+                    if (deptName === formattedFilter) {
+                        row.style.display = '';
+                    } else {
+                        row.style.display = 'none';
+                    }
+                }
+            }
+        });
+    }
+    
+    function filterAssetTable(buildingFilter) {
+        const table = document.querySelector('#priceAnalysisModal .col-md-12 table');
+        const tbody = table.querySelector('tbody');
+        const rows = Array.from(tbody.querySelectorAll('tr'));
+        
+        // Show/hide rows based on filter
+        rows.forEach(row => {
+            const cells = row.querySelectorAll('td');
+            if (cells.length >= 6) {
+                const buildingName = cells[1].textContent.trim(); // Building column (index 1)
+                if (!buildingFilter || buildingName === buildingFilter) {
+                    row.style.display = '';
+                } else {
+                    row.style.display = 'none';
+                }
+            }
+        });
+    }
+    
+    function updateBuildingTotal(buildingFilter) {
+        const totalRow = document.querySelector('#buildingTable tbody tr:last-child');
+        if (totalRow) {
+            const buildingValue = window.chartData.buildingPrices[buildingFilter] || 0;
+            const buildingCount = window.chartData.buildingCounts[buildingFilter] || 0;
+            const avgValue = buildingCount > 0 ? (buildingValue / buildingCount).toFixed(3) : '0.000';
+            
+            const cells = totalRow.querySelectorAll('td');
+            if (cells.length >= 4) {
+                cells[0].textContent = `${buildingFilter} TOTAL`;
+                cells[1].textContent = buildingCount;
+                cells[2].textContent = buildingValue.toFixed(3);
+                cells[3].textContent = avgValue;
+            }
+        }
+    }
+    
+    function restoreBuildingTotal() {
+        const totalRow = document.querySelector('#buildingTable tbody tr:last-child');
+        if (totalRow) {
+            const totalAssets = Object.values(window.chartData.buildingCounts).reduce((a, b) => a + b, 0);
+            const totalValue = window.chartData.totalSystemValue;
+            const avgValue = totalAssets > 0 ? (totalValue / totalAssets).toFixed(3) : '0.000';
+            
+            const cells = totalRow.querySelectorAll('td');
+            if (cells.length >= 4) {
+                cells[0].textContent = 'TOTAL';
+                cells[1].textContent = totalAssets;
+                cells[2].textContent = totalValue.toFixed(3);
+                cells[3].textContent = avgValue;
+            }
+        }
+    }
+    
+
+
+    function exportPriceAnalysis() {
+        const timestamp = new Date().toISOString().slice(0, 19).replace('T', '_');
+        const filename = `Asset_Price_Analysis_${timestamp}.xlsx`;
+        
+        // Create workbook and worksheets
+        const workbook = XLSX.utils.book_new();
+        
+        // System Overview Sheet
+        const systemOverviewData = [
+            ['ASSET PRICE ANALYSIS REPORT'],
+            [''],
+            ['Report Generated:', new Date().toLocaleString()],
+            ['Total System Value:', `OMR ${window.chartData.totalSystemValue.toFixed(3)}`],
+            ['Total Assets:', Object.values(window.chartData.buildingCounts).reduce((a, b) => a + b, 0)],
+            [''],
+            ['Currency: Omani Rial (OMR)']
+        ];
+        
+        const systemOverviewSheet = XLSX.utils.aoa_to_sheet(systemOverviewData);
+        systemOverviewSheet['!cols'] = [{ width: 30 }, { width: 25 }];
+        XLSX.utils.book_append_sheet(workbook, systemOverviewSheet, 'System Overview');
+        
+        // Building Analysis Sheet
+        const buildingData = [
+            ['BUILDING ANALYSIS'],
+            [''],
+            ['Building Name', 'Total Assets', 'Total Value (OMR)', 'Average Value per Asset (OMR)'],
+            ['', '', '', '']
+        ];
+        
+        Object.entries(window.chartData.buildingPrices).forEach(([building, value]) => {
+            const assetCount = window.chartData.buildingCounts[building] || 0;
+            const avgValue = assetCount > 0 ? (value / assetCount).toFixed(3) : '0.000';
+            buildingData.push([building, assetCount, value.toFixed(3), avgValue]);
+        });
+        
+        // Add totals row
+        const totalAssets = Object.values(window.chartData.buildingCounts).reduce((a, b) => a + b, 0);
+        const totalValue = window.chartData.totalSystemValue;
+        buildingData.push(['', '', '', '']);
+        buildingData.push(['TOTAL', totalAssets, totalValue.toFixed(3), (totalValue / totalAssets).toFixed(3)]);
+        
+        const buildingSheet = XLSX.utils.aoa_to_sheet(buildingData);
+        buildingSheet['!cols'] = [{ width: 20 }, { width: 15 }, { width: 20 }, { width: 25 }];
+        XLSX.utils.book_append_sheet(workbook, buildingSheet, 'Building Analysis');
+        
+        // Department Analysis Sheet
+        const departmentData = [
+            ['DEPARTMENT ANALYSIS'],
+            [''],
+            ['Building', 'Department', 'Total Assets', 'Total Value (OMR)', 'Average Value per Asset (OMR)'],
+            ['', '', '', '', '']
+        ];
+        
+        Object.entries(window.chartData.departmentPrices).forEach(([deptKey, value]) => {
+            const [building, department] = deptKey.split('-', 2);
+            // Count assets for this department (simplified - you might want to get this from backend)
+            const assetCount = 1; // This would need to be calculated properly
+            const avgValue = assetCount > 0 ? (value / assetCount).toFixed(3) : '0.000';
+            departmentData.push([building, department, assetCount, value.toFixed(3), avgValue]);
+        });
+        
+        // Sort departments by value (highest first)
+        departmentData.sort((a, b) => {
+            if (a[0] === 'Building' || b[0] === 'Building') return 0;
+            return parseFloat(b[3]) - parseFloat(a[3]);
+        });
+        
+        const departmentSheet = XLSX.utils.aoa_to_sheet(departmentData);
+        departmentSheet['!cols'] = [{ width: 15 }, { width: 20 }, { width: 15 }, { width: 20 }, { width: 25 }];
+        XLSX.utils.book_append_sheet(workbook, departmentSheet, 'Department Analysis');
+        
+        // Detailed Asset Breakdown Sheet
+        const assetData = [
+            ['DETAILED ASSET BREAKDOWN'],
+            [''],
+            ['Asset Name', 'Asset Code', 'Building', 'Department', 'Quantity', 'Unit Price (OMR)', 'Total Value (OMR)', 'Status'],
+            ['', '', '', '', '', '', '', '']
+        ];
+        
+        // Get asset data from the current page (this would need to be enhanced to get all assets)
+        const assetRows = document.querySelectorAll('.table-responsive table tbody tr');
+        assetRows.forEach(row => {
+            const cells = row.querySelectorAll('td');
+            if (cells.length >= 10) {
+                const name = cells[2].querySelector('strong')?.textContent || '';
+                const code = cells[2].querySelector('small')?.textContent || '';
+                const building = cells[6]?.textContent || '';
+                const department = cells[7]?.textContent || '';
+                const quantity = cells[4]?.textContent || '';
+                const price = cells[5]?.textContent.replace('OMR ', '') || '0.000';
+                const totalValue = (parseFloat(price) * parseInt(quantity)).toFixed(3);
+                const status = cells[8]?.querySelector('option:checked')?.textContent || '';
+                
+                assetData.push([name, code, building, department, quantity, price, totalValue, status]);
+            }
+        });
+        
+        const assetSheet = XLSX.utils.aoa_to_sheet(assetData);
+        assetSheet['!cols'] = [
+            { width: 25 }, { width: 20 }, { width: 15 }, { width: 20 }, 
+            { width: 12 }, { width: 18 }, { width: 18 }, { width: 15 }
+        ];
+        XLSX.utils.book_append_sheet(workbook, assetSheet, 'Asset Details');
+        
+        // Generate and download the file
+        XLSX.writeFile(workbook, filename);
+    }
+  </script>
+  </body>
+  </html> 
 </html> 

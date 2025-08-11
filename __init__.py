@@ -11,6 +11,16 @@ def create_app():
     # SECURITY: Use environment variable for secret key with fallback
     app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY') or secrets.token_hex(32)
     
+    # Enable debug mode for development
+    app.config['DEBUG'] = True
+    
+    # Disable caching for static files in development
+    if app.debug:
+        app.config['SEND_FILE_MAX_AGE_DEFAULT'] = 0
+    
+    # Add built-in functions to Jinja2 environment
+    app.jinja_env.globals.update(max=max, min=min)
+    
     # SECURITY: Add security headers
     @app.after_request
     def add_security_headers(response):

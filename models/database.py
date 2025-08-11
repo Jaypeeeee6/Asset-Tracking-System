@@ -12,17 +12,31 @@ def generate_asset_code(building, department):
     cur = conn.cursor()
     building_code = building.replace(' ', '').upper()
     department_code = department.replace(' ', '').upper()
+    
+    # Get all existing asset codes for this building/department (both active and archived)
     cur.execute('SELECT asset_code FROM assets WHERE building=? AND department=? ORDER BY asset_code DESC', (building, department))
-    last_code = cur.fetchone()
+    active_codes = cur.fetchall()
+    
+    # Also get archived asset codes for this building/department
+    cur.execute('SELECT asset_code FROM archived_assets WHERE building=? AND department=? ORDER BY asset_code DESC', (building, department))
+    archived_codes = cur.fetchall()
+    
     conn.close()
-    if last_code and last_code[0]:
-        try:
-            last_num = int(last_code[0].split('-')[-1])
-            next_num = last_num + 1
-        except:
-            next_num = 1
-    else:
-        next_num = 1
+    
+    # Find the highest number from both active and archived assets
+    highest_num = 0
+    for row in active_codes + archived_codes:
+        if row[0]:
+            try:
+                # Extract number from asset code (e.g., "MAA-HO-IT-001" -> 1)
+                num = int(row[0].split('-')[-1])
+                if num > highest_num:
+                    highest_num = num
+            except (ValueError, IndexError):
+                continue
+    
+    next_num = highest_num + 1
+    
     return f"MAA-{building_code}-{department_code}-{next_num:03d}"
 
 def init_db():
@@ -80,6 +94,7 @@ def init_db():
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             name TEXT NOT NULL,
             quantity INTEGER NOT NULL,
+            price REAL DEFAULT 0.0,
             owner TEXT NOT NULL,
             building TEXT NOT NULL,
             department TEXT NOT NULL,
@@ -97,6 +112,8 @@ def init_db():
         cur.execute('ALTER TABLE assets ADD COLUMN used_status TEXT DEFAULT "Not Used"')
     if 'asset_type' not in columns:
         cur.execute('ALTER TABLE assets ADD COLUMN asset_type TEXT')
+    if 'price' not in columns:
+        cur.execute('ALTER TABLE assets ADD COLUMN price REAL DEFAULT 0.0')
     
     # Create asset_types table
     cur.execute('''
@@ -126,6 +143,7 @@ def init_db():
             original_id INTEGER,
             name TEXT NOT NULL,
             quantity INTEGER NOT NULL,
+            price REAL DEFAULT 0.0,
             owner TEXT NOT NULL,
             building TEXT NOT NULL,
             department TEXT NOT NULL,

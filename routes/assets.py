@@ -61,7 +61,7 @@ def dashboard():
         params.extend([search_param] * 6)
     
     where_sql = ('WHERE ' + ' AND '.join(where_clauses)) if where_clauses else ''
-    valid_sort_fields = ['id', 'name', 'quantity', 'owner', 'building', 'department', 'used_status', 'asset_type']
+    valid_sort_fields = ['id', 'name', 'quantity', 'price', 'owner', 'building', 'department', 'used_status', 'asset_type']
     if sort_by not in valid_sort_fields:
         sort_by = 'id'
     sort_dir = 'desc' if sort_dir == 'desc' else 'asc'
@@ -74,6 +74,45 @@ def dashboard():
     # Get paginated results
     cur.execute(f'SELECT * FROM assets {where_sql} ORDER BY {sort_by} {sort_dir} LIMIT ? OFFSET ?', params + [per_page, offset])
     assets = [dict(zip([desc[0] for desc in cur.description], row)) for row in cur.fetchall()]
+    
+    # Get chart data (all assets, not paginated)
+    cur.execute('SELECT used_status, building, department, price, quantity FROM assets')
+    all_assets = cur.fetchall()
+    
+    # Calculate chart data
+    status_counts = {'Used': 0, 'Not Used': 0, 'Out of Service': 0}
+    building_counts = {}
+    building_prices = {}
+    department_prices = {}
+    total_system_value = 0
+    
+    for asset in all_assets:
+        status = asset[0]
+        building = asset[1]
+        department = asset[2]
+        price = asset[3] or 0.0
+        quantity = asset[4] or 1
+        total_price = price * quantity
+        
+        if status in status_counts:
+            status_counts[status] += 1
+        
+        if building in building_counts:
+            building_counts[building] += 1
+            building_prices[building] += total_price
+        else:
+            building_counts[building] = 1
+            building_prices[building] = total_price
+        
+        # Department prices (key is building-department)
+        dept_key = f"{building}-{department}"
+        if dept_key in department_prices:
+            department_prices[dept_key] += total_price
+        else:
+            department_prices[dept_key] = total_price
+        
+        total_system_value += total_price
+    
     conn.close()
     
     return render_template('index.html', 
@@ -88,7 +127,16 @@ def dashboard():
                          departments=departments, 
                          building_filter=building_filter, 
                          department_filter=department_filter,
-                         asset_type_filter=asset_type_filter)
+                         search_query=search_query,
+                         status_filter=status_filter,
+                         asset_type_filter=asset_type_filter,
+                         chart_data={
+                             'status_counts': status_counts,
+                             'building_counts': building_counts,
+                             'building_prices': building_prices,
+                             'department_prices': department_prices,
+                             'total_system_value': total_system_value
+                         })
 
 @assets_bp.route('/add', methods=['POST'])
 @login_required
@@ -99,6 +147,7 @@ def add_asset():
     building = request.form['building']
     department = request.form['department']
     quantity = int(request.form['quantity'])
+    price = float(request.form.get('price', 0.0))
     used_status = request.form.get('used_status', 'Not Used')
     no_owner = request.form.get('no_owner') == 'on'
     
@@ -115,18 +164,57 @@ def add_asset():
     conn = get_db_connection()
     cur = conn.cursor()
     
+    # Pre-calculate asset codes for new assets to ensure sequential numbering
+    new_asset_codes = []
+    if len(asset_names) > 1:
+        # Get the base asset code format
+        building_code = building.replace(' ', '').upper()
+        department_code = department.replace(' ', '').upper()
+        
+        # Get all existing asset codes for this building/department (both active and archived)
+        cur.execute('SELECT asset_code FROM assets WHERE building=? AND department=? ORDER BY asset_code DESC', (building, department))
+        active_codes = cur.fetchall()
+        
+        # Also get archived asset codes for this building/department
+        cur.execute('SELECT asset_code FROM archived_assets WHERE building=? AND department=? ORDER BY asset_code DESC', (building, department))
+        archived_codes = cur.fetchall()
+        
+        # Find the highest number from both active and archived assets
+        highest_num = 0
+        for row in active_codes + archived_codes:
+            if row[0]:
+                try:
+                    num = int(row[0].split('-')[-1])
+                    if num > highest_num:
+                        highest_num = num
+                except (ValueError, IndexError):
+                    continue
+        
+        # Generate sequential codes starting from highest + 1
+        next_num = highest_num + 1
+        for i in range(len(asset_names)):
+            asset_code = f"MAA-{building_code}-{department_code}-{next_num:03d}"
+            new_asset_codes.append(asset_code)
+            next_num += 1
+    
     # Create individual assets for each selected asset name
-    for asset_name in asset_names:
-    # Check for existing asset with same name, building, and department
+    for i, asset_name in enumerate(asset_names):
+        # Check for existing asset with same name, building, and department
         cur.execute('SELECT id, quantity, asset_code, qr_random_code FROM assets WHERE name=? AND building=? AND department=?', (asset_name, building, department))
-    row = cur.fetchone()
-    if row:
-        new_quantity = row[1] + quantity
-        cur.execute('UPDATE assets SET quantity=?, used_status=?, asset_type=?, owner=? WHERE id=?', (new_quantity, used_status, asset_type, owner, row[0]))
-    else:
-        asset_code = generate_asset_code(building, department)
-        qr_random_code = str(uuid.uuid4())
-        cur.execute('INSERT INTO assets (name, quantity, owner, building, department, asset_code, qr_random_code, used_status, asset_type) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)', (asset_name, quantity, owner, building, department, asset_code, qr_random_code, used_status, asset_type))
+        row = cur.fetchone()
+        if row:
+            new_quantity = row[1] + quantity
+            cur.execute('UPDATE assets SET quantity=?, used_status=?, asset_type=?, owner=? WHERE id=?', (new_quantity, used_status, asset_type, owner, row[0]))
+        else:
+            # Use pre-calculated asset code or generate single one
+            if len(asset_names) > 1:
+                asset_code = new_asset_codes[i]
+            else:
+                asset_code = generate_asset_code(building, department)
+            
+            qr_random_code = str(uuid.uuid4())
+            
+            cur.execute('INSERT INTO assets (name, quantity, price, owner, building, department, asset_code, qr_random_code, used_status, asset_type) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)', (asset_name, quantity, price, owner, building, department, asset_code, qr_random_code, used_status, asset_type))
     
     conn.commit()
     conn.close()
@@ -141,6 +229,7 @@ def update_asset(asset_id):
     building = request.form['building']
     department = request.form['department']
     quantity = int(request.form['quantity'])
+    price = float(request.form.get('price', 0.0))
     used_status = request.form.get('used_status', 'Not Used')
     no_owner = request.form.get('no_owner') == 'on'
     
@@ -154,9 +243,9 @@ def update_asset(asset_id):
     try:
         cur.execute('''
             UPDATE assets 
-            SET name=?, asset_type=?, quantity=?, owner=?, building=?, department=?, used_status=?
+            SET name=?, asset_type=?, quantity=?, price=?, owner=?, building=?, department=?, used_status=?
             WHERE id=?
-        ''', (name, asset_type, quantity, owner, building, department, used_status, asset_id))
+        ''', (name, asset_type, quantity, price, owner, building, department, used_status, asset_id))
         
         conn.commit()
         conn.close()
@@ -186,10 +275,10 @@ def delete_asset(asset_id):
     # Insert into archived_assets table
     cur.execute('''
         INSERT INTO archived_assets 
-        (original_id, name, quantity, owner, building, department, asset_code, qr_random_code, used_status, asset_type, archived_by, archive_reason)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        (original_id, name, quantity, price, owner, building, department, asset_code, qr_random_code, used_status, asset_type, archived_by, archive_reason)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     ''', (
-        asset['id'], asset['name'], asset['quantity'], asset['owner'], 
+        asset['id'], asset['name'], asset['quantity'], asset.get('price', 0.0), asset['owner'], 
         asset['building'], asset['department'], asset['asset_code'], 
         asset['qr_random_code'], asset['used_status'], asset['asset_type'],
         current_user.username, archive_reason
@@ -300,7 +389,7 @@ def qrcode_image(asset_id):
     )
     qr.add_data(qr_url)
     qr.make(fit=True)
-    qr_img = qr.make_image(fill_color="black", back_color="white")
+    qr_img = qr.make_image(fill_color="#D4AF37", back_color="#181818")
     buf = BytesIO()
     qr_img.save(buf, format='PNG')
     buf.seek(0)
@@ -326,7 +415,7 @@ def department_qrcode_image(building, department):
     )
     qr.add_data(qr_url)
     qr.make(fit=True)
-    qr_img = qr.make_image(fill_color="black", back_color="white")
+    qr_img = qr.make_image(fill_color="#D4AF37", back_color="#181818")
     buf = BytesIO()
     qr_img.save(buf, format='PNG')
     buf.seek(0)
@@ -371,11 +460,15 @@ def department_items(building, department):
     offset = (page - 1) * per_page
     cur.execute(f'SELECT * FROM assets {where_sql} ORDER BY name LIMIT ? OFFSET ?', params + [per_page, offset])
     rows = cur.fetchall()
+    columns = [desc[0] for desc in cur.description]
+    
+    # Calculate total department value
+    cur.execute(f'SELECT SUM(price * quantity) FROM assets {where_sql}', params)
+    total_department_value = cur.fetchone()[0] or 0.0
     
     conn.close()
     
     if rows:
-        columns = [desc[0] for desc in cur.description]
         assets = [dict(zip(columns, row)) for row in rows]
     else:
         assets = []
@@ -388,7 +481,8 @@ def department_items(building, department):
                          total_pages=total_pages,
                          total_assets=total_assets,
                          per_page=per_page,
-                         search_query=search_query)
+                         search_query=search_query,
+                         total_department_value=total_department_value)
 
 @assets_bp.route('/qrdata/<int:asset_id>')
 def qrdata(asset_id):
@@ -411,17 +505,86 @@ def qrdata(asset_id):
         })
     return jsonify({'error': 'Not found'}), 404
 
-@assets_bp.route('/asset/<asset_code>')
-def asset_info(asset_code):
+@assets_bp.route('/archived_qrdata/<int:archived_id>')
+def archived_qrdata(archived_id):
     conn = get_db_connection()
     cur = conn.cursor()
-    cur.execute('SELECT * FROM assets WHERE asset_code = ?', (asset_code,))
+    cur.execute('SELECT * FROM archived_assets WHERE id=?', (archived_id,))
     row = cur.fetchone()
     conn.close()
     if row:
         columns = [desc[0] for desc in cur.description]
         asset = dict(zip(columns, row))
+        return jsonify({
+            'asset_code': asset['asset_code'],
+            'name': asset['name'],
+            'owner': asset['owner'],
+            'building': asset['building'],
+            'department': asset['department'],
+            'quantity': asset['quantity'],
+            'used_status': asset.get('used_status', 'Not Used')
+        })
+    return jsonify({'error': 'Not found'}), 404
+
+@assets_bp.route('/archived_qrcode/<int:archived_id>')
+def archived_qrcode_image(archived_id):
+    conn = get_db_connection()
+    cur = conn.cursor()
+    cur.execute('SELECT asset_code FROM archived_assets WHERE id=?', (archived_id,))
+    row = cur.fetchone()
+    conn.close()
+    if not row or not row['asset_code']:
+        abort(404)
+    
+    # Use configurable base URL or fallback to request.host_url
+    import os
+    base_url = os.environ.get('BASE_URL', request.host_url.rstrip('/'))
+    qr_url = f"{base_url}/asset/{row['asset_code']}"
+    
+    qr = qrcode.QRCode(
+        version=1,
+        error_correction=qrcode.constants.ERROR_CORRECT_H,
+        box_size=4,
+        border=2
+    )
+    qr.add_data(qr_url)
+    qr.make(fit=True)
+    qr_img = qr.make_image(fill_color="#D4AF37", back_color="#181818")
+    buf = BytesIO()
+    qr_img.save(buf, format='PNG')
+    buf.seek(0)
+    return send_file(buf, mimetype='image/png')
+
+@assets_bp.route('/asset/<asset_code>')
+def asset_info(asset_code):
+    conn = get_db_connection()
+    cur = conn.cursor()
+    
+    # First check active assets
+    cur.execute('SELECT * FROM assets WHERE asset_code = ?', (asset_code,))
+    row = cur.fetchone()
+    
+    if row:
+        # Asset is active
+        columns = [desc[0] for desc in cur.description]
+        asset = dict(zip(columns, row))
+        asset['is_archived'] = False
+        conn.close()
         return render_template('asset_info.html', asset=asset)
+    
+    # If not found in active assets, check archived assets
+    cur.execute('SELECT * FROM archived_assets WHERE asset_code = ?', (asset_code,))
+    row = cur.fetchone()
+    
+    if row:
+        # Asset is archived
+        columns = [desc[0] for desc in cur.description]
+        asset = dict(zip(columns, row))
+        asset['is_archived'] = True
+        conn.close()
+        return render_template('asset_info.html', asset=asset)
+    
+    conn.close()
     return "Asset not found", 404
 
 @assets_bp.route('/assets')
