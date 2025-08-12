@@ -1540,6 +1540,31 @@
   </div>
 </div>
 
+<!-- Individual Department QR Code Modal -->
+<div class="modal fade" id="individualDepartmentQRModal" tabindex="-1" aria-labelledby="individualDepartmentQRModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-lg">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="individualDepartmentQRModalLabel">Department QR Code</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body text-center">
+        <img id="individualDepartmentQRImage" src="" alt="Department QR Code" style="max-width: 100%; height: auto; border: 2px solid #d1b173; border-radius: 4px;">
+        <div class="mt-3">
+          <div id="individualDepartmentQRName" class="fw-bold" style="font-size: 1.2em; color: #333;"></div>
+          <div id="individualDepartmentQRCode" class="text-muted" style="font-size: 1em; color: #666;"></div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-success" id="printIndividualDepartmentQRBtn">
+          <i class="fas fa-print"></i> Print QR Code
+        </button>
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+      </div>
+    </div>
+  </div>
+</div>
+
 <!-- User Management Modal (for Owner field) -->
 <div class="modal fade" id="userManagementModal" tabindex="-1" aria-labelledby="userManagementModalLabel" aria-hidden="true">
   <div class="modal-dialog modal-xl" style="max-width: 90%; max-height: 90vh;">
@@ -2425,19 +2450,8 @@ document.addEventListener('DOMContentLoaded', function() {
         const building = e.currentTarget.getAttribute('data-building');
         const department = e.currentTarget.getAttribute('data-department');
         
-        // Update the existing QR modal with department QR
-        const departmentCode = `MAA-${building.replace(/\s+/g, '').toUpperCase()}-${department.replace(/\s+/g, '').toUpperCase()}`;
-        document.getElementById('qrModalLabel').innerText = departmentCode;
-        document.getElementById('qrcode').innerHTML = `
-            <img src="/assets/department_qr/${encodeURIComponent(building)}/${encodeURIComponent(department)}" 
-                 alt="QR Code for ${department}" 
-                 style="max-width: 200px; height: auto;">
-        `;
-        document.getElementById('qrCodeLabel').innerText = departmentCode;
-        
-        // Show the QR modal
-        var qrModal = new bootstrap.Modal(document.getElementById('qrModal'));
-        qrModal.show();
+        // Use the new department QR modal
+        showDepartmentQRModal(building, department);
     }
 
     // Handle printing department QR code
@@ -4286,6 +4300,22 @@ document.addEventListener('DOMContentLoaded', function() {
         qrModal.show();
     }
 
+    // Department QR Modal logic
+    function showDepartmentQRModal(building, department) {
+        const modalImage = document.getElementById('individualDepartmentQRImage');
+        const modalName = document.getElementById('individualDepartmentQRName');
+        const modalCode = document.getElementById('individualDepartmentQRCode');
+        
+        // Set department QR code image
+        modalImage.src = `/assets/department_qr/${encodeURIComponent(building)}/${encodeURIComponent(department)}`;
+        modalName.textContent = `${department} - ${building}`;
+        modalCode.textContent = `MAA-${building.replace(/\s+/g, '').toUpperCase()}-${department.replace(/\s+/g, '').toUpperCase()}`;
+        
+        // Show the modal
+        const departmentQRModal = new bootstrap.Modal(document.getElementById('individualDepartmentQRModal'));
+        departmentQRModal.show();
+    }
+
     // Legacy QR Modal logic (keeping for compatibility)
     document.querySelectorAll('.view-qr-link').forEach(function(link) {
         link.addEventListener('click', function(e) {
@@ -4342,6 +4372,31 @@ document.addEventListener('DOMContentLoaded', function() {
             // Legacy JavaScript-generated QR code
             printContents = qrcodeDiv.innerHTML + '<div style="margin-top:12px;font-weight:bold;font-size:1.2em;text-align:center;">' + qrCodeLabel.innerText + '</div>';
         }
+        
+        var win = window.open('', '', 'height=400,width=400');
+        win.document.write('<html><head><title></title>');
+        win.document.write('<style>body{background:#fff;text-align:center;margin:0;padding:20px;display:flex;flex-direction:column;justify-content:center;min-height:100vh;} img{margin:0 auto;display:block;} div{color:#222;} @media print{body{margin:0;padding:20px;} @page{margin:0;size:auto;}}</style>');
+        win.document.write('</head><body>');
+        win.document.write(printContents);
+        win.document.write('</body></html>');
+        win.document.close();
+        win.focus();
+        setTimeout(function(){ win.print(); win.close(); }, 500);
+    };
+
+    // Print individual department QR code button logic
+    document.getElementById('printIndividualDepartmentQRBtn').onclick = function() {
+        const modalImage = document.getElementById('individualDepartmentQRImage');
+        const modalName = document.getElementById('individualDepartmentQRName');
+        const modalCode = document.getElementById('individualDepartmentQRCode');
+        
+        const printContents = `
+            <img src="${modalImage.src}" alt="Department QR Code" style="max-width: 200px; height: auto; margin: 0 auto; display: block;">
+            <div style="margin-top:12px;font-weight:bold;font-size:1.2em;text-align:center;">
+                ${modalName.textContent}<br>
+                <small style="font-size:0.8em;color:#666;">${modalCode.textContent}</small>
+            </div>
+        `;
         
         var win = window.open('', '', 'height=400,width=400');
         win.document.write('<html><head><title></title>');
@@ -4570,7 +4625,115 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // Print button handler
     document.getElementById('printBulkQrBtn').addEventListener('click', function() {
-        window.print();
+        // Create a new window for printing with proper styling
+        const printWindow = window.open('', '_blank', 'width=800,height=600');
+        
+        // Get the QR codes content
+        const qrContainer = document.getElementById('bulkQrContainer');
+        const header = document.getElementById('bulkQrHeader');
+        
+        // Create print content with proper CSS
+        const printContent = `
+            <!DOCTYPE html>
+            <html>
+            <head>
+                <title>Bulk QR Codes</title>
+                <style>
+                    @page {
+                        margin: 0;
+                        size: auto;
+                    }
+                    
+                    body {
+                        margin: 0;
+                        padding: 0;
+                        font-family: Arial, sans-serif;
+                        background: white;
+                    }
+                    
+                    .thermal-page {
+                        page-break-after: always;
+                        page-break-inside: avoid;
+                        margin: 0;
+                        padding: 0;
+                        width: 100%;
+                        height: 100vh;
+                        min-height: 100vh;
+                        display: flex;
+                        flex-direction: column;
+                        justify-content: center;
+                        align-items: center;
+                        background: white;
+                        border: none;
+                        position: relative;
+                        overflow: hidden;
+                        box-sizing: border-box;
+                    }
+                    
+                    .thermal-page:last-child {
+                        page-break-after: avoid;
+                    }
+                    
+                    .qr-code-container {
+                        display: flex;
+                        flex-direction: column;
+                        justify-content: center;
+                        align-items: center;
+                        height: 100%;
+                        width: 100%;
+                        max-width: 400px;
+                        text-align: center;
+                        margin: 0;
+                        padding: 20px;
+                        box-sizing: border-box;
+                    }
+                    
+                    .qr-code-img {
+                        display: block;
+                        margin: 0 auto 20px auto;
+                        border: 2px solid #d1b173;
+                        border-radius: 4px;
+                        max-width: 100%;
+                        height: auto;
+                    }
+                    
+                    .fw-bold {
+                        font-weight: bold;
+                        color: #333;
+                        font-size: 18px;
+                        margin-bottom: 8px;
+                    }
+                    
+                    .text-muted {
+                        color: #666;
+                        font-size: 16px;
+                    }
+                    
+                    /* Hide any unwanted elements */
+                    .modal-header, .modal-footer, .alert, .btn {
+                        display: none !important;
+                    }
+                </style>
+            </head>
+            <body>
+                ${qrContainer.innerHTML}
+            </body>
+            </html>
+        `;
+        
+        printWindow.document.write(printContent);
+        printWindow.document.close();
+        
+        // Wait for content to load, then print
+        printWindow.onload = function() {
+            setTimeout(() => {
+                printWindow.focus();
+                printWindow.print();
+                setTimeout(() => {
+                    printWindow.close();
+                }, 1000);
+            }, 500);
+        };
     });
 
 // ============================================================================
@@ -4614,31 +4777,69 @@ document.addEventListener('DOMContentLoaded', function() {
                     // Create page container
                     const pageDiv = document.createElement('div');
                     pageDiv.className = 'thermal-page';
-                    pageDiv.style.cssText = 'page-break-after: always; margin-bottom: 20px; padding: 20px; border: 1px dashed #ccc; background: #f9f9f9; min-height: 300px; display: flex; flex-direction: column; justify-content: center; align-items: center;';
+                    pageDiv.style.cssText = `
+                        page-break-after: always; 
+                        page-break-inside: avoid;
+                        margin: 0; 
+                        padding: 0; 
+                        width: 100%; 
+                        height: 100vh; 
+                        min-height: 100vh;
+                        display: flex; 
+                        flex-direction: column; 
+                        justify-content: center; 
+                        align-items: center;
+                        background: white;
+                        border: none;
+                        position: relative;
+                        overflow: hidden;
+                    `;
                     
-                    // Page header
-                    const pageHeader = document.createElement('div');
-                    pageHeader.className = 'text-center mb-3';
-                    pageHeader.innerHTML = `<strong>Page ${index + 1} of ${selectedAssetDetails.length}</strong>`;
-                    pageDiv.appendChild(pageHeader);
-                    
-                    // QR code container
+                    // QR code container - centered on page
                     const qrContainer = document.createElement('div');
                     qrContainer.className = 'qr-code-container text-center';
+                    qrContainer.style.cssText = `
+                        display: flex;
+                        flex-direction: column;
+                        justify-content: center;
+                        align-items: center;
+                        height: 100%;
+                        width: 100%;
+                        max-width: 400px;
+                        text-align: center;
+                        margin: 0;
+                        padding: 20px;
+                        box-sizing: border-box;
+                    `;
                     
                     // QR code image
                     const qrImage = document.createElement('img');
                     qrImage.src = `/assets/qrcode/${asset.id}`;
                     qrImage.alt = `QR Code for ${asset.name}`;
                     qrImage.className = 'qr-code-img';
-                    qrImage.style.cssText = `width: ${qrSize}px; height: ${qrSize}px; border: 2px solid #d1b173; border-radius: 4px; margin-bottom: 15px;`;
+                    qrImage.style.cssText = `
+                        width: ${qrSize}px; 
+                        height: ${qrSize}px; 
+                        border: 2px solid #d1b173; 
+                        border-radius: 4px; 
+                        margin-bottom: 20px;
+                        display: block;
+                        margin-left: auto;
+                        margin-right: auto;
+                        max-width: 100%;
+                        height: auto;
+                    `;
                     
                     // Asset info
                     const assetInfo = document.createElement('div');
                     assetInfo.className = 'text-center';
+                    assetInfo.style.cssText = `
+                        text-align: center;
+                        margin-top: 10px;
+                    `;
                     assetInfo.innerHTML = `
-                        <div class="fw-bold" style="font-size: 16px; margin-bottom: 5px;">${asset.asset_code}</div>
-                        <div class="text-muted" style="font-size: 14px;">${asset.name}</div>
+                        <div class="fw-bold" style="font-size: 18px; margin-bottom: 8px; color: #333;">${asset.asset_code}</div>
+                        <div class="text-muted" style="font-size: 16px; color: #666;">${asset.name}</div>
                     `;
                     
                     qrContainer.appendChild(qrImage);
