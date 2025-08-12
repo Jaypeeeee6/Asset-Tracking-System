@@ -1110,7 +1110,7 @@
                             <img src="/assets/qrcode/{{ asset.id }}"  
                                  alt="QR Code for {{ asset.name }}" 
                                  class="qr-code-img" 
-                                 style="width: 60px; height: 60px; border: 2px solid #D4AF37; border-radius: 4px; cursor: pointer;"
+                                 style="width: 60px; height: 60px; border: 2px solid #d1b173; border-radius: 4px; cursor: pointer;"
                                  onclick="showQRModal('{{ asset.id }}', '{{ asset.asset_code }}', '{{ asset.name }}')"
                                  title="Click to view larger QR code">
                             <div class="qr-code-text" style="font-size: 0.7em; color: #6c757d; margin-top: 2px; word-break: break-all;">
@@ -4305,7 +4305,7 @@ document.addEventListener('DOMContentLoaded', function() {
                             text: qrString,
                             width: 200,
                             height: 200,
-                            colorDark: "#D4AF37",
+                                                                            colorDark: "#d1b173",
                             colorLight: "#181818"
                         });
                         document.getElementById('qrCodeLabel').innerText = data.asset_code;
@@ -4631,7 +4631,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     qrImage.src = `/assets/qrcode/${asset.id}`;
                     qrImage.alt = `QR Code for ${asset.name}`;
                     qrImage.className = 'qr-code-img';
-                    qrImage.style.cssText = `width: ${qrSize}px; height: ${qrSize}px; border: 2px solid #D4AF37; border-radius: 4px; margin-bottom: 15px;`;
+                    qrImage.style.cssText = `width: ${qrSize}px; height: ${qrSize}px; border: 2px solid #d1b173; border-radius: 4px; margin-bottom: 15px;`;
                     
                     // Asset info
                     const assetInfo = document.createElement('div');

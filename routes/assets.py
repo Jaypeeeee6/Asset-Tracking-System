@@ -381,6 +381,7 @@ def qrcode_image(asset_id):
     base_url = os.environ.get('BASE_URL', request.host_url.rstrip('/'))
     qr_url = f"{base_url}/asset/{row['asset_code']}"
     
+    # Create QR code with clear center area for logo
     qr = qrcode.QRCode(
         version=1,
         error_correction=qrcode.constants.ERROR_CORRECT_H,
@@ -389,11 +390,114 @@ def qrcode_image(asset_id):
     )
     qr.add_data(qr_url)
     qr.make(fit=True)
-    qr_img = qr.make_image(fill_color="#D4AF37", back_color="#181818")
+    qr_img = qr.make_image(fill_color="#d1b173", back_color="#181818")
+    
+    # Add logo to center with clear background
+    qr_img_with_logo = add_logo_to_qr_center(qr_img)
+    
     buf = BytesIO()
-    qr_img.save(buf, format='PNG')
+    qr_img_with_logo.save(buf, format='PNG')
     buf.seek(0)
     return send_file(buf, mimetype='image/png')
+
+def add_logo_to_qr_center(qr_img, logo_path="static/MAA_Logo 500x500.png"):
+    """
+    Add triangular logo to the center of QR code with clear center area
+    QR code data only on the sides, clear triangle in center
+    """
+    try:
+        from PIL import Image, ImageDraw
+        import os
+        
+        # Check if logo file exists
+        if not os.path.exists(logo_path):
+            return qr_img
+        
+        # Open and resize logo
+        logo = Image.open(logo_path).convert('RGBA')
+        
+        # Get QR code dimensions
+        qr_width, qr_height = qr_img.size
+        
+        # Calculate triangle size (about 20% of QR code size for smaller area)
+        triangle_size = int(min(qr_width, qr_height) * 0.20)
+        half_size = triangle_size // 2
+        
+        # Create a clear center area by drawing a white triangle
+        qr_with_logo = qr_img.convert('RGBA')
+        draw = ImageDraw.Draw(qr_with_logo)
+        
+        # Calculate center position
+        center_x = qr_width // 2
+        center_y = qr_height // 2
+        
+        # Triangle points (pointing up)
+        triangle_points = [
+            (center_x, center_y - half_size),  # Top point
+            (center_x - half_size, center_y + half_size),  # Bottom left
+            (center_x + half_size, center_y + half_size)   # Bottom right
+        ]
+        
+        # Draw black triangle in center (clear area)
+        draw.polygon(triangle_points, fill=(0, 0, 0, 255))  # Black background
+        
+        # Draw golden border around triangle
+        draw.line([
+            triangle_points[0], triangle_points[1], 
+            triangle_points[2], triangle_points[0]
+        ], fill=(209, 177, 115, 255), width=3)  # New golden border color #d1b173
+        
+        # Calculate the bounding box of the triangle for logo sizing
+        min_x = min(point[0] for point in triangle_points)
+        max_x = max(point[0] for point in triangle_points)
+        min_y = min(point[1] for point in triangle_points)
+        max_y = max(point[1] for point in triangle_points)
+        
+        # Calculate logo size to fill the entire triangle completely
+        logo_width = max_x - min_x + 15  # Increase size to fill triangle completely
+        logo_height = max_y - min_y + 15  # Increase size to fill triangle completely
+        
+        # Resize logo to fit the entire triangle area
+        logo = logo.resize((logo_width, logo_height), Image.Resampling.LANCZOS)
+        
+        # Create a triangular mask that matches the exact triangle shape
+        logo_mask = Image.new('RGBA', (logo_width, logo_height), (0, 0, 0, 0))
+        logo_draw = ImageDraw.Draw(logo_mask)
+        
+        # Create triangular mask points relative to the logo size
+        # Make the mask slightly larger to ensure full coverage
+        mask_points = [
+            (logo_width // 2, 0),  # Top point
+            (0, logo_height),  # Bottom left
+            (logo_width, logo_height)  # Bottom right
+        ]
+        
+        # Draw triangle mask with slightly larger area
+        logo_draw.polygon(mask_points, fill=(255, 255, 255, 255))
+        
+        # Also fill a slightly larger area to ensure bottom coverage
+        extended_mask_points = [
+            (logo_width // 2, 0),  # Top point
+            (-8, logo_height + 8),  # Extended bottom left
+            (logo_width + 8, logo_height + 8)  # Extended bottom right
+        ]
+        logo_draw.polygon(extended_mask_points, fill=(255, 255, 255, 255))
+        
+        # Apply triangular mask to logo
+        logo_triangular = Image.new('RGBA', (logo_width, logo_height), (0, 0, 0, 0))
+        logo_triangular.paste(logo, (0, 0), logo_mask)
+        
+        # Paste triangular logo to fill the entire black triangle area
+        # Position to ensure complete triangle coverage
+        logo_x = min_x - 7  # Adjust position to fill triangle completely
+        logo_y = min_y - 7  # Position to cover entire triangle area
+        qr_with_logo.paste(logo_triangular, (logo_x, logo_y), logo_triangular)
+        
+        return qr_with_logo
+        
+    except Exception as e:
+        print(f"Error adding logo to QR code: {e}")
+        return qr_img
 
 @assets_bp.route('/department_qr/<building>/<department>')
 def department_qrcode_image(building, department):
@@ -415,9 +519,13 @@ def department_qrcode_image(building, department):
     )
     qr.add_data(qr_url)
     qr.make(fit=True)
-    qr_img = qr.make_image(fill_color="#D4AF37", back_color="#181818")
+    qr_img = qr.make_image(fill_color="#d1b173", back_color="#181818")
+    
+    # Add logo to center with clear background
+    qr_img_with_logo = add_logo_to_qr_center(qr_img)
+    
     buf = BytesIO()
-    qr_img.save(buf, format='PNG')
+    qr_img_with_logo.save(buf, format='PNG')
     buf.seek(0)
     return send_file(buf, mimetype='image/png')
 
@@ -549,9 +657,13 @@ def archived_qrcode_image(archived_id):
     )
     qr.add_data(qr_url)
     qr.make(fit=True)
-    qr_img = qr.make_image(fill_color="#D4AF37", back_color="#181818")
+    qr_img = qr.make_image(fill_color="#d1b173", back_color="#181818")
+    
+    # Add logo to center with clear background
+    qr_img_with_logo = add_logo_to_qr_center(qr_img)
+    
     buf = BytesIO()
-    qr_img.save(buf, format='PNG')
+    qr_img_with_logo.save(buf, format='PNG')
     buf.seek(0)
     return send_file(buf, mimetype='image/png')
 
