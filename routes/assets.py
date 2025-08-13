@@ -4,52 +4,10 @@ from models.database import get_db_connection, generate_asset_code
 import qrcode
 from io import BytesIO
 import uuid
-from PIL import Image
-import os
 
 assets_bp = Blueprint('assets', __name__)
 
-def add_logo_to_qr(qr_img, logo_path='static/MAA_LOGO.png'):
-    """Add MAA logo to the center of QR code with minimal black background"""
-    try:
-        # Open the logo image
-        logo = Image.open(logo_path)
-        
-        # Convert logo to RGBA if it isn't already
-        if logo.mode != 'RGBA':
-            logo = logo.convert('RGBA')
-        
-        # Get QR code dimensions
-        qr_width, qr_height = qr_img.size
-        
-        # Calculate logo size (about 12% of QR code size - slightly smaller)
-        logo_size = int(min(qr_width, qr_height) * 0.12)
-        
-        # Resize logo
-        logo = logo.resize((logo_size, logo_size), Image.Resampling.LANCZOS)
-        
-        # Create a minimal black background for the logo (just 2px padding)
-        black_bg = Image.new('RGBA', (logo_size + 4, logo_size + 4), (0, 0, 0, 255))
-        
-        # Paste logo onto black background
-        black_bg.paste(logo, (2, 2), logo)
-        
-        # Calculate position to center the logo on QR code
-        pos_x = (qr_width - black_bg.width) // 2
-        pos_y = (qr_height - black_bg.height) // 2
-        
-        # Convert QR image to RGBA if needed
-        if qr_img.mode != 'RGBA':
-            qr_img = qr_img.convert('RGBA')
-        
-        # Paste the logo with minimal black background onto QR code
-        qr_img.paste(black_bg, (pos_x, pos_y), black_bg)
-        
-        return qr_img
-    except Exception as e:
-        # If logo processing fails, return original QR code
-        print(f"Error adding logo to QR code: {e}")
-        return qr_img
+
 
 @assets_bp.route('/dashboard')
 @login_required
@@ -285,16 +243,44 @@ def update_asset(asset_id):
     cur = conn.cursor()
     
     try:
+        # Get current asset data to check if building or department changed
+        cur.execute('SELECT building, department, asset_code FROM assets WHERE id=?', (asset_id,))
+        current_asset = cur.fetchone()
+        
+        if not current_asset:
+            conn.close()
+            return jsonify({'error': 'Asset not found'}), 404
+        
+        current_building = current_asset['building']
+        current_department = current_asset['department']
+        current_asset_code = current_asset['asset_code']
+        
+        # Check if building or department has changed
+        building_changed = current_building != building
+        department_changed = current_department != department
+        
+        # Generate new asset code if building or department changed
+        new_asset_code = current_asset_code
+        if building_changed or department_changed:
+            new_asset_code = generate_asset_code(building, department)
+            print(f"Asset code updated: {current_asset_code} -> {new_asset_code}")
+        
+        # Update the asset with new asset code if needed
         cur.execute('''
             UPDATE assets 
-            SET name=?, asset_type=?, quantity=?, price=?, owner=?, building=?, department=?, used_status=?
+            SET name=?, asset_type=?, quantity=?, price=?, owner=?, building=?, department=?, used_status=?, asset_code=?
             WHERE id=?
-        ''', (name, asset_type, quantity, price, owner, building, department, used_status, asset_id))
+        ''', (name, asset_type, quantity, price, owner, building, department, used_status, new_asset_code, asset_id))
         
         conn.commit()
         conn.close()
         
-        return jsonify({'success': True})
+        return jsonify({
+            'success': True, 
+            'asset_code_changed': building_changed or department_changed,
+            'old_asset_code': current_asset_code,
+            'new_asset_code': new_asset_code
+        })
     except Exception as e:
         conn.rollback()
         conn.close()
@@ -425,21 +411,18 @@ def qrcode_image(asset_id):
     base_url = request.host_url.rstrip('/')
     qr_url = f"{base_url}/asset/{row['asset_code']}"
     
-    # Create simple QR code
+    # Create simple QR code with compact pattern for printing
     qr = qrcode.QRCode(
         version=1,
         error_correction=qrcode.constants.ERROR_CORRECT_L,
-        box_size=10,
-        border=4
+        box_size=8,
+        border=2
     )
     qr.add_data(qr_url)
     qr.make(fit=True)
     
     # Generate simple QR code image with logo colors
     qr_img = qr.make_image(fill_color="#d1b173", back_color="black")
-    
-    # Add logo to QR code
-    qr_img = add_logo_to_qr(qr_img)
     
     # Convert to bytes
     buf = BytesIO()
@@ -462,21 +445,18 @@ def department_qrcode_image(building, department):
     base_url = request.host_url.rstrip('/')
     qr_url = f"{base_url}/assets/department_items/{building}/{department}"
     
-    # Create simple QR code
+    # Create simple QR code with compact pattern for printing
     qr = qrcode.QRCode(
         version=1,
         error_correction=qrcode.constants.ERROR_CORRECT_L,
-        box_size=10,
-        border=4
+        box_size=8,
+        border=2
     )
     qr.add_data(qr_url)
     qr.make(fit=True)
     
     # Generate simple QR code image with logo colors
     qr_img = qr.make_image(fill_color="#d1b173", back_color="black")
-    
-    # Add logo to QR code
-    qr_img = add_logo_to_qr(qr_img)
     
     # Convert to bytes
     buf = BytesIO()
@@ -605,21 +585,18 @@ def archived_qrcode_image(archived_id):
     base_url = request.host_url.rstrip('/')
     qr_url = f"{base_url}/asset/{row['asset_code']}"
     
-    # Create simple QR code
+    # Create simple QR code with compact pattern for printing
     qr = qrcode.QRCode(
         version=1,
         error_correction=qrcode.constants.ERROR_CORRECT_L,
-        box_size=10,
-        border=4
+        box_size=8,
+        border=2
     )
     qr.add_data(qr_url)
     qr.make(fit=True)
     
     # Generate simple QR code image with logo colors
     qr_img = qr.make_image(fill_color="#d1b173", back_color="black")
-    
-    # Add logo to QR code
-    qr_img = add_logo_to_qr(qr_img)
     
     # Convert to bytes
     buf = BytesIO()

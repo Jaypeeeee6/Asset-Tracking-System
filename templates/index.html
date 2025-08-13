@@ -1406,18 +1406,20 @@
 
 <!-- QR Code Modal -->
 <div class="modal fade" id="qrModal" tabindex="-1" aria-labelledby="qrModalLabel" aria-hidden="true">
-  <div class="modal-dialog modal-lg modal-dialog-centered" style="max-width: 60%;">
+  <div class="modal-dialog modal-lg modal-dialog-centered" style="max-width: 70%;">
     <div class="modal-content">
       <div class="modal-header">
         <h5 class="modal-title" id="qrModalLabel">Asset QR Code</h5>
         <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
       </div>
-      <div class="modal-body text-center" id="qrModalBody" style="overflow-y: auto; max-height: 70vh;">
+      <div class="modal-body text-center" id="qrModalBody" style="padding: 30px;">
         <!-- For image-based QR codes -->
-        <img id="qrModalImage" src="" alt="QR Code" style="max-width: 100%; height: auto; margin-bottom: 15px;">
-        <div class="fw-bold mt-2" id="qrModalAssetName"></div>
-        <div class="text-muted" id="qrModalAssetCode"></div>
-        <button class="btn btn-primary mt-3" id="printQrBtn">Print QR Code</button>
+        <div class="qr-code-wrapper" style="display: flex; justify-content: center; align-items: center; margin-bottom: 20px;">
+          <img id="qrModalImage" src="" alt="QR Code" style="width: 250px; height: 250px; object-fit: contain; border: 2px solid #d1b173; border-radius: 8px;">
+        </div>
+        <div class="fw-bold mt-3" id="qrModalAssetName" style="font-size: 1.2em; color: #333;"></div>
+        <div class="text-muted" id="qrModalAssetCode" style="font-size: 1em; color: #666;"></div>
+        <button class="btn btn-primary mt-4" id="printQrBtn">Print QR Code</button>
         
         <!-- For legacy JavaScript-generated QR codes -->
         <div id="qrcode" style="display: none;"></div>
@@ -4223,6 +4225,14 @@ document.addEventListener('DOMContentLoaded', function() {
             .then(response => response.json())
             .then(data => {
                 if (data.success) {
+                    // Check if asset code changed
+                    if (data.asset_code_changed) {
+                        const message = `Asset updated successfully!\n\nAsset code has been updated:\nOld: ${data.old_asset_code}\nNew: ${data.new_asset_code}\n\nThis change was made because the building or department was modified.`;
+                        alert(message);
+                    } else {
+                        alert('Asset updated successfully!');
+                    }
+                    
                     // Close modal and refresh page
                     const modal = bootstrap.Modal.getInstance(document.getElementById('editAssetModal'));
                     modal.hide();
@@ -4362,8 +4372,8 @@ document.addEventListener('DOMContentLoaded', function() {
         if (modalImage.src && modalImage.src !== window.location.href) {
             // Image-based QR code
             printContents = `
-                <img src="${modalImage.src}" alt="QR Code" style="max-width: 200px; height: auto; margin: 0 auto; display: block;">
-                <div style="margin-top:12px;font-weight:bold;font-size:1.2em;text-align:center;">
+                <img src="${modalImage.src}" alt="QR Code" style="width: 120px; height: 120px; object-fit: contain; margin: 0 auto; display: block; border: 2px solid #d1b173; border-radius: 4px;">
+                <div style="margin-top:10px;font-weight:bold;font-size:1em;text-align:center;">
                     ${modalAssetName.textContent}<br>
                     <small style="font-size:0.8em;color:#666;">${modalAssetCode.textContent}</small>
                 </div>
