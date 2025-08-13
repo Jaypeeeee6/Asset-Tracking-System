@@ -368,6 +368,7 @@ def bulk_delete():
 
 @assets_bp.route('/qrcode/<int:asset_id>')
 def qrcode_image(asset_id):
+    """Generate simple QR code for a specific asset"""
     conn = get_db_connection()
     cur = conn.cursor()
     cur.execute('SELECT asset_code FROM assets WHERE id=?', (asset_id,))
@@ -376,188 +377,63 @@ def qrcode_image(asset_id):
     if not row or not row['asset_code']:
         abort(404)
     
-    # Use configurable base URL or fallback to request.host_url
-    import os
-    base_url = os.environ.get('BASE_URL', request.host_url.rstrip('/'))
+    # Create URL for the asset
+    base_url = request.host_url.rstrip('/')
     qr_url = f"{base_url}/asset/{row['asset_code']}"
     
-    # Create QR code with clear center area for logo
+    # Create simple QR code
     qr = qrcode.QRCode(
         version=1,
-        error_correction=qrcode.constants.ERROR_CORRECT_H,
-        box_size=4,
-        border=2
+        error_correction=qrcode.constants.ERROR_CORRECT_L,
+        box_size=10,
+        border=4
     )
     qr.add_data(qr_url)
     qr.make(fit=True)
     
-    # Create dot-style QR code instead of square modules
-    qr_img = create_dot_style_qr(qr, fill_color="#d1b173", back_color="#181818")
+    # Generate simple QR code image
+    qr_img = qr.make_image(fill_color="black", back_color="white")
     
-    # Add logo to center with clear background
-    qr_img_with_logo = add_logo_to_qr_center(qr_img)
-    
+    # Convert to bytes
     buf = BytesIO()
-    qr_img_with_logo.save(buf, format='PNG')
+    qr_img.save(buf, format='PNG')
     buf.seek(0)
-    response = send_file(buf, mimetype='image/png')
-    response.headers['Cache-Control'] = 'no-cache, no-store, must-revalidate'
-    response.headers['Pragma'] = 'no-cache'
-    response.headers['Expires'] = '0'
-    return response
+    
+    return send_file(buf, mimetype='image/png')
 
-def create_dot_style_qr(qr, fill_color="#d1b173", back_color="#181818"):
-    """
-    Create a dot-style QR code with circular dots instead of square modules
-    """
-    try:
-        from PIL import Image, ImageDraw
-        
-        # Get QR matrix
-        matrix = qr.get_matrix()
-        box_size = qr.box_size
-        border = qr.border
-        
-        # Calculate image size
-        width = len(matrix[0]) * box_size + 2 * border * box_size
-        height = len(matrix) * box_size + 2 * border * box_size
-        
-        # Create image
-        img = Image.new('RGB', (width, height), back_color)
-        draw = ImageDraw.Draw(img)
-        
-        # Convert colors to RGB
-        fill_rgb = tuple(int(fill_color[i:i+2], 16) for i in (1, 3, 5))  # Skip '#'
-        back_rgb = tuple(int(back_color[i:i+2], 16) for i in (1, 3, 5))  # Skip '#'
-        
-        # Draw circular dot-style modules
-        for row_idx, row in enumerate(matrix):
-            for col_idx, cell in enumerate(row):
-                if cell:
-                    # Calculate position
-                    x = col_idx * box_size + border * box_size
-                    y = row_idx * box_size + border * box_size
-                    
-                    # Create larger circular dots to fill the box completely
-                    dot_size = int(box_size * 0.95)  # 95% of box size to fill almost completely
-                    dot_x = x + (box_size - dot_size) // 2
-                    dot_y = y + (box_size - dot_size) // 2
-                    
-                    # Draw perfect circle
-                    draw.ellipse(
-                        [dot_x, dot_y, dot_x + dot_size, dot_y + dot_size],
-                        fill=fill_rgb
-                    )
-        
-        return img
-        
-    except Exception as e:
-        print(f"Error creating dot-style QR code: {e}")
-        # Fallback to regular QR code
-        return qr.make_image(fill_color=fill_color, back_color=back_color)
 
-def add_logo_to_qr_center(qr_img, logo_path="static/MAA_LOGO.png"):
-    """
-    Add circular logo to the center of QR code with clear center area
-    QR code data only on the sides, clear circle in center
-    """
-    try:
-        from PIL import Image, ImageDraw
-        import os
-        
-        # Check if logo file exists
-        if not os.path.exists(logo_path):
-            return qr_img
-        
-        # Open and resize logo
-        logo = Image.open(logo_path).convert('RGBA')
-        
-        # Get QR code dimensions
-        qr_width, qr_height = qr_img.size
-        
-        # Calculate circle size (about 20% of QR code size for logo area)
-        circle_size = int(min(qr_width, qr_height) * 0.20)
-        radius = circle_size // 2
-        
-        # Create a clear center area by drawing a black circle
-        qr_with_logo = qr_img.convert('RGBA')
-        draw = ImageDraw.Draw(qr_with_logo)
-        
-        # Calculate center position
-        center_x = qr_width // 2
-        center_y = qr_height // 2
-        
-        # Draw dark circle in center (matching QR background)
-        circle_bbox = [
-            center_x - radius, center_y - radius,
-            center_x + radius, center_y + radius
-        ]
-        # Use the same dark background as QR code (#181818)
-        draw.ellipse(circle_bbox, fill=(24, 24, 24, 255))  # Dark background matching QR
-        
-        # Calculate logo size to fit within the circle
-        logo_size = int(circle_size * 0.95)  # 95% of circle size for logo
-        
-        # Resize logo to fit within the circle
-        logo = logo.resize((logo_size, logo_size), Image.Resampling.LANCZOS)
-        
-        # Create a circular mask for the logo
-        logo_mask = Image.new('RGBA', (logo_size, logo_size), (0, 0, 0, 0))
-        logo_draw = ImageDraw.Draw(logo_mask)
-        
-        # Draw circular mask
-        logo_draw.ellipse([0, 0, logo_size, logo_size], fill=(255, 255, 255, 255))
-        
-        # Apply circular mask to logo (no background, let it blend with the black circle)
-        logo_circular = Image.new('RGBA', (logo_size, logo_size), (0, 0, 0, 0))  # Transparent background
-        logo_circular.paste(logo, (0, 0), logo_mask)
-        
-        # Paste circular logo in the center of the black circle
-        logo_x = center_x - logo_size // 2
-        logo_y = center_y - logo_size // 2
-        qr_with_logo.paste(logo_circular, (logo_x, logo_y), logo_circular)
-        
-        return qr_with_logo
-        
-    except Exception as e:
-        print(f"Error adding logo to QR code: {e}")
-        return qr_img
 
 @assets_bp.route('/department_qr/<building>/<department>')
 def department_qrcode_image(building, department):
-    # Decode URL-encoded parameters for QR generation
+    """Generate simple QR code for department items"""
+    # Decode URL-encoded parameters
     from urllib.parse import unquote
-    import os
     building = unquote(building)
     department = unquote(department)
     
-    # Use configurable base URL or fallback to request.host_url
-    base_url = os.environ.get('BASE_URL', request.host_url.rstrip('/'))
+    # Create URL for the department
+    base_url = request.host_url.rstrip('/')
     qr_url = f"{base_url}/assets/department_items/{building}/{department}"
     
+    # Create simple QR code
     qr = qrcode.QRCode(
         version=1,
-        error_correction=qrcode.constants.ERROR_CORRECT_H,
-        box_size=4,
-        border=2
+        error_correction=qrcode.constants.ERROR_CORRECT_L,
+        box_size=10,
+        border=4
     )
     qr.add_data(qr_url)
     qr.make(fit=True)
     
-    # Create dot-style QR code instead of square modules
-    qr_img = create_dot_style_qr(qr, fill_color="#d1b173", back_color="#181818")
+    # Generate simple QR code image
+    qr_img = qr.make_image(fill_color="black", back_color="white")
     
-    # Add logo to center with clear background
-    qr_img_with_logo = add_logo_to_qr_center(qr_img)
-    
+    # Convert to bytes
     buf = BytesIO()
-    qr_img_with_logo.save(buf, format='PNG')
+    qr_img.save(buf, format='PNG')
     buf.seek(0)
-    response = send_file(buf, mimetype='image/png')
-    response.headers['Cache-Control'] = 'no-cache, no-store, must-revalidate'
-    response.headers['Pragma'] = 'no-cache'
-    response.headers['Expires'] = '0'
-    return response
+    
+    return send_file(buf, mimetype='image/png')
 
 @assets_bp.route('/department_items/<building>/<department>')
 def department_items(building, department):
@@ -666,6 +542,7 @@ def archived_qrdata(archived_id):
 
 @assets_bp.route('/archived_qrcode/<int:archived_id>')
 def archived_qrcode_image(archived_id):
+    """Generate simple QR code for a specific archived asset"""
     conn = get_db_connection()
     cur = conn.cursor()
     cur.execute('SELECT asset_code FROM archived_assets WHERE id=?', (archived_id,))
@@ -674,34 +551,29 @@ def archived_qrcode_image(archived_id):
     if not row or not row['asset_code']:
         abort(404)
     
-    # Use configurable base URL or fallback to request.host_url
-    import os
-    base_url = os.environ.get('BASE_URL', request.host_url.rstrip('/'))
+    # Create URL for the asset
+    base_url = request.host_url.rstrip('/')
     qr_url = f"{base_url}/asset/{row['asset_code']}"
     
+    # Create simple QR code
     qr = qrcode.QRCode(
         version=1,
-        error_correction=qrcode.constants.ERROR_CORRECT_H,
-        box_size=4,
-        border=2
+        error_correction=qrcode.constants.ERROR_CORRECT_L,
+        box_size=10,
+        border=4
     )
     qr.add_data(qr_url)
     qr.make(fit=True)
     
-    # Create dot-style QR code instead of square modules
-    qr_img = create_dot_style_qr(qr, fill_color="#d1b173", back_color="#181818")
+    # Generate simple QR code image
+    qr_img = qr.make_image(fill_color="black", back_color="white")
     
-    # Add logo to center with clear background
-    qr_img_with_logo = add_logo_to_qr_center(qr_img)
-    
+    # Convert to bytes
     buf = BytesIO()
-    qr_img_with_logo.save(buf, format='PNG')
+    qr_img.save(buf, format='PNG')
     buf.seek(0)
-    response = send_file(buf, mimetype='image/png')
-    response.headers['Cache-Control'] = 'no-cache, no-store, must-revalidate'
-    response.headers['Pragma'] = 'no-cache'
-    response.headers['Expires'] = '0'
-    return response
+    
+    return send_file(buf, mimetype='image/png')
 
 @assets_bp.route('/asset/<asset_code>')
 def asset_info(asset_code):
