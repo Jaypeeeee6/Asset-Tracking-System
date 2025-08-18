@@ -85,6 +85,7 @@ def dashboard():
     status_counts = {'Used': 0, 'Not Used': 0, 'Out of Service': 0}
     building_counts = {}
     building_prices = {}
+    department_counts = {}
     department_prices = {}
     total_system_value = 0
     
@@ -106,11 +107,13 @@ def dashboard():
             building_counts[building] = 1
             building_prices[building] = total_price
         
-        # Department prices (key is building-department)
+        # Department counts and prices (key is building-department)
         dept_key = f"{building}-{department}"
-        if dept_key in department_prices:
+        if dept_key in department_counts:
+            department_counts[dept_key] += 1
             department_prices[dept_key] += total_price
         else:
+            department_counts[dept_key] = 1
             department_prices[dept_key] = total_price
         
         total_system_value += total_price
@@ -136,6 +139,7 @@ def dashboard():
                              'status_counts': status_counts,
                              'building_counts': building_counts,
                              'building_prices': building_prices,
+                             'department_counts': department_counts,
                              'department_prices': department_prices,
                              'total_system_value': total_system_value
                          })
@@ -308,7 +312,7 @@ def delete_asset(asset_id):
         (original_id, name, quantity, price, owner, building, department, asset_code, qr_random_code, used_status, asset_type, archived_by, archive_reason)
         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     ''', (
-        asset['id'], asset['name'], asset['quantity'], asset.get('price', 0.0), asset['owner'], 
+        asset['id'], asset['name'], asset['quantity'], asset['price'] if asset['price'] is not None else 0.0, asset['owner'], 
         asset['building'], asset['department'], asset['asset_code'], 
         asset['qr_random_code'], asset['used_status'], asset['asset_type'],
         current_user.username, archive_reason
@@ -370,31 +374,41 @@ def bulk_delete():
     conn = get_db_connection()
     cur = conn.cursor()
     
-    # Get all assets to be deleted
-    placeholders = ','.join(['?'] * len(asset_ids))
-    cur.execute(f'SELECT * FROM assets WHERE id IN ({placeholders})', asset_ids)
-    assets = cur.fetchall()
-    
-    # Insert into archived_assets table
-    for asset in assets:
-        cur.execute('''
-            INSERT INTO archived_assets 
-            (original_id, name, quantity, owner, building, department, asset_code, qr_random_code, used_status, asset_type, archived_by, archive_reason)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-        ''', (
-            asset['id'], asset['name'], asset['quantity'], asset['owner'], 
-            asset['building'], asset['department'], asset['asset_code'], 
-            asset['qr_random_code'], asset['used_status'], asset['asset_type'],
-            current_user.username, archive_reason
-        ))
-    
-    # Delete from assets table
-    cur.execute(f'DELETE FROM assets WHERE id IN ({placeholders})', asset_ids)
-    
-    conn.commit()
-    conn.close()
-    
-    return jsonify({'success': True, 'archived': len(assets)})
+    try:
+        # Get all assets to be deleted
+        placeholders = ','.join(['?'] * len(asset_ids))
+        cur.execute(f'SELECT * FROM assets WHERE id IN ({placeholders})', asset_ids)
+        assets = cur.fetchall()
+        
+        if not assets:
+            conn.close()
+            return jsonify({'error': 'No valid assets found to archive'}), 404
+        
+        # Insert into archived_assets table
+        for asset in assets:
+            cur.execute('''
+                INSERT INTO archived_assets 
+                (original_id, name, quantity, price, owner, building, department, asset_code, qr_random_code, used_status, asset_type, archived_by, archive_reason)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            ''', (
+                asset['id'], asset['name'], asset['quantity'], asset['price'] if asset['price'] is not None else 0.0, asset['owner'], 
+                asset['building'], asset['department'], asset['asset_code'], 
+                asset['qr_random_code'], asset['used_status'], asset['asset_type'],
+                current_user.username, archive_reason
+            ))
+        
+        # Delete from assets table
+        cur.execute(f'DELETE FROM assets WHERE id IN ({placeholders})', asset_ids)
+        
+        conn.commit()
+        conn.close()
+        
+        return jsonify({'success': True, 'archived': len(assets), 'message': f'Successfully archived {len(assets)} assets'})
+        
+    except Exception as e:
+        conn.rollback()
+        conn.close()
+        return jsonify({'error': f'Failed to archive assets: {str(e)}'}), 500
 
 @assets_bp.route('/qrcode/<int:asset_id>')
 def qrcode_image(asset_id):
@@ -726,28 +740,27 @@ def restore_asset(archived_id):
         return jsonify({'error': 'Archived asset not found'}), 404
     
     try:
-        # Check if an asset with the same name, building, and department already exists
-        cur.execute('SELECT id, quantity FROM assets WHERE name=? AND building=? AND department=?', 
-                   (archived_asset['name'], archived_asset['building'], archived_asset['department']))
-        existing_asset = cur.fetchone()
+        # Check if an asset with the same asset code already exists
+        cur.execute('SELECT id, quantity FROM assets WHERE asset_code=?', (archived_asset['asset_code'],))
+        existing_asset_by_code = cur.fetchone()
         
-        if existing_asset:
-            # Update existing asset quantity
-            new_quantity = existing_asset[1] + archived_asset['quantity']
-            cur.execute('UPDATE assets SET quantity=?, used_status=?, asset_type=? WHERE id=?', 
-                       (new_quantity, archived_asset['used_status'], archived_asset['asset_type'], existing_asset[0]))
+        if existing_asset_by_code:
+            # Asset code already exists, update the existing asset
+            new_quantity = existing_asset_by_code[1] + archived_asset['quantity']
+            cur.execute('UPDATE assets SET quantity=?, used_status=?, asset_type=?, price=? WHERE id=?', 
+                       (new_quantity, archived_asset['used_status'], archived_asset['asset_type'], archived_asset['price'] if archived_asset['price'] is not None else 0.0, existing_asset_by_code[0]))
         else:
-            # Create new asset
-            asset_code = generate_asset_code(archived_asset['building'], archived_asset['department'])
-            qr_random_code = str(uuid.uuid4())
+            # Create new asset with original asset code
+            asset_code = archived_asset['asset_code']  # Use the original asset code
+            qr_random_code = archived_asset['qr_random_code'] if archived_asset['qr_random_code'] else str(uuid.uuid4())
             cur.execute('''
-                INSERT INTO assets (name, quantity, owner, building, department, asset_code, qr_random_code, used_status, asset_type)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-            ''', (
-                archived_asset['name'], archived_asset['quantity'], archived_asset['owner'],
-                archived_asset['building'], archived_asset['department'], asset_code, qr_random_code,
-                archived_asset['used_status'], archived_asset['asset_type']
-            ))
+                INSERT INTO assets (name, quantity, price, owner, building, department, asset_code, qr_random_code, used_status, asset_type)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                            ''', (
+                    archived_asset['name'], archived_asset['quantity'], archived_asset['price'] if archived_asset['price'] is not None else 0.0, archived_asset['owner'],
+                    archived_asset['building'], archived_asset['department'], asset_code, qr_random_code,
+                    archived_asset['used_status'], archived_asset['asset_type']
+                ))
         
         # Delete from archived_assets table
         cur.execute('DELETE FROM archived_assets WHERE id=?', (archived_id,))
@@ -788,25 +801,24 @@ def bulk_restore_assets():
                 errors.append(f'Archived asset ID {archived_id} not found')
                 continue
             
-            # Check if an asset with the same name, building, and department already exists
-            cur.execute('SELECT id, quantity FROM assets WHERE name=? AND building=? AND department=?', 
-                       (archived_asset['name'], archived_asset['building'], archived_asset['department']))
-            existing_asset = cur.fetchone()
+            # Check if an asset with the same asset code already exists
+            cur.execute('SELECT id, quantity FROM assets WHERE asset_code=?', (archived_asset['asset_code'],))
+            existing_asset_by_code = cur.fetchone()
             
-            if existing_asset:
-                # Update existing asset quantity
-                new_quantity = existing_asset[1] + archived_asset['quantity']
-                cur.execute('UPDATE assets SET quantity=?, used_status=?, asset_type=? WHERE id=?', 
-                           (new_quantity, archived_asset['used_status'], archived_asset['asset_type'], existing_asset[0]))
+            if existing_asset_by_code:
+                # Asset code already exists, update the existing asset
+                new_quantity = existing_asset_by_code[1] + archived_asset['quantity']
+                cur.execute('UPDATE assets SET quantity=?, used_status=?, asset_type=?, price=? WHERE id=?', 
+                           (new_quantity, archived_asset['used_status'], archived_asset['asset_type'], archived_asset['price'] if archived_asset['price'] is not None else 0.0, existing_asset_by_code[0]))
             else:
-                # Create new asset
-                asset_code = generate_asset_code(archived_asset['building'], archived_asset['department'])
-                qr_random_code = str(uuid.uuid4())
+                # Create new asset with original asset code
+                asset_code = archived_asset['asset_code']  # Use the original asset code
+                qr_random_code = archived_asset['qr_random_code'] if archived_asset['qr_random_code'] else str(uuid.uuid4())
                 cur.execute('''
-                    INSERT INTO assets (name, quantity, owner, building, department, asset_code, qr_random_code, used_status, asset_type)
-                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    INSERT INTO assets (name, quantity, price, owner, building, department, asset_code, qr_random_code, used_status, asset_type)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 ''', (
-                    archived_asset['name'], archived_asset['quantity'], archived_asset['owner'],
+                    archived_asset['name'], archived_asset['quantity'], archived_asset['price'] if archived_asset['price'] is not None else 0.0, archived_asset['owner'],
                     archived_asset['building'], archived_asset['department'], asset_code, qr_random_code,
                     archived_asset['used_status'], archived_asset['asset_type']
                 ))
