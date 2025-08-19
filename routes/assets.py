@@ -930,3 +930,48 @@ def bulk_permanent_delete_archived_assets():
         conn.rollback()
         conn.close()
         return jsonify({'error': f'Failed to permanently delete assets: {str(e)}'}), 500 
+
+@assets_bp.route('/get-all-assets-for-export')
+@login_required
+def get_all_assets_for_export():
+    """Get all assets for export functionality"""
+    try:
+        conn = get_db_connection()
+        cur = conn.cursor()
+        
+        # Get all assets with their details
+        cur.execute('''
+            SELECT name, asset_code, building, department, quantity, price, used_status, asset_type, owner
+            FROM assets 
+            ORDER BY building, department, name
+        ''')
+        all_assets = cur.fetchall()
+        
+        # Convert to list of dictionaries
+        assets_list = []
+        for asset in all_assets:
+            name, asset_code, building, department, quantity, price, status, asset_type, owner = asset
+            assets_list.append({
+                'name': name,
+                'asset_code': asset_code,
+                'building': building,
+                'department': department,
+                'quantity': quantity or 1,
+                'price': price or 0.0,
+                'used_status': status or 'Not Specified',
+                'asset_type': asset_type or 'Not Specified',
+                'owner': owner or 'Not Specified'
+            })
+        
+        conn.close()
+        
+        return jsonify({
+            'success': True,
+            'assets': assets_list
+        })
+        
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500 

@@ -5631,6 +5631,13 @@ document.addEventListener('DOMContentLoaded', function() {
         const timestamp = new Date().toISOString().slice(0, 19).replace('T', '_');
         const filename = `Asset_Price_Analysis_${timestamp}.xlsx`;
         
+        // Get data from the template variables
+        const buildingPrices = {{ chart_data.building_prices|tojson }};
+        const buildingCounts = {{ chart_data.building_counts|tojson }};
+        const departmentPrices = {{ chart_data.department_prices|tojson }};
+        const departmentCounts = {{ chart_data.department_counts|tojson }};
+        const totalSystemValue = {{ chart_data.total_system_value }};
+        
         // Create workbook and worksheets
         const workbook = XLSX.utils.book_new();
         
@@ -5639,8 +5646,8 @@ document.addEventListener('DOMContentLoaded', function() {
             ['ASSET PRICE ANALYSIS REPORT'],
             [''],
             ['Report Generated:', new Date().toLocaleString()],
-            ['Total System Value:', `OMR ${window.chartData.totalSystemValue.toFixed(3)}`],
-            ['Total Assets:', Object.values(window.chartData.buildingCounts).reduce((a, b) => a + b, 0)],
+            ['Total System Value:', `OMR ${totalSystemValue.toFixed(3)}`],
+            ['Total Assets:', Object.values(buildingCounts).reduce((a, b) => a + b, 0)],
             [''],
             ['Currency: Omani Rial (OMR)']
         ];
@@ -5657,17 +5664,16 @@ document.addEventListener('DOMContentLoaded', function() {
             ['', '', '', '']
         ];
         
-        Object.entries(window.chartData.buildingPrices).forEach(([building, value]) => {
-            const assetCount = window.chartData.buildingCounts[building] || 0;
+        Object.entries(buildingPrices).forEach(([building, value]) => {
+            const assetCount = buildingCounts[building] || 0;
             const avgValue = assetCount > 0 ? (value / assetCount).toFixed(3) : '0.000';
             buildingData.push([building, assetCount, value.toFixed(3), avgValue]);
         });
         
         // Add totals row
-        const totalAssets = Object.values(window.chartData.buildingCounts).reduce((a, b) => a + b, 0);
-        const totalValue = window.chartData.totalSystemValue;
+        const totalAssets = Object.values(buildingCounts).reduce((a, b) => a + b, 0);
         buildingData.push(['', '', '', '']);
-        buildingData.push(['TOTAL', totalAssets, totalValue.toFixed(3), (totalValue / totalAssets).toFixed(3)]);
+        buildingData.push(['TOTAL', totalAssets, totalSystemValue.toFixed(3), (totalSystemValue / totalAssets).toFixed(3)]);
         
         const buildingSheet = XLSX.utils.aoa_to_sheet(buildingData);
         buildingSheet['!cols'] = [{ width: 20 }, { width: 15 }, { width: 20 }, { width: 25 }];
@@ -5681,10 +5687,9 @@ document.addEventListener('DOMContentLoaded', function() {
             ['', '', '', '', '']
         ];
         
-        Object.entries(window.chartData.departmentPrices).forEach(([deptKey, value]) => {
+        Object.entries(departmentPrices).forEach(([deptKey, value]) => {
             const [building, department] = deptKey.split('-', 2);
-            // Count assets for this department (simplified - you might want to get this from backend)
-            const assetCount = 1; // This would need to be calculated properly
+            const assetCount = departmentCounts[deptKey] || 1;
             const avgValue = assetCount > 0 ? (value / assetCount).toFixed(3) : '0.000';
             departmentData.push([building, department, assetCount, value.toFixed(3), avgValue]);
         });
@@ -5703,37 +5708,69 @@ document.addEventListener('DOMContentLoaded', function() {
         const assetData = [
             ['DETAILED ASSET BREAKDOWN'],
             [''],
-            ['Asset Name', 'Asset Code', 'Building', 'Department', 'Quantity', 'Unit Price (OMR)', 'Total Value (OMR)', 'Status'],
-            ['', '', '', '', '', '', '', '']
+            ['Asset Name', 'Asset Code', 'Building', 'Department', 'Owner', 'Quantity', 'Unit Price (OMR)', 'Total Value (OMR)', 'Status', 'Asset Type'],
+            ['', '', '', '', '', '', '', '', '', '']
         ];
         
-        // Get asset data from the current page (this would need to be enhanced to get all assets)
-        const assetRows = document.querySelectorAll('.table-responsive table tbody tr');
-        assetRows.forEach(row => {
-            const cells = row.querySelectorAll('td');
-            if (cells.length >= 10) {
-                const name = cells[2].querySelector('strong')?.textContent || '';
-                const code = cells[2].querySelector('small')?.textContent || '';
-                const building = cells[6]?.textContent || '';
-                const department = cells[7]?.textContent || '';
-                const quantity = cells[4]?.textContent || '';
-                const price = cells[5]?.textContent.replace('OMR ', '') || '0.000';
-                const totalValue = (parseFloat(price) * parseInt(quantity)).toFixed(3);
-                const status = cells[8]?.querySelector('option:checked')?.textContent || '';
-                
-                assetData.push([name, code, building, department, quantity, price, totalValue, status]);
-            }
-        });
+        // Get ALL assets from the database via AJAX
+        fetch('/assets/get-all-assets-for-export')
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    data.assets.forEach(asset => {
+                        const totalValue = (parseFloat(asset.price || 0) * parseInt(asset.quantity || 1)).toFixed(3);
+                        assetData.push([
+                            asset.name,
+                            asset.asset_code,
+                            asset.building,
+                            asset.department,
+                            asset.owner,
+                            asset.quantity,
+                            (asset.price || 0).toFixed(3),
+                            totalValue,
+                            asset.used_status,
+                            asset.asset_type
+                        ]);
+                    });
+                    
+                    // Sort assets by building, then department, then name
+                    assetData.sort((a, b) => {
+                        if (a[0] === 'Asset Name' || b[0] === 'Asset Name') return 0;
+                        if (a[0] === 'DETAILED ASSET BREAKDOWN' || b[0] === 'DETAILED ASSET BREAKDOWN') return 0;
+                        if (a[0] === '' || b[0] === '') return 0;
+                        
+                        const buildingA = a[2], buildingB = b[2];
+                        if (buildingA !== buildingB) return buildingA.localeCompare(buildingB);
+                        
+                        const deptA = a[3], deptB = b[3];
+                        if (deptA !== deptB) return deptA.localeCompare(deptB);
+                        
+                        return a[0].localeCompare(b[0]);
+                    });
+                    
+                    const assetSheet = XLSX.utils.aoa_to_sheet(assetData);
+                    assetSheet['!cols'] = [
+                        { width: 30 }, { width: 20 }, { width: 15 }, { width: 20 }, 
+                        { width: 20 }, { width: 12 }, { width: 18 }, { width: 18 }, 
+                        { width: 15 }, { width: 20 }
+                    ];
+                    XLSX.utils.book_append_sheet(workbook, assetSheet, 'Asset Details');
+                    
+                    // Generate and download the file
+                    XLSX.writeFile(workbook, filename);
+                    
+                    // Show success message
+                    alert('Asset price analysis exported successfully!');
+                } else {
+                    alert('Failed to get asset data: ' + (data.error || 'Unknown error'));
+                }
+            })
+            .catch(error => {
+                console.error('Export error:', error);
+                alert('Export failed. Please try again.');
+            });
         
-        const assetSheet = XLSX.utils.aoa_to_sheet(assetData);
-        assetSheet['!cols'] = [
-            { width: 25 }, { width: 20 }, { width: 15 }, { width: 20 }, 
-            { width: 12 }, { width: 18 }, { width: 18 }, { width: 15 }
-        ];
-        XLSX.utils.book_append_sheet(workbook, assetSheet, 'Asset Details');
-        
-        // Generate and download the file
-        XLSX.writeFile(workbook, filename);
+        return; // Exit early since we're handling the export in the fetch callback
     }
   </script>
   </body>
