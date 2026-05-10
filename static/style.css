@@ -791,7 +791,6 @@ h1, .modal-title {
         page-break-inside: avoid;
     }
     .thermal-qr-code {
-        border: 1px solid #000;
         padding: 5px;
         background: white;
         margin-bottom: 5px;
@@ -1183,6 +1182,26 @@ body.dark-mode .input-group .form-control:focus {
         page-break-after: avoid !important;
     }
     
+    /* Small Label Styles - Optimized for 3" x 3" Citizen CL-E321 */
+    .thermal-page.small-label {
+        padding: 0 !important;
+        margin: 0 !important;
+        min-height: 3in !important;
+        max-height: 3in !important;
+        width: 3in !important;
+        max-width: 3in !important;
+        height: 3in !important;
+        page-break-after: always !important;
+        page-break-inside: avoid !important;
+        display: flex !important;
+        flex-direction: column !important;
+        justify-content: flex-start !important;
+        align-items: center !important;
+        box-sizing: border-box !important;
+        margin-left: 0 !important;
+        margin-right: 0 !important;
+    }
+    
     .qr-code-container {
         display: flex !important;
         flex-direction: column !important;
@@ -1197,13 +1216,41 @@ body.dark-mode .input-group .form-control:focus {
         box-sizing: border-box !important;
     }
     
+    /* Small Label Container */
+    .qr-code-container.small-label {
+        padding: 35px 10px 10px 10px !important;
+        max-width: 3in !important;
+        max-height: 3in !important;
+        display: flex !important;
+        flex-direction: column !important;
+        justify-content: flex-start !important;
+        align-items: center !important;
+        box-sizing: border-box !important;
+        margin-left: 0 !important;
+        margin-right: 0 !important;
+    }
+    
     .qr-code-img {
         display: block !important;
         margin: 0 auto 20px auto !important;
-        border: 2px solid #d1b173 !important;
-        border-radius: 4px !important;
         max-width: 100% !important;
         height: auto !important;
+    }
+    
+    /* Small Label QR Code - Optimized for 3" x 3" labels */
+    .qr-code-img.small-label {
+        margin: 10px auto 2px auto !important;
+        max-width: 2.3in !important;
+        max-height: 2.3in !important;
+    }
+    
+    /* Small label text styling */
+    .qr-code-container.small-label div {
+        font-size: 12px !important;
+        line-height: 1.2 !important;
+        margin: 0 0 2px 0 !important;
+        padding: 0 !important;
+        text-align: center !important;
     }
     
     /* Remove any background colors or borders for clean printing */
@@ -1221,6 +1268,12 @@ body.dark-mode .input-group .form-control:focus {
     
     .text-muted {
         color: #666 !important;
+    }
+    
+    /* Small Label Text */
+    .text-muted.small-label {
+        font-size: 8px !important;
+        line-height: 1.0 !important;
     }
     
     /* Force page breaks and prevent content overflow */

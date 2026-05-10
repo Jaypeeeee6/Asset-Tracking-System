@@ -197,7 +197,7 @@
 <body>
 <div class="container mt-5">
     <div class="header-logo">
-        <img src="{{ url_for('static', filename='MAA_Logo.png') }}" alt="MAA Group Logo">
+                    <img src="{{ url_for('static', filename='MAA_LOGO.png') }}" alt="MAA Group Logo">
         <h1>Asset Archive</h1>
         <div class="gold-divider"></div>
     </div>
@@ -766,7 +766,7 @@
         const modalAssetName = document.getElementById('qrModalAssetName');
         const modalAssetCode = document.getElementById('qrModalAssetCode');
         
-        // Set larger QR code image using our own endpoint with golden colors
+        // Set larger QR code image using our own endpoint
         modalImage.src = `/assets/archived_qrcode/${archivedId}`;
         modalAssetName.textContent = assetName;
         modalAssetCode.textContent = assetCode;
