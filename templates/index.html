@@ -1,5 +1,5 @@
 {% extends "base_app.html" %}
-{% from "macros/qc_components.html" import qc_add_button %}
+{% from "macros/qc_components.html" import qc_add_button, qc_modal_cancel_button %}
 {% block title %}Asset Tracking System{% endblock %}
 {% block extra_head %}
     <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
@@ -957,20 +957,15 @@
 {% endblock %}
 {% block modals %}
 <!-- Add Asset Modal -->
-<div class="modal fade" id="addAssetModal" tabindex="-1" aria-labelledby="addAssetModalLabel" aria-hidden="true">
-  <div class="modal-dialog modal-lg" style="max-width: 70%;">
+<div class="modal fade qc-modal" id="addAssetModal" tabindex="-1" aria-labelledby="addAssetModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-lg add-asset-modal-dialog">
     <div class="modal-content">
       <div class="modal-header">
-        <h5 class="modal-title" id="addAssetModalLabel">Add New Asset</h5>
+        <h5 class="modal-title" id="addAssetModalLabel"><i class="bi bi-plus-square me-2" style="color:var(--gold);" aria-hidden="true"></i>Add New Asset</h5>
         <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
       </div>
                             <form id="addAssetForm" method="post" action="{{ url_for('assets.add_asset') }}">
         <div class="modal-body" style="overflow-y: auto; max-height: 70vh;">
-          <div class="alert alert-info mb-3">
-            <i class="fas fa-info-circle"></i> 
-            <strong>Need to add branches, departments, users, or asset names?</strong> 
-            Use the management buttons on the main page to set up your infrastructure first. You can select multiple asset names from the same asset type. Each selected asset name will be added as a separate asset in the table. Asset names must be predefined in the "Manage Assets" section.
-          </div>
             <div class="mb-3">
                 <label for="asset_type" class="form-label">Asset Type</label>
                 <select class="form-select" id="asset_type" name="asset_type" required>
@@ -996,7 +991,7 @@
                 <label for="price" class="form-label">Price (OMR)</label>
                 <input type="number" class="form-control" id="price" name="price" min="0" step="0.01" placeholder="0.00" required>
                 <div class="form-text">
-                    <i class="fas fa-info-circle"></i> Enter the price in Omani Rial (OMR)
+                    <i class="bi bi-info-circle" aria-hidden="true"></i> Enter the price in Omani Rial (OMR)
                 </div>
             </div>
             <div class="mb-3">
@@ -1015,7 +1010,7 @@
                 <div class="form-check mb-2">
                     <input class="form-check-input" type="checkbox" id="noOwnerCheck" name="no_owner">
                     <label class="form-check-label" for="noOwnerCheck">
-                        <i class="fas fa-user-slash"></i> No Owner Required
+                        <i class="bi bi-person-x" aria-hidden="true"></i> No Owner Required
                     </label>
                 </div>
                 <label for="owner" class="form-label">Owner</label>
@@ -1023,7 +1018,7 @@
                     <option value="">Select Department First</option>
                 </select>
                 <div class="form-text" id="ownerHelp">
-                    <i class="fas fa-info-circle"></i> Select "No Owner Required" for shared assets or when no specific owner is needed
+                    <i class="bi bi-info-circle" aria-hidden="true"></i> Select &quot;No Owner Required&quot; for shared assets or when no specific owner is needed
                 </div>
             </div>
             <div class="mb-3">
@@ -1035,10 +1030,7 @@
                 </select>
             </div>
         </div>
-        <div class="modal-footer">
-          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-          {{ qc_add_button('Add Asset', button_type='submit') }}
-        </div>
+        <div class="modal-footer">{{ qc_modal_cancel_button('Cancel') }}{{ qc_add_button('Add Asset', button_type='submit') }}</div>
       </form>
     </div>
   </div>

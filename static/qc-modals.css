@@ -1,0 +1,380 @@
+/* QC system modals — aligned with dashboard (.asset-dashboard) tokens; use class `qc-modal` on .modal */
+
+.qc-modal {
+    --qc-modal-border: #ede8dc;
+    --qc-modal-shadow: 0 2px 12px rgba(0, 0, 0, 0.07);
+    --qc-text-mid: #5c5035;
+    --qc-text-light: #9e8e6a;
+    --qc-text-muted: #bfb49a;
+}
+
+.qc-modal .modal-content {
+    border-radius: 12px;
+    border: 1px solid var(--qc-modal-border);
+    box-shadow: 0 8px 28px rgba(0, 0, 0, 0.1);
+    background: #fff;
+    color: var(--text-dark, #1c1a14);
+    overflow: hidden;
+}
+
+.qc-modal .modal-header {
+    padding: 1rem 1.25rem;
+    border-bottom: 1px solid var(--qc-modal-border);
+    background: #fff;
+    align-items: center;
+}
+
+.qc-modal .modal-title {
+    font-size: 1rem;
+    font-weight: 700;
+    color: var(--text-dark, #1c1a14);
+    text-align: left;
+    margin: 0;
+    letter-spacing: normal;
+}
+
+.qc-modal .modal-body {
+    padding: 1.25rem;
+    background: #fff;
+}
+
+.qc-modal .modal-footer {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: flex-end;
+    padding: 0.85rem 1.25rem;
+    border-top: 1px solid var(--qc-modal-border);
+    background: #fff;
+    gap: 0.5rem;
+}
+
+/* Tip / info strip — matches dashboard bulk bar tone */
+.qc-modal .qc-modal-tip {
+    background: var(--gold-light);
+    border: 1px solid var(--gold-pale);
+    border-radius: 10px;
+    padding: 0.85rem 1rem;
+    color: var(--text-dark, #1c1a14);
+    font-size: 0.875rem;
+    line-height: 1.45;
+    margin-bottom: 1rem;
+}
+
+.qc-modal .qc-modal-tip strong {
+    color: var(--gold-deeper);
+    font-weight: 700;
+}
+
+.qc-modal .qc-modal-tip i {
+    color: var(--gold-deeper);
+    margin-right: 0.35rem;
+}
+
+/* Form fields — filter-bar style */
+.qc-modal .form-label {
+    display: block;
+    font-size: 0.72rem;
+    font-weight: 700;
+    color: var(--gold-deeper);
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    margin-bottom: 0.3rem;
+}
+
+.qc-modal .form-control {
+    border: 1.5px solid var(--qc-modal-border);
+    border-radius: 8px;
+    padding: 0.45rem 0.75rem;
+    font-size: 0.875rem;
+    color: var(--text-dark, #1c1a14);
+    background: #fff;
+    transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+.qc-modal .form-select {
+    border: 1.5px solid var(--qc-modal-border);
+    border-radius: 8px;
+    padding: 0.45rem 0.75rem;
+    font-size: 0.875rem;
+    color: var(--text-dark, #1c1a14);
+    background-color: #fff;
+    transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+.qc-modal .form-control:focus,
+.qc-modal .form-select:focus {
+    border-color: var(--gold);
+    box-shadow: 0 0 0 3px rgba(217, 189, 125, 0.2);
+    outline: none;
+}
+
+/* Dropdowns: custom chevron (Bootstrap default arrow replaced) */
+.qc-modal select.form-select {
+    appearance: none;
+    -webkit-appearance: none;
+    -moz-appearance: none;
+    padding-right: 2.35rem;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' fill='%23A8833A' viewBox='0 0 16 16'%3E%3Cpath fill-rule='evenodd' d='M1.646 4.646a.5.5 0 0 1 .708 0L8 10.293l5.646-5.647a.5.5 0 0 1 .708.708l-6 6a.5.5 0 0 1-.708 0l-6-6a.5.5 0 0 1 0-.708z'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 0.65rem center;
+    background-size: 0.95rem;
+}
+
+.qc-modal select.form-select:focus {
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' fill='%23C4A35A' viewBox='0 0 16 16'%3E%3Cpath fill-rule='evenodd' d='M1.646 4.646a.5.5 0 0 1 .708 0L8 10.293l5.646-5.647a.5.5 0 0 1 .708.708l-6 6a.5.5 0 0 1-.708 0l-6-6a.5.5 0 0 1 0-.708z'/%3E%3C/svg%3E");
+}
+
+/* Add New Asset modal — comfortable width without spanning full 70% */
+.add-asset-modal-dialog {
+    max-width: min(600px, 94vw);
+}
+
+@media (min-width: 576px) {
+    .add-asset-modal-dialog {
+        max-width: min(680px, 90vw);
+    }
+}
+
+.qc-modal .form-text {
+    color: var(--qc-text-light);
+    font-size: 0.8125rem;
+    margin-top: 0.35rem;
+}
+
+.qc-modal .form-text i {
+    color: var(--gold-deeper);
+}
+
+/* Modal footer actions — shared box + height; use macros `qc_modal_cancel_button` + `qc_add_button` */
+.qc-modal .modal-footer .btn-qc-modal-cancel,
+.qc-modal .modal-footer .btn-qc-add,
+.qc-modal .modal-footer a.btn-qc-add {
+    box-sizing: border-box;
+    min-height: 2.375rem;
+    padding: 0.5rem 1.1rem;
+    font-size: 0.875rem;
+    line-height: 1.2;
+    align-self: center;
+}
+
+/* Invisible border so primary matches outlined cancel height (1.5px × 2) */
+.qc-modal .modal-footer .btn-qc-add,
+.qc-modal .modal-footer a.btn-qc-add {
+    border: 1.5px solid transparent;
+}
+
+/* Modal cancel — use macros/qc_components.html `qc_modal_cancel_button` */
+.qc-modal .btn-qc-modal-cancel {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.35rem;
+    line-height: 1.2;
+    background: #fff;
+    color: var(--qc-text-mid);
+    border: 1.5px solid #e6ddc8;
+    font-weight: 600;
+    font-size: 0.875rem;
+    padding: 0.5rem 1.1rem;
+    border-radius: 8px;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+    cursor: pointer;
+    transition: border-color 0.15s, background 0.15s, color 0.15s, box-shadow 0.15s;
+}
+
+.qc-modal .btn-qc-modal-cancel .btn-qc-modal-cancel-label {
+    line-height: inherit;
+}
+
+.qc-modal .btn-qc-modal-cancel:hover {
+    background: var(--gold-light);
+    border-color: var(--gold);
+    color: var(--text-dark, #1c1a14);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+}
+
+.qc-modal .btn-qc-modal-cancel:focus-visible {
+    outline: 2px solid var(--gold-deeper);
+    outline-offset: 2px;
+}
+
+/* Multi-select asset names — gold instead of default blue */
+.qc-modal .asset-names-container {
+    border: 1.5px solid var(--qc-modal-border);
+    border-radius: 8px;
+    background: #fff;
+}
+
+.qc-modal .asset-names-container:focus-within {
+    border-color: var(--gold);
+    box-shadow: 0 0 0 3px rgba(217, 189, 125, 0.2);
+}
+
+.qc-modal .asset-name-tag {
+    background: linear-gradient(90deg, var(--gold) 0%, var(--gold-dark) 100%);
+    color: var(--dark-bg, #1c1a14);
+    box-shadow: 0 2px 6px rgba(217, 189, 125, 0.25);
+}
+
+.qc-modal .asset-name-tag .remove-btn:hover {
+    color: var(--gold-deeper);
+}
+
+.qc-modal .custom-dropdown {
+    background: #fff;
+    border: 1px solid var(--qc-modal-border);
+    border-radius: 8px;
+    box-shadow: var(--qc-modal-shadow);
+}
+
+.qc-modal .dropdown-item {
+    border-bottom-color: var(--gold-light);
+}
+
+.qc-modal .dropdown-item:hover {
+    background: var(--gold-light);
+    color: var(--text-dark, #1c1a14);
+}
+
+.qc-modal .dropdown-item.selected {
+    background: var(--gold-pale) !important;
+    color: var(--gold-deeper) !important;
+    font-weight: 600;
+}
+
+.qc-modal .form-check-label {
+    color: var(--qc-text-mid);
+    font-weight: 600;
+}
+
+.qc-modal .form-check-label i {
+    color: var(--gold-deeper);
+}
+
+.qc-modal .form-check-input:focus {
+    border-color: var(--gold);
+    box-shadow: 0 0 0 3px rgba(217, 189, 125, 0.2);
+}
+
+.qc-modal .form-check-input:checked {
+    background-color: var(--gold-dark);
+    border-color: var(--gold-deeper);
+}
+
+/* ----- Dark mode (overrides generic .dark-mode .modal-* from index inline styles) ----- */
+body.dark-mode .qc-modal .modal-content {
+    background: #2a2820 !important;
+    border-color: rgba(217, 189, 125, 0.22) !important;
+    color: #f5f5f0 !important;
+}
+
+body.dark-mode .qc-modal .modal-header,
+body.dark-mode .qc-modal .modal-footer {
+    background: #2a2820 !important;
+    border-color: rgba(217, 189, 125, 0.22) !important;
+}
+
+body.dark-mode .qc-modal .modal-title {
+    color: #f5f5f0 !important;
+}
+
+body.dark-mode .qc-modal .modal-body {
+    background: #2a2820 !important;
+}
+
+body.dark-mode .qc-modal .qc-modal-tip {
+    background: #332f26 !important;
+    border-color: rgba(217, 189, 125, 0.28) !important;
+    color: #f5f5f0 !important;
+}
+
+body.dark-mode .qc-modal .qc-modal-tip strong,
+body.dark-mode .qc-modal .qc-modal-tip i {
+    color: var(--gold-pale) !important;
+}
+
+body.dark-mode .qc-modal .form-label {
+    color: var(--gold-pale) !important;
+}
+
+body.dark-mode .qc-modal .form-control,
+body.dark-mode .qc-modal .form-select {
+    /* background-color only — keep chevron background-image */
+    background-color: #1e1c16 !important;
+    border-color: #4a4334 !important;
+    color: #f5f5f0 !important;
+}
+
+body.dark-mode .qc-modal select.form-select {
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' fill='%23D9BD7D' viewBox='0 0 16 16'%3E%3Cpath fill-rule='evenodd' d='M1.646 4.646a.5.5 0 0 1 .708 0L8 10.293l5.646-5.647a.5.5 0 0 1 .708.708l-6 6a.5.5 0 0 1-.708 0l-6-6a.5.5 0 0 1 0-.708z'/%3E%3C/svg%3E") !important;
+}
+
+body.dark-mode .qc-modal select.form-select:focus {
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' fill='%23F5ECD6' viewBox='0 0 16 16'%3E%3Cpath fill-rule='evenodd' d='M1.646 4.646a.5.5 0 0 1 .708 0L8 10.293l5.646-5.647a.5.5 0 0 1 .708.708l-6 6a.5.5 0 0 1-.708 0l-6-6a.5.5 0 0 1 0-.708z'/%3E%3C/svg%3E") !important;
+}
+
+body.dark-mode .qc-modal .form-control:focus,
+body.dark-mode .qc-modal .form-select:focus {
+    border-color: var(--gold) !important;
+    box-shadow: 0 0 0 3px rgba(217, 189, 125, 0.2) !important;
+}
+
+body.dark-mode .qc-modal .form-text {
+    color: #a8a29a !important;
+}
+
+body.dark-mode .qc-modal .form-text i {
+    color: var(--gold) !important;
+}
+
+body.dark-mode .qc-modal .btn-qc-modal-cancel {
+    background: #2a2820 !important;
+    border-color: rgba(217, 189, 125, 0.35) !important;
+    color: #e7e5e4 !important;
+    box-shadow: none;
+}
+
+body.dark-mode .qc-modal .btn-qc-modal-cancel:hover {
+    background: #332f26 !important;
+    border-color: var(--gold) !important;
+    color: #fff !important;
+}
+
+body.dark-mode .qc-modal .asset-names-container {
+    border-color: #4a4334 !important;
+    background: #1e1c16 !important;
+}
+
+body.dark-mode .qc-modal .asset-names-container:focus-within {
+    border-color: var(--gold) !important;
+    box-shadow: 0 0 0 3px rgba(217, 189, 125, 0.2) !important;
+}
+
+body.dark-mode .qc-modal .asset-name-input {
+    color: #f5f5f0 !important;
+}
+
+body.dark-mode .qc-modal .custom-dropdown {
+    background: #1e1c16 !important;
+    border-color: #4a4334 !important;
+}
+
+body.dark-mode .qc-modal .dropdown-item {
+    color: #f5f5f0 !important;
+    border-bottom-color: #3d382a !important;
+}
+
+body.dark-mode .qc-modal .dropdown-item:hover {
+    background: #332f26 !important;
+    color: #fff !important;
+}
+
+body.dark-mode .qc-modal .dropdown-item.selected {
+    background: rgba(217, 189, 125, 0.2) !important;
+    color: var(--gold-pale) !important;
+}
+
+body.dark-mode .qc-modal .form-check-label {
+    color: #e7e5e4 !important;
+}

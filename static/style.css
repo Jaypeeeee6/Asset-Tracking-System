@@ -827,8 +827,25 @@ h1, .modal-title {
 }
 
 /* ===== MODAL IMPROVEMENTS ===== */
-.modal-open {
-    overflow: hidden;
+/* Lock background scroll: html + app shell (Bootstrap only sets body; main area/sidebar could still move) */
+html:has(body.modal-open) {
+    overflow: hidden !important;
+}
+body.modal-open {
+    overflow: hidden !important;
+}
+body.modal-open #wrapper,
+body.modal-open #page-content-wrapper,
+body.modal-open #sidebar-wrapper {
+    overflow: hidden !important;
+    overscroll-behavior: none;
+}
+
+/* Vertically center all dialogs (same behavior as Bootstrap’s modal-dialog-centered) */
+.modal-dialog:not(.modal-dialog-scrollable) {
+    display: flex;
+    align-items: center;
+    min-height: calc(100% - var(--bs-modal-margin, 1.75rem) * 2);
 }
 
 .modal-xl {
