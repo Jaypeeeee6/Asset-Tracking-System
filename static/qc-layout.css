@@ -12,6 +12,10 @@ body {
     max-width: 100%;
     overflow-x: hidden;
     margin: 0;
+    /* Match QC Monitor app/static/css/style.css typography */
+    font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+    font-size: 0.925rem;
+    color: var(--text-dark);
 }
 
 :root {
@@ -199,7 +203,8 @@ body {
     margin-left: var(--sidebar-width);
     min-height: calc(100vh - var(--navbar-height));
     max-width: calc(100vw - var(--sidebar-width));
-    padding: 1.75rem 1.75rem 0;
+    /* Tighter than before but still clear of sidebar / viewport edges */
+    padding: 1.15rem 0.9rem 0;
     display: flex;
     flex-direction: column;
     transition: margin-left 0.25s ease;
@@ -232,6 +237,76 @@ body {
 #wrapper.app-shell--public #page-content-wrapper {
     margin-left: 0;
     max-width: 100vw;
+}
+
+/* ----- Gold “add” actions — use macros/qc_components.html `qc_add_button` ----- */
+.btn-qc-add,
+a.btn-qc-add {
+    background: var(--gold);
+    color: var(--dark-bg);
+    border: none;
+    border-radius: 8px;
+    padding: 0.42rem 0.95rem;
+    font-size: 0.85rem;
+    font-weight: 700;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.35rem;
+    text-decoration: none;
+    line-height: 1.25;
+    min-width: 0;
+    margin-top: 0;
+    box-shadow: none;
+    transition: background 0.15s;
+    white-space: nowrap;
+}
+
+.btn-qc-add .btn-qc-add-label,
+a.btn-qc-add .btn-qc-add-label {
+    line-height: inherit;
+}
+
+.btn-qc-add i,
+a.btn-qc-add i {
+    font-size: 1em;
+    line-height: 1;
+    flex-shrink: 0;
+}
+
+.btn-qc-add:hover,
+a.btn-qc-add:hover {
+    background: var(--gold-dark);
+    color: var(--dark-bg);
+    text-decoration: none;
+}
+
+.btn-qc-add:focus-visible,
+a.btn-qc-add:focus-visible {
+    outline: 2px solid var(--gold-deeper);
+    outline-offset: 2px;
+}
+
+.input-group > .btn-qc-add {
+    position: relative;
+    z-index: 2;
+}
+
+.input-group:not(.has-validation) > :not(:first-child):not(.dropdown-menu):not(.valid-tooltip):not(.invalid-tooltip).btn-qc-add {
+    margin-left: calc(-1 * var(--bs-border-width, 1px));
+    border-top-left-radius: 0;
+    border-bottom-left-radius: 0;
+}
+
+.dark-mode .btn-qc-add,
+.dark-mode a.btn-qc-add {
+    color: var(--dark-bg);
+}
+
+.dark-mode .btn-qc-add:hover,
+.dark-mode a.btn-qc-add:hover {
+    color: var(--dark-bg);
 }
 
 /* ===== GLOBAL FOOTER (QC Monitor match) ===== */

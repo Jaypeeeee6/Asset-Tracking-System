@@ -1,0 +1,13 @@
+{# Reusable QC-style controls. Import: {% from 'macros/qc_components.html' import qc_add_button %} #}
+
+{% macro qc_add_button(label, href=None, button_id=None, button_type='button', modal_target=None, extra_classes='', icon='bi bi-plus-lg') -%}
+{% if href %}
+<a href="{{ href }}" class="btn-qc-add {{ extra_classes }}"{% if button_id %} id="{{ button_id }}"{% endif %}>
+  <i class="{{ icon }}" aria-hidden="true"></i><span class="btn-qc-add-label">{{ label }}</span>
+</a>
+{% else %}
+<button type="{{ button_type }}" class="btn-qc-add {{ extra_classes }}"{% if button_id %} id="{{ button_id }}"{% endif %}{% if modal_target %} data-bs-toggle="modal" data-bs-target="{{ modal_target }}"{% endif %}>
+  <i class="{{ icon }}" aria-hidden="true"></i><span class="btn-qc-add-label">{{ label }}</span>
+</button>
+{% endif %}
+{%- endmacro %}

@@ -1,4 +1,5 @@
 {% extends "base_app.html" %}
+{% from "macros/qc_components.html" import qc_add_button %}
 {% block title %}Asset Tracking System{% endblock %}
 {% block extra_head %}
     <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
@@ -250,29 +251,6 @@
         .dark-mode .system-value-text {
             color: #ffffff !important; /* White text for dark mode */
         }
-        
-        /* Summary Statistics Styles */
-        .stat-item {
-            padding: 15px;
-            border-radius: 8px;
-            background: linear-gradient(135deg, #f8f9fa, #e9ecef);
-            transition: transform 0.2s ease;
-        }
-        
-        .stat-item:hover {
-            transform: translateY(-2px);
-        }
-        
-        .stat-item h3 {
-            font-weight: 700;
-            margin-bottom: 5px;
-        }
-        
-        .dark-mode .stat-item {
-            background: linear-gradient(135deg, #2d2d2d, #404040);
-        }
-        
-
         
         /* Table Responsive Styles */
         .table-responsive {
@@ -672,8 +650,16 @@
             }
         }
     </style>
+    <link rel="stylesheet" href="{{ url_for('static', filename='qc-dashboard.css') }}">
 {% endblock %}
 {% block app_content %}
+{% macro page_href(p) -%}
+?page={{ p }}&sort_by={{ sort_by }}&sort_dir={{ sort_dir }}&building={{ building_filter|urlencode }}&department={{ department_filter|urlencode }}&search={{ request.args.get('search', '')|urlencode }}&status={{ request.args.get('status', '')|urlencode }}&asset_type={{ request.args.get('asset_type', '')|urlencode }}&per_page={{ per_page }}
+{%- endmacro %}
+{% macro sort_href(field) -%}
+?sort_by={{ field }}&sort_dir={{ 'desc' if sort_by == field and sort_dir == 'asc' else 'asc' }}&building={{ building_filter|urlencode }}&department={{ department_filter|urlencode }}&search={{ request.args.get('search', '')|urlencode }}&status={{ request.args.get('status', '')|urlencode }}&asset_type={{ request.args.get('asset_type', '')|urlencode }}&per_page={{ per_page }}
+{%- endmacro %}
+<div class="asset-dashboard">
     <!-- Flash Messages -->
     {% with messages = get_flashed_messages(with_categories=true) %}
         {% if messages %}
@@ -690,179 +676,141 @@
         {% endif %}
     {% endwith %}
 
+    <div class="page-header">
+        <div>
+            <h1><i class="bi bi-speedometer2 me-2" style="color:var(--gold);"></i>Dashboard</h1>
+            <p class="subtitle">Asset inventory overview</p>
+        </div>
+        <div class="d-flex gap-2 align-items-center flex-wrap">
+            {{ qc_add_button('Add Asset', button_id='addAssetBtn', modal_target='#addAssetModal') }}
+            <button type="button" class="btn btn-outline-secondary btn-sm" id="departmentQRBtn" data-bs-toggle="modal" data-bs-target="#departmentQRModal">
+                <i class="bi bi-qr-code me-1"></i>QR Codes
+            </button>
+        </div>
+    </div>
 
-
-
-
-    <!-- Summary Statistics -->
-    <div class="row mb-4">
-        <div class="col-md-12">
-            <div class="card">
-                <div class="card-header">
-                    <h5 class="mb-0"><i class="fas fa-chart-line"></i> System Overview</h5>
-                </div>
-                <div class="card-body">
-                    <div class="row text-center">
-                        <div class="col-md-3">
-                            <div class="stat-item">
-                                <h3 class="text-primary">{{ chart_data.total_system_value|round(3) }}</h3>
-                                <p class="text-muted mb-0">Total System Value (OMR)</p>
-                            </div>
-                        </div>
-                        <div class="col-md-3">
-                            <div class="stat-item">
-                                <h3 class="text-success">{{ total_assets }}</h3>
-                                <p class="text-muted mb-0">Total Assets</p>
-                            </div>
-                        </div>
-                        <div class="col-md-3">
-                            <div class="stat-item">
-                                <h3 class="text-info">{{ chart_data.building_counts|length }}</h3>
-                                <p class="text-muted mb-0">Buildings</p>
-                            </div>
-                        </div>
-                        <div class="col-md-3">
-                            <div class="stat-item">
-                                <h3 class="text-warning">{{ chart_data.department_counts|length }}</h3>
-                                <p class="text-muted mb-0">Departments</p>
-                            </div>
-                        </div>
-                    </div>
-                </div>
+    <div class="row g-2 mb-4 summary-stats-row">
+        <div class="col-sm-6 col-xl-3">
+            <div class="stat-card blue">
+                <div class="stat-label">Total System Value</div>
+                <div class="stat-value">{{ chart_data.total_system_value|round(3) }}</div>
+                <div class="stat-sub">OMR</div>
+                <i class="bi bi-currency-exchange stat-icon"></i>
+            </div>
+        </div>
+        <div class="col-sm-6 col-xl-3">
+            <div class="stat-card green">
+                <div class="stat-label">Total Assets</div>
+                <div class="stat-value">{{ total_assets }}</div>
+                <div class="stat-sub">In register</div>
+                <i class="bi bi-box-seam stat-icon"></i>
+            </div>
+        </div>
+        <div class="col-sm-6 col-xl-3">
+            <div class="stat-card teal">
+                <div class="stat-label">Buildings</div>
+                <div class="stat-value">{{ chart_data.building_counts|length }}</div>
+                <div class="stat-sub">Locations tracked</div>
+                <i class="bi bi-building stat-icon"></i>
+            </div>
+        </div>
+        <div class="col-sm-6 col-xl-3">
+            <div class="stat-card yellow">
+                <div class="stat-label">Departments</div>
+                <div class="stat-value">{{ chart_data.department_counts|length }}</div>
+                <div class="stat-sub">Sections tracked</div>
+                <i class="bi bi-diagram-3 stat-icon"></i>
             </div>
         </div>
     </div>
 
-
-
-
-
-    <!-- Advanced Search and Filters -->
-    <div class="card mb-4">
-        <div class="card-header d-flex justify-content-between align-items-center">
-            <h5 class="mb-0"><i class="fas fa-search"></i> Search & Filters</h5>
-            <div class="d-flex gap-2">
-                <button type="button" class="btn btn-success btn-sm" id="addAssetBtn" data-bs-toggle="modal" data-bs-target="#addAssetModal">
-                    <i class="fas fa-plus"></i> Add Asset
-                </button>
-                <button type="button" class="btn btn-info btn-sm" id="departmentQRBtn" data-bs-toggle="modal" data-bs-target="#departmentQRModal">
-                    <i class="fas fa-qrcode"></i> QR Codes
-                </button>
+    <form method="get" id="searchForm">
+        <div class="filter-bar">
+            <div class="filter-group filter-search-wrap">
+                <i class="bi bi-search filter-search-icon" aria-hidden="true"></i>
+                <input type="text" name="search" id="globalSearch"
+                       value="{{ request.args.get('search', '') }}"
+                       placeholder="Search names, owners, codes, asset types…"
+                       autocomplete="off">
+            </div>
+            <div class="filter-group">
+                <select id="buildingFilter" name="building" aria-label="Building">
+                    <option value="">All Buildings</option>
+                    {% for b in buildings %}
+                        <option value="{{ b }}" {% if b == building_filter %}selected{% endif %}>{{ b }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="filter-group">
+                <select id="departmentFilter" name="department" aria-label="Department">
+                    <option value="">All Departments</option>
+                    {% for d in departments %}
+                        <option value="{{ d }}" {% if d == department_filter %}selected{% endif %}>{{ d }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="filter-group">
+                <select id="statusFilter" name="status" aria-label="Status">
+                    <option value="">All Status</option>
+                    <option value="Used" {% if request.args.get('status') == 'Used' %}selected{% endif %}>Used</option>
+                    <option value="Not Used" {% if request.args.get('status') == 'Not Used' %}selected{% endif %}>Not Used</option>
+                    <option value="Out of Service" {% if request.args.get('status') == 'Out of Service' %}selected{% endif %}>Out of Service</option>
+                </select>
+            </div>
+            <div class="filter-group">
+                <select id="assetTypeFilter" name="asset_type" aria-label="Asset type">
+                    <option value="">All Types</option>
+                </select>
+            </div>
+            <div class="filter-group">
+                <a href="{{ url_for('assets.dashboard') }}" class="btn btn-outline-secondary btn-sm">Reset</a>
             </div>
         </div>
-        <div class="card-body">
-            <form method="get" id="searchForm">
-                <!-- Search Row -->
-                <div class="row mb-3">
-                    <div class="col-md-8">
-                        <label for="globalSearch" class="form-label">Global Search</label>
-                        <div class="input-group">
-                        <input type="text" class="form-control" id="globalSearch" name="search" 
-                               value="{{ request.args.get('search', '') }}" 
-                               placeholder="Search names, owners, codes, asset types, etc...">
-                            <button type="submit" class="btn btn-primary">
-                                <i class="fas fa-search"></i> Search
-                            </button>
-                            <button type="button" class="btn btn-outline-secondary" onclick="clearFilters()">
-                                <i class="fas fa-times"></i> Clear
-                            </button>
-                    </div>
-                    </div>
-                    <div class="col-md-4">
-                        <label for="itemsPerPage" class="form-label">Items per Page</label>
-                        <select class="form-select" id="itemsPerPage" name="per_page">
-                            <option value="10" {% if request.args.get('per_page') == '10' %}selected{% endif %}>10 items</option>
-                            <option value="25" {% if request.args.get('per_page') == '25' %}selected{% endif %}>25 items</option>
-                            <option value="50" {% if request.args.get('per_page') == '50' %}selected{% endif %}>50 items</option>
-                            <option value="100" {% if request.args.get('per_page') == '100' %}selected{% endif %}>100 items</option>
-                        </select>
-                    </div>
-                </div>
-                
-                <!-- Filters Row -->
-                <div class="row mb-3">
-                    <div class="col-md-3">
-                        <label for="building" class="form-label">Building</label>
-                        <select class="form-select" id="buildingFilter" name="building">
-                            <option value="">All Buildings</option>
-                            {% for b in buildings %}
-                                <option value="{{ b }}" {% if b == building_filter %}selected{% endif %}>{{ b }}</option>
-                            {% endfor %}
-                        </select>
-                    </div>
-                    <div class="col-md-3">
-                        <label for="department" class="form-label">Department</label>
-                        <select class="form-select" id="departmentFilter" name="department">
-                            <option value="">All Departments</option>
-                            {% for d in departments %}
-                                <option value="{{ d }}" {% if d == department_filter %}selected{% endif %}>{{ d }}</option>
-                            {% endfor %}
-                        </select>
-                    </div>
-                    <div class="col-md-3">
-                        <label for="statusFilter" class="form-label">Status</label>
-                        <select class="form-select" id="statusFilter" name="status">
-                            <option value="">All Status</option>
-                            <option value="Used" {% if request.args.get('status') == 'Used' %}selected{% endif %}>Used</option>
-                            <option value="Not Used" {% if request.args.get('status') == 'Not Used' %}selected{% endif %}>Not Used</option>
-                            <option value="Out of Service" {% if request.args.get('status') == 'Out of Service' %}selected{% endif %}>Out of Service</option>
-                        </select>
-                    </div>
-                    <div class="col-md-3">
-                        <label for="assetTypeFilter" class="form-label">Asset Type</label>
-                        <select class="form-select" id="assetTypeFilter" name="asset_type">
-                            <option value="">All Types</option>
-                        </select>
-                    </div>
-                </div>
-                
-
-                
-                <input type="hidden" name="sort_by" value="{{ sort_by }}">
-                <input type="hidden" name="sort_dir" value="{{ sort_dir }}">
-            </form>
-        </div>
-    </div>
+        <input type="hidden" name="sort_by" value="{{ sort_by }}">
+        <input type="hidden" name="sort_dir" value="{{ sort_dir }}">
+    </form>
 
     <form class="filters-row" method="get" id="filterForm" style="display: none;">
         <!-- Hidden form for backward compatibility -->
     </form>
     
     <!-- Bulk Actions Bar -->
-    <div id="bulkActionsBar" class="alert alert-primary border-primary mb-3" style="display: none;">
-        <div class="d-flex justify-content-between align-items-center">
-            <span><i class="fas fa-info-circle"></i> <strong><span id="selectedCount">0</span> items selected</strong> - Use the buttons to perform actions on selected items</span>
-            <div>
-                <button class="btn btn-info btn-sm me-2" id="bulkPrintQrBtn">
-                    <i class="fas fa-qrcode"></i> Print QR Codes
+    <div id="bulkActionsBar" class="qc-bulk-bar mb-3" style="display: none;">
+        <div class="d-flex flex-wrap justify-content-between align-items-center gap-2">
+            <span><i class="bi bi-info-circle me-1"></i> <strong><span id="selectedCount">0</span> items selected</strong> — use the buttons to act on the selection</span>
+            <div class="d-flex flex-wrap gap-2">
+                <button type="button" class="btn-qc-primary" id="bulkPrintQrBtn">
+                    <i class="bi bi-qr-code"></i> Print QR Codes
                 </button>
-                <button class="btn btn-warning btn-sm me-2" id="bulkUpdateStatusBtn">
-                    <i class="fas fa-edit"></i> Update Status
+                <button type="button" class="btn btn-sm btn-qc-tab" id="bulkUpdateStatusBtn">
+                    <i class="bi bi-pencil-square"></i> Update Status
                 </button>
-                <button class="btn btn-danger btn-sm me-2" id="bulkDeleteBtn">
-                    <i class="fas fa-trash"></i> Delete Selected
+                <button type="button" class="btn btn-danger btn-sm" id="bulkDeleteBtn">
+                    <i class="bi bi-trash"></i> Delete Selected
                 </button>
-                <button class="btn btn-outline-secondary btn-sm" id="clearSelectionBtn">
-                    <i class="fas fa-times"></i> Clear Selection
+                <button type="button" class="btn btn-sm btn-qc-tab" id="clearSelectionBtn">
+                    <i class="bi bi-x-lg"></i> Clear Selection
                 </button>
             </div>
         </div>
     </div>
-    
-    <div class="table-responsive">
-        <table class="table table-bordered table-striped" style="width: 100%; min-width: 1400px;">
+
+    <div class="qc-card mb-4 asset-register-card">
+        {% if assets %}
+        <div style="overflow-x:auto;">
+        <table class="qc-table" style="width: 100%; min-width: 1400px;">
         <thead>
             <tr>
                 <th><input type="checkbox" id="selectAllCheckbox" title="Select All"></th>
                 <th>#</th>
-                <th><a href="?sort_by=name&sort_dir={{ 'desc' if sort_by == 'name' and sort_dir == 'asc' else 'asc' }}&building={{ building_filter }}&department={{ department_filter }}&search={{ request.args.get('search', '') }}&status={{ request.args.get('status', '') }}&asset_type={{ request.args.get('asset_type', '') }}&per_page={{ request.args.get('per_page', '10') }}">Name{% if sort_by == 'name' %} {% if sort_dir == 'asc' %}▲{% else %}▼{% endif %}{% endif %}</a></th>
-                <th><a href="?sort_by=asset_type&sort_dir={{ 'desc' if sort_by == 'asset_type' and sort_dir == 'asc' else 'asc' }}&building={{ building_filter }}&department={{ department_filter }}&search={{ request.args.get('search', '') }}&status={{ request.args.get('status', '') }}&asset_type={{ request.args.get('asset_type', '') }}&per_page={{ request.args.get('per_page', '10') }}">Type{% if sort_by == 'asset_type' %} {% if sort_dir == 'asc' %}▲{% else %}▼{% endif %}{% endif %}</a></th>
-                <th><a href="?sort_by=quantity&sort_dir={{ 'desc' if sort_by == 'quantity' and sort_dir == 'asc' else 'asc' }}&building={{ building_filter }}&department={{ department_filter }}&search={{ request.args.get('search', '') }}&status={{ request.args.get('status', '') }}&per_page={{ request.args.get('per_page', '10') }}">Quantity{% if sort_by == 'quantity' %} {% if sort_dir == 'asc' %}▲{% else %}▼{% endif %}{% endif %}</a></th>
-                <th><a href="?sort_by=price&sort_dir={{ 'desc' if sort_by == 'price' and sort_dir == 'asc' else 'asc' }}&building={{ building_filter }}&department={{ department_filter }}&search={{ request.args.get('search', '') }}&status={{ request.args.get('status', '') }}&per_page={{ request.args.get('per_page', '10') }}">Total Value (OMR){% if sort_by == 'price' %} {% if sort_dir == 'asc' %}▲{% else %}▼{% endif %}{% endif %}</a></th>
-                <th><a href="?sort_by=owner&sort_dir={{ 'desc' if sort_by == 'owner' and sort_dir == 'asc' else 'asc' }}&building={{ building_filter }}&department={{ department_filter }}&search={{ request.args.get('search', '') }}&status={{ request.args.get('status', '') }}&per_page={{ request.args.get('per_page', '10') }}">Owner{% if sort_by == 'owner' %} {% if sort_dir == 'asc' %}▲{% else %}▼{% endif %}{% endif %}</a></th>
-                <th><a href="?sort_by=building&sort_dir={{ 'desc' if sort_by == 'building' and sort_dir == 'asc' else 'asc' }}&building={{ building_filter }}&department={{ department_filter }}&search={{ request.args.get('search', '') }}&status={{ request.args.get('status', '') }}&per_page={{ request.args.get('per_page', '10') }}">Building{% if sort_by == 'building' %} {% if sort_dir == 'asc' %}▲{% else %}▼{% endif %}{% endif %}</a></th>
-                <th><a href="?sort_by=department&sort_dir={{ 'desc' if sort_by == 'department' and sort_dir == 'asc' else 'asc' }}&building={{ building_filter }}&department={{ department_filter }}&search={{ request.args.get('search', '') }}&status={{ request.args.get('status', '') }}&per_page={{ request.args.get('per_page', '10') }}">Department/Section{% if sort_by == 'department' %} {% if sort_dir == 'asc' %}▲{% else %}▼{% endif %}{% endif %}</a></th>
-                <th><a href="?sort_by=used_status&sort_dir={{ 'desc' if sort_by == 'used_status' and sort_dir == 'asc' else 'asc' }}&building={{ building_filter }}&department={{ department_filter }}&search={{ request.args.get('search', '') }}&status={{ request.args.get('status', '') }}&per_page={{ request.args.get('per_page', '10') }}">Status{% if sort_by == 'used_status' %} {% if sort_dir == 'asc' %}▲{% else %}▼{% endif %}{% endif %}</a></th>
+                <th><a href="{{ url_for('assets.dashboard') }}{{ sort_href('name') }}">Name{% if sort_by == 'name' %} {% if sort_dir == 'asc' %}▲{% else %}▼{% endif %}{% endif %}</a></th>
+                <th><a href="{{ url_for('assets.dashboard') }}{{ sort_href('asset_type') }}">Type{% if sort_by == 'asset_type' %} {% if sort_dir == 'asc' %}▲{% else %}▼{% endif %}{% endif %}</a></th>
+                <th><a href="{{ url_for('assets.dashboard') }}{{ sort_href('quantity') }}">Quantity{% if sort_by == 'quantity' %} {% if sort_dir == 'asc' %}▲{% else %}▼{% endif %}{% endif %}</a></th>
+                <th><a href="{{ url_for('assets.dashboard') }}{{ sort_href('price') }}">Total Value (OMR){% if sort_by == 'price' %} {% if sort_dir == 'asc' %}▲{% else %}▼{% endif %}{% endif %}</a></th>
+                <th><a href="{{ url_for('assets.dashboard') }}{{ sort_href('owner') }}">Owner{% if sort_by == 'owner' %} {% if sort_dir == 'asc' %}▲{% else %}▼{% endif %}{% endif %}</a></th>
+                <th><a href="{{ url_for('assets.dashboard') }}{{ sort_href('building') }}">Building{% if sort_by == 'building' %} {% if sort_dir == 'asc' %}▲{% else %}▼{% endif %}{% endif %}</a></th>
+                <th><a href="{{ url_for('assets.dashboard') }}{{ sort_href('department') }}">Department/Section{% if sort_by == 'department' %} {% if sort_dir == 'asc' %}▲{% else %}▼{% endif %}{% endif %}</a></th>
+                <th><a href="{{ url_for('assets.dashboard') }}{{ sort_href('used_status') }}">Status{% if sort_by == 'used_status' %} {% if sort_dir == 'asc' %}▲{% else %}▼{% endif %}{% endif %}</a></th>
                 <th>QR CODE</th>
                 <th>Actions</th>
             </tr>
@@ -878,7 +826,7 @@
                 </td>
                 <td>
                     {% if asset.asset_type %}
-                        <span class="badge bg-info">{{ asset.asset_type }}</span>
+                        <span class="badge-type">{{ asset.asset_type }}</span>
                     {% else %}
                         <span class="text-muted">-</span>
                     {% endif %}
@@ -903,9 +851,9 @@
                 <td class="text-center">
                     {% if asset.asset_code %}
                         <div class="qr-code-container">
-                            <img src="/assets/qrcode/{{ asset.id }}"  
-                                 alt="QR Code for {{ asset.name }}" 
-                                 class="qr-code-img" 
+                            <img src="/assets/qrcode/{{ asset.id }}"
+                                 alt="QR Code for {{ asset.name }}"
+                                 class="qr-code-img"
                                  style="width: 60px; height: 60px; cursor: pointer;"
                                  onclick="showQRModal('{{ asset.id }}', '{{ asset.asset_code }}', '{{ asset.name }}')"
                                  title="Click to view larger QR code">
@@ -918,7 +866,7 @@
                     {% endif %}
                 </td>
                 <td>
-                    <button class="btn btn-primary btn-sm edit-asset-btn" 
+                    <button type="button" class="btn-qc-edit-icon edit-asset-btn"
                             data-asset-id="{{ asset.id }}"
                             data-asset-name="{{ asset.name }}"
                             data-asset-type="{{ asset.asset_type or '' }}"
@@ -928,84 +876,83 @@
                             data-asset-building="{{ asset.building }}"
                             data-asset-department="{{ asset.department }}"
                             data-asset-status="{{ asset.used_status }}"
-                            data-bs-toggle="modal" 
-                            data-bs-target="#editAssetModal">
-                        <i class="fas fa-edit"></i> Edit
+                            data-bs-toggle="modal"
+                            data-bs-target="#editAssetModal"
+                            title="Edit asset"
+                            aria-label="Edit asset">
+                        <i class="bi bi-pencil-square" aria-hidden="true"></i>
                     </button>
                 </td>
             </tr>
         {% endfor %}
         </tbody>
-    </table>
+        </table>
+        </div>
+        <div class="d-flex flex-wrap justify-content-between align-items-end gap-3 p-3 asset-register-pagination"
+             style="border-top:1px solid #e8ecf2;">
+            <div class="d-flex flex-column gap-2 asset-register-pageinfo">
+                <span class="asset-register-showing" style="font-size:0.875rem;color:#7a869a;">
+                    Showing <strong style="color:#344054;font-weight:600;">{{ (page-1)*per_page + 1 }}</strong> to
+                    <strong style="color:#344054;font-weight:600;">{{ [page*per_page, total_assets]|min }}</strong> of
+                    <strong style="color:#344054;font-weight:600;">{{ "{:,}".format(total_assets|int) }}</strong> assets
+                </span>
+                <div class="d-flex align-items-center gap-2 flex-wrap asset-register-show-row" style="font-size:0.875rem;color:#7a869a;">
+                    <strong class="asset-register-show-label" style="color:#344054;font-weight:700;">Show:</strong>
+                    <select id="itemsPerPage" class="form-select form-select-sm asset-register-per-page" aria-label="Rows per page">
+                        <option value="10" {% if per_page == 10 %}selected{% endif %}>10</option>
+                        <option value="25" {% if per_page == 25 %}selected{% endif %}>25</option>
+                        <option value="50" {% if per_page == 50 %}selected{% endif %}>50</option>
+                        <option value="100" {% if per_page == 100 %}selected{% endif %}>100</option>
+                    </select>
+                    <span>per page</span>
+                </div>
+            </div>
+            {% if total_pages > 1 %}
+            <nav class="qc-page-nav" aria-label="Asset register pagination">
+                {% if page > 1 %}
+                <a href="{{ url_for('assets.dashboard') }}{{ page_href(page - 1) }}" class="qc-page-btn qc-page-prev" title="Previous page"><i class="bi bi-chevron-left"></i></a>
+                {% endif %}
+                {% set start_page = [1, page - 2]|max %}
+                {% set end_page = [total_pages, page + 2]|min %}
+                {% if start_page > 1 %}
+                <a href="{{ url_for('assets.dashboard') }}{{ page_href(1) }}" class="qc-page-btn{% if page == 1 %} is-active{% endif %}">1</a>
+                {% if start_page > 2 %}
+                <span class="qc-page-ellipsis" aria-hidden="true">...</span>
+                {% endif %}
+                {% endif %}
+                {% for p in range(start_page, end_page + 1) %}
+                <a href="{{ url_for('assets.dashboard') }}{{ page_href(p) }}" class="qc-page-btn{% if p == page %} is-active{% endif %}">{{ p }}</a>
+                {% endfor %}
+                {% if end_page < total_pages %}
+                {% if end_page < total_pages - 2 %}
+                <span class="qc-page-ellipsis" aria-hidden="true">...</span>
+                {% endif %}
+                {% if total_pages - 1 > end_page %}
+                <a href="{{ url_for('assets.dashboard') }}{{ page_href(total_pages - 1) }}" class="qc-page-btn{% if page == total_pages - 1 %} is-active{% endif %}">{{ total_pages - 1 }}</a>
+                {% endif %}
+                {% if total_pages > end_page %}
+                <a href="{{ url_for('assets.dashboard') }}{{ page_href(total_pages) }}" class="qc-page-btn{% if page == total_pages %} is-active{% endif %}">{{ total_pages }}</a>
+                {% endif %}
+                {% endif %}
+                {% if page < total_pages %}
+                <a href="{{ url_for('assets.dashboard') }}{{ page_href(page + 1) }}" class="qc-page-btn qc-page-next">Next <i class="bi bi-chevron-right"></i></a>
+                {% endif %}
+            </nav>
+            {% else %}
+            <nav class="qc-page-nav" aria-label="Asset register pagination">
+                <span class="qc-page-btn is-active" aria-current="page">1</span>
+            </nav>
+            {% endif %}
+        </div>
+        {% else %}
+        <div class="empty-state">
+            <i class="bi bi-inbox"></i>
+            <p>No assets match the current filters.</p>
+        </div>
+        {% endif %}
     </div>
 
-<!-- Enhanced Pagination controls -->
-<nav aria-label="Page navigation">
-    <div class="d-flex justify-content-between align-items-center mb-3">
-        <div>
-            <span class="text-muted">
-                Showing {{ (page-1)*per_page + 1 }} to {{ [page*per_page, total_assets]|min }} of {{ total_assets }} assets
-            </span>
-        </div>
-        <div class="d-flex align-items-center">
-                                    <span class="me-3 pagination-text">Jump to page:</span>
-                          <input type="number" id="jumpToPage" class="form-control me-2 pagination-input" style="width: 80px;" 
-                     min="1" max="{{ total_pages }}" value="{{ page }}"  
-                   onkeypress="if(event.key==='Enter') jumpToPage()">
-            <span class="text-muted">of {{ total_pages }}</span>
-        </div>
-    </div>
-  <ul class="pagination justify-content-center">
-    <li class="page-item {% if page == 1 %}disabled{% endif %}">
-            <a class="page-link" href="?page=1&sort_by={{ sort_by }}&sort_dir={{ sort_dir }}&building={{ building_filter }}&department={{ department_filter }}&search={{ request.args.get('search', '') }}&status={{ request.args.get('status', '') }}&per_page={{ request.args.get('per_page', '10') }}">
-                <i class="fas fa-angle-double-left"></i>
-            </a>
-    </li>
-        <li class="page-item {% if page == 1 %}disabled{% endif %}">
-            <a class="page-link" href="?page={{ page - 1 if page > 1 else 1 }}&sort_by={{ sort_by }}&sort_dir={{ sort_dir }}&building={{ building_filter }}&department={{ department_filter }}&search={{ request.args.get('search', '') }}&status={{ request.args.get('status', '') }}&per_page={{ request.args.get('per_page', '10') }}">
-                <i class="fas fa-angle-left"></i>
-            </a>
-        </li>
-        
-        {% set start_page = [1, page - 2]|max %}
-        {% set end_page = [total_pages, page + 2]|min %}
-        
-        {% if start_page > 1 %}
-            <li class="page-item">
-                <a class="page-link" href="?page=1&sort_by={{ sort_by }}&sort_dir={{ sort_dir }}&building={{ building_filter }}&department={{ department_filter }}&search={{ request.args.get('search', '') }}&status={{ request.args.get('status', '') }}&per_page={{ request.args.get('per_page', '10') }}">1</a>
-    </li>
-            {% if start_page > 2 %}
-                <li class="page-item disabled"><span class="page-link">...</span></li>
-            {% endif %}
-        {% endif %}
-        
-        {% for p in range(start_page, end_page + 1) %}
-      <li class="page-item {% if p == page %}active{% endif %}">
-                <a class="page-link" href="?page={{ p }}&sort_by={{ sort_by }}&sort_dir={{ sort_dir }}&building={{ building_filter }}&department={{ department_filter }}&search={{ request.args.get('search', '') }}&status={{ request.args.get('status', '') }}&per_page={{ request.args.get('per_page', '10') }}">{{ p }}</a>
-      </li>
-    {% endfor %}
-        
-        {% if end_page < total_pages %}
-            {% if end_page < total_pages - 1 %}
-                <li class="page-item disabled"><span class="page-link">...</span></li>
-            {% endif %}
-            <li class="page-item">
-                <a class="page-link" href="?page={{ total_pages }}&sort_by={{ sort_by }}&sort_dir={{ sort_dir }}&building={{ building_filter }}&department={{ department_filter }}&search={{ request.args.get('search', '') }}&status={{ request.args.get('status', '') }}&per_page={{ request.args.get('per_page', '10') }}">{{ total_pages }}</a>
-            </li>
-        {% endif %}
-        
-    <li class="page-item {% if page == total_pages %}disabled{% endif %}">
-            <a class="page-link" href="?page={{ page + 1 if page < total_pages else total_pages }}&sort_by={{ sort_by }}&sort_dir={{ sort_dir }}&building={{ building_filter }}&department={{ department_filter }}&search={{ request.args.get('search', '') }}&status={{ request.args.get('status', '') }}&per_page={{ request.args.get('per_page', '10') }}">
-                <i class="fas fa-angle-right"></i>
-            </a>
-        </li>
-    <li class="page-item {% if page == total_pages %}disabled{% endif %}">
-            <a class="page-link" href="?page={{ total_pages }}&sort_by={{ sort_by }}&sort_dir={{ sort_dir }}&building={{ building_filter }}&department={{ department_filter }}&search={{ request.args.get('search', '') }}&status={{ request.args.get('status', '') }}&per_page={{ request.args.get('per_page', '10') }}">
-                <i class="fas fa-angle-double-right"></i>
-            </a>
-    </li>
-  </ul>
-</nav>
+</div>
 
 {% endblock %}
 {% block modals %}
@@ -1090,7 +1037,7 @@
         </div>
         <div class="modal-footer">
           <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-          <button type="submit" class="btn btn-success">Add Asset</button>
+          {{ qc_add_button('Add Asset', button_type='submit') }}
         </div>
       </form>
     </div>
@@ -1220,7 +1167,7 @@
           <h6>Add New Building</h6>
           <div class="input-group">
             <input type="text" class="form-control" id="newBuildingName" placeholder="Enter building name" maxlength="100">
-            <button class="btn btn-success" type="button" id="addBuildingBtn">Add</button>
+            {{ qc_add_button('Add', button_id='addBuildingBtn') }}
           </div>
         </div>
         
@@ -1264,7 +1211,7 @@
                     <input type="text" class="form-control" id="newDepartmentName" placeholder="Enter department name" maxlength="100">
                   </div>
                   <div class="col-md-2">
-                    <button class="btn btn-success w-100" type="button" id="addDepartmentBtn">Add</button>
+                    {{ qc_add_button('Add', button_id='addDepartmentBtn', extra_classes='w-100') }}
                   </div>
                 </div>
               </div>
@@ -1384,9 +1331,7 @@
           </div>
           <div class="row">
             <div class="col-12">
-              <button class="btn btn-success" type="button" id="addUserModalBtn">
-                <i class="fas fa-user-plus"></i> Register User
-              </button>
+              {{ qc_add_button('Register User', button_id='addUserModalBtn', icon='bi bi-person-plus') }}
             </div>
           </div>
         </div>
@@ -1416,9 +1361,7 @@
           </div>
           <div class="row">
             <div class="col-12">
-              <button class="btn btn-primary" type="button" id="addBulkUsersModalBtn">
-                <i class="fas fa-users"></i> Add Multiple Users
-              </button>
+              {{ qc_add_button('Add Multiple Users', button_id='addBulkUsersModalBtn', icon='bi bi-people') }}
             </div>
           </div>
         </div>
@@ -1467,9 +1410,7 @@
                 <input type="text" class="form-control" id="newAssetTypeName" placeholder="Enter asset type name" maxlength="100">
               </div>
               <div class="col-md-4">
-                <button class="btn btn-success w-100" type="button" id="addAssetTypeBtn">
-                  <i class="fas fa-plus"></i> Add Asset Type
-                </button>
+                {{ qc_add_button('Add Asset Type', button_id='addAssetTypeBtn', extra_classes='w-100') }}
               </div>
             </div>
           </div>
@@ -1500,9 +1441,7 @@
                 <input type="text" class="form-control" id="newAssetName" placeholder="Enter asset name" maxlength="100">
               </div>
               <div class="col-md-2">
-                <button class="btn btn-success w-100" type="button" id="addAssetNameBtn">
-                  <i class="fas fa-plus"></i> Add
-                </button>
+                {{ qc_add_button('Add', button_id='addAssetNameBtn', extra_classes='w-100') }}
               </div>
             </div>
           </div>
@@ -4255,41 +4194,42 @@ const QR_LABEL_PRESET = 'label_2x2';
 // EVENT LISTENERS - BULK SELECTION
 // ============================================================================
 
-    // Select all checkbox functionality
-    document.getElementById('selectAllCheckbox').addEventListener('change', function() {
-        const checkboxes = document.querySelectorAll('.asset-checkbox');
-        const isChecked = this.checked;
-        
-        selectedAssets = [];
-        checkboxes.forEach(checkbox => {
-            checkbox.checked = isChecked;
-            if (isChecked) {
-                selectedAssets.push({
-                    id: checkbox.getAttribute('data-asset-id'),
-                    name: checkbox.getAttribute('data-asset-name')
-                });
-            }
-        });
-        
-        updateBulkActionsBar();
-    });
+    var selectAllCb = document.getElementById('selectAllCheckbox');
+    if (selectAllCb) {
+        selectAllCb.addEventListener('change', function() {
+            const checkboxes = document.querySelectorAll('.asset-checkbox');
+            const isChecked = this.checked;
 
-    // Individual checkbox functionality
-    document.querySelectorAll('.asset-checkbox').forEach(function(checkbox) {
-        checkbox.addEventListener('change', function() {
-            const assetId = this.getAttribute('data-asset-id');
-            const assetName = this.getAttribute('data-asset-name');
-            
-            if (this.checked) {
-                selectedAssets.push({ id: assetId, name: assetName });
-            } else {
-                selectedAssets = selectedAssets.filter(asset => asset.id !== assetId);
-                document.getElementById('selectAllCheckbox').checked = false;
-            }
-            
+            selectedAssets = [];
+            checkboxes.forEach(checkbox => {
+                checkbox.checked = isChecked;
+                if (isChecked) {
+                    selectedAssets.push({
+                        id: checkbox.getAttribute('data-asset-id'),
+                        name: checkbox.getAttribute('data-asset-name')
+                    });
+                }
+            });
+
             updateBulkActionsBar();
         });
-    });
+
+        document.querySelectorAll('.asset-checkbox').forEach(function(checkbox) {
+            checkbox.addEventListener('change', function() {
+                const assetId = this.getAttribute('data-asset-id');
+                const assetName = this.getAttribute('data-asset-name');
+
+                if (this.checked) {
+                    selectedAssets.push({ id: assetId, name: assetName });
+                } else {
+                    selectedAssets = selectedAssets.filter(asset => asset.id !== assetId);
+                    selectAllCb.checked = false;
+                }
+
+                updateBulkActionsBar();
+            });
+        });
+    }
 
 // ============================================================================
 // EVENT LISTENERS - BULK ACTIONS
@@ -4301,7 +4241,8 @@ const QR_LABEL_PRESET = 'label_2x2';
     document.getElementById('clearSelectionBtn').addEventListener('click', function() {
         selectedAssets = [];
         document.querySelectorAll('.asset-checkbox').forEach(cb => cb.checked = false);
-        document.getElementById('selectAllCheckbox').checked = false;
+        var sac = document.getElementById('selectAllCheckbox');
+        if (sac) sac.checked = false;
         updateBulkActionsBar();
     });
 
@@ -4504,32 +4445,38 @@ const QR_LABEL_PRESET = 'label_2x2';
         console.log('==================');
     }
 
-    // Jump to page functionality
-    function jumpToPage() {
-        const pageInput = document.getElementById('jumpToPage');
-        const pageNumber = parseInt(pageInput.value);
-        const maxPages = parseInt(pageInput.getAttribute('max'));
-        
-        if (pageNumber >= 1 && pageNumber <= maxPages) {
-            const currentUrl = new URL(window.location);
-            currentUrl.searchParams.set('page', pageNumber);
-            window.location.href = currentUrl.toString();
-        } else {
-            alert(`Please enter a page number between 1 and ${maxPages}`);
-            pageInput.value = parseInt('{{ page }}');
-        }
-    }
-
 // ============================================================================
 // EVENT LISTENERS - SEARCH & NAVIGATION
 // ============================================================================
 
-    // Global search functionality
-    document.getElementById('globalSearch').addEventListener('keypress', function(e) {
+    // Search field: submit on Enter (QC-style — no separate Search button)
+    document.getElementById('globalSearch').addEventListener('keydown', function(e) {
         if (e.key === 'Enter') {
+            e.preventDefault();
             document.getElementById('searchForm').submit();
         }
     });
+
+    // Dropdown filters: full page submit on change (same behavior as QC Monitor filter forms)
+    ['buildingFilter', 'departmentFilter', 'statusFilter', 'assetTypeFilter'].forEach(function(selectId) {
+        var sel = document.getElementById(selectId);
+        if (sel) {
+            sel.addEventListener('change', function() {
+                document.getElementById('searchForm').submit();
+            });
+        }
+    });
+
+    // Rows per page (inside asset register card — updates URL like QC table tooling)
+    var perPageSel = document.getElementById('itemsPerPage');
+    if (perPageSel) {
+        perPageSel.addEventListener('change', function() {
+            var u = new URL(window.location.href);
+            u.searchParams.set('per_page', this.value);
+            u.searchParams.set('page', '1');
+            window.location.href = u.toString();
+        });
+    }
 
     // Keyboard shortcuts
     document.addEventListener('keydown', function(e) {
@@ -4541,8 +4488,11 @@ const QR_LABEL_PRESET = 'label_2x2';
         
         // Ctrl/Cmd + A for select all
         if ((e.ctrlKey || e.metaKey) && e.key === 'a' && !e.target.matches('input, textarea')) {
-            e.preventDefault();
-            document.getElementById('selectAllCheckbox').click();
+            var sac = document.getElementById('selectAllCheckbox');
+            if (sac) {
+                e.preventDefault();
+                sac.click();
+            }
         }
         
         // Escape to clear selection
@@ -4559,119 +4509,6 @@ const QR_LABEL_PRESET = 'label_2x2';
         }
     });
 
-    // Clear filters function
-    function clearFilters() {
-        console.log('Clearing filters...');
-        
-        // Clear the search input
-        document.getElementById('globalSearch').value = '';
-        
-        // Reset all select dropdowns to their first option (usually "All")
-        const selects = [
-            'buildingFilter',
-            'departmentFilter', 
-            'statusFilter',
-            'assetTypeFilter',
-            'itemsPerPage'
-        ];
-        
-        selects.forEach(selectId => {
-            const select = document.getElementById(selectId);
-            if (select) {
-                select.selectedIndex = 0;
-            }
-        });
-        
-        // Submit the form to refresh the page with cleared filters
-                document.getElementById('searchForm').submit();
-            }
-    
-    // AJAX filter function - updates results without page refresh
-    function applyFilters() {
-        console.log('Applying filters via AJAX...');
-        
-        const formData = new FormData(document.getElementById('searchForm'));
-        const params = new URLSearchParams();
-        
-        // Add all form data to URL parameters
-        for (let [key, value] of formData.entries()) {
-            if (value) {
-                params.append(key, value);
-            }
-        }
-        
-        // Update URL without page refresh
-        const newUrl = window.location.pathname + '?' + params.toString();
-        window.history.pushState({}, '', newUrl);
-        
-        // Show loading indicator
-        const tableBody = document.querySelector('.table tbody');
-        if (tableBody) {
-            tableBody.innerHTML = '<tr><td colspan="9" class="text-center"><i class="fas fa-spinner fa-spin"></i> Loading...</td></tr>';
-        }
-        
-        // Fetch updated results
-        fetch(newUrl)
-            .then(response => response.text())
-            .then(html => {
-                // Create a temporary div to parse the HTML
-                const tempDiv = document.createElement('div');
-                tempDiv.innerHTML = html;
-                
-                // Extract the table body content
-                const newTableBody = tempDiv.querySelector('.table tbody');
-                const newPagination = tempDiv.querySelector('.pagination');
-                const newStats = tempDiv.querySelectorAll('.card-body h5');
-                
-                // Update the table body
-                if (newTableBody && tableBody) {
-                    tableBody.innerHTML = newTableBody.innerHTML;
-                }
-                
-                // Update pagination
-                const currentPagination = document.querySelector('.pagination');
-                if (newPagination && currentPagination) {
-                    currentPagination.innerHTML = newPagination.innerHTML;
-                }
-                
-                // Update stats cards
-                newStats.forEach((stat, index) => {
-                    const currentStat = document.querySelectorAll('.card-body h5')[index];
-                    if (currentStat && stat) {
-                        currentStat.textContent = stat.textContent;
-                    }
-                });
-                
-                console.log('Filters applied successfully');
-            })
-            .catch(error => {
-                console.error('Error applying filters:', error);
-                // Fallback to page refresh if AJAX fails
-                window.location.reload();
-            });
-    }
-    
-    // Add event listeners to all filter dropdowns
-    document.addEventListener('DOMContentLoaded', function() {
-        const filterSelects = [
-            'buildingFilter',
-            'departmentFilter',
-            'statusFilter',
-            'assetTypeFilter',
-            'itemsPerPage'
-        ];
-        
-        filterSelects.forEach(selectId => {
-            const select = document.getElementById(selectId);
-            if (select) {
-                select.addEventListener('change', function() {
-                    console.log(`${selectId} changed to:`, this.value);
-                    applyFilters();
-                });
-            }
-        });
-    });
-    
     // Helper functions for edit modal
     function loadEditBuildings(selectedBuilding) {
         console.log('Loading buildings for edit, selected:', selectedBuilding);

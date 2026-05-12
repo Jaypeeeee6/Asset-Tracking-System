@@ -10,8 +10,6 @@ body.login-page {
     display: flex;
     flex-direction: column;
     margin: 0;
-    font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
-    font-size: 0.925rem;
     background: var(--dark-bg);
 }
 

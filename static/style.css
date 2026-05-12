@@ -56,15 +56,6 @@ h1, .modal-title {
     margin-bottom: 4px;
 }
 
-#addAssetBtn {
-    min-width: 180px;
-    font-size: 1.1em;
-    padding: 10px 0;
-    box-shadow: 0 2px 8px #D4AF37aa;
-    border-radius: 8px;
-    margin-top: 8px;
-}
-
 .btn-primary, .page-link.active, .btn-success {
     background: linear-gradient(90deg, #FFD700 0%, #D4AF37 100%);
     border: none;
