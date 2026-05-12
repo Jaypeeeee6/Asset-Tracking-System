@@ -223,7 +223,7 @@
                                 <option value="archived_at" {{ 'selected' if sort_by == 'archived_at' }}>Archive Date</option>
                                 <option value="name" {{ 'selected' if sort_by == 'name' }}>Asset Name</option>
                                 <option value="asset_code" {{ 'selected' if sort_by == 'asset_code' }}>Asset Code</option>
-                                <option value="building" {{ 'selected' if sort_by == 'building' }}>Building</option>
+                                <option value="branch" {{ 'selected' if sort_by == 'branch' }}>Branch</option>
                                 <option value="department" {{ 'selected' if sort_by == 'department' }}>Department</option>
                                 <option value="archived_by" {{ 'selected' if sort_by == 'archived_by' }}>Archived By</option>
                             </select>
@@ -317,7 +317,7 @@
                                          </td>
                                         <td>
                                             <div class="location-info">
-                                                <div><i class="fas fa-building"></i> {{ asset.building }}</div>
+                                                <div><i class="fas fa-building"></i> {{ asset.branch }}</div>
                                                 <div><i class="fas fa-sitemap"></i> {{ asset.department }}</div>
                                                 <div><i class="fas fa-user"></i> {{ asset.owner }}</div>
                                             </div>

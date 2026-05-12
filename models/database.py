@@ -7,18 +7,18 @@ def get_db_connection():
     conn.row_factory = sqlite3.Row
     return conn
 
-def generate_asset_code(building, department):
+def generate_asset_code(branch, department):
     conn = get_db_connection()
     cur = conn.cursor()
-    building_code = building.replace(' ', '').upper()
+    branch_code = branch.replace(' ', '').upper()
     department_code = department.replace(' ', '').upper()
     
-    # Get all existing asset codes for this building/department (both active and archived)
-    cur.execute('SELECT asset_code FROM assets WHERE building=? AND department=? ORDER BY asset_code DESC', (building, department))
+    # Get all existing asset codes for this branch/department (both active and archived)
+    cur.execute('SELECT asset_code FROM assets WHERE branch=? AND department=? ORDER BY asset_code DESC', (branch, department))
     active_codes = cur.fetchall()
     
-    # Also get archived asset codes for this building/department
-    cur.execute('SELECT asset_code FROM archived_assets WHERE building=? AND department=? ORDER BY asset_code DESC', (building, department))
+    # Also get archived asset codes for this branch/department
+    cur.execute('SELECT asset_code FROM archived_assets WHERE branch=? AND department=? ORDER BY asset_code DESC', (branch, department))
     archived_codes = cur.fetchall()
     
     conn.close()
@@ -37,15 +37,47 @@ def generate_asset_code(building, department):
     
     next_num = highest_num + 1
     
-    return f"MAA-{building_code}-{department_code}-{next_num:03d}"
+    return f"MAA-{branch_code}-{department_code}-{next_num:03d}"
+
+
+def _migrate_legacy_building_schema(cur):
+    """Rename legacy building* tables/columns to branch* for existing SQLite databases."""
+    cur.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='buildings'")
+    if cur.fetchone():
+        cur.execute('ALTER TABLE buildings RENAME TO branches')
+
+    cur.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='departments'")
+    if cur.fetchone():
+        cur.execute('PRAGMA table_info(departments)')
+        dept_cols = [row[1] for row in cur.fetchall()]
+        if 'building_id' in dept_cols and 'branch_id' not in dept_cols:
+            cur.execute('ALTER TABLE departments RENAME COLUMN building_id TO branch_id')
+
+    cur.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='assets'")
+    if cur.fetchone():
+        cur.execute('PRAGMA table_info(assets)')
+        asset_cols = [row[1] for row in cur.fetchall()]
+        if 'building' in asset_cols and 'branch' not in asset_cols:
+            cur.execute('ALTER TABLE assets RENAME COLUMN building TO branch')
+
+    cur.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='archived_assets'")
+    if cur.fetchone():
+        cur.execute('PRAGMA table_info(archived_assets)')
+        arch_cols = [row[1] for row in cur.fetchall()]
+        if 'building' in arch_cols and 'branch' not in arch_cols:
+            cur.execute('ALTER TABLE archived_assets RENAME COLUMN building TO branch')
+
 
 def init_db():
     conn = get_db_connection()
     cur = conn.cursor()
+
+    _migrate_legacy_building_schema(cur)
+    conn.commit()
     
-    # Create buildings table
+    # Create branches table (replaces legacy "buildings")
     cur.execute('''
-        CREATE TABLE IF NOT EXISTS buildings (
+        CREATE TABLE IF NOT EXISTS branches (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             name TEXT NOT NULL UNIQUE,
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
@@ -57,10 +89,10 @@ def init_db():
         CREATE TABLE IF NOT EXISTS departments (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             name TEXT NOT NULL,
-            building_id INTEGER NOT NULL,
+            branch_id INTEGER NOT NULL,
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-            FOREIGN KEY (building_id) REFERENCES buildings (id),
-            UNIQUE(name, building_id)
+            FOREIGN KEY (branch_id) REFERENCES branches (id),
+            UNIQUE(name, branch_id)
         )
     ''')
     
@@ -96,7 +128,7 @@ def init_db():
             quantity INTEGER NOT NULL,
             price REAL DEFAULT 0.0,
             owner TEXT NOT NULL,
-            building TEXT NOT NULL,
+            branch TEXT NOT NULL,
             department TEXT NOT NULL,
             asset_code TEXT,
             qr_random_code TEXT,
@@ -145,7 +177,7 @@ def init_db():
             quantity INTEGER NOT NULL,
             price REAL DEFAULT 0.0,
             owner TEXT NOT NULL,
-            building TEXT NOT NULL,
+            branch TEXT NOT NULL,
             department TEXT NOT NULL,
             asset_code TEXT,
             qr_random_code TEXT,
@@ -162,8 +194,8 @@ def init_db():
     for asset_type in default_asset_types:
         cur.execute('INSERT OR IGNORE INTO asset_types (name) VALUES (?)', (asset_type,))
     
-    # Note: Default buildings, departments, and users seeding has been removed
-    # Users can now add their own buildings, departments, and users as needed
+    # Note: Default branches, departments, and users seeding has been removed
+    # Users can now add their own branches, departments, and users as needed
     
     # Note: Default auth users seeding has been removed
     # Users must create their own admin account through the web interface
@@ -533,9 +565,9 @@ def init_db():
     conn.close()
 
 
-def normalize_department_display_code(building, department):
-    """Build canonical MAA-{BUILDING}-{DEPT} segment used for labels (matches dashboard JS)."""
-    b = ''.join(str(building).upper().split())
+def normalize_department_display_code(branch, department):
+    """Build canonical MAA-{BRANCH}-{DEPT} segment used for labels (matches dashboard JS)."""
+    b = ''.join(str(branch).upper().split())
     d = ''.join(str(department).upper().split())
     return f'MAA-{b}-{d}'
 

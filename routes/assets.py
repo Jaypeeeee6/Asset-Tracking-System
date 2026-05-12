@@ -33,7 +33,7 @@ def dashboard():
     page = int(request.args.get('page', 1))
     sort_by = request.args.get('sort_by', 'id')
     sort_dir = request.args.get('sort_dir', 'asc')
-    building_filter = request.args.get('building', '')
+    branch_filter = request.args.get('branch') or request.args.get('building', '')
     department_filter = request.args.get('department', '')
     search_query = request.args.get('search', '')
     status_filter = request.args.get('status', '')
@@ -44,9 +44,9 @@ def dashboard():
     conn = get_db_connection()
     cur = conn.cursor()
     
-    # Load buildings from database
-    cur.execute('SELECT name FROM buildings ORDER BY name')
-    buildings = [row[0] for row in cur.fetchall()]
+    # Load branches from database
+    cur.execute('SELECT name FROM branches ORDER BY name')
+    branches = [row[0] for row in cur.fetchall()]
     
     cur.execute('SELECT DISTINCT department FROM assets')
     departments = [row[0] for row in cur.fetchall()]
@@ -55,9 +55,9 @@ def dashboard():
     where_clauses = []
     params = []
     
-    if building_filter:
-        where_clauses.append('building = ?')
-        params.append(building_filter)
+    if branch_filter:
+        where_clauses.append('branch = ?')
+        params.append(branch_filter)
     if department_filter:
         where_clauses.append('department = ?')
         params.append(department_filter)
@@ -72,7 +72,7 @@ def dashboard():
             'name LIKE ?',
             'owner LIKE ?',
             'asset_code LIKE ?',
-            'building LIKE ?',
+            'branch LIKE ?',
             'department LIKE ?',
             'asset_type LIKE ?'
         ]
@@ -81,7 +81,7 @@ def dashboard():
         params.extend([search_param] * 6)
     
     where_sql = ('WHERE ' + ' AND '.join(where_clauses)) if where_clauses else ''
-    valid_sort_fields = ['id', 'name', 'quantity', 'price', 'owner', 'building', 'department', 'used_status', 'asset_type']
+    valid_sort_fields = ['id', 'name', 'quantity', 'price', 'owner', 'branch', 'department', 'used_status', 'asset_type']
     if sort_by not in valid_sort_fields:
         sort_by = 'id'
     sort_dir = 'desc' if sort_dir == 'desc' else 'asc'
@@ -96,20 +96,20 @@ def dashboard():
     assets = [dict(zip([desc[0] for desc in cur.description], row)) for row in cur.fetchall()]
     
     # Get chart data (all assets, not paginated)
-    cur.execute('SELECT used_status, building, department, price, quantity FROM assets')
+    cur.execute('SELECT used_status, branch, department, price, quantity FROM assets')
     all_assets = cur.fetchall()
     
     # Calculate chart data
     status_counts = {'Used': 0, 'Not Used': 0, 'Out of Service': 0}
-    building_counts = {}
-    building_prices = {}
+    branch_counts = {}
+    branch_prices = {}
     department_counts = {}
     department_prices = {}
     total_system_value = 0
     
     for asset in all_assets:
         status = asset[0]
-        building = asset[1]
+        branch = asset[1]
         department = asset[2]
         price = asset[3] or 0.0
         quantity = asset[4] or 1
@@ -118,15 +118,15 @@ def dashboard():
         if status in status_counts:
             status_counts[status] += 1
         
-        if building in building_counts:
-            building_counts[building] += 1
-            building_prices[building] += total_price
+        if branch in branch_counts:
+            branch_counts[branch] += 1
+            branch_prices[branch] += total_price
         else:
-            building_counts[building] = 1
-            building_prices[building] = total_price
+            branch_counts[branch] = 1
+            branch_prices[branch] = total_price
         
-        # Department counts and prices (key is building-department)
-        dept_key = f"{building}-{department}"
+        # Department counts and prices (key is branch-department)
+        dept_key = f"{branch}-{department}"
         if dept_key in department_counts:
             department_counts[dept_key] += 1
             department_prices[dept_key] += total_price
@@ -146,17 +146,17 @@ def dashboard():
                          per_page=per_page,
                          sort_by=sort_by, 
                          sort_dir=sort_dir, 
-                         buildings=buildings, 
+                         branches=branches, 
                          departments=departments, 
-                         building_filter=building_filter, 
+                         branch_filter=branch_filter, 
                          department_filter=department_filter,
                          search_query=search_query,
                          status_filter=status_filter,
                          asset_type_filter=asset_type_filter,
                          chart_data={
                              'status_counts': status_counts,
-                             'building_counts': building_counts,
-                             'building_prices': building_prices,
+                             'branch_counts': branch_counts,
+                             'branch_prices': branch_prices,
                              'department_counts': department_counts,
                              'department_prices': department_prices,
                              'total_system_value': total_system_value
@@ -168,7 +168,7 @@ def add_asset():
     selected_asset_names = request.form.get('selected_asset_names', '')
     asset_type = request.form.get('asset_type', '')
     owner = request.form.get('owner', '')
-    building = request.form['building']
+    branch = request.form.get('branch') or request.form.get('building')
     department = request.form['department']
     quantity = int(request.form['quantity'])
     price = float(request.form.get('price', 0.0))
@@ -192,15 +192,15 @@ def add_asset():
     new_asset_codes = []
     if len(asset_names) > 1:
         # Get the base asset code format
-        building_code = building.replace(' ', '').upper()
+        branch_code = branch.replace(' ', '').upper()
         department_code = department.replace(' ', '').upper()
         
-        # Get all existing asset codes for this building/department (both active and archived)
-        cur.execute('SELECT asset_code FROM assets WHERE building=? AND department=? ORDER BY asset_code DESC', (building, department))
+        # Get all existing asset codes for this branch/department (both active and archived)
+        cur.execute('SELECT asset_code FROM assets WHERE branch=? AND department=? ORDER BY asset_code DESC', (branch, department))
         active_codes = cur.fetchall()
         
-        # Also get archived asset codes for this building/department
-        cur.execute('SELECT asset_code FROM archived_assets WHERE building=? AND department=? ORDER BY asset_code DESC', (building, department))
+        # Also get archived asset codes for this branch/department
+        cur.execute('SELECT asset_code FROM archived_assets WHERE branch=? AND department=? ORDER BY asset_code DESC', (branch, department))
         archived_codes = cur.fetchall()
         
         # Find the highest number from both active and archived assets
@@ -217,14 +217,14 @@ def add_asset():
         # Generate sequential codes starting from highest + 1
         next_num = highest_num + 1
         for i in range(len(asset_names)):
-            asset_code = f"MAA-{building_code}-{department_code}-{next_num:03d}"
+            asset_code = f"MAA-{branch_code}-{department_code}-{next_num:03d}"
             new_asset_codes.append(asset_code)
             next_num += 1
     
     # Create individual assets for each selected asset name
     for i, asset_name in enumerate(asset_names):
-        # Check for existing asset with same name, building, and department
-        cur.execute('SELECT id, quantity, asset_code, qr_random_code FROM assets WHERE name=? AND building=? AND department=?', (asset_name, building, department))
+        # Check for existing asset with same name, branch, and department
+        cur.execute('SELECT id, quantity, asset_code, qr_random_code FROM assets WHERE name=? AND branch=? AND department=?', (asset_name, branch, department))
         row = cur.fetchone()
         if row:
             new_quantity = row[1] + quantity
@@ -234,11 +234,11 @@ def add_asset():
             if len(asset_names) > 1:
                 asset_code = new_asset_codes[i]
             else:
-                asset_code = generate_asset_code(building, department)
+                asset_code = generate_asset_code(branch, department)
             
             qr_random_code = str(uuid.uuid4())
             
-            cur.execute('INSERT INTO assets (name, quantity, price, owner, building, department, asset_code, qr_random_code, used_status, asset_type) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)', (asset_name, quantity, price, owner, building, department, asset_code, qr_random_code, used_status, asset_type))
+            cur.execute('INSERT INTO assets (name, quantity, price, owner, branch, department, asset_code, qr_random_code, used_status, asset_type) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)', (asset_name, quantity, price, owner, branch, department, asset_code, qr_random_code, used_status, asset_type))
     
     conn.commit()
     conn.close()
@@ -250,7 +250,7 @@ def update_asset(asset_id):
     name = request.form['name']
     asset_type = request.form.get('asset_type', '')
     owner = request.form.get('owner', '')
-    building = request.form['building']
+    branch = request.form.get('branch') or request.form.get('building')
     department = request.form['department']
     quantity = int(request.form['quantity'])
     price = float(request.form.get('price', 0.0))
@@ -265,41 +265,41 @@ def update_asset(asset_id):
     cur = conn.cursor()
     
     try:
-        # Get current asset data to check if building or department changed
-        cur.execute('SELECT building, department, asset_code FROM assets WHERE id=?', (asset_id,))
+        # Get current asset data to check if branch or department changed
+        cur.execute('SELECT branch, department, asset_code FROM assets WHERE id=?', (asset_id,))
         current_asset = cur.fetchone()
         
         if not current_asset:
             conn.close()
             return jsonify({'error': 'Asset not found'}), 404
         
-        current_building = current_asset['building']
+        current_branch = current_asset['branch']
         current_department = current_asset['department']
         current_asset_code = current_asset['asset_code']
         
-        # Check if building or department has changed
-        building_changed = current_building != building
+        # Check if branch or department has changed
+        branch_changed = current_branch != branch
         department_changed = current_department != department
         
-        # Generate new asset code if building or department changed
+        # Generate new asset code if branch or department changed
         new_asset_code = current_asset_code
-        if building_changed or department_changed:
-            new_asset_code = generate_asset_code(building, department)
+        if branch_changed or department_changed:
+            new_asset_code = generate_asset_code(branch, department)
             print(f"Asset code updated: {current_asset_code} -> {new_asset_code}")
         
         # Update the asset with new asset code if needed
         cur.execute('''
             UPDATE assets 
-            SET name=?, asset_type=?, quantity=?, price=?, owner=?, building=?, department=?, used_status=?, asset_code=?
+            SET name=?, asset_type=?, quantity=?, price=?, owner=?, branch=?, department=?, used_status=?, asset_code=?
             WHERE id=?
-        ''', (name, asset_type, quantity, price, owner, building, department, used_status, new_asset_code, asset_id))
+        ''', (name, asset_type, quantity, price, owner, branch, department, used_status, new_asset_code, asset_id))
         
         conn.commit()
         conn.close()
         
         return jsonify({
             'success': True, 
-            'asset_code_changed': building_changed or department_changed,
+            'asset_code_changed': branch_changed or department_changed,
             'old_asset_code': current_asset_code,
             'new_asset_code': new_asset_code
         })
@@ -327,11 +327,11 @@ def delete_asset(asset_id):
     # Insert into archived_assets table
     cur.execute('''
         INSERT INTO archived_assets 
-        (original_id, name, quantity, price, owner, building, department, asset_code, qr_random_code, used_status, asset_type, archived_by, archive_reason)
+        (original_id, name, quantity, price, owner, branch, department, asset_code, qr_random_code, used_status, asset_type, archived_by, archive_reason)
         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     ''', (
         asset['id'], asset['name'], asset['quantity'], asset['price'] if asset['price'] is not None else 0.0, asset['owner'], 
-        asset['building'], asset['department'], asset['asset_code'], 
+        asset['branch'], asset['department'], asset['asset_code'], 
         asset['qr_random_code'], asset['used_status'], asset['asset_type'],
         current_user.username, archive_reason
     ))
@@ -406,11 +406,11 @@ def bulk_delete():
         for asset in assets:
             cur.execute('''
                 INSERT INTO archived_assets 
-                (original_id, name, quantity, price, owner, building, department, asset_code, qr_random_code, used_status, asset_type, archived_by, archive_reason)
+                (original_id, name, quantity, price, owner, branch, department, asset_code, qr_random_code, used_status, asset_type, archived_by, archive_reason)
                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             ''', (
                 asset['id'], asset['name'], asset['quantity'], asset['price'] if asset['price'] is not None else 0.0, asset['owner'], 
-                asset['building'], asset['department'], asset['asset_code'], 
+                asset['branch'], asset['department'], asset['asset_code'], 
                 asset['qr_random_code'], asset['used_status'], asset['asset_type'],
                 current_user.username, archive_reason
             ))
@@ -457,9 +457,9 @@ def _png_bytes_asset_qrcode(asset_id):
     return _png_qr_for_string(target)
 
 
-def _png_bytes_department_qrcode(decoded_building, decoded_department):
+def _png_bytes_department_qrcode(decoded_branch, decoded_department):
     base_url = request.host_url.rstrip('/')
-    target = f"{base_url}/assets/department_items/{decoded_building}/{decoded_department}"
+    target = f"{base_url}/assets/department_items/{decoded_branch}/{decoded_department}"
     return _png_qr_for_string(target)
 
 
@@ -476,21 +476,21 @@ def qrcode_image(asset_id):
     return send_file(BytesIO(png), mimetype='image/png')
 
 
-@assets_bp.route('/department_qr/<building>/<department>')
-def department_qrcode_image(building, department):
+@assets_bp.route('/department_qr/<branch>/<department>')
+def department_qrcode_image(branch, department):
     """Generate simple QR code for department items"""
     from urllib.parse import unquote
 
-    building = unquote(building)
+    branch = unquote(branch)
     department = unquote(department)
-    png = _png_bytes_department_qrcode(building, department)
+    png = _png_bytes_department_qrcode(branch, department)
     return send_file(BytesIO(png), mimetype='image/png')
 
-@assets_bp.route('/department_items/<building>/<department>')
-def department_items(building, department):
+@assets_bp.route('/department_items/<branch>/<department>')
+def department_items(branch, department):
     # Decode URL-encoded parameters
     from urllib.parse import unquote
-    building = unquote(building)
+    branch = unquote(branch)
     department = unquote(department)
     
     page = int(request.args.get('page', 1))
@@ -501,8 +501,8 @@ def department_items(building, department):
     cur = conn.cursor()
     
     # Build WHERE clause
-    where_clauses = ['building = ?', 'department = ?']
-    params = [building, department]
+    where_clauses = ['branch = ?', 'department = ?']
+    params = [branch, department]
     
     if search_query:
         search_clauses = [
@@ -540,7 +540,7 @@ def department_items(building, department):
     
     return render_template('department_items.html', 
                          assets=assets, 
-                         building=building, 
+                         branch=branch, 
                          department=department,
                          page=page,
                          total_pages=total_pages,
@@ -563,7 +563,7 @@ def qrdata(asset_id):
             'asset_code': asset['asset_code'],
             'name': asset['name'],
             'owner': asset['owner'],
-            'building': asset['building'],
+            'branch': asset['branch'],
             'department': asset['department'],
             'quantity': asset['quantity'],
             'used_status': asset.get('used_status', 'Not Used')
@@ -584,7 +584,7 @@ def archived_qrdata(archived_id):
             'asset_code': asset['asset_code'],
             'name': asset['name'],
             'owner': asset['owner'],
-            'building': asset['building'],
+            'branch': asset['branch'],
             'department': asset['department'],
             'quantity': asset['quantity'],
             'used_status': asset.get('used_status', 'Not Used')
@@ -663,7 +663,7 @@ def asset_info(asset_code):
 def get_assets():
     conn = get_db_connection()
     cur = conn.cursor()
-    cur.execute('SELECT id, name, building, department, asset_code FROM assets')
+    cur.execute('SELECT id, name, branch, department, asset_code FROM assets')
     assets = [dict(zip([desc[0] for desc in cur.description], row)) for row in cur.fetchall()]
     conn.close()
     return jsonify(assets) 
@@ -693,7 +693,7 @@ def archive():
             'name LIKE ?',
             'owner LIKE ?',
             'asset_code LIKE ?',
-            'building LIKE ?',
+            'branch LIKE ?',
             'department LIKE ?',
             'asset_type LIKE ?',
             'archived_by LIKE ?',
@@ -704,7 +704,7 @@ def archive():
         params.extend([search_param] * 8)
     
     where_sql = ('WHERE ' + ' AND '.join(where_clauses)) if where_clauses else ''
-    valid_sort_fields = ['id', 'name', 'quantity', 'owner', 'building', 'department', 'used_status', 'asset_type', 'archived_at', 'archived_by']
+    valid_sort_fields = ['id', 'name', 'quantity', 'owner', 'branch', 'department', 'used_status', 'asset_type', 'archived_at', 'archived_by']
     if sort_by not in valid_sort_fields:
         sort_by = 'archived_at'
     sort_dir = 'desc' if sort_dir == 'desc' else 'asc'
@@ -761,11 +761,11 @@ def restore_asset(archived_id):
             asset_code = archived_asset['asset_code']  # Use the original asset code
             qr_random_code = archived_asset['qr_random_code'] if archived_asset['qr_random_code'] else str(uuid.uuid4())
             cur.execute('''
-                INSERT INTO assets (name, quantity, price, owner, building, department, asset_code, qr_random_code, used_status, asset_type)
+                INSERT INTO assets (name, quantity, price, owner, branch, department, asset_code, qr_random_code, used_status, asset_type)
                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                             ''', (
                     archived_asset['name'], archived_asset['quantity'], archived_asset['price'] if archived_asset['price'] is not None else 0.0, archived_asset['owner'],
-                    archived_asset['building'], archived_asset['department'], asset_code, qr_random_code,
+                    archived_asset['branch'], archived_asset['department'], asset_code, qr_random_code,
                     archived_asset['used_status'], archived_asset['asset_type']
                 ))
         
@@ -822,11 +822,11 @@ def bulk_restore_assets():
                 asset_code = archived_asset['asset_code']  # Use the original asset code
                 qr_random_code = archived_asset['qr_random_code'] if archived_asset['qr_random_code'] else str(uuid.uuid4())
                 cur.execute('''
-                    INSERT INTO assets (name, quantity, price, owner, building, department, asset_code, qr_random_code, used_status, asset_type)
+                    INSERT INTO assets (name, quantity, price, owner, branch, department, asset_code, qr_random_code, used_status, asset_type)
                     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 ''', (
                     archived_asset['name'], archived_asset['quantity'], archived_asset['price'] if archived_asset['price'] is not None else 0.0, archived_asset['owner'],
-                    archived_asset['building'], archived_asset['department'], asset_code, qr_random_code,
+                    archived_asset['branch'], archived_asset['department'], asset_code, qr_random_code,
                     archived_asset['used_status'], archived_asset['asset_type']
                 ))
             
@@ -866,7 +866,7 @@ def permanent_delete_archived_asset(archived_id):
     cur = conn.cursor()
     
     # Get the archived asset data for confirmation
-    cur.execute('SELECT name, building, department FROM archived_assets WHERE id=?', (archived_id,))
+    cur.execute('SELECT name, branch, department FROM archived_assets WHERE id=?', (archived_id,))
     archived_asset = cur.fetchone()
     
     if not archived_asset:
@@ -948,20 +948,20 @@ def get_all_assets_for_export():
         
         # Get all assets with their details
         cur.execute('''
-            SELECT name, asset_code, building, department, quantity, price, used_status, asset_type, owner
+            SELECT name, asset_code, branch, department, quantity, price, used_status, asset_type, owner
             FROM assets 
-            ORDER BY building, department, name
+            ORDER BY branch, department, name
         ''')
         all_assets = cur.fetchall()
         
         # Convert to list of dictionaries
         assets_list = []
         for asset in all_assets:
-            name, asset_code, building, department, quantity, price, status, asset_type, owner = asset
+            name, asset_code, branch, department, quantity, price, status, asset_type, owner = asset
             assets_list.append({
                 'name': name,
                 'asset_code': asset_code,
-                'building': building,
+                'branch': branch,
                 'department': department,
                 'quantity': quantity or 1,
                 'price': price or 0.0,
@@ -1335,15 +1335,15 @@ def qr_label_print_department():
 
     preset = request.args.get('preset', '').strip() or 'label_2x2'
     qr_px_raw = request.args.get('qr_px', '80')
-    building = unquote(request.args.get('building') or '').strip()
+    branch = unquote(request.args.get('branch') or request.args.get('building') or '').strip()
     department = unquote(request.args.get('department') or '').strip()
-    if not building or not department:
+    if not branch or not department:
         abort(400)
 
-    code = normalize_department_display_code(building, department)
-    secondary = f'{department} - {building}'
+    code = normalize_department_display_code(branch, department)
+    secondary = f'{department} - {branch}'
 
-    png = _png_bytes_department_qrcode(building, department)
+    png = _png_bytes_department_qrcode(branch, department)
     conn = get_db_connection()
     items = [(_png_data_uri(png), code, secondary)]
     html = _render_qr_label_html(
@@ -1400,7 +1400,7 @@ def qr_label_print_batch():
                 continue
             tuples.append((_png_data_uri(png), a['asset_code'] or '', a['name'] or ''))
         elif kind == 'department':
-            b = str(block.get('building') or '').strip()
+            b = str(block.get('branch') or block.get('building') or '').strip()
             d = str(block.get('department') or '').strip()
             if not b or not d:
                 continue

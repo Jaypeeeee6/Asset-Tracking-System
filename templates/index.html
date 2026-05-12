@@ -654,10 +654,10 @@
 {% endblock %}
 {% block app_content %}
 {% macro page_href(p) -%}
-?page={{ p }}&sort_by={{ sort_by }}&sort_dir={{ sort_dir }}&building={{ building_filter|urlencode }}&department={{ department_filter|urlencode }}&search={{ request.args.get('search', '')|urlencode }}&status={{ request.args.get('status', '')|urlencode }}&asset_type={{ request.args.get('asset_type', '')|urlencode }}&per_page={{ per_page }}
+?page={{ p }}&sort_by={{ sort_by }}&sort_dir={{ sort_dir }}&branch={{ branch_filter|urlencode }}&department={{ department_filter|urlencode }}&search={{ request.args.get('search', '')|urlencode }}&status={{ request.args.get('status', '')|urlencode }}&asset_type={{ request.args.get('asset_type', '')|urlencode }}&per_page={{ per_page }}
 {%- endmacro %}
 {% macro sort_href(field) -%}
-?sort_by={{ field }}&sort_dir={{ 'desc' if sort_by == field and sort_dir == 'asc' else 'asc' }}&building={{ building_filter|urlencode }}&department={{ department_filter|urlencode }}&search={{ request.args.get('search', '')|urlencode }}&status={{ request.args.get('status', '')|urlencode }}&asset_type={{ request.args.get('asset_type', '')|urlencode }}&per_page={{ per_page }}
+?sort_by={{ field }}&sort_dir={{ 'desc' if sort_by == field and sort_dir == 'asc' else 'asc' }}&branch={{ branch_filter|urlencode }}&department={{ department_filter|urlencode }}&search={{ request.args.get('search', '')|urlencode }}&status={{ request.args.get('status', '')|urlencode }}&asset_type={{ request.args.get('asset_type', '')|urlencode }}&per_page={{ per_page }}
 {%- endmacro %}
 <div class="asset-dashboard">
     <!-- Flash Messages -->
@@ -708,8 +708,8 @@
         </div>
         <div class="col-sm-6 col-xl-3">
             <div class="stat-card teal">
-                <div class="stat-label">Buildings</div>
-                <div class="stat-value">{{ chart_data.building_counts|length }}</div>
+                <div class="stat-label">Branches</div>
+                <div class="stat-value">{{ chart_data.branch_counts|length }}</div>
                 <div class="stat-sub">Locations tracked</div>
                 <i class="bi bi-building stat-icon"></i>
             </div>
@@ -734,10 +734,10 @@
                        autocomplete="off">
             </div>
             <div class="filter-group">
-                <select id="buildingFilter" name="building" aria-label="Building">
-                    <option value="">All Buildings</option>
-                    {% for b in buildings %}
-                        <option value="{{ b }}" {% if b == building_filter %}selected{% endif %}>{{ b }}</option>
+                <select id="branchFilter" name="branch" aria-label="Branch">
+                    <option value="">All Branches</option>
+                    {% for b in branches %}
+                        <option value="{{ b }}" {% if b == branch_filter %}selected{% endif %}>{{ b }}</option>
                     {% endfor %}
                 </select>
             </div>
@@ -808,7 +808,7 @@
                 <th><a href="{{ url_for('assets.dashboard') }}{{ sort_href('quantity') }}">Quantity{% if sort_by == 'quantity' %} {% if sort_dir == 'asc' %}▲{% else %}▼{% endif %}{% endif %}</a></th>
                 <th><a href="{{ url_for('assets.dashboard') }}{{ sort_href('price') }}">Total Value (OMR){% if sort_by == 'price' %} {% if sort_dir == 'asc' %}▲{% else %}▼{% endif %}{% endif %}</a></th>
                 <th><a href="{{ url_for('assets.dashboard') }}{{ sort_href('owner') }}">Owner{% if sort_by == 'owner' %} {% if sort_dir == 'asc' %}▲{% else %}▼{% endif %}{% endif %}</a></th>
-                <th><a href="{{ url_for('assets.dashboard') }}{{ sort_href('building') }}">Building{% if sort_by == 'building' %} {% if sort_dir == 'asc' %}▲{% else %}▼{% endif %}{% endif %}</a></th>
+                <th><a href="{{ url_for('assets.dashboard') }}{{ sort_href('branch') }}">Branch{% if sort_by == 'branch' %} {% if sort_dir == 'asc' %}▲{% else %}▼{% endif %}{% endif %}</a></th>
                 <th><a href="{{ url_for('assets.dashboard') }}{{ sort_href('department') }}">Department/Section{% if sort_by == 'department' %} {% if sort_dir == 'asc' %}▲{% else %}▼{% endif %}{% endif %}</a></th>
                 <th><a href="{{ url_for('assets.dashboard') }}{{ sort_href('used_status') }}">Status{% if sort_by == 'used_status' %} {% if sort_dir == 'asc' %}▲{% else %}▼{% endif %}{% endif %}</a></th>
                 <th>QR CODE</th>
@@ -839,7 +839,7 @@
                     </div>
                 </td>
                 <td>{{ asset.owner }}</td>
-                <td>{{ asset.building }}</td>
+                <td>{{ asset.branch }}</td>
                 <td>{{ asset.department }}</td>
                 <td>
                     <select class="form-select form-select-sm status-select" data-asset-id="{{ asset.id }}" style="min-width: 120px;">
@@ -873,7 +873,7 @@
                             data-asset-quantity="{{ asset.quantity }}"
                             data-asset-price="{{ asset.price or 0.0 }}"
                             data-asset-owner="{{ asset.owner }}"
-                            data-asset-building="{{ asset.building }}"
+                            data-asset-branch="{{ asset.branch }}"
                             data-asset-department="{{ asset.department }}"
                             data-asset-status="{{ asset.used_status }}"
                             data-bs-toggle="modal"
@@ -968,7 +968,7 @@
         <div class="modal-body" style="overflow-y: auto; max-height: 70vh;">
           <div class="alert alert-info mb-3">
             <i class="fas fa-info-circle"></i> 
-            <strong>Need to add buildings, departments, users, or asset names?</strong> 
+            <strong>Need to add branches, departments, users, or asset names?</strong> 
             Use the management buttons on the main page to set up your infrastructure first. You can select multiple asset names from the same asset type. Each selected asset name will be added as a separate asset in the table. Asset names must be predefined in the "Manage Assets" section.
           </div>
             <div class="mb-3">
@@ -1000,15 +1000,15 @@
                 </div>
             </div>
             <div class="mb-3">
-                <label for="building" class="form-label">Building</label>
-                <select class="form-select" id="building" name="building" required>
-                    <option value="">Select Building</option>
+                <label for="branch" class="form-label">Branch</label>
+                <select class="form-select" id="branch" name="branch" required>
+                    <option value="">Select Branch</option>
                 </select>
             </div>
             <div class="mb-3">
                 <label for="department" class="form-label">Department/Section</label>
                 <select class="form-select" id="department" name="department" required>
-                    <option value="">Select Building First</option>
+                    <option value="">Select Branch First</option>
                 </select>
             </div>
             <div class="mb-3">
@@ -1084,15 +1084,15 @@
                 </div>
             </div>
             <div class="mb-3">
-                <label for="edit_building" class="form-label">Building</label>
-                <select class="form-select" id="edit_building" name="building" required>
-                    <option value="">Select Building</option>
+                <label for="edit_branch" class="form-label">Branch</label>
+                <select class="form-select" id="edit_branch" name="branch" required>
+                    <option value="">Select Branch</option>
                 </select>
             </div>
             <div class="mb-3">
                 <label for="edit_department" class="form-label">Department/Section</label>
                 <select class="form-select" id="edit_department" name="department" required>
-                    <option value="">Select Building First</option>
+                    <option value="">Select Branch First</option>
                 </select>
             </div>
             <div class="mb-3">
@@ -1153,29 +1153,29 @@
   </div>
 </div>
 
-<!-- Building Management Modal -->
-<div class="modal fade" id="buildingManagementModal" tabindex="-1" aria-labelledby="buildingManagementModalLabel" aria-hidden="true">
+<!-- Branch Management Modal -->
+<div class="modal fade" id="branchManagementModal" tabindex="-1" aria-labelledby="branchManagementModalLabel" aria-hidden="true">
   <div class="modal-dialog modal-lg" style="max-width: 70%;">
     <div class="modal-content">
       <div class="modal-header">
-        <h5 class="modal-title" id="buildingManagementModalLabel">Manage Buildings</h5>
+        <h5 class="modal-title" id="branchManagementModalLabel">Manage Branches</h5>
         <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
       </div>
       <div class="modal-body" style="overflow-y: auto; max-height: 70vh;">
-        <!-- Add New Building Form -->
+        <!-- Add New Branch Form -->
         <div class="mb-4">
-          <h6>Add New Building</h6>
+          <h6>Add New Branch</h6>
           <div class="input-group">
-            <input type="text" class="form-control" id="newBuildingName" placeholder="Enter building name" maxlength="100">
-            {{ qc_add_button('Add', button_id='addBuildingBtn') }}
+            <input type="text" class="form-control" id="newBranchName" placeholder="Enter branch name" maxlength="100">
+            {{ qc_add_button('Add', button_id='addBranchBtn') }}
           </div>
         </div>
         
-        <!-- Buildings List -->
+        <!-- Branches List -->
         <div>
-          <h6>Existing Buildings</h6>
-          <div id="buildingsList" class="list-group" style="max-height: 400px; overflow-y: auto;">
-            <!-- Buildings will be loaded here -->
+          <h6>Existing Branches</h6>
+          <div id="branchesList" class="list-group" style="max-height: 400px; overflow-y: auto;">
+            <!-- Branches will be loaded here -->
           </div>
         </div>
       </div>
@@ -1203,8 +1203,8 @@
                 <h6>Add New Department</h6>
                 <div class="row">
                   <div class="col-md-4">
-                    <select class="form-select" id="newDepartmentBuilding" required>
-                      <option value="">Select Building</option>
+                    <select class="form-select" id="newDepartmentBranch" required>
+                      <option value="">Select Branch</option>
                     </select>
                   </div>
                   <div class="col-md-6">
@@ -1220,9 +1220,9 @@
               <div>
                 <h6>Existing Departments</h6>
                 <div class="mb-3">
-                  <label for="departmentFilterBuilding" class="form-label">Filter by Building:</label>
-                  <select class="form-select" id="departmentFilterBuilding">
-                    <option value="">All Buildings</option>
+                  <label for="departmentFilterBranch" class="form-label">Filter by Branch:</label>
+                  <select class="form-select" id="departmentFilterBranch">
+                    <option value="">All Branches</option>
                   </select>
                 </div>
                 <div id="departmentsList" class="list-group" style="max-height: 400px; overflow-y: auto;">
@@ -1250,7 +1250,7 @@
       <div class="modal-body" style="overflow-y: auto; max-height: calc(90vh - 120px);">
         <div class="alert alert-info">
           <i class="fas fa-info-circle"></i>
-          <strong>Department QR Codes:</strong> Each QR code shows all items for that specific department and building combination.
+          <strong>Department QR Codes:</strong> Each QR code shows all items for that specific department and branch combination.
         </div>
         <div id="departmentQRList" class="row">
           <!-- Department QR codes will be loaded here -->
@@ -1313,15 +1313,15 @@
           <h6><i class="fas fa-user-plus"></i> Register New User</h6>
           <div class="row mb-2">
             <div class="col-md-4">
-              <label for="userModalBuilding" class="form-label">Building</label>
-              <select class="form-select" id="userModalBuilding" required>
-                <option value="">Select Building</option>
+              <label for="userModalBranch" class="form-label">Branch</label>
+              <select class="form-select" id="userModalBranch" required>
+                <option value="">Select Branch</option>
               </select>
             </div>
             <div class="col-md-4">
               <label for="userModalDepartment" class="form-label">Department</label>
               <select class="form-select" id="userModalDepartment" required>
-                <option value="">Select Building First</option>
+                <option value="">Select Branch First</option>
               </select>
             </div>
             <div class="col-md-4">
@@ -1341,15 +1341,15 @@
           <h6><i class="fas fa-users"></i> Bulk Add Users</h6>
           <div class="row mb-2">
             <div class="col-md-6">
-              <label for="bulkUserModalBuilding" class="form-label">Building</label>
-              <select class="form-select" id="bulkUserModalBuilding" required>
-                <option value="">Select Building</option>
+              <label for="bulkUserModalBranch" class="form-label">Branch</label>
+              <select class="form-select" id="bulkUserModalBranch" required>
+                <option value="">Select Branch</option>
               </select>
             </div>
             <div class="col-md-6">
               <label for="bulkUserModalDepartment" class="form-label">Department</label>
               <select class="form-select" id="bulkUserModalDepartment" required>
-                <option value="">Select Building First</option>
+                <option value="">Select Branch First</option>
               </select>
             </div>
           </div>
@@ -1538,24 +1538,24 @@
 </div>
 
     <!-- Management Modals -->
-    <!-- Manage Buildings Modal -->
-    <div class="modal fade" id="manageBuildingsModal" tabindex="-1" aria-labelledby="manageBuildingsModalLabel" aria-hidden="true">
+    <!-- Manage Branches Modal -->
+    <div class="modal fade" id="manageBranchesModal" tabindex="-1" aria-labelledby="manageBranchesModalLabel" aria-hidden="true">
         <div class="modal-dialog modal-lg">
             <div class="modal-content">
                 <div class="modal-header">
-                    <h5 class="modal-title" id="manageBuildingsModalLabel">
-                        <i class="fas fa-building"></i> Manage Buildings
+                    <h5 class="modal-title" id="manageBranchesModalLabel">
+                        <i class="fas fa-building"></i> Manage Branches
                     </h5>
                     <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                 </div>
                 <div class="modal-body">
                     <div class="text-center">
                         <i class="fas fa-building fa-3x text-primary mb-3"></i>
-                        <h4>Building Management</h4>
-                        <p class="text-muted">Add, edit, and manage building information</p>
+                        <h4>Branch Management</h4>
+                        <p class="text-muted">Add, edit, and manage branch information</p>
                         <div class="alert alert-info">
                             <i class="fas fa-info-circle"></i>
-                            Building management functionality will be implemented here.
+                            Branch management functionality will be implemented here.
                         </div>
                     </div>
                 </div>
@@ -1675,35 +1675,35 @@
                  </div>
                </div>
 
-        <!-- Building Analysis -->
+        <!-- Branch Analysis -->
         <div class="row mb-4">
           <div class="col-md-6">
             <div class="card">
                                    <div class="card-header d-flex justify-content-between align-items-center">
-                       <h6 class="mb-0"><i class="fas fa-building"></i> Total Value by Building</h6>
+                       <h6 class="mb-0"><i class="fas fa-building"></i> Total Value by Branch</h6>
                        <div class="d-flex align-items-center">
                          <label class="form-label me-2 mb-0 price-analysis-filter-label">Filter by:</label>
-                         <select class="form-select form-select-sm price-analysis-filter-select" style="width: auto;" onchange="filterBuildingTable(this.value)">
-                           <option value="">All Buildings</option>
-                           {% for building in chart_data.building_prices.keys() %}
-                           <option value="{{ building }}">{{ building }}</option>
+                         <select class="form-select form-select-sm price-analysis-filter-select" style="width: auto;" onchange="filterBranchTable(this.value)">
+                           <option value="">All Branches</option>
+                           {% for branch_name in chart_data.branch_prices.keys() %}
+                           <option value="{{ branch_name }}">{{ branch_name }}</option>
                            {% endfor %}
                          </select>
                        </div>
                      </div>
               <div class="card-body">
                 <div class="table-responsive">
-                  <table class="table table-striped table-sm" id="buildingTable">
+                  <table class="table table-striped table-sm" id="branchTable">
                     <thead>
                       <tr>
-                        <th>Building</th>
+                        <th>Branch</th>
                         <th class="text-end">Total Value (OMR)</th>
                       </tr>
                     </thead>
                     <tbody>
-                      {% for building, value in chart_data.building_prices.items() %}
-                      <tr data-building="{{ building }}" data-value="{{ value }}">
-                        <td><strong>{{ building }}</strong></td>
+                      {% for branch_name, value in chart_data.branch_prices.items() %}
+                      <tr data-branch="{{ branch_name }}" data-value="{{ value }}">
+                        <td><strong>{{ branch_name }}</strong></td>
                         <td class="text-end"><span class="badge bg-success">{{ "%.3f"|format(value) }}</span></td>
                       </tr>
                       {% endfor %}
@@ -1724,8 +1724,8 @@
                          <select class="form-select form-select-sm price-analysis-filter-select" style="width: auto;" onchange="filterDepartmentTable(this.value)">
                            <option value="">All Departments</option>
                            {% for dept_key in chart_data.department_prices.keys() %}
-                           {% set building, department = dept_key.split('-', 1) %}
-                           <option value="{{ building }}-{{ department }}">{{ building }} - {{ department }}</option>
+                           {% set branch_name, department = dept_key.split('-', 1) %}
+                           <option value="{{ branch_name }}-{{ department }}">{{ branch_name }} - {{ department }}</option>
                            {% endfor %}
                          </select>
                        </div>
@@ -1741,9 +1741,9 @@
                     </thead>
                     <tbody>
                       {% for dept_key, value in chart_data.department_prices.items() %}
-                      {% set building, department = dept_key.split('-', 1) %}
+                      {% set branch_name, department = dept_key.split('-', 1) %}
                       <tr>
-                        <td><strong>{{ building }} - {{ department }}</strong></td>
+                        <td><strong>{{ branch_name }} - {{ department }}</strong></td>
                         <td class="text-end"><span class="badge bg-info">{{ "%.3f"|format(value) }}</span></td>
                       </tr>
                       {% endfor %}
@@ -1765,8 +1765,8 @@
                          <label class="form-label me-2 mb-0 price-analysis-filter-label">Filter by:</label>
                          <select class="form-select form-select-sm price-analysis-filter-select" style="width: auto;" onchange="filterAssetTable(this.value)">
                            <option value="">All Assets</option>
-                           {% for building in chart_data.building_prices.keys() %}
-                           <option value="{{ building }}">{{ building }}</option>
+                           {% for branch_name in chart_data.branch_prices.keys() %}
+                           <option value="{{ branch_name }}">{{ branch_name }}</option>
                            {% endfor %}
                          </select>
                        </div>
@@ -1777,7 +1777,7 @@
                     <thead>
                       <tr>
                         <th>Asset Name</th>
-                        <th>Building</th>
+                        <th>Branch</th>
                         <th>Department</th>
                         <th>Quantity</th>
                         <th>Unit Price (OMR)</th>
@@ -1788,7 +1788,7 @@
                       {% for asset in assets %}
                       <tr>
                         <td><strong>{{ asset.name }}</strong><br><small class="text-muted">{{ asset.asset_code }}</small></td>
-                        <td>{{ asset.building }}</td>
+                        <td>{{ asset.branch }}</td>
                         <td>{{ asset.department }}</td>
                         <td>{{ asset.quantity }}</td>
                         <td>{{ "%.3f"|format(asset.price or 0.0) }}</td>
@@ -1835,6 +1835,11 @@
 {% block extra_scripts %}
 <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 <script>
+window.chartData = {
+        branchCounts: {{ chart_data.branch_counts|tojson }},
+        totalSystemValue: {{ chart_data.total_system_value }}
+    };
+
 /**
  * ASSET TRACKING SYSTEM - MAIN JAVASCRIPT
  * ========================================
@@ -1844,7 +1849,7 @@
  * 
  * 1. GLOBAL VARIABLES - Shared state across functions
  * 2. DATA LOADING - Functions to fetch and cache data
- * 3. BUILDING MANAGEMENT - CRUD operations for buildings
+ * 3. BRANCH MANAGEMENT - CRUD operations for branches
  * 4. DEPARTMENT MANAGEMENT - CRUD operations for departments
  * 5. USER MANAGEMENT - CRUD operations for users
  * 6. QR CODE FUNCTIONALITY - QR generation and display
@@ -1863,7 +1868,7 @@
 // ============================================================================
 // GLOBAL VARIABLES & STATE MANAGEMENT
 // ============================================================================
-let buildingsData = [];
+let branchesData = [];
 let departmentsData = [];
 let selectedAssets = [];
 /** Server print layout preset (2 in × 2 in labels); must match qr_label_layouts.preset_key */
@@ -1877,21 +1882,21 @@ const QR_LABEL_PRESET = 'label_2x2';
 // ============================================================================
 
     /**
-     * Load buildings from database and update all related UI components
-     * Called on page load and after building operations
+     * Load branches from database and update all related UI components
+     * Called on page load and after branch operations
      */
-    function loadBuildings() {
-        fetch('/admin/buildings')
+    function loadBranches() {
+        fetch('/admin/branches')
             .then(response => response.json())
             .then(data => {
-                buildingsData = data;
-                updateBuildingDropdown();
-                updateBuildingsList();
-                updateDepartmentBuildingDropdown();
+                branchesData = data;
+                updateBranchDropdown();
+                updateBranchesList();
+                updateDepartmentBranchDropdown();
             })
             .catch(error => {
-                console.error('Error loading buildings:', error);
-                alert('Failed to load buildings. Please refresh the page.');
+                console.error('Error loading branches:', error);
+                alert('Failed to load branches. Please refresh the page.');
             });
     }
 
@@ -1912,14 +1917,14 @@ const QR_LABEL_PRESET = 'label_2x2';
     }
 
 // ============================================================================
-// BUILDING MANAGEMENT FUNCTIONS
+// BRANCH MANAGEMENT FUNCTIONS
 // ============================================================================
 
-    // Update building dropdown options
-    function updateBuildingDropdown() {
-        const buildingSelect = document.getElementById('building');
-        buildingSelect.innerHTML = '<option value="">Select Building</option>';
-        buildingsData.forEach(building => {
+    // Update branch dropdown options
+    function updateBranchDropdown() {
+        const buildingSelect = document.getElementById('branch');
+        buildingSelect.innerHTML = '<option value="">Select Branch</option>';
+        branchesData.forEach(building => {
             const option = document.createElement('option');
             option.value = building.name;
             option.textContent = building.name;
@@ -1927,11 +1932,11 @@ const QR_LABEL_PRESET = 'label_2x2';
         });
     }
 
-    // Update department building dropdown in management modal
-    function updateDepartmentBuildingDropdown() {
-        const select = document.getElementById('newDepartmentBuilding');
-        select.innerHTML = '<option value="">Select Building</option>';
-        buildingsData.forEach(building => {
+    // Update department branch dropdown in management modal
+    function updateDepartmentBranchDropdown() {
+        const select = document.getElementById('newDepartmentBranch');
+        select.innerHTML = '<option value="">Select Branch</option>';
+        branchesData.forEach(building => {
             const option = document.createElement('option');
             option.value = building.id;
             option.textContent = building.name;
@@ -1939,35 +1944,35 @@ const QR_LABEL_PRESET = 'label_2x2';
         });
     }
 
-    // Update buildings list in management modal
-    function updateBuildingsList() {
-        const buildingsList = document.getElementById('buildingsList');
-        buildingsList.innerHTML = '';
+    // Update branches list in management modal
+    function updateBranchesList() {
+        const branchesList = document.getElementById('branchesList');
+        branchesList.innerHTML = '';
         
-        buildingsData.forEach(building => {
+        branchesData.forEach(building => {
             const listItem = document.createElement('div');
             listItem.className = 'list-group-item d-flex justify-content-between align-items-center';
             listItem.innerHTML = `
-                <span class="building-name" data-id="${building.id}">${building.name}</span>
+                <span class="branch-name" data-id="${building.id}">${building.name}</span>
                 <div>
-                    <button class="btn btn-sm btn-outline-primary edit-building-btn me-2" data-id="${building.id}" data-name="${building.name}">
+                    <button class="btn btn-sm btn-outline-primary edit-branch-btn me-2" data-id="${building.id}" data-name="${building.name}">
                         <i class="fas fa-edit"></i> Edit
                     </button>
-                    <button class="btn btn-sm btn-outline-danger delete-building-btn" data-id="${building.id}" data-name="${building.name}">
+                    <button class="btn btn-sm btn-outline-danger delete-branch-btn" data-id="${building.id}" data-name="${building.name}">
                         <i class="fas fa-trash"></i> Delete
                     </button>
                 </div>
             `;
-            buildingsList.appendChild(listItem);
+            branchesList.appendChild(listItem);
         });
 
         // Add event listeners for edit and delete buttons
-        document.querySelectorAll('.edit-building-btn').forEach(btn => {
-            btn.addEventListener('click', handleEditBuilding);
+        document.querySelectorAll('.edit-branch-btn').forEach(btn => {
+            btn.addEventListener('click', handleEditBranch);
         });
         
-        document.querySelectorAll('.delete-building-btn').forEach(btn => {
-            btn.addEventListener('click', handleDeleteBuilding);
+        document.querySelectorAll('.delete-branch-btn').forEach(btn => {
+            btn.addEventListener('click', handleDeleteBranch);
         });
     }
 
@@ -1978,7 +1983,7 @@ const QR_LABEL_PRESET = 'label_2x2';
     // Update departments list in management modal
     function updateDepartmentsList() {
         const departmentsList = document.getElementById('departmentsList');
-        const filterSelect = document.getElementById('departmentFilterBuilding');
+        const filterSelect = document.getElementById('departmentFilterBranch');
         const selectedBuilding = filterSelect ? filterSelect.value : '';
         
         departmentsList.innerHTML = '';
@@ -1986,7 +1991,7 @@ const QR_LABEL_PRESET = 'label_2x2';
         // Filter departments based on selected building
         let filteredDepartments = departmentsData;
         if (selectedBuilding) {
-            filteredDepartments = departmentsData.filter(dept => dept.building_name === selectedBuilding);
+            filteredDepartments = departmentsData.filter(dept => dept.branch_name === selectedBuilding);
         }
         
         if (filteredDepartments.length === 0) {
@@ -1997,10 +2002,10 @@ const QR_LABEL_PRESET = 'label_2x2';
         // Group departments by building
         const departmentsByBuilding = {};
         filteredDepartments.forEach(department => {
-            if (!departmentsByBuilding[department.building_name]) {
-                departmentsByBuilding[department.building_name] = [];
+            if (!departmentsByBuilding[department.branch_name]) {
+                departmentsByBuilding[department.branch_name] = [];
             }
-            departmentsByBuilding[department.building_name].push(department);
+            departmentsByBuilding[department.branch_name].push(department);
         });
         
         // Create organized list
@@ -2019,19 +2024,19 @@ const QR_LABEL_PRESET = 'label_2x2';
                 listItem.innerHTML = `
                     <div>
                         <span class="department-name fw-bold" data-id="${department.id}">${department.name}</span>
-                        ${selectedBuilding ? '' : `<small class="text-muted d-block"><i class="fas fa-building"></i> ${department.building_name}</small>`}
+                        ${selectedBuilding ? '' : `<small class="text-muted d-block"><i class="fas fa-building"></i> ${department.branch_name}</small>`}
                     </div>
                     <div>
                         <button class="btn btn-sm btn-outline-primary edit-department-btn me-2" 
                                 data-id="${department.id}" 
                                 data-name="${department.name}"
-                                data-building="${department.building_name}">
+                                data-branch="${department.branch_name}">
                             <i class="fas fa-edit"></i> Edit
                         </button>
                         <button class="btn btn-sm btn-outline-danger delete-department-btn" 
                                 data-id="${department.id}" 
                                 data-name="${department.name}"
-                                data-building="${department.building_name}">
+                                data-branch="${department.branch_name}">
                             <i class="fas fa-trash"></i> Delete
                         </button>
                     </div>
@@ -2052,12 +2057,12 @@ const QR_LABEL_PRESET = 'label_2x2';
 
     // Update department filter dropdown
     function updateDepartmentFilterDropdown() {
-        const filterSelect = document.getElementById('departmentFilterBuilding');
+        const filterSelect = document.getElementById('departmentFilterBranch');
         if (!filterSelect) return;
         
-        filterSelect.innerHTML = '<option value="">All Buildings</option>';
+        filterSelect.innerHTML = '<option value="">All Branches</option>';
         
-        const uniqueBuildings = [...new Set(departmentsData.map(dept => dept.building_name))].sort();
+        const uniqueBuildings = [...new Set(departmentsData.map(dept => dept.branch_name))].sort();
         uniqueBuildings.forEach(building => {
             const option = document.createElement('option');
             option.value = building;
@@ -2087,21 +2092,21 @@ const QR_LABEL_PRESET = 'label_2x2';
             colDiv.innerHTML = `
                 <div class="card h-100">
                     <div class="card-body text-center">
-                        <h6 class="card-title text-primary">MAA-${department.building_name.replace(/\s+/g, '').toUpperCase()}-${department.name.replace(/\s+/g, '').toUpperCase()}</h6>
-                        <p class="card-text text-muted small">${department.building_name} - ${department.name}</p>
+                        <h6 class="card-title text-primary">MAA-${department.branch_name.replace(/\s+/g, '').toUpperCase()}-${department.name.replace(/\s+/g, '').toUpperCase()}</h6>
+                        <p class="card-text text-muted small">${department.branch_name} - ${department.name}</p>
                         <div class="mb-3">
-                            <img src="/assets/department_qr/${encodeURIComponent(department.building_name)}/${encodeURIComponent(department.name)}" 
+                            <img src="/assets/department_qr/${encodeURIComponent(department.branch_name)}/${encodeURIComponent(department.name)}" 
                                  alt="QR Code for ${department.name}" 
                                  class="img-fluid" 
                                  style="max-width: 120px; height: auto;">
                         </div>
                         <button class="btn btn-sm btn-outline-primary view-dept-qr-btn" 
-                                data-building="${department.building_name}" 
+                                data-branch="${department.branch_name}" 
                                 data-department="${department.name}">
                             <i class="fas fa-eye"></i> View Large
                         </button>
                         <button class="btn btn-sm btn-outline-success print-dept-qr-btn" 
-                                data-building="${department.building_name}" 
+                                data-branch="${department.branch_name}" 
                                 data-department="${department.name}">
                             <i class="fas fa-print"></i> Print
                         </button>
@@ -2123,7 +2128,7 @@ const QR_LABEL_PRESET = 'label_2x2';
 
     // Handle viewing department QR code in large size
     function handleViewDepartmentQR(e) {
-        const building = e.currentTarget.getAttribute('data-building');
+        const building = e.currentTarget.getAttribute('data-branch');
         const department = e.currentTarget.getAttribute('data-department');
         
         // Use the new department QR modal
@@ -2132,11 +2137,11 @@ const QR_LABEL_PRESET = 'label_2x2';
 
     // Handle printing department QR code
     function handlePrintDepartmentQR(e) {
-        const building = e.currentTarget.getAttribute('data-building');
+        const building = e.currentTarget.getAttribute('data-branch');
         const department = e.currentTarget.getAttribute('data-department');
         if (!building || !department) return;
         var qs = 'preset=' + encodeURIComponent(QR_LABEL_PRESET)
-            + '&building=' + encodeURIComponent(building)
+            + '&branch=' + encodeURIComponent(building)
             + '&department=' + encodeURIComponent(department)
             + '&print=0&nocache=' + Date.now();
         window.open('/assets/qr-label-print/department?' + qs, '_blank', 'noopener');
@@ -2153,7 +2158,7 @@ const QR_LABEL_PRESET = 'label_2x2';
             return;
         }
         var items = departmentsData.map(function (d) {
-            return { kind: 'department', building: d.building_name, department: d.name };
+            return { kind: 'department', branch: d.branch_name, department: d.name };
         });
         fetchServerQrBatchPrint({
             preset: QR_LABEL_PRESET,
@@ -2176,7 +2181,7 @@ const QR_LABEL_PRESET = 'label_2x2';
             return;
         }
         var items = departmentsData.map(function (d) {
-            return { kind: 'department', building: d.building_name, department: d.name };
+            return { kind: 'department', branch: d.branch_name, department: d.name };
         });
         fetchServerQrBatchPrint({
             preset: QR_LABEL_PRESET,
@@ -2224,16 +2229,16 @@ const QR_LABEL_PRESET = 'label_2x2';
 
         // Add each department QR code
         departmentsData.forEach(dept => {
-            const departmentCode = `MAA-${dept.building_name.replace(/\s+/g, '').toUpperCase()}-${dept.name.replace(/\s+/g, '').toUpperCase()}`;
+            const departmentCode = `MAA-${dept.branch_name.replace(/\s+/g, '').toUpperCase()}-${dept.name.replace(/\s+/g, '').toUpperCase()}`;
             pdfContent += `
                 <div class="qr-item">
                     <div class="qr-code">
-                        <img src="/assets/department_qr/${encodeURIComponent(dept.building_name)}/${encodeURIComponent(dept.name)}" 
+                        <img src="/assets/department_qr/${encodeURIComponent(dept.branch_name)}/${encodeURIComponent(dept.name)}" 
                              alt="QR Code for ${dept.name}" 
                              style="width: 120px; height: 120px;">
                     </div>
                     <div class="qr-label">${departmentCode}</div>
-                    <div class="qr-subtitle">${dept.name} - ${dept.building_name}</div>
+                    <div class="qr-subtitle">${dept.name} - ${dept.branch_name}</div>
                 </div>
             `;
         });
@@ -2260,23 +2265,23 @@ const QR_LABEL_PRESET = 'label_2x2';
     }
 
 // ============================================================================
-// EVENT LISTENERS - BUILDING MANAGEMENT
+// EVENT LISTENERS - BRANCH MANAGEMENT
 // ============================================================================
 
-    // Handle adding new building
-    document.getElementById('addBuildingBtn').addEventListener('click', function() {
-        const nameInput = document.getElementById('newBuildingName');
+    // Handle adding new branch
+    document.getElementById('addBranchBtn').addEventListener('click', function() {
+        const nameInput = document.getElementById('newBranchName');
         const name = nameInput.value.trim();
         
         if (!name) {
-            alert('Please enter a building name.');
+            alert('Please enter a branch name.');
             return;
         }
 
         const formData = new FormData();
         formData.append('name', name);
 
-        fetch('/admin/buildings', {
+        fetch('/admin/branches', {
             method: 'POST',
             body: formData
         })
@@ -2284,14 +2289,14 @@ const QR_LABEL_PRESET = 'label_2x2';
         .then(data => {
             if (data.success) {
                 nameInput.value = '';
-                loadBuildings(); // Reload the buildings list
+                loadBranches(); // Reload the buildings list
             } else {
-                alert(data.error || 'Failed to add building.');
+                alert(data.error || 'Failed to add branch.');
             }
         })
         .catch(error => {
             console.error('Error:', error);
-            alert('Failed to add building.');
+            alert('Failed to add branch.');
         });
     });
 
@@ -2749,7 +2754,7 @@ const QR_LABEL_PRESET = 'label_2x2';
     // Handle adding new department
     document.getElementById('addDepartmentBtn').addEventListener('click', function() {
         const nameInput = document.getElementById('newDepartmentName');
-        const buildingSelect = document.getElementById('newDepartmentBuilding');
+        const buildingSelect = document.getElementById('newDepartmentBranch');
         const name = nameInput.value.trim();
         const buildingId = buildingSelect.value;
         
@@ -2759,13 +2764,13 @@ const QR_LABEL_PRESET = 'label_2x2';
         }
 
         if (!buildingId) {
-            alert('Please select a building.');
+            alert('Please select a branch.');
             return;
         }
 
         const formData = new FormData();
         formData.append('name', name);
-        formData.append('building_id', buildingId);
+        formData.append('branch_id', buildingId);
 
         fetch('/admin/departments', {
             method: 'POST',
@@ -2798,11 +2803,11 @@ const QR_LABEL_PRESET = 'label_2x2';
     document.getElementById('addUserModalBtn').addEventListener('click', handleAddUserModal);
     document.getElementById('addBulkUsersModalBtn').addEventListener('click', handleAddBulkUsersModal);
     
-    document.getElementById('userModalBuilding').addEventListener('change', function() {
+    document.getElementById('userModalBranch').addEventListener('change', function() {
         updateUserModalDepartments(this.value);
     });
     
-    document.getElementById('bulkUserModalBuilding').addEventListener('change', function() {
+    document.getElementById('bulkUserModalBranch').addEventListener('change', function() {
         updateBulkUserModalDepartments(this.value);
     });
     
@@ -2930,32 +2935,32 @@ const QR_LABEL_PRESET = 'label_2x2';
             });
     }
 
-    // Handle editing building
-    function handleEditBuilding(e) {
+    // Handle editing branch
+    function handleEditBranch(e) {
         const buildingId = e.currentTarget.getAttribute('data-id');
         const currentName = e.currentTarget.getAttribute('data-name');
-        const newName = prompt('Enter new building name:', currentName);
+        const newName = prompt('Enter new branch name:', currentName);
         
         if (newName && newName.trim() !== currentName) {
             const formData = new FormData();
             formData.append('name', newName.trim());
 
-            fetch(`/admin/buildings/${buildingId}`, {
+            fetch(`/admin/branches/${buildingId}`, {
                 method: 'PUT',
                 body: formData
             })
             .then(response => response.json())
             .then(data => {
                 if (data.success) {
-                    loadBuildings(); // Reload the buildings list
-                    loadDepartments(); // Reload departments list to update building names
+                    loadBranches(); // Reload the buildings list
+                    loadDepartments(); // Reload departments list to update branch names
                 } else {
-                    alert(data.error || 'Failed to update building.');
+                    alert(data.error || 'Failed to update branch.');
                 }
             })
             .catch(error => {
                 console.error('Error:', error);
-                alert('Failed to update building.');
+                alert('Failed to update branch.');
             });
         }
     }
@@ -2964,7 +2969,7 @@ const QR_LABEL_PRESET = 'label_2x2';
     function handleEditDepartment(e) {
         const departmentId = e.currentTarget.getAttribute('data-id');
         const currentName = e.currentTarget.getAttribute('data-name');
-        const buildingName = e.currentTarget.getAttribute('data-building');
+        const buildingName = e.currentTarget.getAttribute('data-branch');
         
         const newName = prompt(`Edit department name for "${buildingName}":\n\nCurrent name: ${currentName}\nEnter new name:`, currentName);
         
@@ -2991,27 +2996,27 @@ const QR_LABEL_PRESET = 'label_2x2';
         }
     }
 
-    // Handle deleting building
-    function handleDeleteBuilding(e) {
+    // Handle deleting branch
+    function handleDeleteBranch(e) {
         const buildingId = e.currentTarget.getAttribute('data-id');
         const buildingName = e.currentTarget.getAttribute('data-name');
         
         if (confirm(`Are you sure you want to delete "${buildingName}"? This will also delete all its departments.`)) {
-            fetch(`/admin/buildings/${buildingId}`, {
+            fetch(`/admin/branches/${buildingId}`, {
                 method: 'DELETE'
             })
             .then(response => response.json())
             .then(data => {
                 if (data.success) {
-                    loadBuildings(); // Reload the buildings list
+                    loadBranches(); // Reload the buildings list
                     loadDepartments(); // Reload departments list
                 } else {
-                    alert(data.error || 'Failed to delete building.');
+                    alert(data.error || 'Failed to delete branch.');
                 }
             })
             .catch(error => {
                 console.error('Error:', error);
-                alert('Failed to delete building.');
+                alert('Failed to delete branch.');
             });
         }
     }
@@ -3020,7 +3025,7 @@ const QR_LABEL_PRESET = 'label_2x2';
     function handleDeleteDepartment(e) {
         const departmentId = e.currentTarget.getAttribute('data-id');
         const departmentName = e.currentTarget.getAttribute('data-name');
-        const buildingName = e.currentTarget.getAttribute('data-building');
+        const buildingName = e.currentTarget.getAttribute('data-branch');
         
         if (confirm(`Are you sure you want to delete "${departmentName}" from "${buildingName}"?`)) {
             fetch(`/admin/departments/${departmentId}`, {
@@ -3241,19 +3246,19 @@ const QR_LABEL_PRESET = 'label_2x2';
 
     // Load data for user modal
     function loadUserModalData() {
-        loadUserModalBuildings();
-        loadBulkUserModalBuildings();
+        loadUserModalBranches();
+        loadBulkUserModalBranches();
         loadUserModalUsers();
         loadUserModalFilterDropdown();
     }
 
     // Load buildings for user modal
-    function loadUserModalBuildings() {
-        fetch('/admin/buildings')
+    function loadUserModalBranches() {
+        fetch('/admin/branches')
             .then(response => response.json())
             .then(buildings => {
-                const buildingSelect = document.getElementById('userModalBuilding');
-                buildingSelect.innerHTML = '<option value="">Select Building</option>';
+                const buildingSelect = document.getElementById('userModalBranch');
+                buildingSelect.innerHTML = '<option value="">Select Branch</option>';
                 
                 buildings.forEach(building => {
                     const option = document.createElement('option');
@@ -3263,17 +3268,17 @@ const QR_LABEL_PRESET = 'label_2x2';
                 });
             })
             .catch(error => {
-                console.error('Error loading buildings for user modal:', error);
+                console.error('Error loading branches for user modal:', error);
             });
     }
 
     // Load buildings for bulk user modal
-    function loadBulkUserModalBuildings() {
-        fetch('/admin/buildings')
+    function loadBulkUserModalBranches() {
+        fetch('/admin/branches')
             .then(response => response.json())
             .then(buildings => {
-                const buildingSelect = document.getElementById('bulkUserModalBuilding');
-                buildingSelect.innerHTML = '<option value="">Select Building</option>';
+                const buildingSelect = document.getElementById('bulkUserModalBranch');
+                buildingSelect.innerHTML = '<option value="">Select Branch</option>';
                 
                 buildings.forEach(building => {
                     const option = document.createElement('option');
@@ -3283,7 +3288,7 @@ const QR_LABEL_PRESET = 'label_2x2';
                 });
             })
             .catch(error => {
-                console.error('Error loading buildings for bulk user modal:', error);
+                console.error('Error loading branches for bulk user modal:', error);
             });
     }
 
@@ -3292,13 +3297,13 @@ const QR_LABEL_PRESET = 'label_2x2';
         const departmentSelect = document.getElementById('userModalDepartment');
         
         if (!buildingId) {
-            departmentSelect.innerHTML = '<option value="">Select Building First</option>';
+            departmentSelect.innerHTML = '<option value="">Select Branch First</option>';
             return;
         }
         
         departmentSelect.innerHTML = '<option value="">Loading...</option>';
         
-        fetch(`/admin/departments?building_id=${buildingId}`)
+        fetch(`/admin/departments?branch_id=${buildingId}`)
             .then(response => response.json())
             .then(departments => {
                 departmentSelect.innerHTML = '<option value="">Select Department</option>';
@@ -3334,7 +3339,7 @@ const QR_LABEL_PRESET = 'label_2x2';
                 // Group users by building and department
                 const usersByGroup = {};
                 users.forEach(user => {
-                    const key = `${user.building_name} - ${user.department_name}`;
+                    const key = `${user.branch_name} - ${user.department_name}`;
                     if (!usersByGroup[key]) {
                         usersByGroup[key] = [];
                     }
@@ -3388,10 +3393,10 @@ const QR_LABEL_PRESET = 'label_2x2';
                 // Group departments by building
                 const departmentsByBuilding = {};
                 departments.forEach(dept => {
-                    if (!departmentsByBuilding[dept.building_name]) {
-                        departmentsByBuilding[dept.building_name] = [];
+                    if (!departmentsByBuilding[dept.branch_name]) {
+                        departmentsByBuilding[dept.branch_name] = [];
                     }
-                    departmentsByBuilding[dept.building_name].push(dept);
+                    departmentsByBuilding[dept.branch_name].push(dept);
                 });
                 
                 // Add options grouped by building
@@ -3416,12 +3421,12 @@ const QR_LABEL_PRESET = 'label_2x2';
 
     // Handle adding user from modal
     function handleAddUserModal() {
-        const buildingId = document.getElementById('userModalBuilding').value;
+        const buildingId = document.getElementById('userModalBranch').value;
         const departmentId = document.getElementById('userModalDepartment').value;
         const name = document.getElementById('userModalName').value.trim();
         
         if (!buildingId) {
-            alert('Please select a building.');
+            alert('Please select a branch.');
             return;
         }
         
@@ -3449,9 +3454,9 @@ const QR_LABEL_PRESET = 'label_2x2';
         .then(data => {
             if (data.id) {
                 document.getElementById('userModalName').value = '';
-                document.getElementById('userModalBuilding').value = '';
+                document.getElementById('userModalBranch').value = '';
                 document.getElementById('userModalDepartment').value = '';
-                document.getElementById('userModalDepartment').innerHTML = '<option value="">Select Building First</option>';
+                document.getElementById('userModalDepartment').innerHTML = '<option value="">Select Branch First</option>';
                 loadUserModalUsers(); // Reload the users list
                 loadOwnersForDepartment(document.getElementById('department').value); // Refresh owner dropdown
                 alert(`✅ User "${name}" registered successfully!`);
@@ -3526,12 +3531,12 @@ const QR_LABEL_PRESET = 'label_2x2';
 
     // Handle bulk adding users from modal
     function handleAddBulkUsersModal() {
-        const buildingId = document.getElementById('bulkUserModalBuilding').value;
+        const buildingId = document.getElementById('bulkUserModalBranch').value;
         const departmentId = document.getElementById('bulkUserModalDepartment').value;
         const userNamesText = document.getElementById('bulkUserNames').value.trim();
         
         if (!buildingId) {
-            alert('Please select a building.');
+            alert('Please select a branch.');
             return;
         }
         
@@ -3575,9 +3580,9 @@ const QR_LABEL_PRESET = 'label_2x2';
             if (data.added_users) {
                 // Clear the form
                 document.getElementById('bulkUserNames').value = '';
-                document.getElementById('bulkUserModalBuilding').value = '';
+                document.getElementById('bulkUserModalBranch').value = '';
                 document.getElementById('bulkUserModalDepartment').value = '';
-                document.getElementById('bulkUserModalDepartment').innerHTML = '<option value="">Select Building First</option>';
+                document.getElementById('bulkUserModalDepartment').innerHTML = '<option value="">Select Branch First</option>';
                 
                 // Reload data
                 loadUserModalUsers();
@@ -3605,11 +3610,11 @@ const QR_LABEL_PRESET = 'label_2x2';
         departmentSelect.innerHTML = '<option value="">Loading...</option>';
         
         if (!buildingId) {
-            departmentSelect.innerHTML = '<option value="">Select Building First</option>';
+            departmentSelect.innerHTML = '<option value="">Select Branch First</option>';
             return;
         }
         
-        fetch(`/admin/departments?building_id=${buildingId}`)
+        fetch(`/admin/departments?branch_id=${buildingId}`)
             .then(response => response.json())
             .then(departments => {
                 departmentSelect.innerHTML = '<option value="">Select Department</option>';
@@ -3632,7 +3637,7 @@ const QR_LABEL_PRESET = 'label_2x2';
 
     // Initialize data on page load
     document.addEventListener('DOMContentLoaded', function() {
-        loadBuildings();
+        loadBranches();
         loadDepartments();
         loadUserModalData();
             loadAssetTypes();
@@ -3684,8 +3689,8 @@ const QR_LABEL_PRESET = 'label_2x2';
         });
         
         // Refresh building management data when modal is shown
-        document.getElementById('buildingManagementModal').addEventListener('show.bs.modal', function() {
-            loadBuildings();
+        document.getElementById('branchManagementModal').addEventListener('show.bs.modal', function() {
+            loadBranches();
         });
         
         // Refresh department management data when modal is shown
@@ -3732,7 +3737,7 @@ const QR_LABEL_PRESET = 'label_2x2';
             const assetQuantity = button.getAttribute('data-asset-quantity');
             const assetPrice = button.getAttribute('data-asset-price');
             const assetOwner = button.getAttribute('data-asset-owner');
-            const assetBuilding = button.getAttribute('data-asset-building');
+            const assetBuilding = button.getAttribute('data-asset-branch');
             const assetDepartment = button.getAttribute('data-asset-department');
             const assetStatus = button.getAttribute('data-asset-status');
             
@@ -3796,7 +3801,7 @@ const QR_LABEL_PRESET = 'label_2x2';
             }, 300);
             
             // Load buildings and populate building dropdown, then chain the other loads
-            loadEditBuildings(assetBuilding).then(() => {
+            loadEditBranches(assetBuilding).then(() => {
                 // After buildings are loaded, load departments
                 return loadEditDepartments(assetBuilding, assetDepartment);
             }).then(() => {
@@ -3823,7 +3828,7 @@ const QR_LABEL_PRESET = 'label_2x2';
         });
         
         // Handle edit building change
-        document.getElementById('edit_building').addEventListener('change', function() {
+        document.getElementById('edit_branch').addEventListener('change', function() {
             const selectedBuilding = this.value;
             const departmentSelect = document.getElementById('edit_department');
             const ownerSelect = document.getElementById('edit_owner');
@@ -3833,13 +3838,13 @@ const QR_LABEL_PRESET = 'label_2x2';
             
             if (selectedBuilding) {
                 // Find the building ID by fetching buildings data
-                fetch('/admin/buildings')
+                fetch('/admin/branches')
                     .then(response => response.json())
                     .then(buildings => {
                         const building = buildings.find(b => b.name === selectedBuilding);
                         if (building) {
                             // Load departments for this building
-                            return fetch(`/admin/departments?building_id=${building.id}`);
+                            return fetch(`/admin/departments?branch_id=${building.id}`);
                         }
                         return Promise.reject('Building not found');
                     })
@@ -3859,7 +3864,7 @@ const QR_LABEL_PRESET = 'label_2x2';
         // Handle edit department change
         document.getElementById('edit_department').addEventListener('change', function() {
             const selectedDepartment = this.value;
-            const selectedBuilding = document.getElementById('edit_building').value;
+            const selectedBuilding = document.getElementById('edit_branch').value;
             const ownerSelect = document.getElementById('edit_owner');
             
             ownerSelect.innerHTML = '<option value="">Select Owner</option>';
@@ -3870,7 +3875,7 @@ const QR_LABEL_PRESET = 'label_2x2';
                     .then(response => response.json())
                     .then(departments => {
                         const department = departments.find(d => 
-                            d.building_name === selectedBuilding && d.name === selectedDepartment
+                            d.branch_name === selectedBuilding && d.name === selectedDepartment
                         );
                         
                         if (department) {
@@ -3932,7 +3937,7 @@ const QR_LABEL_PRESET = 'label_2x2';
                 if (data.success) {
                     // Check if asset code changed
                     if (data.asset_code_changed) {
-                        const message = `Asset updated successfully!\n\nAsset code has been updated:\nOld: ${data.old_asset_code}\nNew: ${data.new_asset_code}\n\nThis change was made because the building or department was modified.`;
+                        const message = `Asset updated successfully!\n\nAsset code has been updated:\nOld: ${data.old_asset_code}\nNew: ${data.new_asset_code}\n\nThis change was made because the branch or department was modified.`;
                         alert(message);
                     } else {
                         alert('Asset updated successfully!');
@@ -3959,9 +3964,9 @@ const QR_LABEL_PRESET = 'label_2x2';
     });
 
     // Handle Enter key in new building input
-    document.getElementById('newBuildingName').addEventListener('keypress', function(e) {
+    document.getElementById('newBranchName').addEventListener('keypress', function(e) {
         if (e.key === 'Enter') {
-            document.getElementById('addBuildingBtn').click();
+            document.getElementById('addBranchBtn').click();
         }
     });
 
@@ -3972,17 +3977,17 @@ const QR_LABEL_PRESET = 'label_2x2';
         }
     });
 
-    document.getElementById('building').addEventListener('change', function() {
+    document.getElementById('branch').addEventListener('change', function() {
         const selectedBuilding = this.value;
         const departmentSelect = document.getElementById('department');
         departmentSelect.innerHTML = '<option value="">Select Department/Section</option>';
         
         if (selectedBuilding) {
             // Find the building ID
-            const building = buildingsData.find(b => b.name === selectedBuilding);
+            const building = branchesData.find(b => b.name === selectedBuilding);
             if (building) {
                 // Load departments for this building
-                fetch(`/admin/departments?building_id=${building.id}`)
+                fetch(`/admin/departments?branch_id=${building.id}`)
                     .then(response => response.json())
                     .then(departments => {
                         departments.forEach(department => {
@@ -4060,7 +4065,7 @@ const QR_LABEL_PRESET = 'label_2x2';
     function showDepartmentQRModal(building, department) {
         var deptModal = document.getElementById('individualDepartmentQRModal');
         if (deptModal) {
-            deptModal.setAttribute('data-qr-building', building);
+            deptModal.setAttribute('data-qr-branch', building);
             deptModal.setAttribute('data-qr-department', department);
         }
         const modalImage = document.getElementById('individualDepartmentQRImage');
@@ -4126,14 +4131,14 @@ const QR_LABEL_PRESET = 'label_2x2';
 
     document.getElementById('printIndividualDepartmentQRBtn').onclick = function() {
         var deptModal = document.getElementById('individualDepartmentQRModal');
-        var building = deptModal && deptModal.getAttribute('data-qr-building');
+        var building = deptModal && deptModal.getAttribute('data-qr-branch');
         var department = deptModal && deptModal.getAttribute('data-qr-department');
         if (!building || !department) {
             alert('Unable to print: department not set.');
             return;
         }
         var qs = 'preset=' + encodeURIComponent(QR_LABEL_PRESET)
-            + '&building=' + encodeURIComponent(building)
+            + '&branch=' + encodeURIComponent(building)
             + '&department=' + encodeURIComponent(department)
             + '&print=0&nocache=' + Date.now();
         window.open('/assets/qr-label-print/department?' + qs, '_blank', 'noopener');
@@ -4439,7 +4444,7 @@ const QR_LABEL_PRESET = 'label_2x2';
      */
     function debugState() {
         console.log('=== DEBUG STATE ===');
-        console.log('Buildings:', buildingsData);
+        console.log('Branches:', branchesData);
         console.log('Departments:', departmentsData);
         console.log('Selected Assets:', selectedAssets);
         console.log('==================');
@@ -4458,7 +4463,7 @@ const QR_LABEL_PRESET = 'label_2x2';
     });
 
     // Dropdown filters: full page submit on change (same behavior as QC Monitor filter forms)
-    ['buildingFilter', 'departmentFilter', 'statusFilter', 'assetTypeFilter'].forEach(function(selectId) {
+    ['branchFilter', 'departmentFilter', 'statusFilter', 'assetTypeFilter'].forEach(function(selectId) {
         var sel = document.getElementById(selectId);
         if (sel) {
             sel.addEventListener('change', function() {
@@ -4510,13 +4515,13 @@ const QR_LABEL_PRESET = 'label_2x2';
     });
 
     // Helper functions for edit modal
-    function loadEditBuildings(selectedBuilding) {
+    function loadEditBranches(selectedBuilding) {
         console.log('Loading buildings for edit, selected:', selectedBuilding);
-        return fetch('/admin/buildings')
+        return fetch('/admin/branches')
             .then(response => response.json())
             .then(buildings => {
-                const buildingSelect = document.getElementById('edit_building');
-                buildingSelect.innerHTML = '<option value="">Select Building</option>';
+                const buildingSelect = document.getElementById('edit_branch');
+                buildingSelect.innerHTML = '<option value="">Select Branch</option>';
                 
                 buildings.forEach(building => {
                     const option = document.createElement('option');
@@ -4532,7 +4537,7 @@ const QR_LABEL_PRESET = 'label_2x2';
                 }
             })
             .catch(error => {
-                console.error('Error loading buildings for edit:', error);
+                console.error('Error loading branches for edit:', error);
                 throw error;
             });
     }
@@ -4542,12 +4547,12 @@ const QR_LABEL_PRESET = 'label_2x2';
         if (!selectedBuilding) return Promise.resolve();
         
         // Find the building ID by fetching buildings data
-        return fetch('/admin/buildings')
+        return fetch('/admin/branches')
             .then(response => response.json())
             .then(buildings => {
                 const building = buildings.find(b => b.name === selectedBuilding);
                 if (building) {
-                    return fetch(`/admin/departments?building_id=${building.id}`);
+                    return fetch(`/admin/departments?branch_id=${building.id}`);
                 }
                 return Promise.reject('Building not found');
             })
@@ -4584,7 +4589,7 @@ const QR_LABEL_PRESET = 'label_2x2';
             .then(response => response.json())
             .then(departments => {
                 const department = departments.find(d => 
-                    d.building_name === selectedBuilding && d.name === selectedDepartment
+                    d.branch_name === selectedBuilding && d.name === selectedDepartment
                 );
                 
                 if (department) {
@@ -4838,8 +4843,8 @@ const QR_LABEL_PRESET = 'label_2x2';
 
 
     // Filtering functions for price analysis modal tables
-    function filterBuildingTable(buildingFilter) {
-        const table = document.getElementById('buildingTable');
+    function filterBranchTable(buildingFilter) {
+        const table = document.getElementById('branchTable');
         const tbody = table.querySelector('tbody');
         const rows = Array.from(tbody.querySelectorAll('tr'));
         
@@ -4858,9 +4863,9 @@ const QR_LABEL_PRESET = 'label_2x2';
         
         // Update totals if filtering
         if (buildingFilter) {
-            updateBuildingTotal(buildingFilter);
+            updateBranchTotal(buildingFilter);
         } else {
-            restoreBuildingTotal();
+            restoreBranchTotal();
         }
     }
     
@@ -4910,11 +4915,11 @@ const QR_LABEL_PRESET = 'label_2x2';
         });
     }
     
-    function updateBuildingTotal(buildingFilter) {
-        const totalRow = document.querySelector('#buildingTable tbody tr:last-child');
+    function updateBranchTotal(buildingFilter) {
+        const totalRow = document.querySelector('#branchTable tbody tr:last-child');
         if (totalRow) {
-                    const buildingPrices = {{ chart_data.building_prices|tojson }};
-        const buildingCounts = {{ chart_data.building_counts|tojson }};
+                    const buildingPrices = {{ chart_data.branch_prices|tojson }};
+        const buildingCounts = {{ chart_data.branch_counts|tojson }};
         const buildingValue = buildingPrices[buildingFilter] || 0;
         const buildingCount = buildingCounts[buildingFilter] || 0;
             const avgValue = buildingCount > 0 ? (buildingValue / buildingCount).toFixed(3) : '0.000';
@@ -4929,10 +4934,10 @@ const QR_LABEL_PRESET = 'label_2x2';
         }
     }
     
-    function restoreBuildingTotal() {
-        const totalRow = document.querySelector('#buildingTable tbody tr:last-child');
+    function restoreBranchTotal() {
+        const totalRow = document.querySelector('#branchTable tbody tr:last-child');
         if (totalRow) {
-            const totalAssets = Object.values(window.chartData.buildingCounts).reduce((a, b) => a + b, 0);
+            const totalAssets = Object.values(window.chartData.branchCounts).reduce((a, b) => a + b, 0);
             const totalValue = window.chartData.totalSystemValue;
             const avgValue = totalAssets > 0 ? (totalValue / totalAssets).toFixed(3) : '0.000';
             
@@ -4953,8 +4958,8 @@ const QR_LABEL_PRESET = 'label_2x2';
         const filename = `Asset_Price_Analysis_${timestamp}.xlsx`;
         
         // Get data from the template variables
-        const buildingPrices = {{ chart_data.building_prices|tojson }};
-        const buildingCounts = {{ chart_data.building_counts|tojson }};
+        const buildingPrices = {{ chart_data.branch_prices|tojson }};
+        const buildingCounts = {{ chart_data.branch_counts|tojson }};
         const departmentPrices = {{ chart_data.department_prices|tojson }};
         const departmentCounts = {{ chart_data.department_counts|tojson }};
         const totalSystemValue = {{ chart_data.total_system_value }};
@@ -4977,11 +4982,11 @@ const QR_LABEL_PRESET = 'label_2x2';
         systemOverviewSheet['!cols'] = [{ width: 30 }, { width: 25 }];
         XLSX.utils.book_append_sheet(workbook, systemOverviewSheet, 'System Overview');
         
-        // Building Analysis Sheet
+        // Branch Analysis Sheet
         const buildingData = [
-            ['BUILDING ANALYSIS'],
+            ['BRANCH ANALYSIS'],
             [''],
-            ['Building Name', 'Total Assets', 'Total Value (OMR)', 'Average Value per Asset (OMR)'],
+            ['Branch Name', 'Total Assets', 'Total Value (OMR)', 'Average Value per Asset (OMR)'],
             ['', '', '', '']
         ];
         
@@ -4998,13 +5003,13 @@ const QR_LABEL_PRESET = 'label_2x2';
         
         const buildingSheet = XLSX.utils.aoa_to_sheet(buildingData);
         buildingSheet['!cols'] = [{ width: 20 }, { width: 15 }, { width: 20 }, { width: 25 }];
-        XLSX.utils.book_append_sheet(workbook, buildingSheet, 'Building Analysis');
+        XLSX.utils.book_append_sheet(workbook, buildingSheet, 'Branch Analysis');
         
         // Department Analysis Sheet
         const departmentData = [
             ['DEPARTMENT ANALYSIS'],
             [''],
-            ['Building', 'Department', 'Total Assets', 'Total Value (OMR)', 'Average Value per Asset (OMR)'],
+            ['Branch', 'Department', 'Total Assets', 'Total Value (OMR)', 'Average Value per Asset (OMR)'],
             ['', '', '', '', '']
         ];
         
@@ -5017,7 +5022,7 @@ const QR_LABEL_PRESET = 'label_2x2';
         
         // Sort departments by value (highest first)
         departmentData.sort((a, b) => {
-            if (a[0] === 'Building' || b[0] === 'Building') return 0;
+            if (a[0] === 'Branch' || b[0] === 'Branch') return 0;
             return parseFloat(b[3]) - parseFloat(a[3]);
         });
         
@@ -5029,7 +5034,7 @@ const QR_LABEL_PRESET = 'label_2x2';
         const assetData = [
             ['DETAILED ASSET BREAKDOWN'],
             [''],
-            ['Asset Name', 'Asset Code', 'Building', 'Department', 'Owner', 'Quantity', 'Unit Price (OMR)', 'Total Value (OMR)', 'Status', 'Asset Type'],
+            ['Asset Name', 'Asset Code', 'Branch', 'Department', 'Owner', 'Quantity', 'Unit Price (OMR)', 'Total Value (OMR)', 'Status', 'Asset Type'],
             ['', '', '', '', '', '', '', '', '', '']
         ];
         
@@ -5043,7 +5048,7 @@ const QR_LABEL_PRESET = 'label_2x2';
                         assetData.push([
                             asset.name,
                             asset.asset_code,
-                            asset.building,
+                            asset.branch,
                             asset.department,
                             asset.owner,
                             asset.quantity,
@@ -5060,8 +5065,8 @@ const QR_LABEL_PRESET = 'label_2x2';
                         if (a[0] === 'DETAILED ASSET BREAKDOWN' || b[0] === 'DETAILED ASSET BREAKDOWN') return 0;
                         if (a[0] === '' || b[0] === '') return 0;
                         
-                        const buildingA = a[2], buildingB = b[2];
-                        if (buildingA !== buildingB) return buildingA.localeCompare(buildingB);
+                        const branchA = a[2], branchB = b[2];
+                        if (branchA !== branchB) return branchA.localeCompare(branchB);
                         
                         const deptA = a[3], deptB = b[3];
                         if (deptA !== deptB) return deptA.localeCompare(deptB);

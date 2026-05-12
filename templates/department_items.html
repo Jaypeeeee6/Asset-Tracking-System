@@ -1,5 +1,5 @@
 {% extends "base_app.html" %}
-{% block title %}{{ department }} - {{ building }} Items{% endblock %}
+{% block title %}{{ department }} - {{ branch }} Items{% endblock %}
 {% block extra_head %}
     <style>
         .department-items-scope {
@@ -54,7 +54,7 @@
 <div class="department-items-scope">
 <div class="department-header">
     <h1 class="department-title">{{ department }}</h1>
-    <div class="building-subtitle">{{ building }}</div>
+    <div class="branch-subtitle">{{ branch }}</div>
     <div class="gold-divider"></div>
     <div class="stats-info">
         {% if total_assets > 0 %}
