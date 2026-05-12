@@ -234,6 +234,7 @@ body {
     max-width: 100vw;
 }
 
+/* ===== GLOBAL FOOTER (QC Monitor match) ===== */
 .app-footer {
     text-align: center;
     font-size: 0.8rem;
@@ -242,9 +243,23 @@ body {
     margin-top: auto;
 }
 
+.app-footer-auth {
+    color: rgba(255, 255, 255, 0.58);
+    background: var(--dark-bg);
+    min-height: 44px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0.4rem 1rem;
+}
+
 .dark-mode #page-content-wrapper {
     background-color: #1a1a1a;
     color: #ffffff;
+}
+
+.dark-mode #page-content-wrapper .app-footer {
+    color: rgba(255, 255, 255, 0.55);
 }
 
 @media (max-width: 768px) {
