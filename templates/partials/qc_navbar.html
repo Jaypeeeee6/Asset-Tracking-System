@@ -1,0 +1,28 @@
+<nav class="qc-navbar">
+    {% if current_user.is_authenticated %}
+    <button type="button" class="sidebar-toggle-btn" id="sidebarToggle" title="Toggle Sidebar" aria-label="Toggle sidebar">
+        <i class="bi bi-list"></i>
+    </button>
+    {% endif %}
+    <a class="brand" href="{% if current_user.is_authenticated %}{{ url_for('assets.dashboard') }}{% else %}{{ url_for('auth.login') }}{% endif %}">
+        <img src="{{ url_for('static', filename='images/maa-logo.png') }}" alt="MAA Logo" style="height:36px;width:auto;object-fit:contain;margin-right:12px;">
+        Asset Tracking System
+    </a>
+    {% if current_user.is_authenticated %}
+    <div class="ms-auto d-flex align-items-center gap-2">
+        <button type="button" class="sidebar-toggle-btn navbar-dark-toggle d-flex align-items-center justify-content-center" id="darkModeToggle" title="Toggle theme" aria-label="Toggle dark mode" onclick="toggleDarkMode()">
+            <i class="fas fa-moon"></i>
+            <span class="visually-hidden">Dark mode</span>
+        </button>
+        <div class="user-info-pill d-none d-md-flex">
+            <i class="bi bi-person-circle" style="font-size:1.1rem;"></i>
+            <span>{{ current_user.username }}</span>
+            <span class="role-badge {{ current_user.role }}">{{ current_user.role|replace('_', ' ')|title }}</span>
+        </div>
+    </div>
+    {% else %}
+    <div class="ms-auto">
+        <a href="{{ url_for('auth.login') }}" class="btn btn-sm text-white border border-secondary" style="--bs-border-opacity: .35;">Sign in</a>
+    </div>
+    {% endif %}
+</nav>

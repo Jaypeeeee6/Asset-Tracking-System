@@ -1,13 +1,6 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Asset Tracking System</title>
-    <link rel="icon" type="image/png" href="{{ url_for('static', filename='MAA_Logo 32x32.png') }}">
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <link rel="stylesheet" href="/static/style.css">
+{% extends "base_app.html" %}
+{% block title %}Asset Tracking System{% endblock %}
+{% block extra_head %}
     <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
     <style>
         /* Multi-select Asset Names Styles */
@@ -256,182 +249,6 @@
         
         .dark-mode .system-value-text {
             color: #ffffff !important; /* White text for dark mode */
-        }
-        
-        /* Admin Menu Button Styles */
-        .admin-menu-button {
-            position: absolute;
-            left: 20px;
-            top: 20px;
-            z-index: 1000;
-        }
-        
-        .menu-button {
-            width: 50px;
-            height: 50px;
-            background: linear-gradient(135deg, #2c3e50, #34495e);
-            border-radius: 50%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            cursor: pointer;
-            box-shadow: 0 4px 15px rgba(0,0,0,0.2);
-            transition: all 0.3s ease;
-            color: white;
-        }
-        
-        .menu-button:hover {
-            transform: scale(1.1);
-            box-shadow: 0 6px 20px rgba(0,0,0,0.3);
-        }
-        
-        .menu-button i {
-            font-size: 1.2em;
-        }
-        
-        .admin-menu-dropdown {
-            position: absolute;
-            top: 60px;
-            left: 0;
-            background: linear-gradient(180deg, #2c3e50, #34495e);
-            border-radius: 10px;
-            box-shadow: 0 8px 25px rgba(0,0,0,0.3);
-            min-width: 220px;
-            opacity: 0;
-            visibility: hidden;
-            transform: translateY(-10px);
-            transition: all 0.3s ease;
-            overflow: hidden;
-        }
-        
-        .admin-menu-dropdown.show {
-            opacity: 1;
-            visibility: visible;
-            transform: translateY(0);
-        }
-        
-        .menu-header {
-            padding: 15px 20px;
-            border-bottom: 1px solid #34495e;
-            display: flex;
-            align-items: center;
-            gap: 10px;
-            color: white;
-            font-weight: 600;
-        }
-        
-        .menu-header i {
-            font-size: 1.1em;
-        }
-        
-        .menu-items {
-            list-style: none;
-            padding: 10px 0;
-            margin: 0;
-        }
-        
-        .menu-item {
-            margin: 0;
-        }
-        
-        .menu-link {
-            display: flex;
-            align-items: center;
-            gap: 12px;
-            padding: 12px 20px;
-            color: #ecf0f1;
-            text-decoration: none;
-            transition: all 0.3s ease;
-            white-space: nowrap;
-        }
-        
-        .menu-link:hover {
-            background: rgba(52, 152, 219, 0.2);
-            color: #3498db;
-            text-decoration: none;
-        }
-        
-        .menu-link i {
-            font-size: 1em;
-            min-width: 16px;
-            text-align: center;
-        }
-        
-        /* Submenu Styles */
-        .has-submenu {
-            position: relative;
-        }
-        
-        .submenu-trigger {
-            justify-content: space-between;
-        }
-        
-        .submenu-arrow {
-            transition: transform 0.3s ease;
-        }
-        
-        .has-submenu.open .submenu-arrow {
-            transform: rotate(90deg);
-        }
-        
-        .submenu {
-            list-style: none;
-            padding: 0;
-            margin: 0;
-            background: rgba(0, 0, 0, 0.1);
-            max-height: 0;
-            overflow: hidden;
-            transition: max-height 0.3s ease;
-            border-top: 1px solid rgba(255, 255, 255, 0.1);
-        }
-        
-        .has-submenu.open .submenu {
-            max-height: 300px;
-        }
-        
-        .submenu-trigger:hover {
-            background: rgba(52, 152, 219, 0.1);
-        }
-        
-        .submenu-item {
-            margin: 0;
-        }
-        
-        .submenu-link {
-            display: flex;
-            align-items: center;
-            gap: 12px;
-            padding: 10px 20px 10px 40px;
-            color: #ecf0f1;
-            text-decoration: none;
-            transition: all 0.3s ease;
-            white-space: nowrap;
-            font-size: 0.9em;
-        }
-        
-        .submenu-link:hover {
-            background: rgba(52, 152, 219, 0.2);
-            color: #3498db;
-            text-decoration: none;
-        }
-        
-        .submenu-link i {
-            font-size: 0.9em;
-            min-width: 14px;
-            text-align: center;
-        }
-        
-        /* Dark mode adjustments */
-        .dark-mode .menu-button {
-            background: linear-gradient(135deg, #1a1a1a, #2d2d2d);
-        }
-        
-        .dark-mode .admin-menu-dropdown {
-            background: linear-gradient(180deg, #1a1a1a, #2d2d2d);
-        }
-        
-        .dark-mode .menu-header {
-            border-bottom-color: #404040;
         }
         
         /* Summary Statistics Styles */
@@ -855,125 +672,8 @@
             }
         }
     </style>
-</head>
-<body>
-        <!-- Admin Menu Button -->
-        {% if current_user.role == 'admin' %}
-        <div class="admin-menu-button" id="adminMenuButton">
-            <div class="menu-button" onclick="toggleAdminMenu()">
-                <i class="fas fa-bars"></i>
-            </div>
-            <div class="admin-menu-dropdown" id="adminMenuDropdown">
-                <div class="menu-header">
-                    <i class="fas fa-cogs"></i>
-                    <span>Admin Menu</span>
-                </div>
-                <ul class="menu-items">
-                    <li class="menu-item has-submenu">
-                        <a href="#" class="menu-link submenu-trigger">
-                            <i class="fas fa-users"></i>
-                            <span>Users</span>
-                            <i class="fas fa-chevron-right submenu-arrow"></i>
-                        </a>
-                        <ul class="submenu">
-                            <li class="submenu-item">
-                                <a href="{{ url_for('auth.manage_users') }}" class="submenu-link">
-                                    <i class="fas fa-user-cog"></i>
-                                    <span>Manage Users</span>
-                                </a>
-                            </li>
-                            <li class="submenu-item">
-                                <a href="{{ url_for('auth.add_auth_user') }}" class="submenu-link">
-                                    <i class="fas fa-user-plus"></i>
-                                    <span>Add User</span>
-                                </a>
-                            </li>
-                        </ul>
-                    </li>
-                    <li class="menu-item has-submenu">
-                        <a href="#" class="menu-link submenu-trigger">
-                            <i class="fas fa-tools"></i>
-                            <span>Manage</span>
-                            <i class="fas fa-chevron-right submenu-arrow"></i>
-                        </a>
-                        <ul class="submenu">
-                            <li class="submenu-item">
-                                <a href="#" class="submenu-link" data-bs-toggle="modal" data-bs-target="#buildingManagementModal">
-                                    <i class="fas fa-building"></i>
-                                    <span>Manage Buildings</span>
-                                </a>
-                            </li>
-                            <li class="submenu-item">
-                                <a href="#" class="submenu-link" data-bs-toggle="modal" data-bs-target="#departmentManagementModal">
-                                    <i class="fas fa-sitemap"></i>
-                                    <span>Manage Departments</span>
-                                </a>
-                            </li>
-                            <li class="submenu-item">
-                                <a href="#" class="submenu-link" data-bs-toggle="modal" data-bs-target="#userManagementModal">
-                                    <i class="fas fa-user-tie"></i>
-                                    <span>Manage Employees</span>
-                                </a>
-                            </li>
-                            <li class="submenu-item">
-                                <a href="#" class="submenu-link" data-bs-toggle="modal" data-bs-target="#assetManagementModal">
-                                    <i class="fas fa-boxes"></i>
-                                    <span>Manage Assets</span>
-                                </a>
-                            </li>
-                        </ul>
-                    </li>
-                    <li class="menu-item">
-                        <a href="{{ url_for('assets.archive') }}" class="menu-link">
-                            <i class="fas fa-archive"></i>
-                            <span>Asset Archive</span>
-                        </a>
-                    </li>
-                    <li class="menu-item">
-                        <a href="#" class="menu-link" data-bs-toggle="modal" data-bs-target="#priceAnalysisModal">
-                            <i class="fas fa-coins"></i>
-                            <span>View Price Analysis</span>
-                        </a>
-                    </li>
-                </ul>
-            </div>
-        </div>
-        
-
-        {% endif %}
-
-<div class="container-fluid mt-5 px-4">
-    <div class="header-logo">
-                    <img src="{{ url_for('static', filename='MAA_LOGO.png') }}" alt="MAA Group Logo">
-        <h1>Asset Tracking System</h1>
-        <div class="gold-divider"></div>
-    </div>
-
-    <!-- User Info and Logout -->
-    <div class="row mb-3">
-        <div class="col-md-12">
-            <div class="d-flex justify-content-between align-items-center">
-                <div class="user-info">
-                    <span class="badge me-2" style="background: #ffd700; color: #000000;">
-                        <i class="fas fa-user"></i> {{ current_user.username }}
-                    </span>
-                    <span class="badge" style="background: #333333; color: #ffd700;">
-                        <i class="fas fa-shield-alt"></i> {{ current_user.role|title }}
-                    </span>
-                </div>
-                <div class="logout-section">
-                    <!-- Dark Mode Toggle -->
-                    <button id="darkModeToggle" class="btn btn-sm me-2" type="button" onclick="toggleDarkMode()" style="border-color: #6c757d; color: #6c757d; background: rgba(255,255,255,0.9); z-index: 1000;">
-                        <i class="fas fa-moon"></i><span> Dark Mode</span>
-                    </button>
-                    <a href="{{ url_for('auth.logout') }}" class="btn btn-sm" style="border-color: #dc3545; color: #dc3545;">
-                        <i class="fas fa-sign-out-alt"></i> Logout
-                    </a>
-                </div>
-            </div>
-        </div>
-    </div>
-
+{% endblock %}
+{% block app_content %}
     <!-- Flash Messages -->
     {% with messages = get_flashed_messages(with_categories=true) %}
         {% if messages %}
@@ -1306,8 +1006,9 @@
     </li>
   </ul>
 </nav>
-</div>
 
+{% endblock %}
+{% block modals %}
 <!-- Add Asset Modal -->
 <div class="modal fade" id="addAssetModal" tabindex="-1" aria-labelledby="addAssetModalLabel" aria-hidden="true">
   <div class="modal-dialog modal-lg" style="max-width: 70%;">
@@ -2173,7 +1874,26 @@
   </div>
 </div>
 
-<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+{% endblock %}
+{% block open_modal_query %}
+<script>
+(function () {
+    document.addEventListener('DOMContentLoaded', function () {
+        var id = new URLSearchParams(window.location.search).get('openModal');
+        if (!id) return;
+        var el = document.getElementById(id);
+        if (!el || typeof bootstrap === 'undefined') return;
+        var modal = new bootstrap.Modal(el);
+        modal.show();
+        var url = new URL(window.location.href);
+        url.searchParams.delete('openModal');
+        var qs = url.searchParams.toString();
+        window.history.replaceState({}, '', url.pathname + (qs ? '?' + qs : '') + url.hash);
+    });
+})();
+</script>
+{% endblock %}
+{% block extra_scripts %}
 <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 <script>
 /**
@@ -2209,63 +1929,6 @@ let departmentsData = [];
 let selectedAssets = [];
 /** Server print layout preset (2 in × 2 in labels); must match qr_label_layouts.preset_key */
 const QR_LABEL_PRESET = 'label_2x2';
-
-// ============================================================================
-// ADMIN MENU TOGGLE FUNCTION
-// ============================================================================
-function toggleAdminMenu() {
-    const dropdown = document.getElementById('adminMenuDropdown');
-    if (dropdown) {
-        dropdown.classList.toggle('show');
-    }
-}
-
-// Close menu when clicking outside
-document.addEventListener('click', function(event) {
-    const menuButton = document.getElementById('adminMenuButton');
-    const dropdown = document.getElementById('adminMenuDropdown');
-    
-    if (menuButton && dropdown && !menuButton.contains(event.target)) {
-        dropdown.classList.remove('show');
-    }
-});
-
-// Handle submenu toggles
-document.addEventListener('click', function(event) {
-    const submenuTrigger = event.target.closest('.submenu-trigger');
-    if (submenuTrigger) {
-        event.preventDefault();
-        event.stopPropagation();
-        const menuItem = submenuTrigger.closest('.has-submenu');
-        if (menuItem) {
-            // Close other open submenus first
-            const otherOpenMenus = document.querySelectorAll('.has-submenu.open');
-            otherOpenMenus.forEach(openMenu => {
-                if (openMenu !== menuItem) {
-                    openMenu.classList.remove('open');
-                }
-            });
-            menuItem.classList.toggle('open');
-        }
-    }
-});
-
-// Initialize submenu functionality when DOM is loaded
-document.addEventListener('DOMContentLoaded', function() {
-    // Ensure submenu triggers are properly set up
-    const submenuTriggers = document.querySelectorAll('.submenu-trigger');
-    submenuTriggers.forEach(trigger => {
-        trigger.addEventListener('click', function(e) {
-            e.preventDefault();
-            e.stopPropagation();
-            const menuItem = this.closest('.has-submenu');
-            if (menuItem) {
-                menuItem.classList.toggle('open');
-            }
-        });
-    });
-});
-
 
 
 
@@ -4896,117 +4559,6 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     });
 
-
-
-// ============================================================================
-// DARK MODE FUNCTIONALITY
-// ============================================================================
-
-    // Dark mode toggle functionality - Simplified and more robust
-    function initializeDarkMode() {
-        const darkModeToggle = document.getElementById('darkModeToggle');
-        const body = document.body;
-        
-        if (!darkModeToggle) {
-            console.error('Dark mode toggle button not found!');
-            return;
-        }
-        
-        console.log('Dark mode toggle button found:', darkModeToggle);
-        
-        // Check for saved dark mode preference
-        const darkMode = localStorage.getItem('darkMode') === 'true';
-        
-        // Apply dark mode if previously enabled
-        if (darkMode) {
-            body.classList.add('dark-mode');
-            updateDarkModeButton(true);
-        }
-        
-        // Toggle dark mode with direct click handler
-        darkModeToggle.onclick = function(e) {
-            e.preventDefault();
-            console.log('Dark mode toggle clicked!');
-            
-            body.classList.toggle('dark-mode');
-            const isDarkMode = body.classList.contains('dark-mode');
-            
-            // Save preference to localStorage
-            localStorage.setItem('darkMode', isDarkMode);
-            
-            // Update button appearance
-            updateDarkModeButton(isDarkMode);
-            
-            console.log('Dark mode toggled:', isDarkMode);
-        };
-        
-        function updateDarkModeButton(isDarkMode) {
-            const icon = darkModeToggle.querySelector('i');
-            const text = darkModeToggle.querySelector('span');
-            
-            if (isDarkMode) {
-                icon.className = 'fas fa-sun';
-                text.textContent = ' Light Mode';
-                darkModeToggle.style.borderColor = '#ffd700';
-                darkModeToggle.style.color = '#ffd700';
-            } else {
-                icon.className = 'fas fa-moon';
-                text.textContent = ' Dark Mode';
-                darkModeToggle.style.borderColor = '#6c757d';
-                darkModeToggle.style.color = '#6c757d';
-            }
-        }
-    }
-    
-    // Initialize dark mode when DOM is ready
-    if (document.readyState === 'loading') {
-        document.addEventListener('DOMContentLoaded', initializeDarkMode);
-    } else {
-        initializeDarkMode();
-    }
-    
-    // Additional debug: Check if button exists after a short delay
-    setTimeout(function() {
-        const btn = document.getElementById('darkModeToggle');
-        console.log('Dark mode button check after delay:', btn);
-        if (btn) {
-            console.log('Button is clickable:', btn.onclick);
-        }
-    }, 1000);
-    
-    // Global function for inline onclick
-    function toggleDarkMode() {
-        console.log('Global toggleDarkMode called!');
-        const body = document.body;
-        const darkModeToggle = document.getElementById('darkModeToggle');
-        
-        body.classList.toggle('dark-mode');
-        const isDarkMode = body.classList.contains('dark-mode');
-        
-        // Save preference to localStorage
-        localStorage.setItem('darkMode', isDarkMode);
-        
-        // Update button appearance
-        if (darkModeToggle) {
-            const icon = darkModeToggle.querySelector('i');
-            const text = darkModeToggle.querySelector('span');
-            
-            if (isDarkMode) {
-                icon.className = 'fas fa-sun';
-                text.textContent = ' Light Mode';
-                darkModeToggle.style.borderColor = '#ffd700';
-                darkModeToggle.style.color = '#ffd700';
-            } else {
-                icon.className = 'fas fa-moon';
-                text.textContent = ' Dark Mode';
-                darkModeToggle.style.borderColor = '#6c757d';
-                darkModeToggle.style.color = '#6c757d';
-            }
-        }
-        
-        console.log('Dark mode toggled via global function:', isDarkMode);
-    }
-    
     // Clear filters function
     function clearFilters() {
         console.log('Clearing filters...');
@@ -5705,5 +5257,4 @@ document.addEventListener('DOMContentLoaded', function() {
         return; // Exit early since we're handling the export in the fetch callback
     }
   </script>
-  </body>
-  </html> </html> 
+{% endblock %}

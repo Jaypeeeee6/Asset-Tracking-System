@@ -1,13 +1,6 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Asset Archive - Asset Tracking System</title>
-    <link rel="icon" type="image/png" href="{{ url_for('static', filename='MAA_Logo 32x32.png') }}">
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <link rel="stylesheet" href="/static/style.css">
+{% extends "base_app.html" %}
+{% block title %}Asset Archive - Asset Tracking System{% endblock %}
+{% block extra_head %}
     <style>
         .archived-asset {
             background-color: #f8f9fa;
@@ -193,41 +186,12 @@
             }
         }
     </style>
-</head>
-<body>
-<div class="container mt-5">
+{% endblock %}
+{% block app_content %}
     <div class="header-logo">
-                    <img src="{{ url_for('static', filename='MAA_LOGO.png') }}" alt="MAA Group Logo">
+                    <img src="{{ url_for('static', filename='images/maa-logo.png') }}" alt="MAA Logo">
         <h1>Asset Archive</h1>
         <div class="gold-divider"></div>
-    </div>
-
-    <!-- User Info and Navigation -->
-    <div class="row mb-3">
-        <div class="col-md-12">
-            <div class="d-flex justify-content-between align-items-center">
-                <div class="user-info">
-                    <span class="badge me-2" style="background: #ffd700; color: #000000;">
-                        <i class="fas fa-user"></i> {{ current_user.username }}
-                    </span>
-                    <span class="badge" style="background: #333333; color: #ffd700;">
-                        <i class="fas fa-shield-alt"></i> {{ current_user.role|title }}
-                    </span>
-                </div>
-                <div class="navigation-section">
-                    <!-- Dark Mode Toggle -->
-                    <button id="darkModeToggle" class="btn btn-sm me-2" type="button" onclick="toggleDarkMode()" style="border-color: #6c757d; color: #6c757d; background: rgba(255,255,255,0.9); z-index: 1000;">
-                        <i class="fas fa-moon"></i><span> Dark Mode</span>
-                    </button>
-                    <a href="{{ url_for('assets.dashboard') }}" class="btn btn-sm me-2" style="border-color: #007bff; color: #007bff;">
-                        <i class="fas fa-arrow-left"></i> Back to Dashboard
-                    </a>
-                    <a href="{{ url_for('auth.logout') }}" class="btn btn-sm" style="border-color: #dc3545; color: #dc3545;">
-                        <i class="fas fa-sign-out-alt"></i> Logout
-                    </a>
-                </div>
-            </div>
-        </div>
     </div>
 
     <!-- Archive Stats -->
@@ -462,8 +426,9 @@
             </div>
         </div>
     </div>
-    </div>
 
+{% endblock %}
+{% block modals %}
     <!-- QR Code Modal -->
     <div class="modal fade" id="qrModal" tabindex="-1" aria-labelledby="qrModalLabel" aria-hidden="true">
         <div class="modal-dialog modal-dialog-centered">
@@ -491,53 +456,10 @@
         </div>
     </div>
 
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+{% endblock %}
+{% block extra_scripts %}
 <script>
-    // Dark mode functionality
-    function toggleDarkMode() {
-        const body = document.body;
-        const isDarkMode = body.classList.contains('dark-mode');
-        
-        if (isDarkMode) {
-            body.classList.remove('dark-mode');
-            localStorage.setItem('darkMode', 'false');
-            updateDarkModeButton(false);
-        } else {
-            body.classList.add('dark-mode');
-            localStorage.setItem('darkMode', 'true');
-            updateDarkModeButton(true);
-        }
-    }
-    
-    function updateDarkModeButton(isDark) {
-        const button = document.getElementById('darkModeToggle');
-        const icon = button.querySelector('i');
-        const text = button.querySelector('span');
-        
-        if (isDark) {
-            icon.className = 'fas fa-sun';
-            text.textContent = ' Light Mode';
-            button.style.borderColor = '#ffd700';
-            button.style.color = '#ffd700';
-        } else {
-            icon.className = 'fas fa-moon';
-            text.textContent = ' Dark Mode';
-            button.style.borderColor = '#6c757d';
-            button.style.color = '#6c757d';
-        }
-    }
-    
-    // Initialize dark mode on page load
     document.addEventListener('DOMContentLoaded', function() {
-        const savedDarkMode = localStorage.getItem('darkMode');
-        const body = document.body;
-        
-        if (savedDarkMode === 'true') {
-            body.classList.add('dark-mode');
-            updateDarkModeButton(true);
-        }
-        
-        // Initialize archive restore functionality
         initializeArchiveRestore();
     });
     
@@ -790,5 +712,4 @@
         document.body.removeChild(link);
     }
 </script>
-</body>
-</html> 
+{% endblock %}

@@ -1,0 +1,217 @@
+/* QC Monitor layout (navbar, sidebar, content shell) — mirrored for Asset Tracking */
+:root {
+    --gold:          #D9BD7D;
+    --gold-dark:     #C4A35A;
+    --gold-deeper:   #A8833A;
+    --gold-pale:     #F5ECD6;
+    --gold-light:    #FAF5E8;
+
+    --dark-bg:       #1C1A14;
+    --dark-sidebar:  #231F16;
+    --dark-mid:      #2E2A1E;
+
+    --body-bg:       #F8F6F0;
+
+    --text-dark:     #1C1A14;
+
+    --navbar-height: 60px;
+    --sidebar-width: 260px;
+}
+
+.qc-navbar {
+    background: var(--dark-bg);
+    border-bottom: 2px solid var(--gold-dark);
+    height: var(--navbar-height);
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    z-index: 1050;
+    box-shadow: 0 2px 20px rgba(0, 0, 0, 0.35);
+    display: flex;
+    align-items: center;
+    padding: 0 1.25rem;
+}
+
+.qc-navbar .brand {
+    display: flex;
+    align-items: center;
+    font-size: 1.15rem;
+    font-weight: 700;
+    color: #fff;
+    text-decoration: none;
+    letter-spacing: 0.03em;
+}
+
+.qc-navbar .brand i {
+    color: var(--gold);
+    margin-right: 0.5rem;
+    font-size: 1.3rem;
+}
+
+.sidebar-toggle-btn {
+    background: none;
+    border: none;
+    color: rgba(255, 255, 255, 0.6);
+    font-size: 1.4rem;
+    cursor: pointer;
+    padding: 0.25rem 0.5rem;
+    margin-right: 0.75rem;
+    border-radius: 6px;
+    transition: color 0.2s, background 0.2s;
+}
+
+.sidebar-toggle-btn:hover {
+    color: var(--gold);
+    background: rgba(217, 189, 125, 0.12);
+}
+
+.user-info-pill {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    color: rgba(255, 255, 255, 0.75);
+    font-size: 0.85rem;
+}
+
+.role-badge {
+    font-size: 0.7rem;
+    padding: 0.18rem 0.6rem;
+    border-radius: 20px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    display: inline-block;
+}
+
+.role-badge.admin      { background: var(--gold-pale); color: var(--gold-deeper); }
+.role-badge.purchasing { background: #DCFCE7; color: #166534; }
+
+.qc-navbar .role-badge.admin,
+.qc-navbar .role-badge.purchasing { background: rgba(217,189,125,0.2); color: var(--gold); }
+
+#wrapper {
+    display: flex;
+    min-height: 100vh;
+    padding-top: var(--navbar-height);
+}
+
+#sidebar-wrapper {
+    width: var(--sidebar-width);
+    min-height: calc(100vh - var(--navbar-height));
+    background: var(--dark-sidebar);
+    display: flex;
+    flex-direction: column;
+    position: fixed;
+    top: var(--navbar-height);
+    left: 0;
+    bottom: 0;
+    overflow-y: auto;
+    overflow-x: hidden;
+    z-index: 900;
+    transition: width 0.25s ease, transform 0.25s ease;
+    border-right: 1px solid var(--dark-mid);
+    scrollbar-width: thin;
+    scrollbar-color: rgba(217,189,125,0.15) transparent;
+}
+
+.sidebar-main {
+    flex: 1;
+}
+
+.sidebar-bottom {
+    margin-top: auto;
+    padding-bottom: 0.5rem;
+}
+
+#sidebar-wrapper::-webkit-scrollbar { width: 4px; }
+#sidebar-wrapper::-webkit-scrollbar-thumb { background: rgba(217,189,125,0.15); border-radius: 2px; }
+
+#sidebar-wrapper .sidebar-heading {
+    padding: 1.5rem 1.25rem 0.4rem;
+    color: rgba(217, 189, 125, 0.35);
+    font-size: 0.65rem;
+    text-transform: uppercase;
+    letter-spacing: 0.14em;
+    font-weight: 700;
+}
+
+.sidebar-item {
+    display: flex;
+    align-items: center;
+    padding: 0.72rem 1.25rem;
+    color: rgba(255, 255, 255, 0.55);
+    text-decoration: none;
+    transition: background 0.15s, color 0.15s, border-color 0.15s;
+    border-left: 3px solid transparent;
+    font-size: 0.875rem;
+    white-space: nowrap;
+    overflow: hidden;
+}
+
+.sidebar-item i {
+    width: 20px;
+    margin-right: 0.75rem;
+    font-size: 1rem;
+    flex-shrink: 0;
+}
+
+.sidebar-item:hover {
+    background: rgba(217, 189, 125, 0.08);
+    color: var(--gold);
+    text-decoration: none;
+}
+
+.sidebar-item.active {
+    background: rgba(217, 189, 125, 0.12);
+    border-left-color: var(--gold);
+    color: var(--gold);
+    font-weight: 600;
+}
+
+.sidebar-divider {
+    height: 1px;
+    background: rgba(217, 189, 125, 0.1);
+    margin: 0.5rem 1rem;
+}
+
+#page-content-wrapper {
+    flex: 1;
+    margin-left: var(--sidebar-width);
+    min-height: calc(100vh - var(--navbar-height));
+    padding: 1.75rem 1.75rem 0;
+    display: flex;
+    flex-direction: column;
+    transition: margin-left 0.25s ease;
+    background: var(--body-bg);
+}
+
+#wrapper.sidebar-hidden #sidebar-wrapper {
+    transform: translateX(calc(-1 * var(--sidebar-width)));
+}
+#wrapper.sidebar-hidden #page-content-wrapper {
+    margin-left: 0;
+}
+
+#wrapper.app-shell--public #page-content-wrapper {
+    margin-left: 0;
+}
+
+.app-footer {
+    text-align: center;
+    font-size: 0.8rem;
+    color: #6b7280;
+    padding: 0.9rem 1rem 1.1rem;
+    margin-top: auto;
+}
+
+.dark-mode #page-content-wrapper {
+    background-color: #1a1a1a;
+    color: #ffffff;
+}
+
+@media (max-width: 768px) {
+    #sidebar-wrapper { transform: translateX(calc(-1 * var(--sidebar-width))); }
+    #wrapper.sidebar-open #sidebar-wrapper { transform: translateX(0); }
+    #page-content-wrapper { margin-left: 0; }
+}

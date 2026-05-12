@@ -1,79 +1,61 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Manage Users - Asset Tracking System</title>
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+{% extends "base_app.html" %}
+{% block title %}Manage Users - Asset Tracking System{% endblock %}
+{% block extra_head %}
     <style>
-        body {
-            background: linear-gradient(135deg, #000000 0%, #333333 100%);
-            min-height: 100vh;
-            padding: 20px 0;
-        }
-        
         /* Dark Mode Styles */
-        .dark-mode {
-            background: linear-gradient(135deg, #1a1a1a 0%, #2d2d2d 100%) !important;
-            color: #ffffff !important;
-        }
-        
         .dark-mode .manage-users-container {
             background-color: #2d2d2d !important;
         }
-        
+
         .dark-mode .user-card {
             background-color: #404040 !important;
             border-color: #555555 !important;
         }
-        
+
         .dark-mode .stats-card {
             background-color: #404040 !important;
             border-color: #555555 !important;
         }
-        
+
         .dark-mode .text-muted {
             color: #b0b0b0 !important;
         }
-        
+
         .dark-mode .form-control,
         .dark-mode .form-select {
             background-color: #404040 !important;
             border-color: #555555 !important;
             color: #ffffff !important;
         }
-        
+
         .dark-mode .form-control:focus,
         .dark-mode .form-select:focus {
             background-color: #404040 !important;
             border-color: #86b7fe !important;
             color: #ffffff !important;
         }
-        
+
         .dark-mode .btn {
             border-color: #555555 !important;
         }
-        
+
         .dark-mode .alert {
             background-color: #2d2d2d !important;
             border-color: #404040 !important;
         }
-        
+
         .dark-mode .badge {
             color: #ffffff !important;
         }
-        
+
         .dark-mode .role-badge.role-admin {
             background-color: #dc3545 !important;
         }
-        
+
         .dark-mode .role-badge.role-purchasing {
             background-color: #28a745 !important;
         }
-        
-        /* Ensure all text is visible in dark mode */
+
         .dark-mode h1,
         .dark-mode h2,
         .dark-mode h3,
@@ -82,46 +64,41 @@
         .dark-mode h6 {
             color: #ffffff !important;
         }
-        
+
         .dark-mode p {
             color: #ffffff !important;
         }
-        
+
         .dark-mode label {
             color: #ffffff !important;
         }
-        
+
         .dark-mode small {
             color: #b0b0b0 !important;
         }
-        
+
         .dark-mode .header-section h1,
         .dark-mode .header-section p {
             color: #ffffff !important;
         }
-        
+
         .dark-mode .stats-card h5,
         .dark-mode .stats-card h3 {
             color: #ffffff !important;
         }
-        
+
         .dark-mode .user-card h5 {
             color: #ffffff !important;
         }
-        
+
         .dark-mode .form-check-label {
             color: #ffffff !important;
         }
-        
+
         .dark-mode .btn-close {
             filter: invert(1);
         }
-        
-        /* Light mode styles to ensure visibility */
-        body:not(.dark-mode) {
-            color: #000000 !important;
-        }
-        
+
         body:not(.dark-mode) h1,
         body:not(.dark-mode) h2,
         body:not(.dark-mode) h3,
@@ -130,34 +107,33 @@
         body:not(.dark-mode) h6 {
             color: #000000 !important;
         }
-        
+
         body:not(.dark-mode) p {
             color: #000000 !important;
         }
-        
+
         body:not(.dark-mode) label {
             color: #000000 !important;
         }
-        
+
         body:not(.dark-mode) .text-muted {
             color: #6c757d !important;
         }
-        
+
         body:not(.dark-mode) small {
             color: #6c757d !important;
         }
     </style>
-</head>
-<body>
+{% endblock %}
+{% block app_content %}
     <div class="container">
         <div class="manage-users-container">
             <div class="header-section">
-                <img src="{{ url_for('static', filename='MAA_LOGO.png') }}" alt="MAA Logo">
+                <img src="{{ url_for('static', filename='images/maa-logo.png') }}" alt="MAA Logo">
                 <h1>Manage Users</h1>
                 <p>View and manage all user accounts</p>
             </div>
 
-            <!-- Flash Messages -->
             {% with messages = get_flashed_messages(with_categories=true) %}
                 {% if messages %}
                     {% for category, message in messages %}
@@ -169,7 +145,6 @@
                 {% endif %}
             {% endwith %}
 
-            <!-- Statistics -->
             <div class="stats-grid">
                 <div class="stats-card">
                     <h5><i class="fas fa-users"></i> Total Users</h5>
@@ -185,14 +160,9 @@
                 </div>
             </div>
 
-            <!-- Action Buttons -->
             <div class="d-flex justify-content-between align-items-center mb-3">
                 <h4><i class="fas fa-list"></i> User List</h4>
                 <div>
-                    <!-- Dark Mode Toggle -->
-                    <button id="darkModeToggle" class="btn btn-sm me-2" type="button" onclick="toggleDarkMode()" style="border-color: #6c757d; color: #6c757d; background: rgba(255,255,255,0.9); z-index: 1000;">
-                        <i class="fas fa-moon"></i><span> Dark Mode</span>
-                    </button>
                     <button class="btn btn-danger me-2" id="bulkDeleteBtn" style="display: none;">
                         <i class="fas fa-trash"></i> Delete Selected
                     </button>
@@ -205,7 +175,6 @@
                 </div>
             </div>
 
-            <!-- Users List -->
             {% if users %}
                 {% for user in users %}
                     <div class="user-card">
@@ -256,8 +225,8 @@
             {% endif %}
         </div>
     </div>
-
-    <!-- User Details Modal -->
+{% endblock %}
+{% block modals %}
     <div class="modal fade" id="userDetailsModal" tabindex="-1">
         <div class="modal-dialog">
             <div class="modal-content">
@@ -266,9 +235,7 @@
                     <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                 </div>
                 <div class="modal-body">
-                    <div id="userDetailsContent">
-                        <!-- Content will be populated by JavaScript -->
-                    </div>
+                    <div id="userDetailsContent"></div>
                 </div>
                 <div class="modal-footer">
                     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
@@ -276,13 +243,13 @@
             </div>
         </div>
     </div>
-
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+{% endblock %}
+{% block extra_scripts %}
     <script>
         function showUserDetails(username, role) {
             const modal = new bootstrap.Modal(document.getElementById('userDetailsModal'));
             const content = document.getElementById('userDetailsContent');
-            
+
             content.innerHTML = `
                 <div class="row">
                     <div class="col-md-6">
@@ -299,7 +266,7 @@
                     <div class="col-12">
                         <strong>Permissions:</strong><br>
                         <ul class="mt-2">
-                            ${role === 'admin' ? 
+                            ${role === 'admin' ?
                                 '<li>Full access to all features</li><li>User management</li><li>System administration</li>' :
                                 '<li>Asset management</li><li>View all assets</li><li>Add/edit/delete assets</li><li>Department management</li>'
                             }
@@ -307,15 +274,12 @@
                     </div>
                 </div>
             `;
-            
+
             modal.show();
         }
 
-
-
         function deleteUser(userId, username) {
             if (confirm(`Are you sure you want to delete user "${username}"? This action cannot be undone.`)) {
-                // Use fetch to make the delete request
                 fetch(`/auth/delete_auth_user/${parseInt(userId)}`, {
                     method: 'POST',
                     headers: {
@@ -326,7 +290,6 @@
                     if (response.redirected) {
                         window.location.href = response.url;
                     } else {
-                        // Reload the page to show updated user list
                         window.location.reload();
                     }
                 })
@@ -337,12 +300,10 @@
             }
         }
 
-        // Bulk delete functionality
         document.addEventListener('DOMContentLoaded', function() {
             const checkboxes = document.querySelectorAll('.user-checkbox');
             const bulkDeleteBtn = document.getElementById('bulkDeleteBtn');
 
-            // Show/hide bulk delete button based on selections
             function updateBulkDeleteButton() {
                 const checkedBoxes = document.querySelectorAll('.user-checkbox:checked');
                 if (checkedBoxes.length > 0) {
@@ -353,18 +314,15 @@
                 }
             }
 
-            // Add event listeners to checkboxes
             checkboxes.forEach(checkbox => {
                 checkbox.addEventListener('change', updateBulkDeleteButton);
             });
 
-            // Bulk delete button click handler
             bulkDeleteBtn.addEventListener('click', function() {
                 const checkedBoxes = document.querySelectorAll('.user-checkbox:checked');
                 const userIds = Array.from(checkedBoxes).map(cb => cb.value);
-                
+
                 if (confirm(`Are you sure you want to delete ${userIds.length} selected user(s)? This action cannot be undone.`)) {
-                    // Delete users one by one using fetch
                     let completed = 0;
                     userIds.forEach(userId => {
                         fetch(`/auth/delete_auth_user/${parseInt(userId)}`, {
@@ -376,7 +334,6 @@
                         .then(response => {
                             completed++;
                             if (completed === userIds.length) {
-                                // All deletions completed, reload the page
                                 window.location.reload();
                             }
                         })
@@ -388,51 +345,5 @@
                 }
             });
         });
-        
-        // Dark mode functionality
-        function toggleDarkMode() {
-            const body = document.body;
-            const isDarkMode = body.classList.contains('dark-mode');
-            
-            if (isDarkMode) {
-                body.classList.remove('dark-mode');
-                localStorage.setItem('darkMode', 'false');
-                updateDarkModeButton(false);
-            } else {
-                body.classList.add('dark-mode');
-                localStorage.setItem('darkMode', 'true');
-                updateDarkModeButton(true);
-            }
-        }
-        
-        function updateDarkModeButton(isDark) {
-            const button = document.getElementById('darkModeToggle');
-            const icon = button.querySelector('i');
-            const text = button.querySelector('span');
-            
-            if (isDark) {
-                icon.className = 'fas fa-sun';
-                text.textContent = ' Light Mode';
-                button.style.borderColor = '#ffd700';
-                button.style.color = '#ffd700';
-            } else {
-                icon.className = 'fas fa-moon';
-                text.textContent = ' Dark Mode';
-                button.style.borderColor = '#6c757d';
-                button.style.color = '#6c757d';
-            }
-        }
-        
-        // Initialize dark mode on page load
-        document.addEventListener('DOMContentLoaded', function() {
-            const savedDarkMode = localStorage.getItem('darkMode');
-            const body = document.body;
-            
-            if (savedDarkMode === 'true') {
-                body.classList.add('dark-mode');
-                updateDarkModeButton(true);
-            }
-        });
     </script>
-</body>
-</html> 
+{% endblock %}
