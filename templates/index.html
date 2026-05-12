@@ -1845,7 +1845,7 @@
         
         <div class="alert alert-info mb-3">
           <i class="fas fa-info-circle"></i>
-          Prints use <strong>2&quot; × 2&quot;</strong> labels (one QR per page). Use Preview to check alignment before printing.
+          Prints use <strong>2&quot; × 2&quot;</strong> labels (one QR per page). Use <strong>Print QR Codes</strong> to open the labels in a new tab, then click <strong>Print now</strong> in that tab.
         </div>
         
         <div id="bulkQrContainer" class="row g-3">
@@ -1853,10 +1853,7 @@
         </div>
       </div>
       <div class="modal-footer">
-        <button type="button" class="btn btn-info" id="previewBulkQrBtn">
-          <i class="fas fa-eye"></i> Preview Print
-        </button>
-        <button type="button" class="btn btn-primary" id="printBulkQrBtn">
+        <button type="button" class="btn btn-primary" id="previewBulkQrBtn">
           <i class="fas fa-print"></i> Print QR Codes
         </button>
         <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
@@ -2539,7 +2536,7 @@ document.addEventListener('DOMContentLoaded', function() {
         var qs = 'preset=' + encodeURIComponent(QR_LABEL_PRESET)
             + '&building=' + encodeURIComponent(building)
             + '&department=' + encodeURIComponent(department)
-            + '&print=1&nocache=' + Date.now();
+            + '&print=0&nocache=' + Date.now();
         window.open('/assets/qr-label-print/department?' + qs, '_blank', 'noopener');
     }
 
@@ -4521,7 +4518,7 @@ document.addEventListener('DOMContentLoaded', function() {
         }
         var qs = 'preset=' + encodeURIComponent(QR_LABEL_PRESET)
             + '&asset_id=' + encodeURIComponent(assetId)
-            + '&print=1&nocache=' + Date.now();
+            + '&print=0&nocache=' + Date.now();
         window.open('/assets/qr-label-print/asset?' + qs, '_blank', 'noopener');
     };
 
@@ -4536,7 +4533,7 @@ document.addEventListener('DOMContentLoaded', function() {
         var qs = 'preset=' + encodeURIComponent(QR_LABEL_PRESET)
             + '&building=' + encodeURIComponent(building)
             + '&department=' + encodeURIComponent(department)
-            + '&print=1&nocache=' + Date.now();
+            + '&print=0&nocache=' + Date.now();
         window.open('/assets/qr-label-print/department?' + qs, '_blank', 'noopener');
     };
 
@@ -4750,7 +4747,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
     document.getElementById('previewBulkQrBtn').addEventListener('click', function() {
         if (selectedAssets.length === 0) {
-            alert('Please select at least one asset to preview.');
+            alert('Please select at least one asset to print QR codes.');
             return;
         }
         var items = selectedAssets.map(function (a) { return { kind: 'asset', id: a.id }; });
@@ -4758,22 +4755,6 @@ document.addEventListener('DOMContentLoaded', function() {
             preset: QR_LABEL_PRESET,
             autoprint: false,
             preview_outline: true,
-            items: items
-        }).catch(function (err) {
-            alert(err.message || String(err));
-        });
-    });
-
-    document.getElementById('printBulkQrBtn').addEventListener('click', function() {
-        if (selectedAssets.length === 0) {
-            alert('Please select at least one asset.');
-            return;
-        }
-        var items = selectedAssets.map(function (a) { return { kind: 'asset', id: a.id }; });
-        fetchServerQrBatchPrint({
-            preset: QR_LABEL_PRESET,
-            autoprint: true,
-            preview_outline: false,
             items: items
         }).catch(function (err) {
             alert(err.message || String(err));

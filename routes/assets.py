@@ -1153,7 +1153,8 @@ def _render_qr_label_html(
     # @page + root sizing in **mm** only. Mixing 2in wrappers with mm-positioned children caused blank
     # raster output on some Windows thermal/GDI stacks; max-height + overflow:hidden also clipped the job.
     #
-    # Thermal feed: keep document height close to N labels via min-height; avoid clipping (overflow visible).
+    # Single label: root min-height = one sticker (thermal-friendly). Bulk (N>1): do **not** set
+    # html/body min-height to N×label — some print stacks treat that as one off-page strip → blank feeds.
     n_rows = max(1, len(rows))
     total_doc_h_mm = lh * float(n_rows)
     page_size = f'{lw:.3f}mm {lh:.3f}mm'
@@ -1161,8 +1162,16 @@ def _render_qr_label_html(
     doc_h_css = f'{total_doc_h_mm:.3f}mm'
     lab_w_css = f'{lw:.3f}mm'
     lab_h_css = f'{lh:.3f}mm'
+    if n_rows <= 1:
+        root_block_v = f'''min-height: {doc_h_css} !important;
+    height: auto !important;'''
+    else:
+        root_block_v = '''min-height: unset !important;
+    height: auto !important;'''
 
     sheet = f'@page {{ margin: 0 !important; size: {page_size}; }}'
+    # Avoid break-before/avoid-page on first/last — several thermal/GDI stacks emit an extra blank
+    # or “outline only” page between stickers. One label per sheet: page-break-after always except last.
     print_frame_rules = f'''
 @media print {{
   @page {{
@@ -1173,8 +1182,7 @@ def _render_qr_label_html(
     margin: 0 !important;
     padding: 0 !important;
     width: {doc_w_css} !important;
-    min-height: {doc_h_css} !important;
-    height: auto !important;
+    {root_block_v}
     max-width: {doc_w_css} !important;
     background: #fff !important;
     box-sizing: border-box !important;
@@ -1184,8 +1192,7 @@ def _render_qr_label_html(
     margin: 0 !important;
     padding: 0 !important;
     width: {doc_w_css} !important;
-    min-height: {doc_h_css} !important;
-    height: auto !important;
+    {root_block_v}
     max-width: {doc_w_css} !important;
     background: #fff !important;
     box-sizing: border-box !important;
@@ -1195,7 +1202,7 @@ def _render_qr_label_html(
     margin: 0 !important;
     padding: 0 !important;
     width: {doc_w_css} !important;
-    min-height: {doc_h_css} !important;
+    {root_block_v}
     overflow: visible !important;
     box-sizing: border-box !important;
   }}
@@ -1213,24 +1220,30 @@ def _render_qr_label_html(
     box-sizing: border-box !important;
     break-inside: avoid !important;
     page-break-inside: avoid !important;
+    page-break-after: always !important;
   }}
-  .label-page:first-of-type {{
-    page-break-before: avoid !important;
-    break-before: avoid-page !important;
-  }}
+  /* :last-child misses last <section> when #label-stack has trailing whitespace text nodes */
   .label-page:last-of-type {{
-    page-break-after: avoid !important;
-    break-after: avoid-page !important;
+    page-break-after: auto !important;
   }}
 }}
 '''
+
+    if autoprint:
+        if n_rows <= 1:
+            autoprint_delay_ms = 850
+        else:
+            autoprint_delay_ms = min(5000, 700 + 220 * n_rows)
+    else:
+        autoprint_delay_ms = 200
 
     combined_css = sheet + '\n' + print_frame_rules + '\n' + (page_css_extra or '')
     return render_template(
         'qr_label_print.html',
         rows=rows,
         autoprint=autoprint,
-        autoprint_delay_ms=(850 if autoprint else 200),
+        autoprint_delay_ms=autoprint_delay_ms,
+        label_count=n_rows,
         preview_outline=preview_outline,
         page_css_extra=combined_css,
         show_debug=show_debug,

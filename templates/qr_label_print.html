@@ -16,7 +16,21 @@
       print-color-adjust: exact;
     }
     @media screen {
-      body { padding-top: 76px; }
+      body { padding-top: 0; }
+      /* Stack is first in DOM for print (no leading blank pages); flex order restores banner on top on screen */
+      body.qr-label-print-root {
+        display: flex;
+        flex-direction: column;
+      }
+      body.qr-label-print-root #label-stack {
+        order: 10;
+      }
+      body.qr-label-print-root #qr-print-instruction-banner {
+        order: 5;
+      }
+      body.qr-label-print-root > .no-print:not(#qr-print-instruction-banner) {
+        order: 6;
+      }
     }
     .label-page {
       position: relative;
@@ -25,7 +39,8 @@
       overflow: hidden;
       background: #fff;
     }
-    .label-page:last-child { page-break-after: auto; }
+    /* :last-child fails if #label-stack has trailing whitespace — last label keeps page-break-after:always → extra blank sticker */
+    .label-page:last-of-type { page-break-after: auto; }
     .label-page.preview-outline {
       outline: 2px dashed #333;
       outline-offset: -1px;
@@ -58,17 +73,16 @@
       border: 1px solid #90caf9;
     }
     #qr-print-instruction-banner {
-      position: fixed;
-      top: 0;
-      left: 0;
-      right: 0;
+      position: static;
       width: 100%;
+      max-width: 100%;
       background: #1a56db;
       color: #fff;
       font-family: Arial, Helvetica, sans-serif;
       font-size: 13px;
       padding: 10px 16px;
-      z-index: 9999;
+      margin: 0 0 12px 0;
+      z-index: 1;
       display: flex;
       align-items: center;
       flex-wrap: wrap;
@@ -105,8 +119,29 @@
     {{ page_css_extra|safe }}
     {% endif %}
     @media print {
+      body.qr-label-print-root {
+        display: block !important;
+      }
       .no-print, #qr-print-instruction-banner {
         display: none !important;
+        height: 0 !important;
+        margin: 0 !important;
+        padding: 0 !important;
+        overflow: hidden !important;
+      }
+      /* Do not let banner / debug / scripts participate in pagination (avoids leading blank stickers on some drivers) */
+      body > *:not(#label-stack) {
+        display: none !important;
+        height: 0 !important;
+        margin: 0 !important;
+        padding: 0 !important;
+      }
+      #label-stack {
+        display: block !important;
+      }
+      .label-page.preview-outline {
+        outline: none !important;
+        outline-offset: 0 !important;
       }
       img.qr, .primary, .secondary {
         position: absolute !important;
@@ -115,7 +150,13 @@
     }
   </style>
 </head>
-<body>
+<body class="qr-label-print-root">
+<div id="label-stack">{%- for r in rows %}
+<section class="label-page {% if preview_outline %}preview-outline{% endif %} {% if show_debug %}debug-layout{% endif %}" style="{{ r.page_outer_style|safe }}">
+<img class="qr" alt="" src="{{ r.qr_src }}" style="{{ r.qr_style|safe }}">
+<div class="primary {{ r.primary_cls }}" style="{{ r.primary_style|safe }}">{{ r.primary_text }}</div>
+<div class="secondary {{ r.secondary_cls }}" style="{{ r.secondary_style|safe }}">{{ r.secondary_text }}</div>
+</section>{%- endfor %}</div>
 {% if show_debug %}
   <div class="no-print">
     <strong>Layout debug</strong> — preset <code>{{ layout_preset }}</code>,
@@ -124,7 +165,7 @@
     Turn off with <code>?debug=0</code> before sharing or printing a clean proof.
   </div>
 {% endif %}
-  <div id="qr-print-instruction-banner">
+  <div id="qr-print-instruction-banner" class="no-print">
     <strong>QR label print</strong>
     <span>In the print dialog:</span>
     <span class="warn">Scale = 100% (Actual size)</span>
@@ -142,44 +183,85 @@
     </span>
     <button type="button" id="qr-print-now-btn" onclick="window.print()">Print now</button>
   </div>
-<div id="label-stack">
-{% for r in rows %}
-  <section
-    class="label-page {% if preview_outline %}preview-outline{% endif %} {% if show_debug %}debug-layout{% endif %}"
-    style="{{ r.page_outer_style|safe }}">
-    <img class="qr" alt="" src="{{ r.qr_src }}" style="{{ r.qr_style|safe }}">
-    <div class="primary {{ r.primary_cls }}" style="{{ r.primary_style|safe }}">{{ r.primary_text }}</div>
-    <div class="secondary {{ r.secondary_cls }}" style="{{ r.secondary_style|safe }}">{{ r.secondary_text }}</div>
-  </section>
-{% endfor %}
-</div>
 
 {% if autoprint %}
 <script>
 (function () {
   var printed = false;
   var delayMs = {{ autoprint_delay_ms|int }};
+  var labelCount = {{ label_count|default(1)|int }};
   function triggerPrint() {
     if (printed) return;
     printed = true;
     window.print();
   }
-  function afterReady() {
-    var imgs = Array.prototype.slice.call(document.getElementsByTagName('img'));
-    var wait = [];
-    imgs.forEach(function (im) {
-      if (im.decode) wait.push(im.decode().catch(function () {}));
-    });
-    var t = Promise.all(wait).then(function () {}).catch(function () {});
-    Promise.resolve(t).finally(function () {
-      setTimeout(triggerPrint, delayMs);
-    });
-    setTimeout(triggerPrint, Math.max(delayMs, 3500));
+  function waitDecode(im) {
+    if (im.decode) return im.decode().catch(function () {});
+    return Promise.resolve();
   }
-  if (document.readyState === 'complete') {
-    afterReady();
+  /** Single-label path: unchanged proven behaviour (do not regress individual QR print). */
+  function runSingleLabelAutoprint() {
+    function afterReady() {
+      var imgs = Array.prototype.slice.call(document.getElementsByTagName('img'));
+      var wait = [];
+      imgs.forEach(function (im) {
+        if (im.decode) wait.push(im.decode().catch(function () {}));
+      });
+      var t = Promise.all(wait).then(function () {}).catch(function () {});
+      Promise.resolve(t).finally(function () {
+        setTimeout(triggerPrint, delayMs);
+      });
+      setTimeout(triggerPrint, Math.max(delayMs, 3500));
+    }
+    if (document.readyState === 'complete') {
+      afterReady();
+    } else {
+      window.addEventListener('load', afterReady);
+    }
+  }
+  /** Bulk: wait for each data: QR (load + decode) so print() does not rasterize empty pages. */
+  function runBulkAutoprint() {
+    function whenQrImagesReady() {
+      var imgs = Array.prototype.slice.call(document.querySelectorAll('img.qr'));
+      if (!imgs.length) return Promise.resolve();
+      return Promise.all(imgs.map(function (im) {
+        if (im.complete) {
+          return waitDecode(im);
+        }
+        return new Promise(function (resolve) {
+          var tmo = setTimeout(resolve, 8000);
+          function done() {
+            clearTimeout(tmo);
+            waitDecode(im).then(resolve).catch(resolve);
+          }
+          im.addEventListener('load', done, { once: true });
+          im.addEventListener('error', done, { once: true });
+        });
+      }));
+    }
+    function afterPaintThenPrint() {
+      requestAnimationFrame(function () {
+        requestAnimationFrame(function () {
+          setTimeout(triggerPrint, delayMs);
+        });
+      });
+    }
+    function afterReady() {
+      var t = whenQrImagesReady().catch(function () {});
+      Promise.resolve(t).finally(afterPaintThenPrint);
+      var fallbackMs = Math.max(4500, delayMs + 800 + 150 * labelCount);
+      setTimeout(triggerPrint, fallbackMs);
+    }
+    if (document.readyState === 'complete') {
+      afterReady();
+    } else {
+      window.addEventListener('load', afterReady);
+    }
+  }
+  if (labelCount <= 1) {
+    runSingleLabelAutoprint();
   } else {
-    window.addEventListener('load', afterReady);
+    runBulkAutoprint();
   }
 })();
 </script>
