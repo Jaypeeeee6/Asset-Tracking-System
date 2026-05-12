@@ -1,0 +1,188 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta http-equiv="Cache-Control" content="no-store" />
+  <title>QR Labels</title>
+  <style>
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      padding: 0;
+      font-family: Arial, Helvetica, sans-serif;
+      background: #fff;
+      color: #222;
+      -webkit-print-color-adjust: exact;
+      print-color-adjust: exact;
+    }
+    @media screen {
+      body { padding-top: 76px; }
+    }
+    .label-page {
+      position: relative;
+      page-break-after: always;
+      page-break-inside: avoid;
+      overflow: hidden;
+      background: #fff;
+    }
+    .label-page:last-child { page-break-after: auto; }
+    .label-page.preview-outline {
+      outline: 2px dashed #333;
+      outline-offset: -1px;
+    }
+    img.qr {
+      position: absolute;
+      display: block;
+      object-fit: contain;
+      -webkit-print-color-adjust: exact;
+      print-color-adjust: exact;
+    }
+    .primary, .secondary {
+      position: absolute;
+      word-wrap: break-word;
+      overflow-wrap: anywhere;
+      line-height: 1.15;
+    }
+    .primary { font-weight: bold; color: #333; }
+    .secondary { color: #666; }
+    .ta-c { text-align: center; }
+    .ta-l { text-align: left; }
+    .ta-r { text-align: right; }
+
+    .no-print {
+      margin: 10px 12px;
+      padding: 10px 12px;
+      background: #e3f2fd;
+      border-radius: 6px;
+      font-size: 13px;
+      border: 1px solid #90caf9;
+    }
+    #qr-print-instruction-banner {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      width: 100%;
+      background: #1a56db;
+      color: #fff;
+      font-family: Arial, Helvetica, sans-serif;
+      font-size: 13px;
+      padding: 10px 16px;
+      z-index: 9999;
+      display: flex;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 10px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.25);
+    }
+    #qr-print-instruction-banner strong { font-size: 14px; }
+    #qr-print-instruction-banner .warn {
+      background: #fbbf24;
+      color: #1a1a1a;
+      border-radius: 4px;
+      padding: 2px 8px;
+      font-weight: bold;
+      white-space: nowrap;
+    }
+    #qr-print-now-btn {
+      margin-left: auto;
+      background: #fff;
+      color: #1a56db;
+      border: none;
+      border-radius: 4px;
+      padding: 6px 16px;
+      font-size: 13px;
+      font-weight: bold;
+      cursor: pointer;
+    }
+    {% if show_debug %}
+    .label-page { outline: 2px solid #c62828 !important; }
+    img.qr { outline: 2px dashed #1565c0; }
+    .primary { outline: 1px dashed #2e7d32; }
+    .secondary { outline: 1px dashed #ef6c00; }
+    {% endif %}
+    {% if page_css_extra %}
+    {{ page_css_extra|safe }}
+    {% endif %}
+    @media print {
+      .no-print, #qr-print-instruction-banner {
+        display: none !important;
+      }
+      img.qr, .primary, .secondary {
+        position: absolute !important;
+        transform: none !important;
+      }
+    }
+  </style>
+</head>
+<body>
+{% if show_debug %}
+  <div class="no-print">
+    <strong>Layout debug</strong> — preset <code>{{ layout_preset }}</code>,
+    label {{ '%.2f'|format(layout_mm[0]) }} × {{ '%.2f'|format(layout_mm[1]) }} mm.
+    Red box = label boundary; blue dashed = QR; green/orange = text blocks.
+    Turn off with <code>?debug=0</code> before sharing or printing a clean proof.
+  </div>
+{% endif %}
+  <div id="qr-print-instruction-banner">
+    <strong>QR label print</strong>
+    <span>In the print dialog:</span>
+    <span class="warn">Scale = 100% (Actual size)</span>
+    <span>&mdash; do not use &ldquo;Fit to page&rdquo;.</span>
+    <span>Paper must match this page:
+      {{ '%.1f'|format(layout_mm[0]) }}&nbsp;&times;&nbsp;{{ '%.1f'|format(layout_mm[1]) }}&nbsp;mm
+      {% if print_paper_hint_2in2 %}
+      Use <strong>2&nbsp;in&nbsp;&times;&nbsp;2&nbsp;in</strong> or <strong>50.8&nbsp;&times;&nbsp;50.8&nbsp;mm</strong> in the driver — not Letter / 4&nbsp;&times;&nbsp;6 / multi-up.
+      {% endif %}
+    </span>
+    <span style="flex-basis:100%; font-size:12px; opacity:0.92; line-height:1.35;">
+      Thermal / die-cut rolls: wrong peel position usually means the driver treats the page as taller than one
+      label or scales the job — use scale 100&nbsp;% and a paper preset that matches
+      {{ '%.1f'|format(layout_mm[0]) }} × {{ '%.1f'|format(layout_mm[1]) }}&nbsp;mm (one label per page).
+    </span>
+    <button type="button" id="qr-print-now-btn" onclick="window.print()">Print now</button>
+  </div>
+<div id="label-stack">
+{% for r in rows %}
+  <section
+    class="label-page {% if preview_outline %}preview-outline{% endif %} {% if show_debug %}debug-layout{% endif %}"
+    style="{{ r.page_outer_style|safe }}">
+    <img class="qr" alt="" src="{{ r.qr_src }}" style="{{ r.qr_style|safe }}">
+    <div class="primary {{ r.primary_cls }}" style="{{ r.primary_style|safe }}">{{ r.primary_text }}</div>
+    <div class="secondary {{ r.secondary_cls }}" style="{{ r.secondary_style|safe }}">{{ r.secondary_text }}</div>
+  </section>
+{% endfor %}
+</div>
+
+{% if autoprint %}
+<script>
+(function () {
+  var printed = false;
+  var delayMs = {{ autoprint_delay_ms|int }};
+  function triggerPrint() {
+    if (printed) return;
+    printed = true;
+    window.print();
+  }
+  function afterReady() {
+    var imgs = Array.prototype.slice.call(document.getElementsByTagName('img'));
+    var wait = [];
+    imgs.forEach(function (im) {
+      if (im.decode) wait.push(im.decode().catch(function () {}));
+    });
+    var t = Promise.all(wait).then(function () {}).catch(function () {});
+    Promise.resolve(t).finally(function () {
+      setTimeout(triggerPrint, delayMs);
+    });
+    setTimeout(triggerPrint, Math.max(delayMs, 3500));
+  }
+  if (document.readyState === 'complete') {
+    afterReady();
+  } else {
+    window.addEventListener('load', afterReady);
+  }
+})();
+</script>
+{% endif %}
+</body>
+</html>

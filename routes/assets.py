@@ -1,6 +1,24 @@
-from flask import Blueprint, render_template, request, redirect, url_for, jsonify, abort, send_file
+from flask import (
+    Blueprint,
+    render_template,
+    request,
+    redirect,
+    url_for,
+    jsonify,
+    abort,
+    send_file,
+    make_response,
+)
 from flask_login import login_required, current_user
-from models.database import get_db_connection, generate_asset_code
+import base64
+from models.database import (
+    get_db_connection,
+    generate_asset_code,
+    normalize_department_display_code,
+    get_qr_label_layout_dict,
+    qr_layout_to_api_dict,
+    upsert_qr_label_layout_updates,
+)
 import qrcode
 from io import BytesIO
 import uuid
@@ -410,74 +428,63 @@ def bulk_delete():
         conn.close()
         return jsonify({'error': f'Failed to archive assets: {str(e)}'}), 500
 
-@assets_bp.route('/qrcode/<int:asset_id>')
-def qrcode_image(asset_id):
-    """Generate simple QR code for a specific asset"""
+def _png_qr_for_string(link_url):
+    """Render link_url as a compact black-on-white PNG (shared by image + print views)."""
+    qr = qrcode.QRCode(
+        version=1,
+        error_correction=qrcode.constants.ERROR_CORRECT_L,
+        box_size=3,
+        border=1,
+    )
+    qr.add_data(link_url)
+    qr.make(fit=True)
+    qr_img = qr.make_image(fill_color='black', back_color='white')
+    buf = BytesIO()
+    qr_img.save(buf, format='PNG')
+    return buf.getvalue()
+
+
+def _png_bytes_asset_qrcode(asset_id):
     conn = get_db_connection()
     cur = conn.cursor()
     cur.execute('SELECT asset_code FROM assets WHERE id=?', (asset_id,))
     row = cur.fetchone()
     conn.close()
     if not row or not row['asset_code']:
-        abort(404)
-    
-    # Create URL for the asset
+        return None
     base_url = request.host_url.rstrip('/')
-    qr_url = f"{base_url}/asset/{row['asset_code']}"
-    
-    # Create simple QR code with compact pattern for printing
-    qr = qrcode.QRCode(
-        version=1,
-        error_correction=qrcode.constants.ERROR_CORRECT_L,
-        box_size=3,
-        border=1
-    )
-    qr.add_data(qr_url)
-    qr.make(fit=True)
-    
-    # Generate simple QR code image in black and white
-    qr_img = qr.make_image(fill_color="black", back_color="white")
-    
-    # Convert to bytes
-    buf = BytesIO()
-    qr_img.save(buf, format='PNG')
-    buf.seek(0)
-    
-    return send_file(buf, mimetype='image/png')
+    target = f"{base_url}/asset/{row['asset_code']}"
+    return _png_qr_for_string(target)
 
+
+def _png_bytes_department_qrcode(decoded_building, decoded_department):
+    base_url = request.host_url.rstrip('/')
+    target = f"{base_url}/assets/department_items/{decoded_building}/{decoded_department}"
+    return _png_qr_for_string(target)
+
+
+def _png_data_uri(png_bytes):
+    return 'data:image/png;base64,' + base64.b64encode(png_bytes).decode('ascii')
+
+
+@assets_bp.route('/qrcode/<int:asset_id>')
+def qrcode_image(asset_id):
+    """Generate simple QR code for a specific asset"""
+    png = _png_bytes_asset_qrcode(asset_id)
+    if not png:
+        abort(404)
+    return send_file(BytesIO(png), mimetype='image/png')
 
 
 @assets_bp.route('/department_qr/<building>/<department>')
 def department_qrcode_image(building, department):
     """Generate simple QR code for department items"""
-    # Decode URL-encoded parameters
     from urllib.parse import unquote
+
     building = unquote(building)
     department = unquote(department)
-    
-    # Create URL for the department
-    base_url = request.host_url.rstrip('/')
-    qr_url = f"{base_url}/assets/department_items/{building}/{department}"
-    
-    # Create simple QR code with compact pattern for printing
-    qr = qrcode.QRCode(
-        version=1,
-        error_correction=qrcode.constants.ERROR_CORRECT_L,
-        box_size=3,
-        border=1
-    )
-    qr.add_data(qr_url)
-    qr.make(fit=True)
-    
-    # Generate simple QR code image in black and white
-    qr_img = qr.make_image(fill_color="black", back_color="white")
-    
-    # Convert to bytes
-    buf = BytesIO()
-    qr_img.save(buf, format='PNG')
-    buf.seek(0)
-    
-    return send_file(buf, mimetype='image/png')
+    png = _png_bytes_department_qrcode(building, department)
+    return send_file(BytesIO(png), mimetype='image/png')
 
 @assets_bp.route('/department_items/<building>/<department>')
 def department_items(building, department):
@@ -974,4 +981,438 @@ def get_all_assets_for_export():
         return jsonify({
             'success': False,
             'error': str(e)
-        }), 500 
+        }), 500
+
+
+# --- QR label print (software-defined layout; printer does not choose positions) ---
+#
+# Contract (same idea as calibrated cheque prints):
+#   • Label outer size comes from SQLite (label_width_mm × label_height_mm), e.g. label_2x2 = 50.8 × 50.8 mm.
+#   • Every element uses explicit coordinates in mm: QR (qr_x_mm, qr_y_mm, qr_size_mm), text anchors and tops,
+#     fonts, max widths. Insets/margins are those numbers—not driver "center on page" or similar.
+#   • The print HTML sets @page { size: <w>mm <h>mm; margin: 0 } and position:absolute mm styles on QR and
+#     text inside a matching mm-sized .label-page. The printer should faithfully reproduce geometry at 100%
+#     scale / paper that matches @page (see qr_label_print.html banner).
+#
+# QR images use data: URIs so print never waits on a separate fetch
+# (fixes blank labels when autoprint fires before images load or when absolute URLs mismatch the browser host).
+
+def _nocache(html_str):
+    """Print views must never be reused from disk cache (stale layouts look like preview ≠ paper)."""
+    resp = make_response(html_str)
+    resp.headers['Cache-Control'] = 'no-store, no-cache, must-revalidate, max-age=0'
+    resp.headers['Pragma'] = 'no-cache'
+    resp.headers['Expires'] = '0'
+    return resp
+
+
+def _float_or(layout, key, default=0.0):
+    v = layout.get(key)
+    if v is None:
+        return float(default)
+    return float(v)
+
+
+def _effective_qr_width_mm(layout, qr_px_raw):
+    ref = layout.get('qr_reference_px') or 80
+    try:
+        px = float(qr_px_raw)
+    except (TypeError, ValueError):
+        px = float(ref)
+    if px <= 0:
+        px = float(ref)
+    return float(layout['qr_size_mm']) * px / float(ref)
+
+
+def _text_box_style(anchor_x_mm, top_mm, font_pt, box_width_mm, align):
+    """
+    Position text in millimetres — same units as @page size for this label.
+    Keeps paper output aligned with the on-screen preview (some pipelines skew inch vs mm).
+
+    anchor_x_mm: center x for align=center, right edge x for align=right, left x for align=left.
+    """
+    mx = float(box_width_mm)
+    top = float(top_mm)
+    fp = float(font_pt)
+    ax = float(anchor_x_mm)
+
+    sizing = (
+        f'width:{mx:.3f}mm;max-width:{mx:.3f}mm;'
+        f'box-sizing:border-box;font-size:{fp:.2f}pt;top:{top:.3f}mm;'
+    )
+
+    if align == 'center':
+        left_edge_mm = max(0.0, ax - mx / 2.0)
+        return f'left:{left_edge_mm:.3f}mm;{sizing}text-align:center;'
+    if align == 'right':
+        left_edge_mm = max(0.0, ax - mx)
+        return f'left:{left_edge_mm:.3f}mm;{sizing}text-align:right;'
+    left_edge_mm = max(0.0, ax)
+    return f'left:{left_edge_mm:.3f}mm;{sizing}text-align:left;'
+
+
+def _layout_class_align(align):
+    return {'center': 'ta-c', 'left': 'ta-l', 'right': 'ta-r'}.get(align, 'ta-l')
+
+
+def _compose_qr_rows(layout, qr_px, items):
+    """
+    Build one label row per item: absolute mm positions derived only from layout (DB) + print_offset_* fields.
+
+    The printer/OS must not infer QR or text placement; these inline styles are the single source of truth.
+    items = list of (qr_abs_url, primary, secondary).
+    """
+    lw = float(layout['label_width_mm'])
+    lh = float(layout['label_height_mm'])
+
+    fqrx = _float_or(layout, 'print_offset_qr_x_mm')
+    fqry = _float_or(layout, 'print_offset_qr_y_mm')
+    fpx = _float_or(layout, 'print_offset_primary_x_mm')
+    fpy = _float_or(layout, 'print_offset_primary_y_mm')
+    fsx = _float_or(layout, 'print_offset_secondary_x_mm')
+    fsy = _float_or(layout, 'print_offset_secondary_y_mm')
+
+    qr_w = _effective_qr_width_mm(layout, qr_px)
+
+    qr_left = float(layout['qr_x_mm']) + fqrx
+    qr_top = float(layout['qr_y_mm']) + fqry
+
+    pmw_layout = layout.get('primary_text_max_width_mm')
+    smw_layout = layout.get('secondary_text_max_width_mm')
+    pmw = float(pmw_layout) if pmw_layout is not None else max(lw - 4.0, 4.0)
+    smw = float(smw_layout) if smw_layout is not None else max(lw - 4.0, 4.0)
+
+    primary_top = float(layout['primary_text_y_mm']) + fpy
+    secondary_top = float(layout['secondary_text_y_mm']) + fsy
+
+    # Horizontal: when primary/secondary share the same x anchor (usual case), derive that anchor
+    # from the *rendered* QR center so print matches QR even if DB text columns were never migrated.
+    ptx_mm = float(layout['primary_text_x_mm'])
+    stx_mm = float(layout['secondary_text_x_mm'])
+    qty_center_x = qr_left + qr_w / 2.0
+    if abs(ptx_mm - stx_mm) < 0.2:
+        primary_left = qty_center_x + fpx
+        secondary_left = qty_center_x + fsx
+    else:
+        primary_left = ptx_mm + fpx
+        secondary_left = stx_mm + fsx
+
+    primary_align = (layout.get('primary_text_align') or 'center').lower()
+    secondary_align = (layout.get('secondary_text_align') or 'center').lower()
+
+    page_outer_style = f'width:{lw:.3f}mm;height:{lh:.3f}mm;'
+
+    rows = []
+    for qr_src, primary_text, secondary_text in items:
+        qr_style = (
+            f'left:{qr_left:.3f}mm;top:{qr_top:.3f}mm;'
+            f'width:{qr_w:.3f}mm;height:{qr_w:.3f}mm;'
+        )
+        rows.append({
+            'page_outer_style': page_outer_style,
+            'qr_src': qr_src,
+            'qr_style': qr_style,
+            'primary_style': _text_box_style(
+                primary_left, primary_top, layout['primary_font_pt'], pmw, primary_align,
+            ),
+            'secondary_style': _text_box_style(
+                secondary_left, secondary_top, layout['secondary_font_pt'], smw, secondary_align,
+            ),
+            'primary_text': primary_text or '',
+            'secondary_text': secondary_text or '',
+            'primary_cls': _layout_class_align(primary_align),
+            'secondary_cls': _layout_class_align(secondary_align),
+        })
+    return rows
+
+
+def _render_qr_label_html(
+    conn,
+    preset_key,
+    qr_px,
+    items,
+    autoprint=False,
+    preview_outline=False,
+    page_css_extra='',
+    show_debug=False,
+):
+    """Render print HTML whose @page and absolute mm coords match SQLite layout (printer does not place elements)."""
+    layout = get_qr_label_layout_dict(conn, preset_key)
+    if not layout:
+        return None
+    rows = _compose_qr_rows(layout, qr_px, items)
+    lw = float(layout['label_width_mm'])
+    lh = float(layout['label_height_mm'])
+
+    std_2in_mm = 50.8  # exact 2"
+    square_2x2_label = (
+        abs(lw - std_2in_mm) < 0.35
+        and abs(lh - std_2in_mm) < 0.35
+        and abs(lw - lh) < 0.35
+    )
+    # @page + root sizing in **mm** only. Mixing 2in wrappers with mm-positioned children caused blank
+    # raster output on some Windows thermal/GDI stacks; max-height + overflow:hidden also clipped the job.
+    #
+    # Thermal feed: keep document height close to N labels via min-height; avoid clipping (overflow visible).
+    n_rows = max(1, len(rows))
+    total_doc_h_mm = lh * float(n_rows)
+    page_size = f'{lw:.3f}mm {lh:.3f}mm'
+    doc_w_css = f'{lw:.3f}mm'
+    doc_h_css = f'{total_doc_h_mm:.3f}mm'
+    lab_w_css = f'{lw:.3f}mm'
+    lab_h_css = f'{lh:.3f}mm'
+
+    sheet = f'@page {{ margin: 0 !important; size: {page_size}; }}'
+    print_frame_rules = f'''
+@media print {{
+  @page {{
+    margin: 0 !important;
+    size: {page_size} !important;
+  }}
+  html {{
+    margin: 0 !important;
+    padding: 0 !important;
+    width: {doc_w_css} !important;
+    min-height: {doc_h_css} !important;
+    height: auto !important;
+    max-width: {doc_w_css} !important;
+    background: #fff !important;
+    box-sizing: border-box !important;
+    overflow: visible !important;
+  }}
+  body {{
+    margin: 0 !important;
+    padding: 0 !important;
+    width: {doc_w_css} !important;
+    min-height: {doc_h_css} !important;
+    height: auto !important;
+    max-width: {doc_w_css} !important;
+    background: #fff !important;
+    box-sizing: border-box !important;
+    overflow: visible !important;
+  }}
+  #label-stack {{
+    margin: 0 !important;
+    padding: 0 !important;
+    width: {doc_w_css} !important;
+    min-height: {doc_h_css} !important;
+    overflow: visible !important;
+    box-sizing: border-box !important;
+  }}
+  .label-page {{
+    width: {lab_w_css} !important;
+    height: {lab_h_css} !important;
+    max-width: {lab_w_css} !important;
+    max-height: {lab_h_css} !important;
+    min-width: {lab_w_css} !important;
+    min-height: {lab_h_css} !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    position: relative !important;
+    overflow: visible !important;
+    box-sizing: border-box !important;
+    break-inside: avoid !important;
+    page-break-inside: avoid !important;
+  }}
+  .label-page:first-of-type {{
+    page-break-before: avoid !important;
+    break-before: avoid-page !important;
+  }}
+  .label-page:last-of-type {{
+    page-break-after: avoid !important;
+    break-after: avoid-page !important;
+  }}
+}}
+'''
+
+    combined_css = sheet + '\n' + print_frame_rules + '\n' + (page_css_extra or '')
+    return render_template(
+        'qr_label_print.html',
+        rows=rows,
+        autoprint=autoprint,
+        autoprint_delay_ms=(850 if autoprint else 200),
+        preview_outline=preview_outline,
+        page_css_extra=combined_css,
+        show_debug=show_debug,
+        layout_preset=preset_key,
+        layout_mm=(lw, lh),
+        print_paper_hint_2in2=square_2x2_label,
+    )
+
+
+@assets_bp.route('/api/qr-label-layout/<preset_key>', methods=('GET', 'PUT', 'PATCH'))
+@login_required
+def api_qr_label_layout(preset_key):
+    if request.method == 'GET':
+        conn = get_db_connection()
+        layout = get_qr_label_layout_dict(conn, preset_key)
+        conn.close()
+        if not layout:
+            return jsonify({'error': 'Unknown preset', 'layout': None}), 404
+        return jsonify({'layout': qr_layout_to_api_dict(layout)})
+
+    if current_user.role != 'admin':
+        return jsonify({'error': 'Forbidden'}), 403
+    body = request.get_json(silent=True) or {}
+    conn = get_db_connection()
+    updated = upsert_qr_label_layout_updates(conn, preset_key, body)
+    conn.close()
+    if not updated:
+        return jsonify({'error': 'Preset not found', 'layout': None}), 404
+    return jsonify({'success': True, 'layout': qr_layout_to_api_dict(updated)})
+
+
+@assets_bp.route('/qr-label-print/asset')
+@login_required
+def qr_label_print_asset():
+    autoprint = request.args.get('print', '1') != '0'
+    preview_out = request.args.get('preview', '0') == '1'
+    show_debug = request.args.get('debug', '0') == '1'
+
+    preset = request.args.get('preset', '').strip()
+    asset_id_raw = request.args.get('asset_id')
+    qr_px_raw = request.args.get('qr_px', '80')
+
+    if not preset:
+        preset = 'label_2x2'
+    try:
+        asset_id = int(asset_id_raw)
+    except (TypeError, ValueError):
+        abort(400)
+
+    conn = get_db_connection()
+    cur = conn.cursor()
+    cur.execute('SELECT id, asset_code, name FROM assets WHERE id = ?', (asset_id,))
+    row = cur.fetchone()
+    if not row:
+        conn.close()
+        abort(404)
+    cols = [d[0] for d in cur.description]
+    asset = dict(zip(cols, row))
+
+    png = _png_bytes_asset_qrcode(asset_id)
+    if not png:
+        conn.close()
+        abort(404)
+    items = [(_png_data_uri(png), asset.get('asset_code') or '', asset.get('name') or '')]
+
+    html = _render_qr_label_html(
+        conn,
+        preset,
+        qr_px_raw,
+        items,
+        autoprint=autoprint,
+        preview_outline=preview_out,
+        show_debug=show_debug,
+    )
+    conn.close()
+    if not html:
+        abort(404)
+    return _nocache(html)
+
+
+@assets_bp.route('/qr-label-print/department')
+@login_required
+def qr_label_print_department():
+    from urllib.parse import unquote
+
+    autoprint = request.args.get('print', '1') != '0'
+    preview_out = request.args.get('preview', '0') == '1'
+    show_debug = request.args.get('debug', '0') == '1'
+
+    preset = request.args.get('preset', '').strip() or 'label_2x2'
+    qr_px_raw = request.args.get('qr_px', '80')
+    building = unquote(request.args.get('building') or '').strip()
+    department = unquote(request.args.get('department') or '').strip()
+    if not building or not department:
+        abort(400)
+
+    code = normalize_department_display_code(building, department)
+    secondary = f'{department} - {building}'
+
+    png = _png_bytes_department_qrcode(building, department)
+    conn = get_db_connection()
+    items = [(_png_data_uri(png), code, secondary)]
+    html = _render_qr_label_html(
+        conn,
+        preset,
+        qr_px_raw,
+        items,
+        autoprint=autoprint,
+        preview_outline=preview_out,
+        show_debug=show_debug,
+    )
+    conn.close()
+    if not html:
+        abort(404)
+    return _nocache(html)
+
+
+@assets_bp.route('/qr-label-print/batch', methods=['POST'])
+@login_required
+def qr_label_print_batch():
+    data = request.get_json(silent=True) or {}
+    preset = (data.get('preset') or '').strip() or 'label_2x2'
+    qr_px_raw = data.get('qr_px', 80)
+
+    autoprint = data.get('autoprint', True)
+    preview_out = data.get('preview_outline', False)
+    show_debug = bool(data.get('debug', False))
+    preview_body = ''
+    if preview_out:
+        # Screen-only — padding on body in print falsely inflates page height on thermal printers.
+        preview_body = '@media screen { body { background: #e8e8e8; padding: 12px 0 0 12px !important; } }'
+
+    items_payload = data.get('items')
+    if not isinstance(items_payload, list) or not items_payload:
+        return jsonify({'error': 'items (non-empty array) required'}), 400
+
+    conn = get_db_connection()
+    cur = conn.cursor()
+    tuples = []
+
+    for block in items_payload:
+        kind = (block.get('kind') or '').lower()
+        if kind == 'asset':
+            aid = int(block['id'])
+            cur.execute(
+                'SELECT id, asset_code, name FROM assets WHERE id = ?',
+                (aid,),
+            )
+            a = cur.fetchone()
+            if not a:
+                continue
+            png = _png_bytes_asset_qrcode(aid)
+            if not png:
+                continue
+            tuples.append((_png_data_uri(png), a['asset_code'] or '', a['name'] or ''))
+        elif kind == 'department':
+            b = str(block.get('building') or '').strip()
+            d = str(block.get('department') or '').strip()
+            if not b or not d:
+                continue
+            code = normalize_department_display_code(b, d)
+            secondary = f'{d} - {b}'
+            png = _png_bytes_department_qrcode(b, d)
+            tuples.append((_png_data_uri(png), code, secondary))
+        else:
+            continue
+
+    if not tuples:
+        conn.close()
+        return jsonify({'error': 'No valid entries to print'}), 400
+
+    html = _render_qr_label_html(
+        conn,
+        preset,
+        qr_px_raw,
+        tuples,
+        autoprint=bool(autoprint),
+        preview_outline=bool(preview_out),
+        page_css_extra=preview_body,
+        show_debug=show_debug,
+    )
+    conn.close()
+    if not html:
+        return jsonify({'error': 'Unknown preset'}), 404
+    return _nocache(html)

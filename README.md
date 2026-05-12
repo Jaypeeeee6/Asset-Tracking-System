@@ -51,7 +51,7 @@ A comprehensive web-based asset tracking system built with Flask, featuring QR c
 
 3. **Run the application**
    ```bash
-   python app.py
+   python run.py
    ```
 
 4. **Access the application**

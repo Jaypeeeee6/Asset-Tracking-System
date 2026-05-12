@@ -1843,22 +1843,9 @@
           <!-- Asset info will be displayed here -->
         </div>
         
-        <div class="row mb-3">
-          <div class="col-md-6">
-            <label for="qrSizeSelect" class="form-label">QR Code Size:</label>
-            <select class="form-select" id="qrSizeSelect">
-              <option value="60">Small (60px)</option>
-              <option value="80" selected>Medium (80px) - Best for 3x3 inch</option>
-              <option value="120">Extra Large (120px)</option>
-              <option value="150">Maximum (150px) - Full width</option>
-            </select>
-          </div>
-          <div class="col-md-6">
-            <div class="alert alert-info">
-              <i class="fas fa-info-circle"></i>
-              <strong>Citizen CL-E321:</strong> 3" x 3" labels - Use Preview first
-            </div>
-          </div>
+        <div class="alert alert-info mb-3">
+          <i class="fas fa-info-circle"></i>
+          Prints use <strong>2&quot; × 2&quot;</strong> labels (one QR per page). Use Preview to check alignment before printing.
         </div>
         
         <div id="bulkQrContainer" class="row g-3">
@@ -2223,6 +2210,8 @@
 let buildingsData = [];
 let departmentsData = [];
 let selectedAssets = [];
+/** Server print layout preset (2 in × 2 in labels); must match qr_label_layouts.preset_key */
+const QR_LABEL_PRESET = 'label_2x2';
 
 // ============================================================================
 // ADMIN MENU TOGGLE FUNCTION
@@ -2546,300 +2535,58 @@ document.addEventListener('DOMContentLoaded', function() {
     function handlePrintDepartmentQR(e) {
         const building = e.currentTarget.getAttribute('data-building');
         const department = e.currentTarget.getAttribute('data-department');
-        
-        // Get current QR size selection
-        const qrSizeSelect = document.getElementById('qrSizeSelect');
-        const qrSize = qrSizeSelect ? parseInt(qrSizeSelect.value) : 50;
-        const isSmallLabel = qrSize >= 25;
-        
-        const departmentCode = `MAA-${building.replace(/\s+/g, '').toUpperCase()}-${department.replace(/\s+/g, '').toUpperCase()}`;
-        
-        let printContents = '';
-        let printStyles = '';
-        
-        if (isSmallLabel) {
-printContents = `
-                <div class="thermal-page small-label" style="page-break-after: always; page-break-inside: avoid; margin: 0; padding: 0; width: 3in; height: 3in; min-height: 3in; max-height: 3in; display: flex; flex-direction: column; justify-content: flex-start; align-items: center; background: white; border: none; position: relative; overflow: hidden;">
-                    <div class="qr-code-container small-label" style="display: flex; flex-direction: column; justify-content: flex-start; align-items: center; height: 100%; width: 100%; max-width: 3in; max-height: 3in; text-align: center; margin: 0; padding: 35px 10px 10px 10px; box-sizing: border-box;">
-                        <img src="/assets/department_qr/${encodeURIComponent(building)}/${encodeURIComponent(department)}" 
-                             alt="QR Code for ${department}" 
-                             style="width: ${qrSize}px; height: ${qrSize}px; margin-bottom: 2px; margin-top: 10px; display: block; margin-left: auto; margin-right: auto; max-width: 2.3in; max-height: 2.3in;">
-                        <div style="text-align: center; margin-top: 2px;">
-                            <div style="font-size: 12px; line-height: 1.2; color: #333; font-weight: bold; margin-bottom: 2px;">${departmentCode}</div>
-                            <div style="font-size: 12px; line-height: 1.2; color: #666;">${department} - ${building}</div>
-                        </div>
-                    </div>
-                </div>
-            `;
-            printStyles = `
-                @page { margin: 0; size: 3in 3in; }
-                body { background: #fff; margin: 0; padding: 0; }
-                .thermal-page.small-label { page-break-after: always; margin: 0; padding: 0; width: 3in; height: 3in; min-height: 3in; max-height: 3in; }
-                .qr-code-container.small-label { padding: 35px 10px 10px 10px; max-width: 3in; max-height: 3in; }
-                img { margin: 0 auto; display: block; }
-                div { color: #222; }
-            `;
-        } else {
-            printContents = `
-                <img src="/assets/department_qr/${encodeURIComponent(building)}/${encodeURIComponent(department)}" 
-                     alt="QR Code for ${department}" 
-                     style="max-width: 200px; height: auto;">
-                <div style="margin-top:12px;font-weight:bold;font-size:1.2em;text-align:center;">
-                    ${departmentCode}<br>
-                    <small style="font-size:0.8em;color:#666;">${department} - ${building}</small>
-                </div>
-            `;
-            printStyles = `
-                @page { margin: 0; size: auto; }
-                body { background: #fff; text-align: center; margin: 0; padding: 20px; display: flex; flex-direction: column; justify-content: center; min-height: 100vh; }
-                img { margin: 0 auto; display: block; }
-                div { color: #222; }
-            `;
-        }
-        
-        var win = window.open('', '', 'height=400,width=400');
-        win.document.write('<html><head><title></title>');
-        win.document.write('<style>' + printStyles + '</style>');
-        win.document.write('</head><body>');
-        win.document.write(printContents);
-        win.document.write('</body></html>');
-        win.document.close();
-        win.focus();
-        setTimeout(function(){ win.print(); win.close(); }, 500);
+        if (!building || !department) return;
+        var qs = 'preset=' + encodeURIComponent(QR_LABEL_PRESET)
+            + '&building=' + encodeURIComponent(building)
+            + '&department=' + encodeURIComponent(department)
+            + '&print=1&nocache=' + Date.now();
+        window.open('/assets/qr-label-print/department?' + qs, '_blank', 'noopener');
     }
 
     // Handle bulk printing department QR codes
     function handlePrintDepartmentBulkQr() {
-        console.log('Department bulk print button clicked');
-        
-        // Check if there are departments to print
         if (departmentsData.length === 0) {
             alert('No department QR codes to print.');
             return;
         }
-        
-        // Limit to maximum 10 departments
         if (departmentsData.length > 10) {
             alert('Maximum 10 departments can be printed at once. Please filter your departments or print in batches.');
             return;
         }
-        
-        const printWindow = window.open('', '_blank', 'width=800,height=600');
-        
-        // Get the department QR codes content
-        const qrContainer = document.getElementById('departmentQRList');
-        
-        // Create print content with proper CSS for 3x3 labels
-        const printContent = `
-            <!DOCTYPE html>
-            <html>
-            <head>
-                <title>Department QR Codes - 3x3 Labels</title>
-                <style>
-                    @page {
-                        margin: 0;
-                        size: 3in 3in;
-                    }
-                    
-                    body {
-                        margin: 0;
-                        padding: 0;
-                        font-family: Arial, sans-serif;
-                        background: white;
-                        text-align: center;
-                        margin-left: 0;
-                        margin-right: 0;
-                    }
-                    
-                    .thermal-page {
-                        page-break-after: always;
-                        page-break-inside: avoid;
-                        margin: 0;
-                        padding: 0;
-                        width: 3in;
-                        height: 3in;
-                        min-height: 3in;
-                        max-height: 3in;
-                        display: flex;
-                        flex-direction: column;
-                        justify-content: flex-start;
-                        align-items: center;
-                        background: white;
-                        border: none;
-                        position: relative;
-                        overflow: hidden;
-                        box-sizing: border-box;
-                        margin-left: 0;
-                        margin-right: 0;
-                    }
-                    
-                    .thermal-page:last-child {
-                        page-break-after: avoid;
-                    }
-                    
-                    .qr-code-container {
-                        display: flex;
-                        flex-direction: column;
-                        justify-content: flex-start;
-                        align-items: center;
-                        height: 100%;
-                        width: 100%;
-                        max-width: 3in;
-                        max-height: 3in;
-                        text-align: center;
-                        margin: 0;
-                        padding: 35px 10px 10px 10px;
-                        box-sizing: border-box;
-                        margin-left: 0;
-                        margin-right: 0;
-                    }
-                    
-                    .qr-code-img {
-                        display: block;
-                        margin: 0 auto 2px auto;
-                        max-width: 2.3in;
-                        max-height: 2.3in;
-                        height: auto;
-                        margin-left: auto;
-                        margin-right: auto;
-                    }
-                    
-                    .fw-bold {
-                        font-weight: bold;
-                        color: #333;
-                        font-size: 12px;
-                        margin-bottom: 2px;
-                    }
-                    
-                    .text-muted {
-                        color: #666;
-                        font-size: 12px;
-                    }
-                    
-                    /* Hide any unwanted elements */
-                    .modal-header, .modal-footer, .alert, .btn {
-                        display: none !important;
-                    }
-                </style>
-            </head>
-            <body>
-                ${qrContainer.innerHTML}
-            </body>
-            </html>
-        `;
-        
-        printWindow.document.write(printContent);
-        printWindow.document.close();
-        
-        // Wait for content to load, then print
-        printWindow.onload = function() {
-            setTimeout(() => {
-                printWindow.focus();
-                printWindow.print();
-                setTimeout(() => {
-                    printWindow.close();
-                }, 1000);
-            }, 500);
-        };
+        var items = departmentsData.map(function (d) {
+            return { kind: 'department', building: d.building_name, department: d.name };
+        });
+        fetchServerQrBatchPrint({
+            preset: QR_LABEL_PRESET,
+            autoprint: true,
+            preview_outline: false,
+            items: items
+        }).catch(function (err) {
+            alert(err.message || String(err));
+        });
     }
 
     // Handle preview department bulk QR codes
     function handlePreviewDepartmentBulkQr() {
-        console.log('Department bulk preview button clicked');
-        
-        // Check if there are departments to preview
         if (departmentsData.length === 0) {
             alert('No department QR codes to preview.');
             return;
         }
-        
-        // Limit to maximum 10 departments
         if (departmentsData.length > 10) {
             alert('Maximum 10 departments can be previewed at once. Please filter your departments or preview in batches.');
             return;
         }
-        
-        const printWindow = window.open('', '_blank', 'width=800,height=600');
-        
-        // Get the department QR codes content
-        const qrContainer = document.getElementById('departmentQRList');
-        
-        // Create preview content with borders to show label boundaries
-        const printContent = `
-            <!DOCTYPE html>
-            <html>
-            <head>
-                <title>Department QR Code Preview - 3x3 Labels</title>
-                <style>
-                    body {
-                        margin: 0;
-                        padding: 20px;
-                        font-family: Arial, sans-serif;
-                        background: #f0f0f0;
-                    }
-                    
-                    .label-preview {
-                        width: 3in;
-                        height: 3in;
-                        border: 2px solid #000;
-                        margin: 10px;
-                        display: inline-block;
-                        background: white;
-                        position: relative;
-                        page-break-after: always;
-                    }
-                    
-                    .qr-code-container {
-                        display: flex;
-                        flex-direction: column;
-                        justify-content: flex-start;
-                        align-items: center;
-                        height: 100%;
-                        width: 100%;
-                        text-align: center;
-                        padding: 35px 10px 10px 10px;
-                        box-sizing: border-box;
-                    }
-                    
-                    .qr-code-img {
-                        display: block;
-                        margin: 0 auto 2px auto;
-                        max-width: 2.3in;
-                        max-height: 2.3in;
-                    }
-                    
-                    .fw-bold {
-                        font-weight: bold;
-                        color: #333;
-                        font-size: 12px;
-                        margin-bottom: 2px;
-                    }
-                    
-                    .text-muted {
-                        color: #666;
-                        font-size: 12px;
-                    }
-                    
-                    .preview-info {
-                        background: #e3f2fd;
-                        padding: 10px;
-                        margin-bottom: 20px;
-                        border-radius: 5px;
-                    }
-                </style>
-            </head>
-            <body>
-                <div class="preview-info">
-                    <h3>Department QR Code Preview - 3" x 3" Labels</h3>
-                    <p>This shows how your department QR codes will look when printed. Each box represents one 3" x 3" label.</p>
-                </div>
-                ${qrContainer.innerHTML}
-            </body>
-            </html>
-        `;
-        
-        printWindow.document.write(printContent);
-        printWindow.document.close();
+        var items = departmentsData.map(function (d) {
+            return { kind: 'department', building: d.building_name, department: d.name };
+        });
+        fetchServerQrBatchPrint({
+            preset: QR_LABEL_PRESET,
+            autoprint: false,
+            preview_outline: true,
+            items: items
+        }).catch(function (err) {
+            alert(err.message || String(err));
+        });
     }
 
     // Handle exporting department QR codes to PDF
@@ -4655,8 +4402,47 @@ printContents = `
 // EVENT LISTENERS - QR CODE FUNCTIONALITY
 // ============================================================================
 
+    /** Server-rendered QR pages using DB-backed mm layouts (see /assets/api/qr-label-layout/...) */
+    function fetchServerQrBatchPrint(payload) {
+        return fetch('/assets/qr-label-print/batch', {
+            method: 'POST',
+            credentials: 'same-origin',
+            cache: 'no-store',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+        }).then(function (response) {
+            return response.text().then(function (text) {
+                if (!response.ok) {
+                    var msg = text || 'Print request failed';
+                    try {
+                        var errObj = JSON.parse(text);
+                        if (errObj && errObj.error) msg = errObj.error;
+                    } catch (_ignore) { /* plain text body */ }
+                    throw new Error(msg);
+                }
+                return text;
+            });
+        }).then(function (html) {
+            // Blob navigation (not document.write on about:blank) — Chromium reliably applies @page sizing
+            // and absolute mm layout to the real print pipeline; document.write often matches screen only.
+            var blob = new Blob([html], { type: 'text/html;charset=utf-8' });
+            var url = URL.createObjectURL(blob);
+            var w = window.open(url, '_blank', 'noopener');
+            if (!w) {
+                URL.revokeObjectURL(url);
+                alert('Pop-up blocked. Allow pop-ups so the print view can open.');
+                return;
+            }
+            w.addEventListener('beforeunload', function () {
+                URL.revokeObjectURL(url);
+            }, { once: true });
+        });
+    }
+
     // QR Modal logic for image-based QR codes
     function showQRModal(assetId, assetCode, assetName) {
+        var qrModalRoot = document.getElementById('qrModal');
+        if (qrModalRoot) qrModalRoot.setAttribute('data-active-asset-id', String(assetId));
         const modalImage = document.getElementById('qrModalImage');
         const modalAssetName = document.getElementById('qrModalAssetName');
         const modalAssetCode = document.getElementById('qrModalAssetCode');
@@ -4673,6 +4459,11 @@ printContents = `
 
     // Department QR Modal logic
     function showDepartmentQRModal(building, department) {
+        var deptModal = document.getElementById('individualDepartmentQRModal');
+        if (deptModal) {
+            deptModal.setAttribute('data-qr-building', building);
+            deptModal.setAttribute('data-qr-department', department);
+        }
         const modalImage = document.getElementById('individualDepartmentQRImage');
         const modalName = document.getElementById('individualDepartmentQRName');
         const modalCode = document.getElementById('individualDepartmentQRCode');
@@ -4710,6 +4501,7 @@ printContents = `
                             colorLight: "#ffffff"
                         });
                         document.getElementById('qrCodeLabel').innerText = data.asset_code;
+                        document.getElementById('qrModal').setAttribute('data-active-asset-id', String(assetId));
                     }
                     var qrModal = new bootstrap.Modal(document.getElementById('qrModal'));
                     qrModal.show();
@@ -4719,179 +4511,33 @@ printContents = `
 
 
 
-    // Print QR code button logic
+    // Print QR — server-built 2×2 label from DB layout
     document.getElementById('printQrBtn').onclick = function() {
-        const modalImage = document.getElementById('qrModalImage');
-        const modalAssetName = document.getElementById('qrModalAssetName');
-        const modalAssetCode = document.getElementById('qrModalAssetCode');
-        const qrcodeDiv = document.getElementById('qrcode');
-        const qrCodeLabel = document.getElementById('qrCodeLabel');
-        
-        // Get current QR size selection
-        const qrSizeSelect = document.getElementById('qrSizeSelect');
-        const qrSize = qrSizeSelect ? parseInt(qrSizeSelect.value) : 50;
-        const isSmallLabel = qrSize >= 25;
-        
-        let printContents = '';
-        let printStyles = '';
-        
-        // Check if we're using image-based QR code or JavaScript-generated
-        if (modalImage.src && modalImage.src !== window.location.href) {
-            // Image-based QR code
-            if (isSmallLabel) {
-                printContents = `
-                    <div class="thermal-page small-label" style="page-break-after: always; page-break-inside: avoid; margin: 0; padding: 0; width: 1.97in; height: 0.98in; min-height: 0.98in; max-height: 0.98in; display: flex; flex-direction: column; justify-content: center; align-items: center; background: white; border: none; position: relative; overflow: hidden;">
-                        <div class="qr-code-container small-label" style="display: flex; flex-direction: column; justify-content: center; align-items: center; height: 100%; width: 100%; max-width: 1.97in; max-height: 0.98in; text-align: center; margin: 0; padding: 4px; box-sizing: border-box;">
-                            <img src="${modalImage.src}" alt="QR Code" style="width: ${qrSize}px; height: ${qrSize}px; margin-bottom: 2px; margin-top: 2px; display: block; margin-left: auto; margin-right: auto; max-width: 1.5in; max-height: 0.7in;">
-                            <div style="text-align: center; margin-top: 4px;">
-                                <div style="font-size: 8px; line-height: 1.0; color: #333; font-weight: bold; margin-bottom: 2px;">${modalAssetCode.textContent}</div>
-                                <div style="font-size: 8px; line-height: 1.0; color: #666;">${modalAssetName.textContent}</div>
-                            </div>
-                        </div>
-                    </div>
-                `;
-                printStyles = `
-                    @page { margin: 0; size: 1.97in 0.98in; }
-                    body { background: #fff; margin: 0; padding: 0; }
-                    .thermal-page.small-label { page-break-after: always; margin: 0; padding: 0; width: 1.97in; height: 0.98in; min-height: 0.98in; max-height: 0.98in; }
-                    .qr-code-container.small-label { padding: 4px; max-width: 1.97in; max-height: 0.98in; }
-                    img { margin: 0 auto; display: block; }
-                    div { color: #222; }
-                `;
-            } else {
-                printContents = `
-                    <div class="label-page" style="page-break-after: always; page-break-inside: avoid; margin: 0; padding: 0; width: 2.25in; height: 1.25in; min-height: 1.25in; max-height: 1.25in; display: flex; flex-direction: column; justify-content: center; align-items: center; background: white; border: none; position: relative; overflow: hidden;">
-                        <div class="qr-code-container label" style="display: flex; flex-direction: column; justify-content: center; align-items: center; height: 100%; width: 100%; max-width: 2.25in; max-height: 1.25in; text-align: center; margin: 0; padding: 4px; box-sizing: border-box;">
-                            <img src="${modalImage.src}" alt="QR Code" style="width: ${qrSize}px; height: ${qrSize}px; object-fit: contain; margin: 0 auto; display: block; margin-bottom: 4px;">
-                            <div style="text-align: center;">
-                                <div style="font-size: 8px; line-height: 1.0; color: #333; font-weight: bold; margin-bottom: 1px;">${modalAssetCode.textContent}</div>
-                                <div style="font-size: 7px; line-height: 1.0; color: #666;">${modalAssetName.textContent}</div>
-                            </div>
-                        </div>
-                    </div>
-                `;
-                printStyles = `
-                    @page { margin: 0; size: 2.25in 1.25in; }
-                    body { background: #fff; margin: 0; padding: 0; }
-                    .label-page { page-break-after: always; margin: 0; padding: 0; width: 2.25in; height: 1.25in; min-height: 1.25in; max-height: 1.25in; }
-                    .qr-code-container.label { padding: 4px; max-width: 2.25in; max-height: 1.25in; }
-                    img { margin: 0 auto; display: block; }
-                    div { color: #222; }
-                `;
-            }
-        } else {
-            // Legacy JavaScript-generated QR code
-            if (isSmallLabel) {
-                printContents = `
-                    <div class="thermal-page small-label" style="page-break-after: always; page-break-inside: avoid; margin: 0; padding: 0; width: 1.97in; height: 0.98in; min-height: 0.98in; max-height: 0.98in; display: flex; flex-direction: column; justify-content: center; align-items: center; background: white; border: none; position: relative; overflow: hidden;">
-                        <div class="qr-code-container small-label" style="display: flex; flex-direction: column; justify-content: center; align-items: center; height: 100%; width: 100%; max-width: 1.97in; max-height: 0.98in; text-align: center; margin: 0; padding: 4px; box-sizing: border-box;">
-                            ${qrcodeDiv.innerHTML}
-                            <div style="text-align: center; margin-top: 4px;">
-                                <div style="font-size: 8px; line-height: 1.0; color: #333; font-weight: bold; margin-bottom: 2px;">${qrCodeLabel.innerText}</div>
-                                <div style="font-size: 8px; line-height: 1.0; color: #666;">${modalAssetName.textContent}</div>
-                            </div>
-                        </div>
-                    </div>
-                `;
-                printStyles = `
-                    @page { margin: 0; size: 1.97in 0.98in; }
-                    body { background: #fff; margin: 0; padding: 0; }
-                    .thermal-page.small-label { page-break-after: always; margin: 0; padding: 0; width: 1.97in; height: 0.98in; min-height: 0.98in; max-height: 0.98in; }
-                    .qr-code-container.small-label { padding: 2px; max-width: 1.97in; max-height: 0.98in; }
-                    div { color: #222; }
-                `;
-            } else {
-                printContents = `
-                    <div class="label-page" style="page-break-after: always; page-break-inside: avoid; margin: 0; padding: 0; width: 2.25in; height: 1.25in; min-height: 1.25in; max-height: 1.25in; display: flex; flex-direction: column; justify-content: center; align-items: center; background: white; border: none; position: relative; overflow: hidden;">
-                        <div class="qr-code-container label" style="display: flex; flex-direction: column; justify-content: center; align-items: center; height: 100%; width: 100%; max-width: 2.25in; max-height: 1.25in; text-align: center; margin: 0; padding: 4px; box-sizing: border-box;">
-                            ${qrcodeDiv.innerHTML}
-                            <div style="text-align: center; margin-top: 4px;">
-                                <div style="font-size: 8px; line-height: 1.0; color: #333; font-weight: bold; margin-bottom: 1px;">${qrCodeLabel.innerText}</div>
-                                <div style="font-size: 7px; line-height: 1.0; color: #666;">${modalAssetName.textContent}</div>
-                            </div>
-                        </div>
-                    </div>
-                `;
-                printStyles = `
-                    @page { margin: 0; size: 2.25in 1.25in; }
-                    body { background: #fff; margin: 0; padding: 0; }
-                    .label-page { page-break-after: always; margin: 0; padding: 0; width: 2.25in; height: 1.25in; min-height: 1.25in; max-height: 1.25in; }
-                    .qr-code-container.label { padding: 4px; max-width: 2.25in; max-height: 1.25in; }
-                    div { color: #222; }
-                `;
-            }
+        var modalRoot = document.getElementById('qrModal');
+        var assetId = modalRoot && modalRoot.getAttribute('data-active-asset-id');
+        if (!assetId) {
+            alert('Unable to print: open the QR modal from an asset row first.');
+            return;
         }
-        
-        var win = window.open('', '', 'height=400,width=400');
-        win.document.write('<html><head><title></title>');
-        win.document.write('<style>' + printStyles + '</style>');
-        win.document.write('</head><body>');
-        win.document.write(printContents);
-        win.document.write('</body></html>');
-        win.document.close();
-        win.focus();
-        setTimeout(function(){ win.print(); win.close(); }, 500);
+        var qs = 'preset=' + encodeURIComponent(QR_LABEL_PRESET)
+            + '&asset_id=' + encodeURIComponent(assetId)
+            + '&print=1&nocache=' + Date.now();
+        window.open('/assets/qr-label-print/asset?' + qs, '_blank', 'noopener');
     };
 
-    // Print individual department QR code button logic
     document.getElementById('printIndividualDepartmentQRBtn').onclick = function() {
-        const modalImage = document.getElementById('individualDepartmentQRImage');
-        const modalName = document.getElementById('individualDepartmentQRName');
-        const modalCode = document.getElementById('individualDepartmentQRCode');
-        
-        // Get current QR size selection
-        const qrSizeSelect = document.getElementById('qrSizeSelect');
-        const qrSize = qrSizeSelect ? parseInt(qrSizeSelect.value) : 50;
-        const isSmallLabel = qrSize >= 25;
-        
-        let printContents = '';
-        let printStyles = '';
-        
-        if (isSmallLabel) {
-            printContents = `
-                <div class="thermal-page small-label" style="page-break-after: always; page-break-inside: avoid; margin: 0; padding: 0; width: 3in; height: 3in; min-height: 3in; max-height: 3in; display: flex; flex-direction: column; justify-content: flex-start; align-items: center; background: white; border: none; position: relative; overflow: hidden;">
-                    <div class="qr-code-container small-label" style="display: flex; flex-direction: column; justify-content: flex-start; align-items: center; height: 100%; width: 100%; max-width: 3in; max-height: 3in; text-align: center; margin: 0; padding: 35px 10px 10px 10px; box-sizing: border-box;">
-                        <img src="${modalImage.src}" alt="Department QR Code" style="width: ${qrSize}px; height: ${qrSize}px; margin-bottom: 2px; margin-top: 10px; display: block; margin-left: auto; margin-right: auto; max-width: 2.3in; max-height: 2.3in;">
-                        <div style="text-align: center; margin-top: 2px;">
-                            <div style="font-size: 12px; line-height: 1.2; color: #333; font-weight: bold; margin-bottom: 2px;">${modalCode.textContent}</div>
-                            <div style="font-size: 12px; line-height: 1.2; color: #666;">${modalName.textContent}</div>
-                        </div>
-                    </div>
-                </div>
-            `;
-            printStyles = `
-                @page { margin: 0; size: 3in 3in; }
-                body { background: #fff; margin: 0; padding: 0; }
-                .thermal-page.small-label { page-break-after: always; margin: 0; padding: 0; width: 3in; height: 3in; min-height: 3in; max-height: 3in; }
-                .qr-code-container.small-label { padding: 35px 10px 10px 10px; max-width: 3in; max-height: 3in; }
-                img { margin: 0 auto; display: block; }
-                div { color: #222; }
-            `;
-        } else {
-            printContents = `
-                <img src="${modalImage.src}" alt="Department QR Code" style="max-width: 200px; height: auto; margin: 0 auto; display: block;">
-                <div style="margin-top:12px;font-weight:bold;font-size:1.2em;text-align:center;">
-                    ${modalName.textContent}<br>
-                    <small style="font-size:0.8em;color:#666;">${modalCode.textContent}</small>
-                </div>
-            `;
-            printStyles = `
-                @page { margin: 0; size: auto; }
-                body { background: #fff; text-align: center; margin: 0; padding: 20px; display: flex; flex-direction: column; justify-content: center; min-height: 100vh; }
-                img { margin: 0 auto; display: block; }
-                div { color: #222; }
-            `;
+        var deptModal = document.getElementById('individualDepartmentQRModal');
+        var building = deptModal && deptModal.getAttribute('data-qr-building');
+        var department = deptModal && deptModal.getAttribute('data-qr-department');
+        if (!building || !department) {
+            alert('Unable to print: department not set.');
+            return;
         }
-        
-        var win = window.open('', '', 'height=400,width=400');
-        win.document.write('<html><head><title></title>');
-        win.document.write('<style>' + printStyles + '</style>');
-        win.document.write('</head><body>');
-        win.document.write(printContents);
-        win.document.write('</body></html>');
-        win.document.close();
-        win.focus();
-        setTimeout(function(){ win.print(); win.close(); }, 500);
+        var qs = 'preset=' + encodeURIComponent(QR_LABEL_PRESET)
+            + '&building=' + encodeURIComponent(building)
+            + '&department=' + encodeURIComponent(department)
+            + '&print=1&nocache=' + Date.now();
+        window.open('/assets/qr-label-print/department?' + qs, '_blank', 'noopener');
     };
 
 // ============================================================================
@@ -5102,225 +4748,36 @@ printContents = `
         displayBulkQrCodes();
     });
 
-    // QR size change handler
-    document.getElementById('qrSizeSelect').addEventListener('change', function() {
-        displayBulkQrCodes();
-    });
-
-
-
-    // Preview button handler
     document.getElementById('previewBulkQrBtn').addEventListener('click', function() {
-        console.log('Preview button clicked');
-        const printWindow = window.open('', '_blank', 'width=800,height=600');
-        
-        // Get the QR codes content
-        const qrContainer = document.getElementById('bulkQrContainer');
-        
-        // Create preview content with borders to show label boundaries
-        const printContent = `
-            <!DOCTYPE html>
-            <html>
-            <head>
-                <title>QR Code Preview - 3x3 Labels</title>
-                <style>
-                    body {
-                        margin: 0;
-                        padding: 20px;
-                        font-family: Arial, sans-serif;
-                        background: #f0f0f0;
-                    }
-                    
-                    .label-preview {
-                        width: 3in;
-                        height: 3in;
-                        border: 2px solid #000;
-                        margin: 10px;
-                        display: inline-block;
-                        background: white;
-                        position: relative;
-                        page-break-after: always;
-                    }
-                    
-                    .qr-code-container {
-                        display: flex;
-                        flex-direction: column;
-                        justify-content: center;
-                        align-items: center;
-                        height: 100%;
-                        width: 100%;
-                        text-align: center;
-                        padding: 20px;
-                        box-sizing: border-box;
-                    }
-                    
-                    .qr-code-img {
-                        display: block;
-                        margin: 0 auto 10px auto;
-                        max-width: 2.5in;
-                        max-height: 2.5in;
-                    }
-                    
-                    .fw-bold {
-                        font-weight: bold;
-                        color: #333;
-                        font-size: 12px;
-                        margin-bottom: 2px;
-                    }
-                    
-                    .text-muted {
-                        color: #666;
-                        font-size: 12px;
-                    }
-                    
-                    .preview-info {
-                        background: #e3f2fd;
-                        padding: 10px;
-                        margin-bottom: 20px;
-                        border-radius: 5px;
-                    }
-                </style>
-            </head>
-            <body>
-                <div class="preview-info">
-                    <h3>QR Code Preview - 3" x 3" Labels</h3>
-                    <p>This shows how your QR codes will look when printed. Each box represents one 3" x 3" label.</p>
-                </div>
-                ${qrContainer.innerHTML}
-            </body>
-            </html>
-        `;
-        
-        printWindow.document.write(printContent);
-        printWindow.document.close();
+        if (selectedAssets.length === 0) {
+            alert('Please select at least one asset to preview.');
+            return;
+        }
+        var items = selectedAssets.map(function (a) { return { kind: 'asset', id: a.id }; });
+        fetchServerQrBatchPrint({
+            preset: QR_LABEL_PRESET,
+            autoprint: false,
+            preview_outline: true,
+            items: items
+        }).catch(function (err) {
+            alert(err.message || String(err));
+        });
     });
 
-    // Print button handler
     document.getElementById('printBulkQrBtn').addEventListener('click', function() {
-        console.log('Print button clicked - starting print process');
-        // Create a new window for printing with proper styling
-        const printWindow = window.open('', '_blank', 'width=800,height=600');
-        
-        // Get the QR codes content
-        const qrContainer = document.getElementById('bulkQrContainer');
-        const header = document.getElementById('bulkQrHeader');
-        
-        // Create print content with proper CSS
-        const printContent = `
-            <!DOCTYPE html>
-            <html>
-            <head>
-                <title>Bulk QR Codes</title>
-                <style>
-                    @page {
-                        margin: 0;
-                        size: 3in 3in;
-                        margin-left: 0;
-                        margin-right: 0;
-                        margin-top: 0;
-                        margin-bottom: 0;
-                    }
-                    
-                    body {
-                        margin: 0;
-                        padding: 0;
-                        font-family: Arial, sans-serif;
-                        background: white;
-                        text-align: center;
-                        margin-left: 0;
-                        margin-right: 0;
-                    }
-                    
-                    .thermal-page {
-                        page-break-after: always;
-                        page-break-inside: avoid;
-                        margin: 0;
-                        padding: 0;
-                        width: 3in;
-                        height: 3in;
-                        min-height: 3in;
-                        max-height: 3in;
-                        display: flex;
-                        flex-direction: column;
-                        justify-content: flex-start;
-                        align-items: center;
-                        background: white;
-                        border: none;
-                        position: relative;
-                        overflow: hidden;
-                        box-sizing: border-box;
-                        margin-left: 0;
-                        margin-right: 0;
-                    }
-                    
-                    .thermal-page:last-child {
-                        page-break-after: avoid;
-                    }
-                    
-                    .qr-code-container {
-                        display: flex;
-                        flex-direction: column;
-                        justify-content: flex-start;
-                        align-items: center;
-                        height: 100%;
-                        width: 100%;
-                        max-width: 3in;
-                        max-height: 3in;
-                        text-align: center;
-                        margin: 0;
-                        padding: 35px 10px 10px 10px;
-                        box-sizing: border-box;
-                        margin-left: 0;
-                        margin-right: 0;
-                    }
-                    
-                    .qr-code-img {
-                        display: block;
-                        margin: 0 auto 2px auto;
-                        max-width: 2.3in;
-                        max-height: 2.3in;
-                        height: auto;
-                        margin-left: auto;
-                        margin-right: auto;
-                    }
-                    
-                    .fw-bold {
-                        font-weight: bold;
-                        color: #333;
-                        font-size: 8px;
-                        margin-bottom: 1px;
-                    }
-                    
-                    .text-muted {
-                        color: #666;
-                        font-size: 7px;
-                    }
-                    
-                    /* Hide any unwanted elements */
-                    .modal-header, .modal-footer, .alert, .btn {
-                        display: none !important;
-                    }
-                </style>
-            </head>
-            <body>
-                ${qrContainer.innerHTML}
-            </body>
-            </html>
-        `;
-        
-        printWindow.document.write(printContent);
-        printWindow.document.close();
-        
-        // Wait for content to load, then print
-        printWindow.onload = function() {
-            setTimeout(() => {
-                printWindow.focus();
-                printWindow.print();
-                setTimeout(() => {
-                    printWindow.close();
-                }, 1000);
-            }, 500);
-        };
+        if (selectedAssets.length === 0) {
+            alert('Please select at least one asset.');
+            return;
+        }
+        var items = selectedAssets.map(function (a) { return { kind: 'asset', id: a.id }; });
+        fetchServerQrBatchPrint({
+            preset: QR_LABEL_PRESET,
+            autoprint: true,
+            preview_outline: false,
+            items: items
+        }).catch(function (err) {
+            alert(err.message || String(err));
+        });
     });
 
 // ============================================================================
@@ -5328,153 +4785,57 @@ printContents = `
 // ============================================================================
 
     /**
-     * Display bulk QR codes for selected assets
-     * Creates individual pages for thermal printer (1 QR code per page)
+     * Modal preview tiles for bulk print — same 2×2 inch footprint as printed labels (approximate).
      */
     function displayBulkQrCodes() {
         const container = document.getElementById('bulkQrContainer');
         const header = document.getElementById('bulkQrHeader');
-        const qrSize = parseInt(document.getElementById('qrSizeSelect').value);
-        
-        // Clear existing QR codes
+
         container.innerHTML = '';
-        
+
         if (selectedAssets.length === 0) {
             container.innerHTML = '<div class="col-12 text-center text-muted">No assets selected</div>';
             header.innerHTML = '';
             return;
         }
-        
-        // Update header
+
         header.innerHTML = `
-            <i class="fas fa-qrcode"></i> <strong>Thermal Printer QR Codes</strong>
-            <br><small class="text-muted">${selectedAssets.length} asset(s) selected - 1 QR code per page for thermal printer</small>
+            <i class="fas fa-qrcode"></i> <strong>2&quot; × 2&quot; label print</strong>
+            <br><small class="text-muted">${selectedAssets.length} asset(s) — one label per printed page</small>
         `;
-        
-        // Fetch full asset details to get asset codes
+
         fetch('/assets/assets')
             .then(response => response.json())
             .then(allAssets => {
-                const selectedAssetDetails = allAssets.filter(asset => 
+                const selectedAssetDetails = allAssets.filter(asset =>
                     selectedAssets.some(selected => selected.id == asset.id)
                 );
-                
-                // Create individual pages for each QR code
-                selectedAssetDetails.forEach((asset, index) => {
-                    // Check if small label size is selected (use large format for 25px and above)
-                    const isSmallLabel = qrSize >= 25;
-                    
-                    // Create page container
+
+                selectedAssetDetails.forEach((asset) => {
                     const pageDiv = document.createElement('div');
-                    pageDiv.className = isSmallLabel ? 'thermal-page small-label' : 'thermal-page';
-                    pageDiv.style.cssText = isSmallLabel ? `
-                        page-break-after: always; 
-                        page-break-inside: avoid;
-                        margin: 0; 
-                        padding: 0; 
-                        width: 3in; 
-                        height: 3in; 
-                        min-height: 3in;
-                        max-height: 3in;
-                        display: flex; 
-                        flex-direction: column; 
-                        justify-content: center; 
-                        align-items: center;
-                        background: white;
-                        border: none;
-                        position: relative;
-                        overflow: hidden;
-                    ` : `
-                        page-break-after: always; 
-                        page-break-inside: avoid;
-                        margin: 0; 
-                        padding: 0; 
-                        width: 2.25in; 
-                        height: 1.25in; 
-                        min-height: 1.25in;
-                        max-height: 1.25in;
-                        display: flex; 
-                        flex-direction: column; 
-                        justify-content: center; 
-                        align-items: center;
-                        background: white;
-                        border: none;
-                        position: relative;
-                        overflow: hidden;
-                    `;
-                    
-                    // QR code container - centered on page
+                    pageDiv.className = 'mb-3 d-inline-block align-top me-3';
+                    pageDiv.style.cssText =
+                        'width: 2in; min-width: 2in; height: 2in; border: 1px dashed #bbb; border-radius: 4px;' +
+                        'background: #fff; box-sizing: border-box; overflow: hidden; vertical-align: top;';
+
                     const qrContainer = document.createElement('div');
-                    qrContainer.className = isSmallLabel ? 'qr-code-container text-center small-label' : 'qr-code-container text-center';
-                    qrContainer.style.cssText = isSmallLabel ? `
-                        display: flex;
-                        flex-direction: column;
-                        justify-content: flex-start;
-                        align-items: center;
-                        height: 100%;
-                        width: 100%;
-                        max-width: 3in;
-                        max-height: 3in;
-                        text-align: center;
-                        margin: 0;
-                        padding: 35px 10px 10px 10px;
-                        box-sizing: border-box;
-                    ` : `
-                        display: flex;
-                        flex-direction: column;
-                        justify-content: center;
-                        align-items: center;
-                        height: 100%;
-                        width: 100%;
-                        max-width: 2.25in;
-                        max-height: 1.25in;
-                        text-align: center;
-                        margin: 0;
-                        padding: 4px;
-                        box-sizing: border-box;
-                    `;
-                    
-                    // QR code image
+                    qrContainer.style.cssText =
+                        'display: flex; flex-direction: column; justify-content: flex-start;' +
+                        'align-items: center; height: 100%; width: 100%; text-align: center;' +
+                        'padding: 6px 6px 4px 6px; box-sizing: border-box;';
+
                     const qrImage = document.createElement('img');
                     qrImage.src = `/assets/qrcode/${asset.id}`;
                     qrImage.alt = `QR Code for ${asset.name}`;
-                    qrImage.className = isSmallLabel ? 'qr-code-img small-label' : 'qr-code-img';
-                    qrImage.style.cssText = isSmallLabel ? `
-                        width: ${qrSize}px; 
-                        height: ${qrSize}px; 
-                        margin-bottom: 2px;
-                        margin-top: 10px;
-                        display: block;
-                        margin-left: auto;
-                        margin-right: auto;
-                        max-width: 2.3in;
-                        max-height: 2.3in;
-                    ` : `
-                        width: ${qrSize}px; 
-                        height: ${qrSize}px; 
-                        margin-bottom: 4px;
-                        display: block;
-                        margin-left: auto;
-                        margin-right: auto;
-                        max-width: 100%;
-                        height: auto;
-                    `;
-                    
-                    // Asset info
+                    qrImage.style.cssText =
+                        'width: 96px; height: 96px; object-fit: contain; margin: 0 auto 4px auto; display: block;';
+
                     const assetInfo = document.createElement('div');
                     assetInfo.className = 'text-center';
-                    assetInfo.style.cssText = `
-                        text-align: center;
-                        margin-top: 2px;
-                    `;
-                    assetInfo.innerHTML = isSmallLabel ? `
-                        <div class="fw-bold small-label" style="font-size: 8px; line-height: 1.0; color: #333; margin-bottom: 1px;">${asset.asset_code}</div>
-                        <div class="text-muted small-label" style="font-size: 8px; line-height: 1.0; color: #666;">${asset.name}</div>
-                    ` : `
-                        <div class="fw-bold" style="font-size: 8px; margin-bottom: 1px; color: #333;">${asset.asset_code}</div>
-                        <div class="text-muted" style="font-size: 7px; color: #666;">${asset.name}</div>
-                    `;
-                    
+                    assetInfo.innerHTML =
+                        `<div style="font-weight: bold; font-size: 10px; line-height: 1.1; color: #333;">${asset.asset_code}</div>` +
+                        `<div style="font-size: 9px; line-height: 1.15; color: #666;">${asset.name}</div>`;
+
                     qrContainer.appendChild(qrImage);
                     qrContainer.appendChild(assetInfo);
                     pageDiv.appendChild(qrContainer);
