@@ -125,15 +125,84 @@
     background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' fill='%23C4A35A' viewBox='0 0 16 16'%3E%3Cpath fill-rule='evenodd' d='M1.646 4.646a.5.5 0 0 1 .708 0L8 10.293l5.646-5.647a.5.5 0 0 1 .708.708l-6 6a.5.5 0 0 1-.708 0l-6-6a.5.5 0 0 1 0-.708z'/%3E%3C/svg%3E");
 }
 
-/* Add New Asset modal — comfortable width without spanning full 70% */
-.add-asset-modal-dialog {
+/* Shared comfortable width for QC-styled modals (Add Asset, Asset QR, etc.) */
+.qc-modal-dialog-comfort {
     max-width: min(600px, 94vw);
 }
 
 @media (min-width: 576px) {
-    .add-asset-modal-dialog {
+    .qc-modal-dialog-comfort {
         max-width: min(680px, 90vw);
     }
+}
+
+/* Asset QR modal — body layout */
+.qc-modal.qc-modal--qr .qc-qr-modal-body {
+    padding: 1.25rem 1.5rem 1.5rem;
+}
+
+.qc-modal.qc-modal--qr .qc-qr-img-wrap {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    margin-bottom: 1rem;
+}
+
+.qc-modal.qc-modal--qr #qrModalImage,
+.qc-modal.qc-modal--qr #individualDepartmentQRImage {
+    width: 250px;
+    height: 250px;
+    object-fit: contain;
+}
+
+.qc-modal.qc-modal--qr .qc-qr-asset-name {
+    font-size: 1.1rem;
+    font-weight: 700;
+    color: var(--text-dark, #1c1a14);
+    margin-top: 0.5rem;
+}
+
+.qc-modal.qc-modal--qr .qc-qr-asset-code {
+    font-size: 0.9rem;
+    color: var(--qc-text-light);
+    margin-top: 0.25rem;
+}
+
+body.dark-mode .qc-modal.qc-modal--qr .qc-qr-asset-name {
+    color: #f5f5f0 !important;
+}
+
+body.dark-mode .qc-modal.qc-modal--qr .qc-qr-asset-code {
+    color: #a8a29a !important;
+}
+
+/* Department QR bulk list — wide + scrollable body */
+.qc-modal-dialog-department-bulk {
+    max-width: min(1100px, 92vw);
+    width: 100%;
+    margin: 1.75rem auto;
+}
+
+@media (min-width: 1400px) {
+    .qc-modal-dialog-department-bulk {
+        max-width: min(1200px, 90vw);
+    }
+}
+
+.qc-modal.qc-modal--department-bulk .modal-content {
+    max-height: 90vh;
+    display: flex;
+    flex-direction: column;
+}
+
+.qc-modal.qc-modal--department-bulk .modal-body {
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow-y: auto;
+}
+
+.qc-modal.qc-modal--department-bulk .modal-footer {
+    flex-shrink: 0;
 }
 
 .qc-modal .form-text {
@@ -148,6 +217,7 @@
 
 /* Modal footer actions — shared box + height; use macros `qc_modal_cancel_button` + `qc_add_button` */
 .qc-modal .modal-footer .btn-qc-modal-cancel,
+.qc-modal .modal-footer .btn-qc-modal-outline,
 .qc-modal .modal-footer .btn-qc-add,
 .qc-modal .modal-footer a.btn-qc-add {
     box-sizing: border-box;
@@ -165,7 +235,9 @@
 }
 
 /* Modal cancel — use macros/qc_components.html `qc_modal_cancel_button` */
-.qc-modal .btn-qc-modal-cancel {
+/* Outline actions — same look, for Preview / Export etc. (no dismiss) */
+.qc-modal .btn-qc-modal-cancel,
+.qc-modal .btn-qc-modal-outline {
     display: inline-flex;
     align-items: center;
     justify-content: center;
@@ -187,14 +259,16 @@
     line-height: inherit;
 }
 
-.qc-modal .btn-qc-modal-cancel:hover {
+.qc-modal .btn-qc-modal-cancel:hover,
+.qc-modal .btn-qc-modal-outline:hover {
     background: var(--gold-light);
     border-color: var(--gold);
     color: var(--text-dark, #1c1a14);
     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
 }
 
-.qc-modal .btn-qc-modal-cancel:focus-visible {
+.qc-modal .btn-qc-modal-cancel:focus-visible,
+.qc-modal .btn-qc-modal-outline:focus-visible {
     outline: 2px solid var(--gold-deeper);
     outline-offset: 2px;
 }
@@ -328,14 +402,16 @@ body.dark-mode .qc-modal .form-text i {
     color: var(--gold) !important;
 }
 
-body.dark-mode .qc-modal .btn-qc-modal-cancel {
+body.dark-mode .qc-modal .btn-qc-modal-cancel,
+body.dark-mode .qc-modal .btn-qc-modal-outline {
     background: #2a2820 !important;
     border-color: rgba(217, 189, 125, 0.35) !important;
     color: #e7e5e4 !important;
     box-shadow: none;
 }
 
-body.dark-mode .qc-modal .btn-qc-modal-cancel:hover {
+body.dark-mode .qc-modal .btn-qc-modal-cancel:hover,
+body.dark-mode .qc-modal .btn-qc-modal-outline:hover {
     background: #332f26 !important;
     border-color: var(--gold) !important;
     color: #fff !important;

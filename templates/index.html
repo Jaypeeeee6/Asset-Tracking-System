@@ -958,7 +958,7 @@
 {% block modals %}
 <!-- Add Asset Modal -->
 <div class="modal fade qc-modal" id="addAssetModal" tabindex="-1" aria-labelledby="addAssetModalLabel" aria-hidden="true">
-  <div class="modal-dialog modal-lg add-asset-modal-dialog">
+  <div class="modal-dialog modal-lg qc-modal-dialog-comfort">
     <div class="modal-content">
       <div class="modal-header">
         <h5 class="modal-title" id="addAssetModalLabel"><i class="bi bi-plus-square me-2" style="color:var(--gold);" aria-hidden="true"></i>Add New Asset</h5>
@@ -1037,18 +1037,18 @@
 </div>
 
 <!-- Edit Asset Modal -->
-<div class="modal fade" id="editAssetModal" tabindex="-1" aria-labelledby="editAssetModalLabel" aria-hidden="true">
-  <div class="modal-dialog modal-lg">
+<div class="modal fade qc-modal" id="editAssetModal" tabindex="-1" aria-labelledby="editAssetModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-lg qc-modal-dialog-comfort">
     <div class="modal-content">
       <div class="modal-header">
-        <h5 class="modal-title" id="editAssetModalLabel">Edit Asset</h5>
+        <h5 class="modal-title" id="editAssetModalLabel"><i class="bi bi-pencil-square me-2" style="color:var(--gold);" aria-hidden="true"></i>Edit Asset</h5>
         <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
       </div>
       <form id="editAssetForm" method="post">
         <div class="modal-body" style="overflow-y: auto; max-height: 70vh;">
-          <div class="alert alert-info mb-3">
-            <i class="fas fa-info-circle"></i> 
-            <strong>Editing Asset:</strong> 
+          <div class="qc-modal-tip mb-3" role="note">
+            <i class="bi bi-info-circle" aria-hidden="true"></i>
+            <strong>Editing Asset:</strong>
             <span id="editAssetName"></span>
           </div>
             <div class="mb-3">
@@ -1072,7 +1072,7 @@
                 <label for="edit_price" class="form-label">Price (OMR)</label>
                 <input type="number" class="form-control" id="edit_price" name="price" min="0" step="0.01" placeholder="0.00" required>
                 <div class="form-text">
-                    <i class="fas fa-info-circle"></i> Enter the price in Omani Rial (OMR)
+                    <i class="bi bi-info-circle" aria-hidden="true"></i> Enter the price in Omani Rial (OMR)
                 </div>
             </div>
             <div class="mb-3">
@@ -1091,7 +1091,7 @@
                 <div class="form-check mb-2">
                     <input class="form-check-input" type="checkbox" id="edit_noOwnerCheck" name="no_owner">
                     <label class="form-check-label" for="edit_noOwnerCheck">
-                        <i class="fas fa-user-slash"></i> No Owner Required
+                        <i class="bi bi-person-x" aria-hidden="true"></i> No Owner Required
                     </label>
                 </div>
                 <label for="edit_owner" class="form-label">Owner</label>
@@ -1099,7 +1099,7 @@
                     <option value="">Select Department First</option>
                 </select>
                 <div class="form-text" id="edit_ownerHelp">
-                    <i class="fas fa-info-circle"></i> Select "No Owner Required" for shared assets or when no specific owner is needed
+                    <i class="bi bi-info-circle" aria-hidden="true"></i> Select &quot;No Owner Required&quot; for shared assets or when no specific owner is needed
                 </div>
             </div>
             <div class="mb-3">
@@ -1111,36 +1111,31 @@
                 </select>
             </div>
         </div>
-        <div class="modal-footer">
-          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-          <button type="submit" class="btn btn-primary">Update Asset</button>
-        </div>
+        <div class="modal-footer">{{ qc_modal_cancel_button('Cancel') }}{{ qc_add_button('Update Asset', button_type='submit', icon='bi bi-check-lg') }}</div>
       </form>
     </div>
   </div>
 </div>
 
 <!-- QR Code Modal -->
-<div class="modal fade" id="qrModal" tabindex="-1" aria-labelledby="qrModalLabel" aria-hidden="true">
-  <div class="modal-dialog modal-lg modal-dialog-centered" style="max-width: 70%;">
+<div class="modal fade qc-modal qc-modal--qr" id="qrModal" tabindex="-1" aria-labelledby="qrModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-lg qc-modal-dialog-comfort">
     <div class="modal-content">
       <div class="modal-header">
-        <h5 class="modal-title" id="qrModalLabel">Asset QR Code</h5>
+        <h5 class="modal-title" id="qrModalLabel"><i class="bi bi-qr-code me-2" style="color:var(--gold);" aria-hidden="true"></i>Asset QR Code</h5>
         <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
       </div>
-      <div class="modal-body text-center" id="qrModalBody" style="padding: 30px;">
-        <!-- For image-based QR codes -->
-        <div class="qr-code-wrapper" style="display: flex; justify-content: center; align-items: center; margin-bottom: 20px;">
-          <img id="qrModalImage" src="" alt="QR Code" style="width: 250px; height: 250px; object-fit: contain;">
+      <div class="modal-body text-center qc-qr-modal-body" id="qrModalBody">
+        <div class="qc-qr-img-wrap">
+          <img id="qrModalImage" src="" alt="QR Code">
         </div>
-        <div class="fw-bold mt-3" id="qrModalAssetName" style="font-size: 1.2em; color: #333;"></div>
-        <div class="text-muted" id="qrModalAssetCode" style="font-size: 1em; color: #666;"></div>
-        <button class="btn btn-primary mt-4" id="printQrBtn">Print QR Code</button>
-        
-        <!-- For legacy JavaScript-generated QR codes -->
+        <div class="qc-qr-asset-name" id="qrModalAssetName"></div>
+        <div class="qc-qr-asset-code text-muted" id="qrModalAssetCode"></div>
+        <!-- Legacy JavaScript-generated QR codes -->
         <div id="qrcode" style="display: none;"></div>
         <div class="fw-bold mt-2" id="qrCodeLabel" style="display: none;"></div>
       </div>
+      <div class="modal-footer">{{ qc_modal_cancel_button('Close') }}<button type="button" class="btn-qc-add" id="printQrBtn"><i class="bi bi-printer" aria-hidden="true"></i><span class="btn-qc-add-label">Print QR Code</span></button></div>
     </div>
   </div>
 </div>
@@ -1232,59 +1227,43 @@
 </div>
 
 <!-- Department QR Codes Modal -->
-<div class="modal fade" id="departmentQRModal" tabindex="-1" aria-labelledby="departmentQRModalLabel" aria-hidden="true">
-  <div class="modal-dialog modal-xl" style="max-width: 85%; max-height: 90vh;">
-    <div class="modal-content" style="height: 90vh;">
+<div class="modal fade qc-modal qc-modal--department-bulk" id="departmentQRModal" tabindex="-1" aria-labelledby="departmentQRModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-xl qc-modal-dialog-department-bulk">
+    <div class="modal-content">
       <div class="modal-header">
-        <h5 class="modal-title" id="departmentQRModalLabel">Department QR Codes</h5>
+        <h5 class="modal-title" id="departmentQRModalLabel"><i class="bi bi-qr-code me-2" style="color:var(--gold);" aria-hidden="true"></i>Department QR Codes</h5>
         <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
       </div>
-      <div class="modal-body" style="overflow-y: auto; max-height: calc(90vh - 120px);">
-        <div class="alert alert-info">
-          <i class="fas fa-info-circle"></i>
+      <div class="modal-body">
+        <div class="qc-modal-tip mb-3" role="note">
+          <i class="bi bi-info-circle" aria-hidden="true"></i>
           <strong>Department QR Codes:</strong> Each QR code shows all items for that specific department and branch combination.
         </div>
         <div id="departmentQRList" class="row">
           <!-- Department QR codes will be loaded here -->
         </div>
       </div>
-      <div class="modal-footer">
-        <button type="button" class="btn btn-info" id="previewDepartmentBulkQrBtn">
-          <i class="fas fa-eye"></i> Preview Print
-        </button>
-        <button type="button" class="btn btn-primary" id="printDepartmentBulkQrBtn">
-          <i class="fas fa-print"></i> Print All QR Codes
-        </button>
-        <button type="button" class="btn btn-success" id="exportDepartmentQRPdfBtn">
-          <i class="fas fa-file-pdf"></i> Export to PDF
-        </button>
-        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
-      </div>
+      <div class="modal-footer">{{ qc_modal_cancel_button('Close') }}<button type="button" class="btn-qc-modal-outline" id="previewDepartmentBulkQrBtn"><i class="bi bi-eye" aria-hidden="true"></i> Preview Print</button><button type="button" class="btn-qc-modal-outline" id="exportDepartmentQRPdfBtn"><i class="bi bi-file-earmark-pdf" aria-hidden="true"></i> Export to PDF</button><button type="button" class="btn-qc-add" id="printDepartmentBulkQrBtn"><i class="bi bi-printer" aria-hidden="true"></i><span class="btn-qc-add-label">Print All QR Codes</span></button></div>
     </div>
   </div>
 </div>
 
 <!-- Individual Department QR Code Modal -->
-<div class="modal fade" id="individualDepartmentQRModal" tabindex="-1" aria-labelledby="individualDepartmentQRModalLabel" aria-hidden="true">
-  <div class="modal-dialog modal-lg">
+<div class="modal fade qc-modal qc-modal--qr" id="individualDepartmentQRModal" tabindex="-1" aria-labelledby="individualDepartmentQRModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-lg qc-modal-dialog-comfort">
     <div class="modal-content">
       <div class="modal-header">
-        <h5 class="modal-title" id="individualDepartmentQRModalLabel">Department QR Code</h5>
+        <h5 class="modal-title" id="individualDepartmentQRModalLabel"><i class="bi bi-qr-code me-2" style="color:var(--gold);" aria-hidden="true"></i>Department QR Code</h5>
         <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
       </div>
-      <div class="modal-body text-center">
-        <img id="individualDepartmentQRImage" src="" alt="Department QR Code" style="max-width: 100%; height: auto;">
-        <div class="mt-3">
-          <div id="individualDepartmentQRName" class="fw-bold" style="font-size: 1.2em; color: #333;"></div>
-          <div id="individualDepartmentQRCode" class="text-muted" style="font-size: 1em; color: #666;"></div>
+      <div class="modal-body text-center qc-qr-modal-body">
+        <div class="qc-qr-img-wrap">
+          <img id="individualDepartmentQRImage" src="" alt="Department QR Code">
         </div>
+        <div class="qc-qr-asset-name" id="individualDepartmentQRName"></div>
+        <div class="qc-qr-asset-code text-muted" id="individualDepartmentQRCode"></div>
       </div>
-      <div class="modal-footer">
-        <button type="button" class="btn btn-success" id="printIndividualDepartmentQRBtn">
-          <i class="fas fa-print"></i> Print QR Code
-        </button>
-        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
-      </div>
+      <div class="modal-footer">{{ qc_modal_cancel_button('Close') }}<button type="button" class="btn-qc-add" id="printIndividualDepartmentQRBtn"><i class="bi bi-printer" aria-hidden="true"></i><span class="btn-qc-add-label">Print QR Code</span></button></div>
     </div>
   </div>
 </div>

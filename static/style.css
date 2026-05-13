@@ -1298,14 +1298,16 @@ body.dark-mode .input-group .form-control:focus {
 
 /* QR Code Modal Responsive Design */
 @media (max-width: 768px) {
-    #qrModalImage {
+    #qrModalImage,
+    #individualDepartmentQRImage {
         width: 200px !important;
         height: 200px !important;
     }
 }
 
 @media (max-width: 576px) {
-    #qrModalImage {
+    #qrModalImage,
+    #individualDepartmentQRImage {
         width: 180px !important;
         height: 180px !important;
     }
