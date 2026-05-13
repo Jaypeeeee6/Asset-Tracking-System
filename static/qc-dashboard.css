@@ -488,6 +488,20 @@
     box-shadow: 0 0 0 3px rgba(217, 189, 125, 0.2);
 }
 
+/* Status column — select width matches longest option (e.g. "Out of Service") */
+.asset-dashboard .qc-table th.qc-table-col-status,
+.asset-dashboard .qc-table td.qc-table-col-status {
+    width: 1%;
+    white-space: nowrap;
+    box-sizing: border-box;
+}
+
+.asset-dashboard .qc-table td.qc-table-col-status .status-select {
+    width: max-content;
+    min-width: max-content;
+    field-sizing: content;
+}
+
 /* ----- Dark mode (dashboard only) ----- */
 body.dark-mode .asset-dashboard .page-header h1 {
     color: #f5f5f0;

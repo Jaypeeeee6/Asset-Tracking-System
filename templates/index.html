@@ -805,12 +805,12 @@
                 <th>#</th>
                 <th><a href="{{ url_for('assets.dashboard') }}{{ sort_href('name') }}">Name{% if sort_by == 'name' %} {% if sort_dir == 'asc' %}▲{% else %}▼{% endif %}{% endif %}</a></th>
                 <th><a href="{{ url_for('assets.dashboard') }}{{ sort_href('asset_type') }}">Type{% if sort_by == 'asset_type' %} {% if sort_dir == 'asc' %}▲{% else %}▼{% endif %}{% endif %}</a></th>
-                <th><a href="{{ url_for('assets.dashboard') }}{{ sort_href('quantity') }}">Quantity{% if sort_by == 'quantity' %} {% if sort_dir == 'asc' %}▲{% else %}▼{% endif %}{% endif %}</a></th>
+                <th><a href="{{ url_for('assets.dashboard') }}{{ sort_href('quantity') }}">QTY{% if sort_by == 'quantity' %} {% if sort_dir == 'asc' %}▲{% else %}▼{% endif %}{% endif %}</a></th>
                 <th><a href="{{ url_for('assets.dashboard') }}{{ sort_href('price') }}">Total Value (OMR){% if sort_by == 'price' %} {% if sort_dir == 'asc' %}▲{% else %}▼{% endif %}{% endif %}</a></th>
                 <th><a href="{{ url_for('assets.dashboard') }}{{ sort_href('owner') }}">Owner{% if sort_by == 'owner' %} {% if sort_dir == 'asc' %}▲{% else %}▼{% endif %}{% endif %}</a></th>
                 <th><a href="{{ url_for('assets.dashboard') }}{{ sort_href('branch') }}">Branch{% if sort_by == 'branch' %} {% if sort_dir == 'asc' %}▲{% else %}▼{% endif %}{% endif %}</a></th>
-                <th><a href="{{ url_for('assets.dashboard') }}{{ sort_href('department') }}">Department/Section{% if sort_by == 'department' %} {% if sort_dir == 'asc' %}▲{% else %}▼{% endif %}{% endif %}</a></th>
-                <th><a href="{{ url_for('assets.dashboard') }}{{ sort_href('used_status') }}">Status{% if sort_by == 'used_status' %} {% if sort_dir == 'asc' %}▲{% else %}▼{% endif %}{% endif %}</a></th>
+                <th><a href="{{ url_for('assets.dashboard') }}{{ sort_href('department') }}">Department{% if sort_by == 'department' %} {% if sort_dir == 'asc' %}▲{% else %}▼{% endif %}{% endif %}</a></th>
+                <th class="qc-table-col-status"><a href="{{ url_for('assets.dashboard') }}{{ sort_href('used_status') }}">Status{% if sort_by == 'used_status' %} {% if sort_dir == 'asc' %}▲{% else %}▼{% endif %}{% endif %}</a></th>
                 <th>QR CODE</th>
                 <th>Actions</th>
             </tr>
@@ -841,8 +841,8 @@
                 <td>{{ asset.owner }}</td>
                 <td>{{ asset.branch }}</td>
                 <td>{{ asset.department }}</td>
-                <td>
-                    <select class="form-select form-select-sm status-select" data-asset-id="{{ asset.id }}" style="min-width: 120px;">
+                <td class="qc-table-col-status">
+                    <select class="form-select form-select-sm status-select" data-asset-id="{{ asset.id }}">
                         <option value="Used" {% if asset.used_status == 'Used' %}selected{% endif %}>Used</option>
                         <option value="Not Used" {% if asset.used_status == 'Not Used' %}selected{% endif %}>Not Used</option>
                         <option value="Out of Service" {% if asset.used_status == 'Out of Service' %}selected{% endif %}>Out of Service</option>
@@ -1750,7 +1750,7 @@
                         <th>Asset Name</th>
                         <th>Branch</th>
                         <th>Department</th>
-                        <th>Quantity</th>
+                        <th>QTY</th>
                         <th>Unit Price (OMR)</th>
                         <th class="text-end">Total Value (OMR)</th>
                       </tr>
