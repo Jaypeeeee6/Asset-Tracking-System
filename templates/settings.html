@@ -40,13 +40,6 @@
             </p>
         </div>
         <div class="d-flex gap-2 align-items-center flex-wrap">
-            {% if active_tab == 'users' %}
-                {{ add_button('Add New User', href=url_for('auth.add_auth_user'), icon='bi bi-person-plus') }}
-            {% else %}
-                <a href="{{ url_for('assets.dashboard') }}" class="btn btn-outline-secondary btn-sm">
-                    <i class="bi bi-speedometer2 me-1"></i>Dashboard
-                </a>
-            {% endif %}
             <a href="{{ url_for('assets.dashboard') }}?openModal=departmentQRModal" class="btn btn-outline-secondary btn-sm">
                 <i class="bi bi-qr-code me-1"></i>QR Codes
             </a>

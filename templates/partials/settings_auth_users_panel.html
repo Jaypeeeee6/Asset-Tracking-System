@@ -1,7 +1,8 @@
 {% from "macros/app_components.html" import add_button %}
 <div class="settings-users">
-    <div class="settings-toolbar">
+    <div class="settings-toolbar d-flex flex-wrap justify-content-between align-items-center gap-2 mb-2">
         <div class="text-muted small fw-semibold text-uppercase" style="letter-spacing:0.06em;">Accounts</div>
+        {{ add_button('Add New User', href=url_for('auth.add_auth_user'), icon='bi bi-person-plus') }}
     </div>
 
     <div class="alert alert-info py-2 px-3 small mb-3" role="note">
