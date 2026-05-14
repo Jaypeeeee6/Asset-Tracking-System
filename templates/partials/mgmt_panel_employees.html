@@ -2,16 +2,30 @@
 <div class="settings-panel-stack">
   <h6 class="settings-section-title">Register new employee</h6>
   <div class="filter-bar settings-panel-form flex-wrap">
-    <div class="filter-group" style="min-width: 160px;">
+    <div class="filter-group" style="min-width: 200px;">
+      <label for="employeeVenue">Location</label>
+      <select class="form-select app-select-with-chevron" id="employeeVenue" required>
+        <option value="">Choose location</option>
+        <option value="restaurant">Restaurant</option>
+        <option value="office">Office</option>
+      </select>
+    </div>
+    <div class="filter-group" id="employeeBrandWrap" style="min-width: 160px;">
+      <label for="userModalBrand">Brand</label>
+      <select class="form-select app-select-with-chevron" id="userModalBrand">
+        <option value="">Select brand</option>
+      </select>
+    </div>
+    <div class="filter-group" id="employeeBranchWrap" style="min-width: 160px;">
       <label for="userModalBranch">Branch</label>
-      <select class="form-select" id="userModalBranch" required>
+      <select class="form-select" id="userModalBranch">
         <option value="">Select branch</option>
       </select>
     </div>
-    <div class="filter-group" style="min-width: 160px;">
+    <div class="filter-group" id="employeeDepartmentWrap" style="min-width: 160px;">
       <label for="userModalDepartment">Department</label>
       <select class="form-select" id="userModalDepartment" required>
-        <option value="">Select branch first</option>
+        <option value="">Choose location first</option>
       </select>
     </div>
     <div class="filter-group" style="flex: 1; min-width: 200px;">
@@ -26,16 +40,30 @@
 
   <h6 class="settings-section-title">Bulk add employees</h6>
   <div class="filter-bar settings-panel-form flex-wrap">
-    <div class="filter-group" style="min-width: 160px;">
+    <div class="filter-group" style="min-width: 200px;">
+      <label for="bulkEmployeeVenue">Location</label>
+      <select class="form-select app-select-with-chevron" id="bulkEmployeeVenue" required>
+        <option value="">Choose location</option>
+        <option value="restaurant">Restaurant</option>
+        <option value="office">Office</option>
+      </select>
+    </div>
+    <div class="filter-group" id="bulkEmployeeBrandWrap" style="min-width: 160px;">
+      <label for="bulkUserModalBrand">Brand</label>
+      <select class="form-select app-select-with-chevron" id="bulkUserModalBrand">
+        <option value="">Select brand</option>
+      </select>
+    </div>
+    <div class="filter-group" id="bulkEmployeeBranchWrap" style="min-width: 160px;">
       <label for="bulkUserModalBranch">Branch</label>
-      <select class="form-select" id="bulkUserModalBranch" required>
+      <select class="form-select" id="bulkUserModalBranch">
         <option value="">Select branch</option>
       </select>
     </div>
-    <div class="filter-group" style="min-width: 160px;">
+    <div class="filter-group" id="bulkEmployeeDepartmentWrap" style="min-width: 160px;">
       <label for="bulkUserModalDepartment">Department</label>
       <select class="form-select" id="bulkUserModalDepartment" required>
-        <option value="">Select branch first</option>
+        <option value="">Choose location first</option>
       </select>
     </div>
     <div class="filter-group" style="flex: 1; min-width: 100%;">

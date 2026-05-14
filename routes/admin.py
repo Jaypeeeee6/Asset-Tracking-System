@@ -1,6 +1,7 @@
 from flask import Blueprint, request, jsonify
 from flask_login import login_required, current_user
-from models.database import get_db_connection
+from models.database import get_db_connection, ensure_restaurant_default_department_for_branch
+from routes.assets import OFFICE_BRANCH_LABEL
 import sqlite3
 
 admin_bp = Blueprint('admin', __name__)
@@ -142,6 +143,7 @@ def add_branch():
     try:
         cur.execute('INSERT INTO branches (name, brand_id) VALUES (?, ?)', (name, brand_id))
         branch_id = cur.lastrowid
+        ensure_restaurant_default_department_for_branch(cur, branch_id)
         conn.commit()
         conn.close()
         return jsonify({'success': True, 'id': branch_id, 'name': name, 'brand_id': brand_id})
@@ -237,19 +239,41 @@ def delete_branch(branch_id):
 @login_required
 def get_departments():
     branch_id = request.args.get('branch_id') or request.args.get('building_id')
+    office_only = (request.args.get('office_only') or '').strip().lower() in ('1', 'true', 'yes')
     conn = get_db_connection()
     cur = conn.cursor()
-    
+
+    if office_only:
+        cur.execute(
+            'SELECT id, name FROM departments WHERE branch_id IS NULL ORDER BY name',
+        )
+        departments = [
+            {'id': row[0], 'name': row[1], 'branch_id': None, 'branch_name': OFFICE_BRANCH_LABEL}
+            for row in cur.fetchall()
+        ]
+        conn.close()
+        return jsonify(departments)
+
     if branch_id:
         cur.execute('SELECT id, name FROM departments WHERE branch_id = ? ORDER BY name', (branch_id,))
-    else:
-        cur.execute('SELECT d.id, d.name, d.branch_id, b.name as branch_name FROM departments d JOIN branches b ON d.branch_id = b.id ORDER BY b.name, d.name')
-    
-    if branch_id:
         departments = [{'id': row[0], 'name': row[1]} for row in cur.fetchall()]
-    else:
-        departments = [{'id': row[0], 'name': row[1], 'branch_id': row[2], 'branch_name': row[3]} for row in cur.fetchall()]
-    
+        conn.close()
+        return jsonify(departments)
+
+    cur.execute(
+        '''
+        SELECT d.id, d.name, d.branch_id,
+               CASE WHEN d.branch_id IS NULL THEN ? ELSE b.name END AS branch_name
+        FROM departments d
+        LEFT JOIN branches b ON d.branch_id = b.id
+        ORDER BY branch_name, d.name
+        ''',
+        (OFFICE_BRANCH_LABEL,),
+    )
+    departments = [
+        {'id': row[0], 'name': row[1], 'branch_id': row[2], 'branch_name': row[3]}
+        for row in cur.fetchall()
+    ]
     conn.close()
     return jsonify(departments)
 
@@ -261,21 +285,25 @@ def add_department():
         return jsonify({'error': 'Access denied. Only IT users can add departments.'}), 403
     
     name = request.form.get('name', '').strip()
-    branch_id = request.form.get('branch_id') or request.form.get('building_id')
-    
+    branch_id_raw = (request.form.get('branch_id') or request.form.get('building_id') or '').strip()
+
     if not name:
         return jsonify({'error': 'Department name is required'}), 400
-    
-    if not branch_id:
-        return jsonify({'error': 'Branch is required'}), 400
-    
-    try:
-        branch_id = int(branch_id)
-    except ValueError:
-        return jsonify({'error': 'Invalid branch ID'}), 400
-    
+
+    branch_id = None
+    if branch_id_raw:
+        try:
+            branch_id = int(branch_id_raw)
+        except ValueError:
+            return jsonify({'error': 'Invalid branch ID'}), 400
+
     conn = get_db_connection()
     cur = conn.cursor()
+    if branch_id is not None:
+        cur.execute('SELECT id FROM branches WHERE id = ?', (branch_id,))
+        if not cur.fetchone():
+            conn.close()
+            return jsonify({'error': 'Branch not found'}), 404
     try:
         cur.execute('INSERT INTO departments (name, branch_id) VALUES (?, ?)', (name, branch_id))
         department_id = cur.lastrowid
@@ -284,7 +312,7 @@ def add_department():
         return jsonify({'success': True, 'id': department_id, 'name': name, 'branch_id': branch_id})
     except sqlite3.IntegrityError:
         conn.close()
-        return jsonify({'error': 'Department name already exists for this branch'}), 400
+        return jsonify({'error': 'A department with this name already exists in this context'}), 400
 
 @admin_bp.route('/departments/<int:department_id>', methods=['PUT'])
 @login_required
@@ -300,27 +328,35 @@ def update_department(department_id):
     conn = get_db_connection()
     cur = conn.cursor()
     try:
-        # Check if department exists
-        cur.execute('SELECT d.name, b.name FROM departments d JOIN branches b ON d.branch_id = b.id WHERE d.id = ?', (department_id,))
+        cur.execute(
+            '''
+            SELECT d.name, CASE WHEN d.branch_id IS NULL THEN ? ELSE b.name END
+            FROM departments d
+            LEFT JOIN branches b ON d.branch_id = b.id
+            WHERE d.id = ?
+            ''',
+            (OFFICE_BRANCH_LABEL, department_id),
+        )
         result = cur.fetchone()
         if not result:
             conn.close()
             return jsonify({'error': 'Department not found'}), 404
-        
+
         old_name, branch_name = result
-        
-        # Update department name
+
         cur.execute('UPDATE departments SET name = ? WHERE id = ?', (name, department_id))
-        
-        # Update all assets that reference this department and branch
-        cur.execute('UPDATE assets SET department = ? WHERE department = ? AND branch = ?', (name, old_name, branch_name))
+
+        cur.execute(
+            'UPDATE assets SET department = ? WHERE department = ? AND branch = ?',
+            (name, old_name, branch_name),
+        )
         
         conn.commit()
         conn.close()
         return jsonify({'success': True, 'id': department_id, 'name': name})
     except sqlite3.IntegrityError:
         conn.close()
-        return jsonify({'error': 'Department name already exists for this branch'}), 400
+        return jsonify({'error': 'A department with this name already exists in this context'}), 400
 
 @admin_bp.route('/departments/<int:department_id>', methods=['DELETE'])
 @login_required
@@ -332,16 +368,22 @@ def delete_department(department_id):
     conn = get_db_connection()
     cur = conn.cursor()
     
-    # Check if department exists
-    cur.execute('SELECT d.name, b.name FROM departments d JOIN branches b ON d.branch_id = b.id WHERE d.id = ?', (department_id,))
+    cur.execute(
+        '''
+        SELECT d.name, CASE WHEN d.branch_id IS NULL THEN ? ELSE b.name END
+        FROM departments d
+        LEFT JOIN branches b ON d.branch_id = b.id
+        WHERE d.id = ?
+        ''',
+        (OFFICE_BRANCH_LABEL, department_id),
+    )
     result = cur.fetchone()
     if not result:
         conn.close()
         return jsonify({'error': 'Department not found'}), 404
-    
+
     department_name, branch_name = result
-    
-    # Check if department is being used by any assets
+
     cur.execute('SELECT COUNT(*) FROM assets WHERE department = ? AND branch = ?', (department_name, branch_name))
     asset_count = cur.fetchone()[0]
     
@@ -366,22 +408,30 @@ def get_users():
     
     department_id = request.args.get('department_id')
     if department_id:
-        cur.execute('''
-            SELECT u.id, u.name, u.department_id, d.name as department_name, b.name as branch_name 
-            FROM users u 
-            JOIN departments d ON u.department_id = d.id 
-            JOIN branches b ON d.branch_id = b.id 
+        cur.execute(
+            '''
+            SELECT u.id, u.name, u.department_id, d.name as department_name,
+                   COALESCE(b.name, ?) as branch_name
+            FROM users u
+            JOIN departments d ON u.department_id = d.id
+            LEFT JOIN branches b ON d.branch_id = b.id
             WHERE u.department_id = ?
             ORDER BY u.name
-        ''', (department_id,))
+            ''',
+            (OFFICE_BRANCH_LABEL, department_id),
+        )
     else:
-        cur.execute('''
-            SELECT u.id, u.name, u.department_id, d.name as department_name, b.name as branch_name 
-            FROM users u 
-            JOIN departments d ON u.department_id = d.id 
-            JOIN branches b ON d.branch_id = b.id 
-            ORDER BY b.name, d.name, u.name
-        ''')
+        cur.execute(
+            '''
+            SELECT u.id, u.name, u.department_id, d.name as department_name,
+                   COALESCE(b.name, ?) as branch_name
+            FROM users u
+            JOIN departments d ON u.department_id = d.id
+            LEFT JOIN branches b ON d.branch_id = b.id
+            ORDER BY branch_name, d.name, u.name
+            ''',
+            (OFFICE_BRANCH_LABEL,),
+        )
     
     users = [dict(row) for row in cur.fetchall()]
     conn.close()
@@ -571,8 +621,8 @@ def delete_user(user_id):
 def get_asset_types():
     conn = get_db_connection()
     cur = conn.cursor()
-    cur.execute('SELECT id, name FROM asset_types ORDER BY name')
-    asset_types = [{'id': row[0], 'name': row[1]} for row in cur.fetchall()]
+    cur.execute('SELECT id, name, for_venue FROM asset_types ORDER BY for_venue, name')
+    asset_types = [{'id': row[0], 'name': row[1], 'for_venue': row[2]} for row in cur.fetchall()]
     conn.close()
     return jsonify(asset_types)
 
@@ -584,20 +634,23 @@ def add_asset_type():
         return jsonify({'error': 'Access denied. Only IT users can add asset types.'}), 403
     
     name = request.form.get('name', '').strip()
+    for_venue = (request.form.get('for_venue') or 'restaurant').strip().lower()
+    if for_venue not in ('restaurant', 'office'):
+        return jsonify({'error': 'Location must be restaurant or office'}), 400
     if not name:
         return jsonify({'error': 'Asset type name is required'}), 400
     
     conn = get_db_connection()
     cur = conn.cursor()
     try:
-        cur.execute('INSERT INTO asset_types (name) VALUES (?)', (name,))
+        cur.execute('INSERT INTO asset_types (name, for_venue) VALUES (?, ?)', (name, for_venue))
         asset_type_id = cur.lastrowid
         conn.commit()
         conn.close()
-        return jsonify({'success': True, 'id': asset_type_id, 'name': name})
+        return jsonify({'success': True, 'id': asset_type_id, 'name': name, 'for_venue': for_venue})
     except sqlite3.IntegrityError:
         conn.close()
-        return jsonify({'error': 'Asset type name already exists'}), 400
+        return jsonify({'error': 'An asset type with this name already exists for that location'}), 400
 
 @admin_bp.route('/asset-types/<int:asset_type_id>', methods=['PUT'])
 @login_required
@@ -613,27 +666,24 @@ def update_asset_type(asset_type_id):
     conn = get_db_connection()
     cur = conn.cursor()
     try:
-        # Check if asset type exists
-        cur.execute('SELECT name FROM asset_types WHERE id = ?', (asset_type_id,))
-        old_asset_type = cur.fetchone()
-        if not old_asset_type:
+        cur.execute('SELECT name, for_venue FROM asset_types WHERE id = ?', (asset_type_id,))
+        old_row = cur.fetchone()
+        if not old_row:
             conn.close()
             return jsonify({'error': 'Asset type not found'}), 404
-        
-        old_name = old_asset_type[0]
-        
-        # Update asset type name
+
+        old_name, old_venue = old_row[0], old_row[1]
+
         cur.execute('UPDATE asset_types SET name = ? WHERE id = ?', (name, asset_type_id))
-        
-        # Update all assets that reference this asset type
+
         cur.execute('UPDATE assets SET asset_type = ? WHERE asset_type = ?', (name, old_name))
         
         conn.commit()
         conn.close()
-        return jsonify({'success': True, 'id': asset_type_id, 'name': name})
+        return jsonify({'success': True, 'id': asset_type_id, 'name': name, 'for_venue': old_venue})
     except sqlite3.IntegrityError:
         conn.close()
-        return jsonify({'error': 'Asset type name already exists'}), 400
+        return jsonify({'error': 'An asset type with this name already exists for that location'}), 400
 
 @admin_bp.route('/asset-types/<int:asset_type_id>', methods=['DELETE'])
 @login_required
@@ -645,7 +695,6 @@ def delete_asset_type(asset_type_id):
     conn = get_db_connection()
     cur = conn.cursor()
     
-    # Check if asset type exists
     cur.execute('SELECT name FROM asset_types WHERE id = ?', (asset_type_id,))
     asset_type = cur.fetchone()
     if not asset_type:
@@ -654,7 +703,6 @@ def delete_asset_type(asset_type_id):
     
     asset_type_name = asset_type[0]
     
-    # Check if asset type is being used by any assets
     cur.execute('SELECT COUNT(*) FROM assets WHERE asset_type = ?', (asset_type_name,))
     asset_count = cur.fetchone()[0]
     
@@ -662,7 +710,6 @@ def delete_asset_type(asset_type_id):
         conn.close()
         return jsonify({'error': f'Cannot delete asset type. It is being used by {asset_count} asset(s)'}), 400
     
-    # Delete the asset type and its asset names
     cur.execute('DELETE FROM asset_names WHERE asset_type_id = ?', (asset_type_id,))
     cur.execute('DELETE FROM asset_types WHERE id = ?', (asset_type_id,))
     conn.commit()

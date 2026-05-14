@@ -19,12 +19,51 @@ from models.database import (
     get_qr_label_layout_dict,
     qr_layout_to_api_dict,
     upsert_qr_label_layout_updates,
+    RESTAURANT_DEFAULT_DEPARTMENT_NAME,
 )
 import qrcode
 from io import BytesIO
 import uuid
 
 assets_bp = Blueprint('assets', __name__)
+
+# Canonical branch label stored on assets for office-venue rows (must match admin/JS).
+OFFICE_BRANCH_LABEL = 'Office'
+
+
+def _validate_asset_venue_location(cur, venue, branch, department, brand_id=None):
+    """Ensure branch/department match restaurant vs office rules."""
+    v = (venue or 'restaurant').strip().lower()
+    if v not in ('restaurant', 'office'):
+        return 'Invalid location type.'
+    if v == 'office':
+        if branch != OFFICE_BRANCH_LABEL:
+            return 'Office assets must use the Office location.'
+        cur.execute(
+            'SELECT 1 FROM departments WHERE branch_id IS NULL AND name = ?',
+            (department,),
+        )
+        if not cur.fetchone():
+            return 'Select a valid office department.'
+        return None
+    try:
+        brand_int = int(brand_id)
+    except (TypeError, ValueError):
+        return 'Select a brand.'
+    cur.execute('SELECT id, brand_id FROM branches WHERE name = ?', (branch,))
+    row = cur.fetchone()
+    if not row:
+        return 'Select a valid restaurant branch.'
+    bid, b_brand = row[0], row[1]
+    if b_brand != brand_int:
+        return 'Branch does not match the selected brand.'
+    cur.execute(
+        'SELECT 1 FROM departments WHERE branch_id = ? AND name = ?',
+        (bid, department),
+    )
+    if not cur.fetchone():
+        return 'Restaurant location is not fully set up for this branch. Contact IT.'
+    return None
 
 
 
@@ -302,7 +341,17 @@ def add_asset():
     asset_type = request.form.get('asset_type', '')
     owner = request.form.get('owner', '')
     branch = request.form.get('branch') or request.form.get('building')
-    department = request.form['department']
+    venue = (request.form.get('asset_venue') or 'restaurant').strip().lower()
+    brand_raw = (request.form.get('brand_id') or '').strip()
+    if venue == 'office':
+        department = request.form.get('department', '')
+        brand_key = None
+    else:
+        department = RESTAURANT_DEFAULT_DEPARTMENT_NAME
+        try:
+            brand_key = int(brand_raw)
+        except ValueError:
+            brand_key = None
     quantity = int(request.form['quantity'])
     price = float(request.form.get('price', 0.0))
     used_status = request.form.get('used_status', 'Not Used')
@@ -311,6 +360,9 @@ def add_asset():
     # Handle no owner case
     if no_owner:
         owner = 'No Owner'
+
+    if venue == 'office':
+        branch = OFFICE_BRANCH_LABEL
     
     # Parse selected asset names
     asset_names = [name.strip() for name in selected_asset_names.split(',') if name.strip()]
@@ -320,6 +372,24 @@ def add_asset():
     
     conn = get_db_connection()
     cur = conn.cursor()
+
+    err = _validate_asset_venue_location(cur, venue, branch, department, brand_id=brand_key)
+    if err:
+        conn.close()
+        flash(err, 'error')
+        return redirect(url_for('assets.dashboard'))
+
+    if asset_type:
+        cur.execute('SELECT for_venue FROM asset_types WHERE name = ?', (asset_type,))
+        vt_row = cur.fetchone()
+        if not vt_row:
+            conn.close()
+            flash('Invalid asset type.', 'error')
+            return redirect(url_for('assets.dashboard'))
+        if (vt_row[0] or 'restaurant') != venue:
+            conn.close()
+            flash('Asset type does not match Restaurant / Office selection.', 'error')
+            return redirect(url_for('assets.dashboard'))
     
     # Pre-calculate asset codes for new assets to ensure sequential numbering
     new_asset_codes = []
@@ -384,7 +454,17 @@ def update_asset(asset_id):
     asset_type = request.form.get('asset_type', '')
     owner = request.form.get('owner', '')
     branch = request.form.get('branch') or request.form.get('building')
-    department = request.form['department']
+    venue = (request.form.get('asset_venue') or 'restaurant').strip().lower()
+    brand_raw = (request.form.get('brand_id') or '').strip()
+    if venue == 'office':
+        department = request.form.get('department', '')
+        brand_key = None
+    else:
+        department = request.form.get('department') or RESTAURANT_DEFAULT_DEPARTMENT_NAME
+        try:
+            brand_key = int(brand_raw)
+        except ValueError:
+            brand_key = None
     quantity = int(request.form['quantity'])
     price = float(request.form.get('price', 0.0))
     used_status = request.form.get('used_status', 'Not Used')
@@ -393,9 +473,27 @@ def update_asset(asset_id):
     # Handle no owner case
     if no_owner:
         owner = 'No Owner'
+
+    if venue == 'office':
+        branch = OFFICE_BRANCH_LABEL
     
     conn = get_db_connection()
     cur = conn.cursor()
+
+    err = _validate_asset_venue_location(cur, venue, branch, department, brand_id=brand_key)
+    if err:
+        conn.close()
+        return jsonify({'error': err}), 400
+
+    if asset_type:
+        cur.execute('SELECT for_venue FROM asset_types WHERE name = ?', (asset_type,))
+        vt_row = cur.fetchone()
+        if not vt_row:
+            conn.close()
+            return jsonify({'error': 'Invalid asset type.'}), 400
+        if (vt_row[0] or 'restaurant') != venue:
+            conn.close()
+            return jsonify({'error': 'Asset type does not match Restaurant / Office selection.'}), 400
     
     try:
         # Get current asset data to check if branch or department changed

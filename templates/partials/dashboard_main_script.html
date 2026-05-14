@@ -34,6 +34,11 @@ window.chartData = {
 // ============================================================================
 let branchesData = [];
 let brandsData = [];
+let assetTypesData = [];
+/** Must match ``routes.assets.OFFICE_BRANCH_LABEL`` and server admin responses. */
+const OFFICE_BRANCH_LABEL_JS = 'Office';
+/** Must match ``models.database.RESTAURANT_DEFAULT_DEPARTMENT_NAME`` and server assets routes. */
+const RESTAURANT_DEFAULT_DEPT_JS = 'Restaurant';
 let departmentsData = [];
 let selectedAssets = [];
 /** Server print layout preset (2 in x 2 in labels); must match qr_label_layouts.preset_key */
@@ -41,6 +46,147 @@ const QR_LABEL_PRESET = 'label_2x2';
 
 
 
+
+    function getAddAssetVenue() {
+        const r = document.querySelector('input[name="asset_venue_ui"]:checked');
+        return r ? r.value : 'restaurant';
+    }
+
+    function syncAddAssetVenueField() {
+        const h = document.getElementById('assetVenueField');
+        if (h) h.value = getAddAssetVenue();
+    }
+
+    function getEditAssetVenue() {
+        const r = document.querySelector('input[name="edit_asset_venue_ui"]:checked');
+        return r ? r.value : 'restaurant';
+    }
+
+    function syncEditAssetVenueField() {
+        const h = document.getElementById('editAssetVenueField');
+        if (h) h.value = getEditAssetVenue();
+    }
+
+    function fillOfficeDepartmentsSelect(selectEl, placeholderText) {
+        if (!selectEl) return Promise.resolve();
+        selectEl.innerHTML = '<option value="">' + (placeholderText || 'Select department') + '</option>';
+        return fetch('/admin/departments?office_only=1')
+            .then(function (response) { return response.json(); })
+            .then(function (depts) {
+                depts.forEach(function (department) {
+                    const option = document.createElement('option');
+                    option.value = department.name;
+                    option.textContent = department.name;
+                    selectEl.appendChild(option);
+                });
+            });
+    }
+
+    function applyAddAssetVenueToAddAssetModal() {
+        syncAddAssetVenueField();
+        const brandWrap = document.getElementById('addAssetBrandField');
+        const brandSel = document.getElementById('add_asset_brand');
+        const branchWrap = document.getElementById('addAssetBranchField');
+        const branchSelect = document.getElementById('branch');
+        const deptWrap = document.getElementById('addAssetDepartmentField');
+        const departmentSelect = document.getElementById('department');
+        const ownerSelect = document.getElementById('owner');
+        if (!departmentSelect) return;
+        const v = getAddAssetVenue();
+        updateAssetTypeDropdowns();
+        if (v === 'office') {
+            if (brandWrap) brandWrap.classList.add('d-none');
+            if (brandSel) brandSel.value = '';
+            if (deptWrap) deptWrap.classList.remove('d-none');
+            if (branchWrap) branchWrap.classList.add('d-none');
+            if (branchSelect) {
+                branchSelect.innerHTML = '<option value="' + OFFICE_BRANCH_LABEL_JS + '" selected>' + OFFICE_BRANCH_LABEL_JS + '</option>';
+            }
+            departmentSelect.innerHTML = '<option value="">Select department</option>';
+            fillOfficeDepartmentsSelect(departmentSelect, 'Select department').then(function () {
+                if (ownerSelect) {
+                    ownerSelect.innerHTML = '<option value="">Select department first</option>';
+                }
+            });
+        } else {
+            if (brandWrap) brandWrap.classList.remove('d-none');
+            if (deptWrap) deptWrap.classList.add('d-none');
+            if (branchWrap) branchWrap.classList.remove('d-none');
+            populateAddAssetBrandSelect();
+            if (brandSel) brandSel.value = '';
+            updateAddAssetRestaurantBranchDropdown('');
+            if (branchSelect) branchSelect.value = '';
+            departmentSelect.innerHTML = '';
+            var o = document.createElement('option');
+            o.value = RESTAURANT_DEFAULT_DEPT_JS;
+            o.textContent = RESTAURANT_DEFAULT_DEPT_JS;
+            departmentSelect.appendChild(o);
+            departmentSelect.value = RESTAURANT_DEFAULT_DEPT_JS;
+            if (ownerSelect) ownerSelect.innerHTML = '<option value="">Select branch first</option>';
+        }
+        clearSelectedAssetNames();
+        const at = document.getElementById('asset_type');
+        if (at) at.value = '';
+    }
+
+    function applyEditAssetVenueToEditModal() {
+        syncEditAssetVenueField();
+        var brandWrap = document.getElementById('editAssetBrandField');
+        var brandSel = document.getElementById('edit_asset_brand');
+        var deptWrap = document.getElementById('editAssetDepartmentField');
+        var deptSel = document.getElementById('edit_department');
+        var ownSel = document.getElementById('edit_owner');
+        var bf = document.getElementById('editAssetBranchField');
+        var br = document.getElementById('edit_branch');
+        if (getEditAssetVenue() === 'office') {
+            if (brandWrap) brandWrap.classList.add('d-none');
+            if (brandSel) brandSel.value = '';
+            if (deptWrap) deptWrap.classList.remove('d-none');
+            if (bf) bf.classList.add('d-none');
+            if (br) {
+                br.innerHTML = '<option value="' + OFFICE_BRANCH_LABEL_JS + '" selected>' + OFFICE_BRANCH_LABEL_JS + '</option>';
+            }
+            if (deptSel) {
+                fillOfficeDepartmentsSelect(deptSel, 'Select department');
+            }
+            if (ownSel) ownSel.innerHTML = '<option value="">Select department first</option>';
+        } else {
+            if (brandWrap) brandWrap.classList.remove('d-none');
+            if (deptWrap) deptWrap.classList.add('d-none');
+            if (bf) bf.classList.remove('d-none');
+            populateEditAssetBrandSelect();
+            if (brandSel) brandSel.value = '';
+            if (br) {
+                loadEditBranches('', '').then(function () {
+                    if (deptSel) {
+                        deptSel.innerHTML = '';
+                        var op = document.createElement('option');
+                        op.value = RESTAURANT_DEFAULT_DEPT_JS;
+                        op.textContent = RESTAURANT_DEFAULT_DEPT_JS;
+                        deptSel.appendChild(op);
+                        deptSel.value = RESTAURANT_DEFAULT_DEPT_JS;
+                    }
+                    if (ownSel) ownSel.innerHTML = '<option value="">Select branch first</option>';
+                });
+            }
+        }
+    }
+
+    function resolveDepartmentIdForOwnerLookup(departmentName, branchNameForMatch) {
+        if (!departmentName) return null;
+        const v = getAddAssetVenue();
+        if (v === 'office') {
+            const d = departmentsData.find(function (x) {
+                return x.name === departmentName && (x.branch_id == null || x.branch_name === OFFICE_BRANCH_LABEL_JS);
+            });
+            return d ? d.id : null;
+        }
+        const bid = (branchesData.find(function (b) { return b.name === branchNameForMatch; }) || {}).id;
+        const d2 = departmentsData.find(function (x) {
+            return x.name === departmentName && x.branch_id === bid;
+        });
+        return d2 ? d2.id : null;
+    }
 
 // ============================================================================
 // DATA LOADING & INITIALIZATION
@@ -57,6 +203,9 @@ const QR_LABEL_PRESET = 'label_2x2';
                 brandsData = data;
                 updateBrandsList();
                 updateNewBranchBrandSelect();
+                populateAddAssetBrandSelect();
+                populateEditAssetBrandSelect();
+                populateEmployeeBrandSelects();
             })
             .catch(error => {
                 console.error('Error loading brands:', error);
@@ -80,6 +229,65 @@ const QR_LABEL_PRESET = 'label_2x2';
         if (prev && Array.prototype.some.call(sel.options, function (opt) { return opt.value === prev; })) {
             sel.value = prev;
         }
+    }
+
+    function _fillBrandSelect(sel) {
+        if (!sel) return;
+        var prev = sel.value;
+        sel.innerHTML = '<option value="">Select brand</option>';
+        var sorted = [...brandsData].sort(function (a, b) { return a.name.localeCompare(b.name); });
+        sorted.forEach(function (brand) {
+            var option = document.createElement('option');
+            option.value = String(brand.id);
+            option.textContent = brand.name;
+            sel.appendChild(option);
+        });
+        if (prev && Array.prototype.some.call(sel.options, function (opt) { return opt.value === prev; })) {
+            sel.value = prev;
+        }
+    }
+
+    function populateAddAssetBrandSelect() {
+        _fillBrandSelect(document.getElementById('add_asset_brand'));
+    }
+
+    function populateEditAssetBrandSelect() {
+        _fillBrandSelect(document.getElementById('edit_asset_brand'));
+    }
+
+    function populateEmployeeBrandSelects() {
+        _fillBrandSelect(document.getElementById('userModalBrand'));
+        _fillBrandSelect(document.getElementById('bulkUserModalBrand'));
+    }
+
+    function updateAddAssetRestaurantBranchDropdown(brandId) {
+        var buildingSelect = document.getElementById('branch');
+        if (!buildingSelect) return;
+        buildingSelect.innerHTML = '<option value="">Select Branch</option>';
+        if (!brandId) return;
+        var sorted = branchesData.filter(function (b) { return String(b.brand_id) === String(brandId); })
+            .sort(function (a, b) { return a.name.localeCompare(b.name); });
+        sorted.forEach(function (building) {
+            var option = document.createElement('option');
+            option.value = building.name;
+            option.textContent = building.name;
+            buildingSelect.appendChild(option);
+        });
+    }
+
+    function updateUserModalBranchesFromBrand(brandId, branchSelectId) {
+        var buildingSelect = document.getElementById(branchSelectId);
+        if (!buildingSelect) return;
+        buildingSelect.innerHTML = '<option value="">Select branch</option>';
+        if (!brandId) return;
+        var sorted = branchesData.filter(function (b) { return String(b.brand_id) === String(brandId); })
+            .sort(function (a, b) { return a.name.localeCompare(b.name); });
+        sorted.forEach(function (building) {
+            var option = document.createElement('option');
+            option.value = String(building.id);
+            option.textContent = building.name;
+            buildingSelect.appendChild(option);
+        });
     }
 
     function updateBrandsList() {
@@ -152,10 +360,15 @@ const QR_LABEL_PRESET = 'label_2x2';
 // BRANCH MANAGEMENT FUNCTIONS
 // ============================================================================
 
-    // Update branch dropdown options
+    // Update branch dropdown options (add-asset modal; restaurant uses brand filter)
     function updateBranchDropdown() {
         const buildingSelect = document.getElementById('branch');
         if (!buildingSelect) return;
+        if (getAddAssetVenue() === 'restaurant') {
+            const bsel = document.getElementById('add_asset_brand');
+            updateAddAssetRestaurantBranchDropdown(bsel && bsel.value ? bsel.value : '');
+            return;
+        }
         buildingSelect.innerHTML = '<option value="">Select Branch</option>';
         branchesData.forEach(building => {
             const option = document.createElement('option');
@@ -237,7 +450,11 @@ const QR_LABEL_PRESET = 'label_2x2';
         resetMgmtTableBulkUI('selectAllDepartmentsCheckbox', 'bulkDeleteDepartmentsBtn', 'departmentsList', 'department-row-checkbox');
 
         let filteredDepartments = departmentsData;
-        if (selectedBuilding) {
+        if (selectedBuilding === '__office__') {
+            filteredDepartments = departmentsData.filter(function (dept) {
+                return dept.branch_id == null || dept.branch_name === OFFICE_BRANCH_LABEL_JS;
+            });
+        } else if (selectedBuilding) {
             filteredDepartments = departmentsData.filter(dept => dept.branch_name === selectedBuilding);
         }
 
@@ -295,10 +512,16 @@ const QR_LABEL_PRESET = 'label_2x2';
         const filterSelect = document.getElementById('departmentFilterBranch');
         if (!filterSelect) return;
         
-        filterSelect.innerHTML = '<option value="">All Branches</option>';
-        
-        const uniqueBuildings = [...new Set(departmentsData.map(dept => dept.branch_name))].sort();
-        uniqueBuildings.forEach(building => {
+        filterSelect.innerHTML = '<option value="">All branches</option>';
+        const hasOffice = departmentsData.some(function (d) { return d.branch_id == null; });
+        if (hasOffice) {
+            const officeOpt = document.createElement('option');
+            officeOpt.value = '__office__';
+            officeOpt.textContent = 'Office';
+            filterSelect.appendChild(officeOpt);
+        }
+        const branchNames = [...new Set(departmentsData.filter(function (d) { return d.branch_id != null; }).map(function (d) { return d.branch_name; }))].sort();
+        branchNames.forEach(function (building) {
             const option = document.createElement('option');
             option.value = building;
             option.textContent = building;
@@ -589,9 +812,10 @@ const QR_LABEL_PRESET = 'label_2x2';
      * Called on page load and after asset type operations
      */
     function loadAssetTypes() {
-        fetch('/admin/asset-types')
+        return fetch('/admin/asset-types')
             .then(response => response.json())
             .then(data => {
+                assetTypesData = data;
                 updateAssetTypesList();
                 updateAssetTypeDropdowns();
             })
@@ -625,48 +849,46 @@ const QR_LABEL_PRESET = 'label_2x2';
         assetTypesList.innerHTML = '';
         resetMgmtTableBulkUI('selectAllAssetTypesCheckbox', 'bulkDeleteAssetTypesBtn', 'assetTypesList', 'asset-type-row-checkbox');
 
-        fetch('/admin/asset-types')
-            .then(response => response.json())
-            .then(assetTypes => {
-                if (assetTypes.length === 0) {
-                    assetTypesList.innerHTML = '<tr><td colspan="4" class="text-center text-muted py-4">No asset types found</td></tr>';
-                    return;
-                }
+        if (!assetTypesData.length) {
+            assetTypesList.innerHTML = '<tr><td colspan="5" class="text-center text-muted py-4">No asset types found</td></tr>';
+            resetMgmtTableBulkUI('selectAllAssetTypesCheckbox', 'bulkDeleteAssetTypesBtn', 'assetTypesList', 'asset-type-row-checkbox');
+            return;
+        }
 
-                const sorted = [...assetTypes].sort((a, b) => a.name.localeCompare(b.name));
-                sorted.forEach((assetType, i) => {
-                    const tr = document.createElement('tr');
-                    tr.innerHTML = `
-                        <td><input type="checkbox" class="asset-type-row-checkbox" value="${assetType.id}" aria-label="Select ${assetType.name}"></td>
-                        <td>${i + 1}</td>
-                        <td><strong class="asset-type-name" data-id="${assetType.id}">${assetType.name}</strong></td>
-                        <td>
-                            <div class="d-flex gap-2 flex-wrap align-items-center">
-                                <button type="button" class="btn-app-edit-icon edit-asset-type-btn" data-id="${assetType.id}" data-name="${assetType.name}" title="Edit asset type" aria-label="Edit asset type">
-                                    <i class="bi bi-pencil-square" aria-hidden="true"></i>
-                                </button>
-                                <button type="button" class="btn-app-edit-icon btn-app-danger-icon delete-asset-type-btn" data-id="${assetType.id}" data-name="${assetType.name}" title="Delete asset type" aria-label="Delete asset type">
-                                    <i class="bi bi-trash" aria-hidden="true"></i>
-                                </button>
-                            </div>
-                        </td>
-                    `;
-                    assetTypesList.appendChild(tr);
-                });
+        const sorted = [...assetTypesData].sort((a, b) => {
+            const byVenue = (a.for_venue || 'restaurant').localeCompare(b.for_venue || 'restaurant');
+            if (byVenue !== 0) return byVenue;
+            return a.name.localeCompare(b.name);
+        });
+        sorted.forEach((assetType, i) => {
+            const venueLabel = (assetType.for_venue === 'office') ? 'Office' : 'Restaurant';
+            const tr = document.createElement('tr');
+            tr.innerHTML = `
+                <td><input type="checkbox" class="asset-type-row-checkbox" value="${assetType.id}" aria-label="Select ${assetType.name}"></td>
+                <td>${i + 1}</td>
+                <td>${venueLabel}</td>
+                <td><strong class="asset-type-name" data-id="${assetType.id}">${assetType.name}</strong></td>
+                <td>
+                    <div class="d-flex gap-2 flex-wrap align-items-center">
+                        <button type="button" class="btn-app-edit-icon edit-asset-type-btn" data-id="${assetType.id}" data-name="${assetType.name}" data-for-venue="${assetType.for_venue || 'restaurant'}" title="Edit asset type" aria-label="Edit asset type">
+                            <i class="bi bi-pencil-square" aria-hidden="true"></i>
+                        </button>
+                        <button type="button" class="btn-app-edit-icon btn-app-danger-icon delete-asset-type-btn" data-id="${assetType.id}" data-name="${assetType.name}" title="Delete asset type" aria-label="Delete asset type">
+                            <i class="bi bi-trash" aria-hidden="true"></i>
+                        </button>
+                    </div>
+                </td>
+            `;
+            assetTypesList.appendChild(tr);
+        });
 
-                document.querySelectorAll('.edit-asset-type-btn').forEach(btn => {
-                    btn.addEventListener('click', handleEditAssetType);
-                });
-                document.querySelectorAll('.delete-asset-type-btn').forEach(btn => {
-                    btn.addEventListener('click', handleDeleteAssetType);
-                });
-                resetMgmtTableBulkUI('selectAllAssetTypesCheckbox', 'bulkDeleteAssetTypesBtn', 'assetTypesList', 'asset-type-row-checkbox');
-            })
-            .catch(error => {
-                console.error('Error loading asset types:', error);
-                assetTypesList.innerHTML = '<tr><td colspan="4" class="text-center text-danger py-4">Error loading asset types</td></tr>';
-                resetMgmtTableBulkUI('selectAllAssetTypesCheckbox', 'bulkDeleteAssetTypesBtn', 'assetTypesList', 'asset-type-row-checkbox');
-            });
+        document.querySelectorAll('.edit-asset-type-btn').forEach(btn => {
+            btn.addEventListener('click', handleEditAssetType);
+        });
+        document.querySelectorAll('.delete-asset-type-btn').forEach(btn => {
+            btn.addEventListener('click', handleDeleteAssetType);
+        });
+        resetMgmtTableBulkUI('selectAllAssetTypesCheckbox', 'bulkDeleteAssetTypesBtn', 'assetTypesList', 'asset-type-row-checkbox');
     }
 
     // Update asset names list in management modal
@@ -742,78 +964,81 @@ const QR_LABEL_PRESET = 'label_2x2';
             });
     }
 
-    // Update asset type dropdowns
+    // Update asset type dropdowns (uses cached ``assetTypesData`` from ``loadAssetTypes``)
     function updateAssetTypeDropdowns() {
-        fetch('/admin/asset-types')
-            .then(response => response.json())
-            .then(assetTypes => {
-                // Update new asset name type dropdown
-                const newAssetNameTypeSelect = document.getElementById('newAssetNameType');
-                if (newAssetNameTypeSelect) {
-                    newAssetNameTypeSelect.innerHTML = '<option value="">Select Asset Type</option>';
-                    assetTypes.forEach(assetType => {
-                        const option = document.createElement('option');
-                        option.value = assetType.id;
-                        option.textContent = assetType.name;
-                        newAssetNameTypeSelect.appendChild(option);
-                    });
-                }
-                
-                // Update asset name filter dropdown
-                const assetNameFilterSelect = document.getElementById('assetNameFilterType');
-                if (assetNameFilterSelect) {
-                    assetNameFilterSelect.innerHTML = '<option value="">All Asset Types</option>';
-                    assetTypes.forEach(assetType => {
-                        const option = document.createElement('option');
-                        option.value = assetType.id;
-                        option.textContent = assetType.name;
-                        assetNameFilterSelect.appendChild(option);
-                    });
-                }
-                
-                // Update add asset modal asset type dropdown
-                const addAssetTypeSelect = document.getElementById('asset_type');
-                if (addAssetTypeSelect) {
-                    addAssetTypeSelect.innerHTML = '<option value="">Select Asset Type</option>';
-                    assetTypes.forEach(assetType => {
-                        const option = document.createElement('option');
-                        option.value = assetType.name;
-                        option.textContent = assetType.name;
-                        addAssetTypeSelect.appendChild(option);
-                    });
-                }
-                
-                // Update edit asset modal asset type dropdown
-                const editAssetTypeSelect = document.getElementById('edit_asset_type');
-                if (editAssetTypeSelect) {
-                    editAssetTypeSelect.innerHTML = '<option value="">Select Asset Type</option>';
-                    assetTypes.forEach(assetType => {
-                        const option = document.createElement('option');
-                        option.value = assetType.name;
-                        option.textContent = assetType.name;
-                        editAssetTypeSelect.appendChild(option);
-                    });
-                }
-                
-                // Update main page asset type filter dropdown
-                const assetTypeFilterSelect = document.getElementById('assetTypeFilter');
-                if (assetTypeFilterSelect) {
-                    assetTypeFilterSelect.innerHTML = '<option value="">All Types</option>';
-                    assetTypes.forEach(assetType => {
-                        const option = document.createElement('option');
-                        option.value = assetType.name;
-                        option.textContent = assetType.name;
-                        // Check if this option should be selected based on current filter
-                        if (new URLSearchParams(window.location.search).get('asset_type') === assetType.name) {
-                            option.selected = true;
-                        }
-                        assetTypeFilterSelect.appendChild(option);
-                    });
-                }
-            })
-            .catch(error => {
-                console.error('Error loading asset types for dropdowns:', error);
+        const types = assetTypesData || [];
+
+        function typesForVenue(v) {
+            return types.filter(function (t) { return (t.for_venue || 'restaurant') === v; });
+        }
+
+        const newAssetNameTypeSelect = document.getElementById('newAssetNameType');
+        if (newAssetNameTypeSelect) {
+            newAssetNameTypeSelect.innerHTML = '<option value="">Select Asset Type</option>';
+            types.forEach(function (assetType) {
+                const option = document.createElement('option');
+                option.value = assetType.id;
+                option.textContent = assetType.name;
+                newAssetNameTypeSelect.appendChild(option);
             });
+        }
+
+        const assetNameFilterSelect = document.getElementById('assetNameFilterType');
+        if (assetNameFilterSelect) {
+            assetNameFilterSelect.innerHTML = '<option value="">All Asset Types</option>';
+            types.forEach(function (assetType) {
+                const option = document.createElement('option');
+                option.value = assetType.id;
+                option.textContent = assetType.name;
+                assetNameFilterSelect.appendChild(option);
+            });
+        }
+
+        const addVenue = getAddAssetVenue();
+        const addAssetTypeSelect = document.getElementById('asset_type');
+        if (addAssetTypeSelect) {
+            const prev = addAssetTypeSelect.value;
+            addAssetTypeSelect.innerHTML = '<option value="">Select Asset Type</option>';
+            typesForVenue(addVenue).forEach(function (assetType) {
+                const option = document.createElement('option');
+                option.value = assetType.name;
+                option.textContent = assetType.name;
+                addAssetTypeSelect.appendChild(option);
+            });
+            if (prev && Array.from(addAssetTypeSelect.options).some(function (o) { return o.value === prev; })) {
+                addAssetTypeSelect.value = prev;
+            }
+        }
+
+        const editVenue = getEditAssetVenue();
+        const editAssetTypeSelect = document.getElementById('edit_asset_type');
+        if (editAssetTypeSelect) {
+            const prev = editAssetTypeSelect.value;
+            editAssetTypeSelect.innerHTML = '<option value="">Select Asset Type</option>';
+            typesForVenue(editVenue).forEach(function (assetType) {
+                const option = document.createElement('option');
+                option.value = assetType.name;
+                option.textContent = assetType.name;
+                editAssetTypeSelect.appendChild(option);
+            });
+            if (prev && Array.from(editAssetTypeSelect.options).some(function (o) { return o.value === prev; })) {
+                editAssetTypeSelect.value = prev;
+            }
+        }
+
+        const assetTypeFilterSelect = document.getElementById('assetTypeFilter');
+        if (assetTypeFilterSelect) {
+            assetTypeFilterSelect.innerHTML = '<option value="">All Types</option>';
+            types.forEach(function (assetType) {
+                const option = document.createElement('option');
+                option.value = assetType.name;
+                option.textContent = assetType.name;
+                if (new URLSearchParams(window.location.search).get('asset_type') === assetType.name) {
+                    option.selected = true;
+                }
+                assetTypeFilterSelect.appendChild(option);
+            });
+        }
     }
 
     // Update asset name filter dropdown
@@ -1032,23 +1257,15 @@ const QR_LABEL_PRESET = 'label_2x2';
         if (!addDepartmentBtn) return;
         addDepartmentBtn.addEventListener('click', function() {
         const nameInput = document.getElementById('newDepartmentName');
-        const buildingSelect = document.getElementById('newDepartmentBranch');
         const name = nameInput.value.trim();
-        const buildingId = buildingSelect.value;
-        
+
         if (!name) {
             alert('Please enter a department name.');
             return;
         }
 
-        if (!buildingId) {
-            alert('Please select a branch.');
-            return;
-        }
-
         const formData = new FormData();
         formData.append('name', name);
-        formData.append('branch_id', buildingId);
 
         fetch('/admin/departments', {
             method: 'POST',
@@ -1058,9 +1275,8 @@ const QR_LABEL_PRESET = 'label_2x2';
         .then(data => {
             if (data.success) {
                 nameInput.value = '';
-                buildingSelect.value = '';
-                loadDepartments(); // Reload the departments list
-                updateDepartmentQRList(); // Refresh the QR list
+                loadDepartments();
+                updateDepartmentQRList();
             } else {
                 alert(data.error || 'Failed to add department.');
             }
@@ -1080,14 +1296,33 @@ const QR_LABEL_PRESET = 'label_2x2';
     (function bindEmployeeMgmt() {
         if (!document.getElementById('addUserModalBtn') ||
             !document.getElementById('addBulkUsersModalBtn') ||
+            !document.getElementById('userModalBrand') ||
+            !document.getElementById('bulkUserModalBrand') ||
             !document.getElementById('userModalBranch') ||
             !document.getElementById('bulkUserModalBranch') ||
             !document.getElementById('userModalFilterDepartment') ||
-            !document.getElementById('userModalName')) {
+            !document.getElementById('userModalName') ||
+            !document.getElementById('employeeVenue') ||
+            !document.getElementById('bulkEmployeeVenue')) {
             return;
         }
         document.getElementById('addUserModalBtn').addEventListener('click', handleAddUserModal);
         document.getElementById('addBulkUsersModalBtn').addEventListener('click', handleAddBulkUsersModal);
+
+        document.getElementById('employeeVenue').addEventListener('change', syncEmployeeRegisterVenue);
+        document.getElementById('bulkEmployeeVenue').addEventListener('change', syncBulkEmployeeRegisterVenue);
+
+        document.getElementById('userModalBrand').addEventListener('change', function() {
+            updateUserModalBranchesFromBrand(this.value, 'userModalBranch');
+            const dep = document.getElementById('userModalDepartment');
+            if (dep) dep.innerHTML = '<option value="">Select branch first</option>';
+        });
+
+        document.getElementById('bulkUserModalBrand').addEventListener('change', function() {
+            updateUserModalBranchesFromBrand(this.value, 'bulkUserModalBranch');
+            const dep = document.getElementById('bulkUserModalDepartment');
+            if (dep) dep.innerHTML = '<option value="">Select branch first</option>';
+        });
 
         document.getElementById('userModalBranch').addEventListener('change', function() {
             updateUserModalDepartments(this.value);
@@ -1189,23 +1424,19 @@ const QR_LABEL_PRESET = 'label_2x2';
         ownerSelect.innerHTML = '<option value="">Loading...</option>';
         
         if (!departmentName) {
-            ownerSelect.innerHTML = '<option value="">Select Department First</option>';
+            ownerSelect.innerHTML = '<option value="">Select department first</option>';
             return;
         }
         
-        // Find department ID by name
-        fetch('/admin/departments')
-            .then(response => response.json())
-            .then(departments => {
-                const department = departments.find(d => d.name === departmentName);
-                if (!department) {
-                    ownerSelect.innerHTML = '<option value="">Department not found</option>';
-                    return;
-                }
-                
-                // Fetch users for this department
-                return fetch(`/admin/users?department_id=${department.id}`);
-            })
+        // Resolve department id (restaurant vs office) then load users
+        const branchName = (document.getElementById('branch') && document.getElementById('branch').value) || '';
+        const deptId = resolveDepartmentIdForOwnerLookup(departmentName, branchName);
+        if (!deptId) {
+            ownerSelect.innerHTML = '<option value="">Department not found</option>';
+            return;
+        }
+
+        fetch('/admin/users?department_id=' + encodeURIComponent(deptId))
             .then(response => response.json())
             .then(users => {
                 ownerSelect.innerHTML = '<option value="">Select Owner</option>';
@@ -1406,7 +1637,14 @@ const QR_LABEL_PRESET = 'label_2x2';
         if (!addAssetTypeBtn || !addAssetNameBtn) return;
         addAssetTypeBtn.addEventListener('click', function() {
         const nameInput = document.getElementById('newAssetTypeName');
+        const venueSelect = document.getElementById('newAssetTypeVenue');
         const name = nameInput.value.trim();
+        const forVenue = venueSelect ? venueSelect.value : '';
+
+        if (!forVenue) {
+            alert('Please choose Restaurant or Office for this asset type.');
+            return;
+        }
         
         if (!name) {
             alert('Please enter an asset type name.');
@@ -1415,6 +1653,7 @@ const QR_LABEL_PRESET = 'label_2x2';
 
         const formData = new FormData();
         formData.append('name', name);
+        formData.append('for_venue', forVenue);
 
         fetch('/admin/asset-types', {
             method: 'POST',
@@ -1600,52 +1839,140 @@ const QR_LABEL_PRESET = 'label_2x2';
 
     // Load data for user modal
     function loadUserModalData() {
-        loadUserModalBranches();
-        loadBulkUserModalBranches();
-        loadUserModalUsers();
-        loadUserModalFilterDropdown();
+        loadBranches()
+            .then(function () {
+                populateEmployeeBrandSelects();
+                const ub = document.getElementById('userModalBranch');
+                const bub = document.getElementById('bulkUserModalBranch');
+                if (ub) ub.innerHTML = '<option value="">Select branch</option>';
+                if (bub) bub.innerHTML = '<option value="">Select branch</option>';
+                const ubm = document.getElementById('userModalBrand');
+                const bubm = document.getElementById('bulkUserModalBrand');
+                if (ubm) ubm.value = '';
+                if (bubm) bubm.value = '';
+                loadUserModalUsers();
+                loadUserModalFilterDropdown();
+                if (document.getElementById('employeeVenue')) syncEmployeeRegisterVenue();
+                if (document.getElementById('bulkEmployeeVenue')) syncBulkEmployeeRegisterVenue();
+            })
+            .catch(function () {
+                loadUserModalUsers();
+                loadUserModalFilterDropdown();
+                if (document.getElementById('employeeVenue')) syncEmployeeRegisterVenue();
+                if (document.getElementById('bulkEmployeeVenue')) syncBulkEmployeeRegisterVenue();
+            });
     }
 
     // Load buildings for user modal
     function loadUserModalBranches() {
-        fetch('/admin/branches')
-            .then(response => response.json())
-            .then(buildings => {
-                const buildingSelect = document.getElementById('userModalBranch');
-                if (!buildingSelect) return;
-                buildingSelect.innerHTML = '<option value="">Select Branch</option>';
-                
-                buildings.forEach(building => {
-                    const option = document.createElement('option');
-                    option.value = building.id;
-                    option.textContent = building.name;
-                    buildingSelect.appendChild(option);
-                });
-            })
-            .catch(error => {
-                console.error('Error loading branches for user modal:', error);
-            });
+        const buildingSelect = document.getElementById('userModalBranch');
+        if (!buildingSelect) return;
+        buildingSelect.innerHTML = '<option value="">Select branch</option>';
     }
 
     // Load buildings for bulk user modal
     function loadBulkUserModalBranches() {
-        fetch('/admin/branches')
-            .then(response => response.json())
-            .then(buildings => {
-                const buildingSelect = document.getElementById('bulkUserModalBranch');
-                if (!buildingSelect) return;
-                buildingSelect.innerHTML = '<option value="">Select Branch</option>';
-                
-                buildings.forEach(building => {
-                    const option = document.createElement('option');
-                    option.value = building.id;
-                    option.textContent = building.name;
-                    buildingSelect.appendChild(option);
+        const buildingSelect = document.getElementById('bulkUserModalBranch');
+        if (!buildingSelect) return;
+        buildingSelect.innerHTML = '<option value="">Select branch</option>';
+    }
+
+    function syncEmployeeRegisterVenue() {
+        const venueEl = document.getElementById('employeeVenue');
+        const bwrap = document.getElementById('employeeBrandWrap');
+        const wrap = document.getElementById('employeeBranchWrap');
+        const dwrap = document.getElementById('employeeDepartmentWrap');
+        const dept = document.getElementById('userModalDepartment');
+        const branch = document.getElementById('userModalBranch');
+        const brand = document.getElementById('userModalBrand');
+        if (!venueEl || !dept) return;
+        const val = venueEl.value;
+        if (val === 'office') {
+            if (bwrap) bwrap.classList.add('d-none');
+            if (wrap) wrap.classList.add('d-none');
+            if (dwrap) dwrap.classList.remove('d-none');
+            if (brand) brand.value = '';
+            if (branch) branch.value = '';
+            dept.innerHTML = '<option value="">Loading...</option>';
+            fetch('/admin/departments?office_only=1')
+                .then(function (r) { return r.json(); })
+                .then(function (depts) {
+                    dept.innerHTML = '<option value="">Select department</option>';
+                    depts.forEach(function (d) {
+                        const option = document.createElement('option');
+                        option.value = d.id;
+                        option.textContent = d.name;
+                        dept.appendChild(option);
+                    });
+                })
+                .catch(function () {
+                    dept.innerHTML = '<option value="">Error loading departments</option>';
                 });
-            })
-            .catch(error => {
-                console.error('Error loading branches for bulk user modal:', error);
-            });
+        } else if (val === 'restaurant') {
+            if (bwrap) bwrap.classList.remove('d-none');
+            if (wrap) wrap.classList.remove('d-none');
+            if (dwrap) dwrap.classList.add('d-none');
+            populateEmployeeBrandSelects();
+            if (brand) brand.value = '';
+            if (branch) branch.innerHTML = '<option value="">Select branch</option>';
+            dept.innerHTML = '<option value="">Select branch first</option>';
+        } else {
+            if (bwrap) bwrap.classList.add('d-none');
+            if (wrap) wrap.classList.add('d-none');
+            if (dwrap) dwrap.classList.remove('d-none');
+            if (brand) brand.value = '';
+            if (branch) branch.innerHTML = '<option value="">Select branch</option>';
+            dept.innerHTML = '<option value="">Choose location first</option>';
+        }
+    }
+
+    function syncBulkEmployeeRegisterVenue() {
+        const venueEl = document.getElementById('bulkEmployeeVenue');
+        const bwrap = document.getElementById('bulkEmployeeBrandWrap');
+        const wrap = document.getElementById('bulkEmployeeBranchWrap');
+        const dwrap = document.getElementById('bulkEmployeeDepartmentWrap');
+        const dept = document.getElementById('bulkUserModalDepartment');
+        const branch = document.getElementById('bulkUserModalBranch');
+        const brand = document.getElementById('bulkUserModalBrand');
+        if (!venueEl || !dept) return;
+        const val = venueEl.value;
+        if (val === 'office') {
+            if (bwrap) bwrap.classList.add('d-none');
+            if (wrap) wrap.classList.add('d-none');
+            if (dwrap) dwrap.classList.remove('d-none');
+            if (brand) brand.value = '';
+            if (branch) branch.value = '';
+            dept.innerHTML = '<option value="">Loading...</option>';
+            fetch('/admin/departments?office_only=1')
+                .then(function (r) { return r.json(); })
+                .then(function (depts) {
+                    dept.innerHTML = '<option value="">Select department</option>';
+                    depts.forEach(function (d) {
+                        const option = document.createElement('option');
+                        option.value = d.id;
+                        option.textContent = d.name;
+                        dept.appendChild(option);
+                    });
+                })
+                .catch(function () {
+                    dept.innerHTML = '<option value="">Error loading departments</option>';
+                });
+        } else if (val === 'restaurant') {
+            if (bwrap) bwrap.classList.remove('d-none');
+            if (wrap) wrap.classList.remove('d-none');
+            if (dwrap) dwrap.classList.add('d-none');
+            populateEmployeeBrandSelects();
+            if (brand) brand.value = '';
+            if (branch) branch.innerHTML = '<option value="">Select branch</option>';
+            dept.innerHTML = '<option value="">Select branch first</option>';
+        } else {
+            if (bwrap) bwrap.classList.add('d-none');
+            if (wrap) wrap.classList.add('d-none');
+            if (dwrap) dwrap.classList.remove('d-none');
+            if (brand) brand.value = '';
+            if (branch) branch.innerHTML = '<option value="">Select branch</option>';
+            dept.innerHTML = '<option value="">Choose location first</option>';
+        }
     }
 
     // Update departments in user modal based on building
@@ -1663,7 +1990,25 @@ const QR_LABEL_PRESET = 'label_2x2';
         fetch(`/admin/departments?branch_id=${buildingId}`)
             .then(response => response.json())
             .then(departments => {
-                departmentSelect.innerHTML = '<option value="">Select Department</option>';
+                const venueEl = document.getElementById('employeeVenue');
+                const venue = venueEl ? venueEl.value : '';
+                if (venue === 'restaurant') {
+                    const pick = departments.filter(function (d) { return d.name === RESTAURANT_DEFAULT_DEPT_JS; });
+                    departmentSelect.innerHTML = '';
+                    if (pick.length === 0) {
+                        departmentSelect.innerHTML = '<option value="">Default department missing; contact IT</option>';
+                        return;
+                    }
+                    pick.forEach(function (dept) {
+                        const option = document.createElement('option');
+                        option.value = dept.id;
+                        option.textContent = dept.name;
+                        departmentSelect.appendChild(option);
+                    });
+                    departmentSelect.value = String(pick[0].id);
+                    return;
+                }
+                departmentSelect.innerHTML = '<option value="">Select department</option>';
                 
                 departments.forEach(dept => {
                     const option = document.createElement('option');
@@ -1747,10 +2092,11 @@ const QR_LABEL_PRESET = 'label_2x2';
                 // Group departments by building
                 const departmentsByBuilding = {};
                 departments.forEach(dept => {
-                    if (!departmentsByBuilding[dept.branch_name]) {
-                        departmentsByBuilding[dept.branch_name] = [];
+                    const key = dept.branch_name || OFFICE_BRANCH_LABEL_JS;
+                    if (!departmentsByBuilding[key]) {
+                        departmentsByBuilding[key] = [];
                     }
-                    departmentsByBuilding[dept.branch_name].push(dept);
+                    departmentsByBuilding[key].push(dept);
                 });
                 
                 // Add options grouped by building
@@ -1775,15 +2121,27 @@ const QR_LABEL_PRESET = 'label_2x2';
 
     // Handle adding user from modal
     function handleAddUserModal() {
+        const venue = document.getElementById('employeeVenue') ? document.getElementById('employeeVenue').value : '';
+        const brandId = document.getElementById('userModalBrand') ? document.getElementById('userModalBrand').value : '';
         const buildingId = document.getElementById('userModalBranch').value;
         const departmentId = document.getElementById('userModalDepartment').value;
         const name = document.getElementById('userModalName').value.trim();
-        
-        if (!buildingId) {
-            alert('Please select a branch.');
+
+        if (!venue) {
+            alert('Please choose Restaurant or Office.');
             return;
         }
-        
+        if (venue === 'restaurant') {
+            if (!brandId) {
+                alert('Please select a brand.');
+                return;
+            }
+            if (!buildingId) {
+                alert('Please select a branch.');
+                return;
+            }
+        }
+
         if (!departmentId) {
             alert('Please select a department.');
             return;
@@ -1808,9 +2166,13 @@ const QR_LABEL_PRESET = 'label_2x2';
         .then(data => {
             if (data.id) {
                 document.getElementById('userModalName').value = '';
+                if (document.getElementById('employeeVenue')) document.getElementById('employeeVenue').value = '';
+                const ubm = document.getElementById('userModalBrand');
+                if (ubm) ubm.value = '';
                 document.getElementById('userModalBranch').value = '';
                 document.getElementById('userModalDepartment').value = '';
-                document.getElementById('userModalDepartment').innerHTML = '<option value="">Select Branch First</option>';
+                document.getElementById('userModalDepartment').innerHTML = '<option value="">Choose location first</option>';
+                syncEmployeeRegisterVenue();
                 loadUserModalUsers(); // Reload the users list
                 refreshOwnersIfAddAssetForm();
                 alert(`Employee "${name}" registered successfully!`);
@@ -1885,13 +2247,25 @@ const QR_LABEL_PRESET = 'label_2x2';
 
     // Handle bulk adding users from modal
     function handleAddBulkUsersModal() {
+        const venue = document.getElementById('bulkEmployeeVenue') ? document.getElementById('bulkEmployeeVenue').value : '';
+        const brandId = document.getElementById('bulkUserModalBrand') ? document.getElementById('bulkUserModalBrand').value : '';
         const buildingId = document.getElementById('bulkUserModalBranch').value;
         const departmentId = document.getElementById('bulkUserModalDepartment').value;
         const userNamesText = document.getElementById('bulkUserNames').value.trim();
-        
-        if (!buildingId) {
-            alert('Please select a branch.');
+
+        if (!venue) {
+            alert('Please choose Restaurant or Office.');
             return;
+        }
+        if (venue === 'restaurant') {
+            if (!brandId) {
+                alert('Please select a brand.');
+                return;
+            }
+            if (!buildingId) {
+                alert('Please select a branch.');
+                return;
+            }
         }
         
         if (!departmentId) {
@@ -1934,9 +2308,13 @@ const QR_LABEL_PRESET = 'label_2x2';
             if (data.added_users) {
                 // Clear the form
                 document.getElementById('bulkUserNames').value = '';
+                if (document.getElementById('bulkEmployeeVenue')) document.getElementById('bulkEmployeeVenue').value = '';
+                const bbm = document.getElementById('bulkUserModalBrand');
+                if (bbm) bbm.value = '';
                 document.getElementById('bulkUserModalBranch').value = '';
                 document.getElementById('bulkUserModalDepartment').value = '';
-                document.getElementById('bulkUserModalDepartment').innerHTML = '<option value="">Select Branch First</option>';
+                document.getElementById('bulkUserModalDepartment').innerHTML = '<option value="">Choose location first</option>';
+                syncBulkEmployeeRegisterVenue();
                 
                 // Reload data
                 loadUserModalUsers();
@@ -1972,7 +2350,25 @@ const QR_LABEL_PRESET = 'label_2x2';
         fetch(`/admin/departments?branch_id=${buildingId}`)
             .then(response => response.json())
             .then(departments => {
-                departmentSelect.innerHTML = '<option value="">Select Department</option>';
+                const venueEl = document.getElementById('bulkEmployeeVenue');
+                const venue = venueEl ? venueEl.value : '';
+                if (venue === 'restaurant') {
+                    const pick = departments.filter(function (d) { return d.name === RESTAURANT_DEFAULT_DEPT_JS; });
+                    departmentSelect.innerHTML = '';
+                    if (pick.length === 0) {
+                        departmentSelect.innerHTML = '<option value="">Default department missing; contact IT</option>';
+                        return;
+                    }
+                    pick.forEach(function (dept) {
+                        const option = document.createElement('option');
+                        option.value = dept.id;
+                        option.textContent = dept.name;
+                        departmentSelect.appendChild(option);
+                    });
+                    departmentSelect.value = String(pick[0].id);
+                    return;
+                }
+                departmentSelect.innerHTML = '<option value="">Select department</option>';
                 departments.forEach(department => {
                     const option = document.createElement('option');
                     option.value = department.id;
@@ -2209,7 +2605,20 @@ const QR_LABEL_PRESET = 'label_2x2';
                 });
 
                 addAssetFormEl.addEventListener('submit', function(e) {
+                    syncAddAssetVenueField();
+                    const venue = getAddAssetVenue();
                     const assetType = document.getElementById('asset_type').value;
+                    const atRow = (assetTypesData || []).find(function (t) { return t.name === assetType; });
+                    if (!venue || (venue !== 'restaurant' && venue !== 'office')) {
+                        e.preventDefault();
+                        alert('Please choose Restaurant or Office.');
+                        return;
+                    }
+                    if (!atRow || (atRow.for_venue || 'restaurant') !== venue) {
+                        e.preventDefault();
+                        alert('Please select an asset type that matches Restaurant or Office.');
+                        return;
+                    }
                     const selectedAssetNamesInput = document.getElementById('selectedAssetNamesInput');
 
                     if (!assetType) {
@@ -2232,9 +2641,40 @@ const QR_LABEL_PRESET = 'label_2x2';
                             return;
                         }
                     }
+                    if (venue === 'restaurant') {
+                        const bsel = document.getElementById('add_asset_brand');
+                        if (!bsel || !bsel.value) {
+                            e.preventDefault();
+                            alert('Please select a brand.');
+                            return;
+                        }
+                        const brsel = document.getElementById('branch');
+                        if (!brsel || !brsel.value) {
+                            e.preventDefault();
+                            alert('Please select a branch.');
+                            return;
+                        }
+                    } else {
+                        const dsel = document.getElementById('department');
+                        if (!dsel || !dsel.value) {
+                            e.preventDefault();
+                            alert('Please select a department.');
+                            return;
+                        }
+                    }
                 });
             }
 
+            document.querySelectorAll('input[name="asset_venue_ui"]').forEach(function (el) {
+                el.addEventListener('change', function () { applyAddAssetVenueToAddAssetModal(); });
+            });
+
+            document.querySelectorAll('input[name="edit_asset_venue_ui"]').forEach(function (el) {
+                el.addEventListener('change', function () {
+                    updateAssetTypeDropdowns();
+                    applyEditAssetVenueToEditModal();
+                });
+            });
 
         
         const userManagementModal = document.getElementById('userManagementModal');
@@ -2263,25 +2703,26 @@ const QR_LABEL_PRESET = 'label_2x2';
 
         const addAssetModal = document.getElementById('addAssetModal');
         if (addAssetModal) addAssetModal.addEventListener('show.bs.modal', function() {
-            // Reset the no owner checkbox
             const noOwnerCheck = document.getElementById('noOwnerCheck');
             noOwnerCheck.checked = false;
             noOwnerCheck.parentElement.style.display = 'none';
             
-            // Reset owner dropdown
             const ownerSelect = document.getElementById('owner');
             ownerSelect.disabled = false;
             ownerSelect.style.opacity = '1';
             ownerSelect.style.backgroundColor = '';
-            ownerSelect.innerHTML = '<option value="">Select Department First</option>';
-            
-            // Load asset types and asset names for the dropdowns
-            loadAssetTypes();
-            loadAssetNames();
-            updateAssetNameDropdowns();
-            
-            // Clear selected asset names
-            clearSelectedAssetNames();
+            ownerSelect.innerHTML = '<option value="">Select department first</option>';
+
+            const rRest = document.getElementById('assetVenueRestaurant');
+            const rOff = document.getElementById('assetVenueOffice');
+            if (rRest) rRest.checked = true;
+            if (rOff) rOff.checked = false;
+
+            loadAssetTypes().then(function () {
+                loadAssetNames();
+                updateAssetNameDropdowns();
+                applyAddAssetVenueToAddAssetModal();
+            });
         });
         
         // Initialize edit asset modal
@@ -2335,6 +2776,32 @@ const QR_LABEL_PRESET = 'label_2x2';
                 editOwnerSelect.style.opacity = '1';
                 editOwnerSelect.style.backgroundColor = '';
             }
+
+            const isOfficeAsset = assetBuilding === OFFICE_BRANCH_LABEL_JS;
+            const er = document.getElementById('editAssetVenueRestaurant');
+            const eo = document.getElementById('editAssetVenueOffice');
+            if (eo && er) {
+                if (isOfficeAsset) {
+                    eo.checked = true;
+                    er.checked = false;
+                } else {
+                    er.checked = true;
+                    eo.checked = false;
+                }
+            }
+            syncEditAssetVenueField();
+            const ebf = document.getElementById('editAssetBranchField');
+            const editBrandField = document.getElementById('editAssetBrandField');
+            const editDeptField = document.getElementById('editAssetDepartmentField');
+            if (isOfficeAsset && ebf) ebf.classList.add('d-none');
+            else if (ebf) ebf.classList.remove('d-none');
+            if (isOfficeAsset) {
+                if (editBrandField) editBrandField.classList.add('d-none');
+                if (editDeptField) editDeptField.classList.remove('d-none');
+            } else {
+                if (editBrandField) editBrandField.classList.remove('d-none');
+                if (editDeptField) editDeptField.classList.add('d-none');
+            }
             
             // Load asset types and asset names for the dropdowns, then set the asset type
             loadAssetTypes();
@@ -2357,16 +2824,27 @@ const QR_LABEL_PRESET = 'label_2x2';
                 }, 100);
             }, 300);
             
-            // Load buildings and populate building dropdown, then chain the other loads
-            loadEditBranches(assetBuilding).then(() => {
-                // After buildings are loaded, load departments
-                return loadEditDepartments(assetBuilding, assetDepartment);
-            }).then(() => {
-                // After departments are loaded, load owners
-                return loadEditOwners(assetBuilding, assetDepartment, assetOwner);
-            }).catch(error => {
-                console.error('Error loading edit data:', error);
-            });
+            populateEditAssetBrandSelect();
+            fetch('/admin/branches')
+                .then(response => response.json())
+                .then(function (buildings) {
+                    const brec = buildings.find(function (b) { return b.name === assetBuilding; });
+                    const ebs = document.getElementById('edit_asset_brand');
+                    if (!isOfficeAsset && ebs && brec) {
+                        ebs.value = String(brec.brand_id);
+                    }
+                    const brandFilter = (!isOfficeAsset && brec) ? brec.brand_id : null;
+                    return loadEditBranches(assetBuilding, brandFilter);
+                })
+                .then(function () {
+                    return loadEditDepartments(assetBuilding, assetDepartment);
+                })
+                .then(function () {
+                    return loadEditOwners(assetBuilding, assetDepartment, assetOwner);
+                })
+                .catch(error => {
+                    console.error('Error loading edit data:', error);
+                });
         });
         
         if (document.getElementById('edit_noOwnerCheck') && document.getElementById('edit_branch') && document.getElementById('edit_department') && document.getElementById('editAssetForm')) {
@@ -2391,31 +2869,33 @@ const QR_LABEL_PRESET = 'label_2x2';
             const departmentSelect = document.getElementById('edit_department');
             const ownerSelect = document.getElementById('edit_owner');
             
-            departmentSelect.innerHTML = '<option value="">Select Department/Section</option>';
-            ownerSelect.innerHTML = '<option value="">Select Department First</option>';
+            departmentSelect.innerHTML = '<option value="">Select department</option>';
+            ownerSelect.innerHTML = '<option value="">Select department first</option>';
             
             if (selectedBuilding) {
-                // Find the building ID by fetching buildings data
-                fetch('/admin/branches')
-                    .then(response => response.json())
-                    .then(buildings => {
-                        const building = buildings.find(b => b.name === selectedBuilding);
-                        if (building) {
-                            // Load departments for this building
-                            return fetch(`/admin/departments?branch_id=${building.id}`);
-                        }
-                        return Promise.reject('Building not found');
-                    })
-                    .then(response => response.json())
-                    .then(departments => {
-                        departments.forEach(department => {
-                            const option = document.createElement('option');
-                            option.value = department.name;
-                            option.textContent = department.name;
-                            departmentSelect.appendChild(option);
-                        });
-                    })
-                    .catch(error => console.error('Error loading departments:', error));
+                if (selectedBuilding === OFFICE_BRANCH_LABEL_JS) {
+                    fetch('/admin/departments?office_only=1')
+                        .then(response => response.json())
+                        .then(departments => {
+                            departments.forEach(department => {
+                                const option = document.createElement('option');
+                                option.value = department.name;
+                                option.textContent = department.name;
+                                departmentSelect.appendChild(option);
+                            });
+                        })
+                        .catch(error => console.error('Error loading departments:', error));
+                    return;
+                }
+                if (getEditAssetVenue() === 'restaurant') {
+                    departmentSelect.innerHTML = '';
+                    const o = document.createElement('option');
+                    o.value = RESTAURANT_DEFAULT_DEPT_JS;
+                    o.textContent = RESTAURANT_DEFAULT_DEPT_JS;
+                    departmentSelect.appendChild(o);
+                    departmentSelect.value = RESTAURANT_DEFAULT_DEPT_JS;
+                    departmentSelect.dispatchEvent(new Event('change'));
+                }
             }
         });
         
@@ -2432,8 +2912,11 @@ const QR_LABEL_PRESET = 'label_2x2';
                 fetch('/admin/departments')
                     .then(response => response.json())
                     .then(departments => {
-                        const department = departments.find(d => 
-                            d.branch_name === selectedBuilding && d.name === selectedDepartment
+                        const department = departments.find(d =>
+                            d.name === selectedDepartment &&
+                            ((selectedBuilding === OFFICE_BRANCH_LABEL_JS &&
+                                (d.branch_id == null || d.branch_name === OFFICE_BRANCH_LABEL_JS)) ||
+                                (d.branch_name === selectedBuilding))
                         );
                         
                         if (department) {
@@ -2459,8 +2942,38 @@ const QR_LABEL_PRESET = 'label_2x2';
         document.getElementById('editAssetForm').addEventListener('submit', function(e) {
             e.preventDefault();
             
-            // Form validation
+            syncEditAssetVenueField();
+            const venue = getEditAssetVenue();
             const assetType = document.getElementById('edit_asset_type').value;
+            const atRow = (assetTypesData || []).find(function (t) { return t.name === assetType; });
+            if (!venue || (venue !== 'restaurant' && venue !== 'office')) {
+                alert('Please choose Restaurant or Office.');
+                return;
+            }
+            if (!atRow || (atRow.for_venue || 'restaurant') !== venue) {
+                alert('Please select an asset type that matches Restaurant or Office.');
+                return;
+            }
+
+            if (venue === 'restaurant') {
+                const ebs = document.getElementById('edit_asset_brand');
+                if (!ebs || !ebs.value) {
+                    alert('Please select a brand.');
+                    return;
+                }
+                const ebr = document.getElementById('edit_branch');
+                if (!ebr || !ebr.value) {
+                    alert('Please select a branch.');
+                    return;
+                }
+            } else {
+                const edSel = document.getElementById('edit_department');
+                if (!edSel || !edSel.value) {
+                    alert('Please select a department.');
+                    return;
+                }
+            }
+
             const assetName = document.getElementById('edit_name').value.trim();
             
             if (!assetType) {
@@ -2557,32 +3070,63 @@ const QR_LABEL_PRESET = 'label_2x2';
             });
         }
 
+        const addAssetBrandSel = document.getElementById('add_asset_brand');
+        if (addAssetBrandSel) {
+            addAssetBrandSel.addEventListener('change', function() {
+                if (getAddAssetVenue() !== 'restaurant') return;
+                const bid = this.value;
+                const branchSel = document.getElementById('branch');
+                if (branchSel) branchSel.value = '';
+                const ownerSel = document.getElementById('owner');
+                if (ownerSel) ownerSel.innerHTML = '<option value="">Select branch first</option>';
+                updateAddAssetRestaurantBranchDropdown(bid);
+                const ds = document.getElementById('department');
+                if (ds) {
+                    ds.innerHTML = '';
+                    const op = document.createElement('option');
+                    op.value = RESTAURANT_DEFAULT_DEPT_JS;
+                    op.textContent = RESTAURANT_DEFAULT_DEPT_JS;
+                    ds.appendChild(op);
+                    ds.value = RESTAURANT_DEFAULT_DEPT_JS;
+                }
+                checkNoOwnerOption();
+            });
+        }
+
+        const editAssetBrandSel = document.getElementById('edit_asset_brand');
+        if (editAssetBrandSel) {
+            editAssetBrandSel.addEventListener('change', function() {
+                if (getEditAssetVenue() !== 'restaurant') return;
+                const bid = this.value;
+                const br = document.getElementById('edit_branch');
+                if (br) br.value = '';
+                const own = document.getElementById('edit_owner');
+                if (own) own.innerHTML = '<option value="">Select branch first</option>';
+                loadEditBranches('', bid || '').catch(function () {});
+            });
+        }
+
         const branchSelect = document.getElementById('branch');
         if (branchSelect) {
             branchSelect.addEventListener('change', function() {
-        const selectedBuilding = this.value;
-        const departmentSelect = document.getElementById('department');
-        if (!departmentSelect) return;
-        departmentSelect.innerHTML = '<option value="">Select Department/Section</option>';
-        
-        if (selectedBuilding) {
-            // Find the building ID
-            const building = branchesData.find(b => b.name === selectedBuilding);
-            if (building) {
-                // Load departments for this building
-                fetch(`/admin/departments?branch_id=${building.id}`)
-                    .then(response => response.json())
-                    .then(departments => {
-                        departments.forEach(department => {
-                            const option = document.createElement('option');
-                            option.value = department.name;
-                            option.textContent = department.name;
-                            departmentSelect.appendChild(option);
-                        });
-                    })
-                    .catch(error => console.error('Error loading departments:', error));
-            }
-        }
+                if (getAddAssetVenue() !== 'restaurant') return;
+                const selectedBuilding = this.value;
+                const departmentSelect = document.getElementById('department');
+                const ownerSelect = document.getElementById('owner');
+                if (!departmentSelect) return;
+                departmentSelect.innerHTML = '';
+                const op = document.createElement('option');
+                op.value = RESTAURANT_DEFAULT_DEPT_JS;
+                op.textContent = RESTAURANT_DEFAULT_DEPT_JS;
+                departmentSelect.appendChild(op);
+                departmentSelect.value = RESTAURANT_DEFAULT_DEPT_JS;
+                if (!selectedBuilding) {
+                    if (ownerSelect) ownerSelect.innerHTML = '<option value="">Select branch first</option>';
+                    checkNoOwnerOption();
+                    return;
+                }
+                loadOwnersForDepartment(RESTAURANT_DEFAULT_DEPT_JS);
+                checkNoOwnerOption();
             });
         }
     })();
@@ -3208,25 +3752,37 @@ const QR_LABEL_PRESET = 'label_2x2';
     });
 
     // Helper functions for edit modal
-    function loadEditBranches(selectedBuilding) {
-        console.log('Loading buildings for edit, selected:', selectedBuilding);
+    function loadEditBranches(selectedBuilding, filterBrandId) {
         return fetch('/admin/branches')
             .then(response => response.json())
             .then(buildings => {
                 const buildingSelect = document.getElementById('edit_branch');
+                const venue = getEditAssetVenue();
                 buildingSelect.innerHTML = '<option value="">Select Branch</option>';
-                
-                buildings.forEach(building => {
-                    const option = document.createElement('option');
-                    option.value = building.name;
-                    option.textContent = building.name;
-                    buildingSelect.appendChild(option);
-                });
-                
-                // Set the selected building after populating options
+                if (venue === 'office') {
+                    const officeOpt = document.createElement('option');
+                    officeOpt.value = OFFICE_BRANCH_LABEL_JS;
+                    officeOpt.textContent = OFFICE_BRANCH_LABEL_JS;
+                    buildingSelect.appendChild(officeOpt);
+                } else {
+                    let list = buildings;
+                    if (filterBrandId !== undefined && filterBrandId !== null && String(filterBrandId) !== '') {
+                        list = buildings.filter(function (b) {
+                            return String(b.brand_id) === String(filterBrandId);
+                        });
+                    } else {
+                        list = [];
+                    }
+                    const sorted = [...list].sort((a, b) => a.name.localeCompare(b.name));
+                    sorted.forEach(building => {
+                        const option = document.createElement('option');
+                        option.value = building.name;
+                        option.textContent = building.name;
+                        buildingSelect.appendChild(option);
+                    });
+                }
                 if (selectedBuilding) {
                     buildingSelect.value = selectedBuilding;
-                    console.log('Set building to:', selectedBuilding);
                 }
             })
             .catch(error => {
@@ -3236,41 +3792,43 @@ const QR_LABEL_PRESET = 'label_2x2';
     }
     
     function loadEditDepartments(selectedBuilding, selectedDepartment) {
-        console.log('Loading departments for edit, building:', selectedBuilding, 'department:', selectedDepartment);
         if (!selectedBuilding) return Promise.resolve();
-        
-        // Find the building ID by fetching buildings data
-        return fetch('/admin/branches')
-            .then(response => response.json())
-            .then(buildings => {
-                const building = buildings.find(b => b.name === selectedBuilding);
-                if (building) {
-                    return fetch(`/admin/departments?branch_id=${building.id}`);
-                }
-                return Promise.reject('Building not found');
-            })
-            .then(response => response.json())
-            .then(departments => {
-                const departmentSelect = document.getElementById('edit_department');
-                departmentSelect.innerHTML = '<option value="">Select Department/Section</option>';
-                
-                departments.forEach(department => {
-                    const option = document.createElement('option');
-                    option.value = department.name;
-                    option.textContent = department.name;
-                    departmentSelect.appendChild(option);
+        const departmentSelect = document.getElementById('edit_department');
+        if (!departmentSelect) return Promise.resolve();
+
+        if (selectedBuilding === OFFICE_BRANCH_LABEL_JS) {
+            departmentSelect.innerHTML = '<option value="">Select department</option>';
+            return fetch('/admin/departments?office_only=1')
+                .then(response => response.json())
+                .then(departments => {
+                    departments.forEach(department => {
+                        const option = document.createElement('option');
+                        option.value = department.name;
+                        option.textContent = department.name;
+                        departmentSelect.appendChild(option);
+                    });
+                    if (selectedDepartment) {
+                        departmentSelect.value = selectedDepartment;
+                    }
+                })
+                .catch(error => {
+                    console.error('Error loading office departments:', error);
+                    throw error;
                 });
-                
-                // Set the selected department after populating options
-                if (selectedDepartment) {
-                    departmentSelect.value = selectedDepartment;
-                    console.log('Set department to:', selectedDepartment);
-                }
-            })
-            .catch(error => {
-                console.error('Error loading departments for edit:', error);
-                throw error;
-            });
+        }
+
+        if (getEditAssetVenue() === 'restaurant') {
+            departmentSelect.innerHTML = '';
+            const depName = selectedDepartment || RESTAURANT_DEFAULT_DEPT_JS;
+            const op = document.createElement('option');
+            op.value = depName;
+            op.textContent = depName;
+            departmentSelect.appendChild(op);
+            departmentSelect.value = depName;
+            return Promise.resolve();
+        }
+
+        return Promise.resolve();
     }
     
     function loadEditOwners(selectedBuilding, selectedDepartment, selectedOwner) {
@@ -3281,8 +3839,11 @@ const QR_LABEL_PRESET = 'label_2x2';
         return fetch('/admin/departments')
             .then(response => response.json())
             .then(departments => {
-                const department = departments.find(d => 
-                    d.branch_name === selectedBuilding && d.name === selectedDepartment
+                const department = departments.find(d =>
+                    d.name === selectedDepartment &&
+                    ((selectedBuilding === OFFICE_BRANCH_LABEL_JS &&
+                        (d.branch_id == null || d.branch_name === OFFICE_BRANCH_LABEL_JS)) ||
+                        (d.branch_name === selectedBuilding))
                 );
                 
                 if (department) {

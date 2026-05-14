@@ -723,7 +723,7 @@
             <div class="stat-card yellow">
                 <div class="stat-label">Departments</div>
                 <div class="stat-value">{{ chart_data.department_counts|length }}</div>
-                <div class="stat-sub">Sections tracked</div>
+                <div class="stat-sub">Distinct names</div>
                 <i class="bi bi-diagram-3 stat-icon"></i>
             </div>
         </div>
@@ -973,6 +973,21 @@
       </div>
                             <form id="addAssetForm" method="post" action="{{ url_for('assets.add_asset') }}">
         <div class="modal-body" style="overflow-y: auto; max-height: 70vh;">
+            <input type="hidden" name="asset_venue" id="assetVenueField" value="restaurant">
+            <div class="mb-3">
+                <label class="form-label">Location</label>
+                <div class="d-flex flex-wrap gap-3">
+                    <div class="form-check">
+                        <input class="form-check-input" type="radio" name="asset_venue_ui" id="assetVenueRestaurant" value="restaurant" checked>
+                        <label class="form-check-label" for="assetVenueRestaurant">Restaurant</label>
+                    </div>
+                    <div class="form-check">
+                        <input class="form-check-input" type="radio" name="asset_venue_ui" id="assetVenueOffice" value="office">
+                        <label class="form-check-label" for="assetVenueOffice">Office</label>
+                    </div>
+                </div>
+                <div class="form-text"><i class="bi bi-info-circle" aria-hidden="true"></i> Restaurant: pick a brand, then a branch. Office: pick an office department only.</div>
+            </div>
             <div class="mb-3">
                 <label for="asset_type" class="form-label">Asset Type</label>
                 <select class="form-select" id="asset_type" name="asset_type" required>
@@ -1001,16 +1016,22 @@
                     <i class="bi bi-info-circle" aria-hidden="true"></i> Enter the price in Omani Rial (OMR)
                 </div>
             </div>
-            <div class="mb-3">
+            <div class="mb-3" id="addAssetBrandField">
+                <label for="add_asset_brand" class="form-label">Brand</label>
+                <select class="form-select app-select-with-chevron" id="add_asset_brand" name="brand_id">
+                    <option value="">Select brand</option>
+                </select>
+            </div>
+            <div class="mb-3" id="addAssetBranchField">
                 <label for="branch" class="form-label">Branch</label>
                 <select class="form-select" id="branch" name="branch" required>
                     <option value="">Select Branch</option>
                 </select>
             </div>
-            <div class="mb-3">
-                <label for="department" class="form-label">Department/Section</label>
-                <select class="form-select" id="department" name="department" required>
-                    <option value="">Select Branch First</option>
+            <div class="mb-3" id="addAssetDepartmentField">
+                <label for="department" class="form-label">Department</label>
+                <select class="form-select" id="department" name="department">
+                    <option value="">Select location first</option>
                 </select>
             </div>
             <div class="mb-3">
@@ -1022,7 +1043,7 @@
                 </div>
                 <label for="owner" class="form-label">Owner</label>
                 <select class="form-select" id="owner" name="owner" required>
-                    <option value="">Select Department First</option>
+                    <option value="">Select branch or department first</option>
                 </select>
                 <div class="form-text" id="ownerHelp">
                     <i class="bi bi-info-circle" aria-hidden="true"></i> Select &quot;No Owner Required&quot; for shared assets or when no specific owner is needed
@@ -1053,6 +1074,20 @@
       </div>
       <form id="editAssetForm" method="post">
         <div class="modal-body" style="overflow-y: auto; max-height: 70vh;">
+          <input type="hidden" name="asset_venue" id="editAssetVenueField" value="restaurant">
+          <div class="mb-3">
+            <label class="form-label">Location</label>
+            <div class="d-flex flex-wrap gap-3">
+              <div class="form-check">
+                <input class="form-check-input" type="radio" name="edit_asset_venue_ui" id="editAssetVenueRestaurant" value="restaurant" checked>
+                <label class="form-check-label" for="editAssetVenueRestaurant">Restaurant</label>
+              </div>
+              <div class="form-check">
+                <input class="form-check-input" type="radio" name="edit_asset_venue_ui" id="editAssetVenueOffice" value="office">
+                <label class="form-check-label" for="editAssetVenueOffice">Office</label>
+              </div>
+            </div>
+          </div>
           <div class="app-modal-tip mb-3" role="note">
             <i class="bi bi-info-circle" aria-hidden="true"></i>
             <strong>Editing Asset:</strong>
@@ -1082,16 +1117,22 @@
                     <i class="bi bi-info-circle" aria-hidden="true"></i> Enter the price in Omani Rial (OMR)
                 </div>
             </div>
-            <div class="mb-3">
+            <div class="mb-3" id="editAssetBrandField">
+                <label for="edit_asset_brand" class="form-label">Brand</label>
+                <select class="form-select app-select-with-chevron" id="edit_asset_brand" name="brand_id">
+                    <option value="">Select brand</option>
+                </select>
+            </div>
+            <div class="mb-3" id="editAssetBranchField">
                 <label for="edit_branch" class="form-label">Branch</label>
                 <select class="form-select" id="edit_branch" name="branch" required>
                     <option value="">Select Branch</option>
                 </select>
             </div>
-            <div class="mb-3">
-                <label for="edit_department" class="form-label">Department/Section</label>
-                <select class="form-select" id="edit_department" name="department" required>
-                    <option value="">Select Branch First</option>
+            <div class="mb-3" id="editAssetDepartmentField">
+                <label for="edit_department" class="form-label">Department</label>
+                <select class="form-select" id="edit_department" name="department">
+                    <option value="">Select location first</option>
                 </select>
             </div>
             <div class="mb-3">
@@ -1103,7 +1144,7 @@
                 </div>
                 <label for="edit_owner" class="form-label">Owner</label>
                 <select class="form-select" id="edit_owner" name="owner" required>
-                    <option value="">Select Department First</option>
+                    <option value="">Select branch or department first</option>
                 </select>
                 <div class="form-text" id="edit_ownerHelp">
                     <i class="bi bi-info-circle" aria-hidden="true"></i> Select &quot;No Owner Required&quot; for shared assets or when no specific owner is needed

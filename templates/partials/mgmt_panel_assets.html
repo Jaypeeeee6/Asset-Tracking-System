@@ -2,6 +2,14 @@
 <div class="settings-panel-stack">
   <h6 class="settings-section-title">Asset types</h6>
   <div class="filter-bar settings-panel-form flex-wrap">
+    <div class="filter-group" style="min-width: 200px;">
+      <label for="newAssetTypeVenue">Location</label>
+      <select class="form-select app-select-with-chevron" id="newAssetTypeVenue" required>
+        <option value="">Choose location</option>
+        <option value="restaurant">Restaurant</option>
+        <option value="office">Office</option>
+      </select>
+    </div>
     <div class="filter-group" style="flex: 1; min-width: 200px;">
       <label for="newAssetTypeName">New asset type</label>
       <input type="text" class="form-control" id="newAssetTypeName" placeholder="Enter asset type name" maxlength="100">
@@ -32,6 +40,7 @@
           <tr>
             <th><input type="checkbox" id="selectAllAssetTypesCheckbox" title="Select all" aria-label="Select all asset types"></th>
             <th>#</th>
+            <th>Location</th>
             <th>Type name</th>
             <th>Actions</th>
           </tr>

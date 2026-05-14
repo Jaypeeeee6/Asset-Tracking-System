@@ -42,6 +42,104 @@ def generate_asset_code(branch, department):
     return f"MAA-{branch_code}-{department_code}-{next_num:03d}"
 
 
+def _migrate_departments_nullable_branch_id(cur):
+    """Allow office-only departments (no branch). Rebuild table if branch_id was NOT NULL."""
+    cur.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='departments'")
+    if not cur.fetchone():
+        return
+    cur.execute('PRAGMA table_info(departments)')
+    cols = cur.fetchall()
+    branch_row = next((c for c in cols if c[1] == 'branch_id'), None)
+    if not branch_row or branch_row[3] == 0:
+        return
+    cur.executescript(
+        '''
+        PRAGMA foreign_keys=OFF;
+        CREATE TABLE departments_rebuild (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            name TEXT NOT NULL,
+            branch_id INTEGER REFERENCES branches(id),
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        );
+        INSERT INTO departments_rebuild (id, name, branch_id, created_at)
+            SELECT id, name, branch_id, created_at FROM departments;
+        DROP TABLE departments;
+        ALTER TABLE departments_rebuild RENAME TO departments;
+        PRAGMA foreign_keys=ON;
+        '''
+    )
+
+
+def _ensure_department_venue_indexes(cur):
+    """Uniqueness: office departments unique by name; branch departments unique by (name, branch_id)."""
+    for stmt, err_note in (
+        (
+            'CREATE UNIQUE INDEX IF NOT EXISTS idx_department_office_name '
+            'ON departments(name) WHERE branch_id IS NULL',
+            'office department name index',
+        ),
+        (
+            'CREATE UNIQUE INDEX IF NOT EXISTS idx_department_branch_pair '
+            'ON departments(name, branch_id) WHERE branch_id IS NOT NULL',
+            'branch department pair index',
+        ),
+    ):
+        try:
+            cur.execute(stmt)
+        except sqlite3.OperationalError:
+            pass
+
+
+# Canonical placeholder department for every restaurant branch (assets / owners without section splits).
+RESTAURANT_DEFAULT_DEPARTMENT_NAME = 'Restaurant'
+
+
+def ensure_restaurant_default_department_for_branch(cur, branch_id):
+    """Ensure branch has a default 'Restaurant' department row (used when users only pick brand + branch)."""
+    cur.execute(
+        'SELECT 1 FROM departments WHERE branch_id = ? AND name = ?',
+        (branch_id, RESTAURANT_DEFAULT_DEPARTMENT_NAME),
+    )
+    if cur.fetchone():
+        return
+    cur.execute(
+        'INSERT INTO departments (name, branch_id) VALUES (?, ?)',
+        (RESTAURANT_DEFAULT_DEPARTMENT_NAME, branch_id),
+    )
+
+
+def _migrate_asset_types_for_venue(cur):
+    """Add for_venue (restaurant|office) with UNIQUE(name, for_venue)."""
+    cur.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='asset_types'")
+    if not cur.fetchone():
+        return
+    cur.execute('PRAGMA table_info(asset_types)')
+    if 'for_venue' in [r[1] for r in cur.fetchall()]:
+        return
+    cur.executescript(
+        '''
+        PRAGMA foreign_keys=OFF;
+        CREATE TABLE asset_types_rebuild (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            name TEXT NOT NULL,
+            for_venue TEXT NOT NULL DEFAULT 'restaurant' CHECK (for_venue IN ('restaurant','office')),
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            UNIQUE(name, for_venue)
+        );
+        INSERT INTO asset_types_rebuild (id, name, for_venue, created_at)
+            SELECT id, name, 'restaurant', created_at FROM asset_types;
+        DROP TABLE asset_types;
+        ALTER TABLE asset_types_rebuild RENAME TO asset_types;
+        PRAGMA foreign_keys=ON;
+        '''
+    )
+    cur.execute('SELECT MAX(id) FROM asset_types')
+    mx = cur.fetchone()[0]
+    if mx:
+        cur.execute("DELETE FROM sqlite_sequence WHERE name='asset_types'")
+        cur.execute("INSERT INTO sqlite_sequence (name, seq) VALUES ('asset_types', ?)", (mx,))
+
+
 def _migrate_legacy_building_schema(cur):
     """Rename legacy building* tables/columns to branch* for existing SQLite databases."""
     cur.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='buildings'")
@@ -176,17 +274,21 @@ def init_db():
                 (_default_brand[0],),
             )
     
-    # Create departments table
+    # Create departments table (branch_id NULL = office department)
     cur.execute('''
         CREATE TABLE IF NOT EXISTS departments (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             name TEXT NOT NULL,
-            branch_id INTEGER NOT NULL,
+            branch_id INTEGER,
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-            FOREIGN KEY (branch_id) REFERENCES branches (id),
-            UNIQUE(name, branch_id)
+            FOREIGN KEY (branch_id) REFERENCES branches (id)
         )
     ''')
+    _migrate_departments_nullable_branch_id(cur)
+    _ensure_department_venue_indexes(cur)
+    cur.execute('SELECT id FROM branches')
+    for _br in cur.fetchall():
+        ensure_restaurant_default_department_for_branch(cur, _br[0])
     
     # Create users table
     cur.execute('''
@@ -241,7 +343,7 @@ def init_db():
     if 'price' not in columns:
         cur.execute('ALTER TABLE assets ADD COLUMN price REAL DEFAULT 0.0')
     
-    # Create asset_types table
+    # Create asset_types table (for_venue added via migration on legacy DBs)
     cur.execute('''
         CREATE TABLE IF NOT EXISTS asset_types (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -249,6 +351,7 @@ def init_db():
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         )
     ''')
+    _migrate_asset_types_for_venue(cur)
     
     # Create asset_names table
     cur.execute('''
@@ -283,10 +386,13 @@ def init_db():
         )
     ''')
     
-    # Insert default asset types if they don't exist
+    # Insert default asset types if they don't exist (restaurant venue)
     default_asset_types = ['Electronics', 'Furniture', 'Equipment', 'Vehicles', 'Others']
     for asset_type in default_asset_types:
-        cur.execute('INSERT OR IGNORE INTO asset_types (name) VALUES (?)', (asset_type,))
+        cur.execute(
+            "INSERT OR IGNORE INTO asset_types (name, for_venue) VALUES (?, 'restaurant')",
+            (asset_type,),
+        )
     
     # Note: Default branches, departments, and users seeding has been removed
     # Users can now add their own branches, departments, and users as needed
