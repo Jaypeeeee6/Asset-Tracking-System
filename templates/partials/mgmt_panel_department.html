@@ -1,0 +1,59 @@
+{% from "macros/app_components.html" import add_button %}
+<div class="settings-panel-stack">
+  <div class="filter-bar settings-panel-form flex-wrap">
+    <div class="filter-group" style="min-width: 160px;">
+      <label for="newDepartmentBranch">Branch</label>
+      <select class="form-select" id="newDepartmentBranch" required>
+        <option value="">Select branch</option>
+      </select>
+    </div>
+    <div class="filter-group" style="flex: 1; min-width: 200px;">
+      <label for="newDepartmentName">Department name</label>
+      <input type="text" class="form-control" id="newDepartmentName" placeholder="Enter department name" maxlength="100">
+    </div>
+    <div class="filter-group">
+      <label class="settings-label-spacer" aria-hidden="true">&nbsp;</label>
+      {{ add_button('Add', button_id='addDepartmentBtn') }}
+    </div>
+  </div>
+
+  <div class="filter-bar settings-panel-form mb-0">
+    <div class="filter-group" style="min-width: 200px;">
+      <label for="departmentFilterBranch">Filter by branch</label>
+      <select class="form-select" id="departmentFilterBranch">
+        <option value="">All branches</option>
+      </select>
+    </div>
+  </div>
+
+  <h6 class="settings-section-title mt-4 mb-2">Existing departments</h6>
+  <div id="settingsDepartmentsBulkBar" class="app-bulk-bar mb-3" style="display: none;">
+    <div class="d-flex flex-wrap justify-content-between align-items-center gap-2">
+      <span><i class="bi bi-info-circle me-1"></i> <strong><span id="settingsDepartmentsSelectedCount">0</span> items selected</strong> &mdash; use the buttons to act on the selection</span>
+      <div class="d-flex flex-wrap gap-2">
+        <button type="button" class="btn btn-danger btn-sm" id="bulkDeleteDepartmentsBtn" style="display: none;">
+          <i class="bi bi-trash"></i> Delete Selected
+        </button>
+        <button type="button" class="btn btn-sm btn-app-tab" id="clearSettingsDepartmentsSelectionBtn">
+          <i class="bi bi-x-lg"></i> Clear Selection
+        </button>
+      </div>
+    </div>
+  </div>
+  <div class="settings-auth-table-bleed">
+    <div style="overflow-x:auto;">
+      <table class="app-table" style="width: 100%; min-width: 680px;">
+        <thead>
+          <tr>
+            <th><input type="checkbox" id="selectAllDepartmentsCheckbox" title="Select all" aria-label="Select all departments"></th>
+            <th>#</th>
+            <th>Department</th>
+            <th>Branch</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody id="departmentsList"></tbody>
+      </table>
+    </div>
+  </div>
+</div>

@@ -1,0 +1,248 @@
+{% extends "base_app.html" %}
+{% from "macros/app_components.html" import add_button %}
+{% block title %}Settings — Asset Tracking System{% endblock %}
+{% block extra_head %}
+<link rel="stylesheet" href="{{ url_for('static', filename='app-dashboard.css') }}">
+{% endblock %}
+
+{% block app_content %}
+<div class="asset-dashboard settings-page">
+    {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+            <div class="row mb-3">
+                <div class="col-md-12">
+                    {% for category, message in messages %}
+                        <div class="alert alert-{{ 'danger' if category == 'error' else category }} alert-dismissible fade show" role="alert">
+                            {{ message }}
+                            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                        </div>
+                    {% endfor %}
+                </div>
+            </div>
+        {% endif %}
+    {% endwith %}
+
+    <div class="page-header">
+        <div>
+            <h1><i class="bi bi-gear-wide-connected" style="color:var(--gold);" aria-hidden="true"></i>Settings</h1>
+            <p class="subtitle">
+                {% if active_tab == 'users' %}
+                    Login accounts and access roles
+                {% elif active_tab == 'branches' %}
+                    Branch locations
+                {% elif active_tab == 'departments' %}
+                    Departments linked to branches
+                {% elif active_tab == 'employees' %}
+                    People by branch and department
+                {% else %}
+                    Asset types and reusable asset names
+                {% endif %}
+            </p>
+        </div>
+        <div class="d-flex gap-2 align-items-center flex-wrap">
+            {% if active_tab == 'users' %}
+                {{ add_button('Add New User', href=url_for('auth.add_auth_user'), icon='bi bi-person-plus') }}
+            {% else %}
+                <a href="{{ url_for('assets.dashboard') }}" class="btn btn-outline-secondary btn-sm">
+                    <i class="bi bi-speedometer2 me-1"></i>Dashboard
+                </a>
+            {% endif %}
+            <a href="{{ url_for('assets.dashboard') }}?openModal=departmentQRModal" class="btn btn-outline-secondary btn-sm">
+                <i class="bi bi-qr-code me-1"></i>QR Codes
+            </a>
+        </div>
+    </div>
+
+    <div class="filter-bar settings-tab-bar" role="tablist" aria-label="Settings sections">
+        <a href="{{ url_for('assets.settings') }}?tab=users" class="settings-tab-link {{ 'active' if active_tab == 'users' }}" role="tab" aria-selected="{{ 'true' if active_tab == 'users' else 'false' }}">Users</a>
+        <a href="{{ url_for('assets.settings') }}?tab=branches" class="settings-tab-link {{ 'active' if active_tab == 'branches' }}" role="tab" aria-selected="{{ 'true' if active_tab == 'branches' else 'false' }}">Branches</a>
+        <a href="{{ url_for('assets.settings') }}?tab=departments" class="settings-tab-link {{ 'active' if active_tab == 'departments' }}" role="tab" aria-selected="{{ 'true' if active_tab == 'departments' else 'false' }}">Departments</a>
+        <a href="{{ url_for('assets.settings') }}?tab=employees" class="settings-tab-link {{ 'active' if active_tab == 'employees' }}" role="tab" aria-selected="{{ 'true' if active_tab == 'employees' else 'false' }}">Employees</a>
+        <a href="{{ url_for('assets.settings') }}?tab=assets" class="settings-tab-link {{ 'active' if active_tab == 'assets' }}" role="tab" aria-selected="{{ 'true' if active_tab == 'assets' else 'false' }}">Asset Types</a>
+    </div>
+
+    <div class="app-card mb-4 settings-main-card">
+        <div class="card-body-pad">
+            <div class="settings-tab-panel {{ 'd-none' if active_tab != 'users' }}">
+                {% include 'partials/settings_auth_users_panel.html' %}
+            </div>
+            <div class="settings-tab-panel {{ 'd-none' if active_tab != 'branches' }}">
+                {% include 'partials/mgmt_panel_branch.html' %}
+            </div>
+            <div class="settings-tab-panel {{ 'd-none' if active_tab != 'departments' }}">
+                {% include 'partials/mgmt_panel_department.html' %}
+            </div>
+            <div class="settings-tab-panel {{ 'd-none' if active_tab != 'employees' }}">
+                {% include 'partials/mgmt_panel_employees.html' %}
+            </div>
+            <div class="settings-tab-panel {{ 'd-none' if active_tab != 'assets' }}">
+                {% include 'partials/mgmt_panel_assets.html' %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block modals %}
+<div class="modal fade" id="userDetailsModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">User Details</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div id="userDetailsContent"></div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+{% include 'partials/dashboard_main_script.html' %}
+<script>
+function showUserDetails(username, role) {
+    const modal = new bootstrap.Modal(document.getElementById('userDetailsModal'));
+    const content = document.getElementById('userDetailsContent');
+    content.innerHTML = `
+        <div class="row">
+            <div class="col-md-6">
+                <strong>Username:</strong><br>
+                <span class="text-muted">${username}</span>
+            </div>
+            <div class="col-md-6">
+                <strong>Role:</strong><br>
+                <span class="badge role-${role}">${role.charAt(0).toUpperCase() + role.slice(1)}</span>
+            </div>
+        </div>
+        <hr>
+        <div class="row">
+            <div class="col-12">
+                <strong>Permissions:</strong><br>
+                <ul class="mt-2">
+                    ${role === 'admin'
+                        ? '<li>Full access to all features</li><li>User management</li><li>System administration</li>'
+                        : '<li>Asset management</li><li>View all assets</li><li>Add/edit/delete assets</li><li>Department management</li>'}
+                </ul>
+            </div>
+        </div>
+    `;
+    modal.show();
+}
+
+function deleteUser(userId, username) {
+    if (!confirm(`Are you sure you want to delete user "${username}"? This action cannot be undone.`)) return;
+    fetch(`/auth/delete_auth_user/${parseInt(userId, 10)}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' }
+    })
+        .then(function (response) {
+            if (response.redirected) {
+                window.location.href = response.url;
+            } else {
+                window.location.reload();
+            }
+        })
+        .catch(function () {
+            alert('Failed to delete user. Please try again.');
+        });
+}
+
+document.addEventListener('DOMContentLoaded', function () {
+    const bulkDeleteBtn = document.getElementById('bulkDeleteBtn');
+    const selectAllUsers = document.getElementById('selectAllUsersCheckbox');
+    const checkboxes = document.querySelectorAll('.user-checkbox');
+    const bulkBar = document.getElementById('settingsAuthUsersBulkBar');
+    const bulkCount = document.getElementById('settingsAuthUsersSelectedCount');
+    const clearUsersSelectionBtn = document.getElementById('clearSettingsAuthUsersSelectionBtn');
+
+    function updateBulkDeleteButton() {
+        const checked = document.querySelectorAll('.user-checkbox:checked');
+        const n = checked.length;
+        if (bulkBar) bulkBar.style.display = n ? 'block' : 'none';
+        if (bulkCount) bulkCount.textContent = String(n);
+        if (!bulkDeleteBtn) return;
+        bulkDeleteBtn.style.display = n ? 'inline-flex' : 'none';
+        if (n) {
+            bulkDeleteBtn.innerHTML = '<i class="bi bi-trash"></i> Delete Selected';
+        }
+    }
+
+    function syncSelectAllUsersState() {
+        if (!selectAllUsers) return;
+        const list = document.querySelectorAll('.user-checkbox');
+        if (!list.length) {
+            selectAllUsers.checked = false;
+            selectAllUsers.indeterminate = false;
+            return;
+        }
+        const checked = document.querySelectorAll('.user-checkbox:checked');
+        selectAllUsers.checked = checked.length === list.length;
+        selectAllUsers.indeterminate = checked.length > 0 && checked.length < list.length;
+    }
+
+    checkboxes.forEach(function (cb) {
+        cb.addEventListener('change', function () {
+            updateBulkDeleteButton();
+            syncSelectAllUsersState();
+        });
+    });
+
+    if (selectAllUsers) {
+        selectAllUsers.addEventListener('change', function () {
+            checkboxes.forEach(function (cb) {
+                cb.checked = selectAllUsers.checked;
+            });
+            selectAllUsers.indeterminate = false;
+            updateBulkDeleteButton();
+        });
+    }
+
+    if (clearUsersSelectionBtn) {
+        clearUsersSelectionBtn.addEventListener('click', function () {
+            checkboxes.forEach(function (cb) {
+                cb.checked = false;
+            });
+            if (selectAllUsers) {
+                selectAllUsers.checked = false;
+                selectAllUsers.indeterminate = false;
+            }
+            updateBulkDeleteButton();
+        });
+    }
+
+    syncSelectAllUsersState();
+    updateBulkDeleteButton();
+
+    if (!bulkDeleteBtn) return;
+
+    bulkDeleteBtn.addEventListener('click', function () {
+        const checked = document.querySelectorAll('.user-checkbox:checked');
+        const userIds = Array.from(checked).map(function (cb) { return cb.value; });
+        if (!userIds.length) return;
+        if (!confirm(`Are you sure you want to delete ${userIds.length} selected user(s)? This action cannot be undone.`)) return;
+        let completed = 0;
+        userIds.forEach(function (userId) {
+            fetch(`/auth/delete_auth_user/${parseInt(userId, 10)}`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/x-www-form-urlencoded' }
+            })
+                .then(function () {
+                    completed++;
+                    if (completed === userIds.length) {
+                        window.location.reload();
+                    }
+                })
+                .catch(function () {
+                    alert('Failed to delete some users. Please try again.');
+                });
+        });
+    });
+});
+</script>
+{% endblock %}

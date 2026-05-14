@@ -10,15 +10,15 @@
     <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
-    <link rel="stylesheet" href="{{ url_for('static', filename='qc-layout.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='app-layout.css') }}">
     {% block extra_head %}{% endblock %}
-    <link rel="stylesheet" href="{{ url_for('static', filename='qc-modals.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='app-modals.css') }}">
 </head>
 <body>
-{% include 'partials/qc_navbar.html' %}
+{% include 'partials/app_navbar.html' %}
 <div id="wrapper" class="app-shell {% if current_user.is_authenticated %}app-shell--authed{% else %}app-shell--public{% endif %}">
 {% if current_user.is_authenticated %}
-{% include 'partials/qc_sidebar.html' %}
+{% include 'partials/app_sidebar.html' %}
 {% endif %}
 <div id="page-content-wrapper">
 <div class="container-fluid px-3 pb-3">
@@ -31,8 +31,8 @@
 </div>
 {% block modals %}{% endblock %}
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
-<script src="{{ url_for('static', filename='js/qc-modal-stack.js') }}"></script>
-<script src="{{ url_for('static', filename='js/qc-sidebar.js') }}"></script>
+<script src="{{ url_for('static', filename='js/app-modal-stack.js') }}"></script>
+<script src="{{ url_for('static', filename='js/app-sidebar.js') }}"></script>
 {% block open_modal_query %}{% endblock %}
 <script src="{{ url_for('static', filename='js/app_dark_mode.js') }}"></script>
 {% block extra_scripts %}{% endblock %}

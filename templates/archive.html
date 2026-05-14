@@ -267,6 +267,7 @@
                     </h5>
                 </div>
                 <div class="card-body">
+                    <span id="archivedMatchingTotal" class="d-none" data-total="{{ total_archived }}"></span>
                     {% if archived_assets %}
                         <div class="table-responsive">
                             <table class="table table-hover">
@@ -465,91 +466,188 @@
     
     // Archive restore functionality
     let selectedArchivedAssets = [];
-    
+    const ARCHIVED_BULK_STORAGE_KEY = 'archiveBulkSelection_v1';
+
+    function archivedFilterKey() {
+        const u = new URL(window.location.href);
+        u.searchParams.delete('page');
+        return u.pathname + '?' + u.searchParams.toString();
+    }
+
+    function persistArchivedBulkSelection() {
+        try {
+            if (!selectedArchivedAssets.length) {
+                sessionStorage.removeItem(ARCHIVED_BULK_STORAGE_KEY);
+                return;
+            }
+            sessionStorage.setItem(ARCHIVED_BULK_STORAGE_KEY, JSON.stringify({
+                filterKey: archivedFilterKey(),
+                assets: selectedArchivedAssets
+            }));
+        } catch (e) { /* ignore */ }
+    }
+
+    function tryRestoreArchivedBulkSelection() {
+        try {
+            const raw = sessionStorage.getItem(ARCHIVED_BULK_STORAGE_KEY);
+            if (!raw) return;
+            const obj = JSON.parse(raw);
+            if (!obj || !Array.isArray(obj.assets) || obj.filterKey !== archivedFilterKey()) {
+                if (obj && obj.filterKey !== archivedFilterKey()) {
+                    sessionStorage.removeItem(ARCHIVED_BULK_STORAGE_KEY);
+                }
+                return;
+            }
+            selectedArchivedAssets = obj.assets;
+        } catch (e) {
+            sessionStorage.removeItem(ARCHIVED_BULK_STORAGE_KEY);
+        }
+    }
+
+    function applyArchivedCheckboxDomFromSelection() {
+        const idSet = new Set(selectedArchivedAssets.map(function (a) { return String(a.id); }));
+        document.querySelectorAll('.archived-asset-checkbox').forEach(function (cb) {
+            const aid = cb.getAttribute('data-archived-id');
+            cb.checked = idSet.has(String(aid));
+        });
+    }
+
+    function syncArchivedSelectAllVisual() {
+        const meta = document.getElementById('archivedMatchingTotal');
+        const sac = document.getElementById('selectAllArchivedCheckbox');
+        if (!sac) return;
+        const total = meta ? parseInt(meta.getAttribute('data-total') || '0', 10) || 0 : 0;
+        const n = selectedArchivedAssets.length;
+        if (total === 0) {
+            sac.checked = false;
+            sac.indeterminate = false;
+            return;
+        }
+        sac.checked = n > 0 && n === total;
+        sac.indeterminate = n > 0 && n < total;
+    }
+
+    function fetchAllMatchingArchivedIds() {
+        const u = new URL(window.location.href);
+        u.searchParams.delete('page');
+        return fetch('/assets/matching-archived-ids?' + u.searchParams.toString())
+            .then(function (r) {
+                return r.json().then(function (data) {
+                    return { ok: r.ok, data: data };
+                });
+            })
+            .then(function (res) {
+                if (!res.ok || !res.data || !Array.isArray(res.data.assets)) {
+                    throw new Error((res.data && res.data.error) || 'Failed to load matching archived assets');
+                }
+                return res.data.assets;
+            });
+    }
+
+    function updateArchivedSelectionBar() {
+        const selectedCount = document.getElementById('selectedArchivedCount');
+        const bulkActionsBar = document.getElementById('bulkRestoreActionsBar');
+        if (selectedCount) selectedCount.textContent = selectedArchivedAssets.length;
+        if (bulkActionsBar) bulkActionsBar.style.display = selectedArchivedAssets.length > 0 ? 'block' : 'none';
+        syncArchivedSelectAllVisual();
+    }
+
     function initializeArchiveRestore() {
-        // Select all checkbox functionality
+        tryRestoreArchivedBulkSelection();
+        applyArchivedCheckboxDomFromSelection();
+        updateArchivedSelectionBar();
+
         const selectAllCheckbox = document.getElementById('selectAllArchivedCheckbox');
         if (selectAllCheckbox) {
-            selectAllCheckbox.addEventListener('change', function() {
-                const checkboxes = document.querySelectorAll('.archived-asset-checkbox');
-                checkboxes.forEach(checkbox => {
-                    checkbox.checked = this.checked;
-                });
-                updateArchivedSelection();
+            selectAllCheckbox.addEventListener('change', function () {
+                if (!this.checked) {
+                    selectedArchivedAssets = [];
+                    persistArchivedBulkSelection();
+                    applyArchivedCheckboxDomFromSelection();
+                    updateArchivedSelectionBar();
+                    return;
+                }
+                const sac = this;
+                sac.disabled = true;
+                fetchAllMatchingArchivedIds()
+                    .then(function (assets) {
+                        selectedArchivedAssets = assets;
+                        persistArchivedBulkSelection();
+                        applyArchivedCheckboxDomFromSelection();
+                        updateArchivedSelectionBar();
+                    })
+                    .catch(function (err) {
+                        alert(err.message || 'Could not select all matching archived assets.');
+                        sac.checked = false;
+                        syncArchivedSelectAllVisual();
+                    })
+                    .finally(function () {
+                        sac.disabled = false;
+                    });
             });
         }
-        
-        // Individual checkbox functionality
-        document.querySelectorAll('.archived-asset-checkbox').forEach(checkbox => {
-            checkbox.addEventListener('change', updateArchivedSelection);
+
+        document.querySelectorAll('.archived-asset-checkbox').forEach(function (checkbox) {
+            checkbox.addEventListener('change', function () {
+                const id = this.getAttribute('data-archived-id');
+                const name = this.getAttribute('data-archived-name');
+                if (this.checked) {
+                    if (!selectedArchivedAssets.some(function (a) { return String(a.id) === String(id); })) {
+                        selectedArchivedAssets.push({ id: id, name: name });
+                    }
+                } else {
+                    selectedArchivedAssets = selectedArchivedAssets.filter(function (a) { return String(a.id) !== String(id); });
+                }
+                persistArchivedBulkSelection();
+                updateArchivedSelectionBar();
+            });
         });
-        
+
         // Individual restore button functionality
         document.querySelectorAll('.restore-asset-btn').forEach(btn => {
             btn.addEventListener('click', handleRestoreAsset);
         });
-        
+
         // Individual permanent delete button functionality
         document.querySelectorAll('.permanent-delete-btn').forEach(btn => {
             btn.addEventListener('click', handlePermanentDeleteAsset);
         });
-        
+
         // Bulk restore button functionality
         const bulkRestoreBtn = document.getElementById('bulkRestoreBtn');
         if (bulkRestoreBtn) {
             bulkRestoreBtn.addEventListener('click', handleBulkRestore);
         }
-        
+
         // Bulk permanent delete button functionality
         const bulkPermanentDeleteBtn = document.getElementById('bulkPermanentDeleteBtn');
         if (bulkPermanentDeleteBtn) {
             bulkPermanentDeleteBtn.addEventListener('click', handleBulkPermanentDelete);
         }
-        
+
         // Clear selection button functionality
         const clearSelectionBtn = document.getElementById('clearArchivedSelectionBtn');
         if (clearSelectionBtn) {
             clearSelectionBtn.addEventListener('click', clearArchivedSelection);
         }
     }
-    
-    function updateArchivedSelection() {
-        const checkboxes = document.querySelectorAll('.archived-asset-checkbox:checked');
-        selectedArchivedAssets = Array.from(checkboxes).map(checkbox => ({
-            id: checkbox.getAttribute('data-archived-id'),
-            name: checkbox.getAttribute('data-archived-name')
-        }));
-        
-        const selectedCount = document.getElementById('selectedArchivedCount');
-        const bulkActionsBar = document.getElementById('bulkRestoreActionsBar');
-        const selectAllCheckbox = document.getElementById('selectAllArchivedCheckbox');
-        
-        if (selectedCount) selectedCount.textContent = selectedArchivedAssets.length;
-        
-        if (selectedArchivedAssets.length > 0) {
-            if (bulkActionsBar) bulkActionsBar.style.display = 'block';
-        } else {
-            if (bulkActionsBar) bulkActionsBar.style.display = 'none';
-        }
-        
-        // Update select all checkbox
-        const allCheckboxes = document.querySelectorAll('.archived-asset-checkbox');
-        const checkedCheckboxes = document.querySelectorAll('.archived-asset-checkbox:checked');
-        if (selectAllCheckbox) {
-            selectAllCheckbox.checked = checkedCheckboxes.length === allCheckboxes.length && allCheckboxes.length > 0;
-            selectAllCheckbox.indeterminate = checkedCheckboxes.length > 0 && checkedCheckboxes.length < allCheckboxes.length;
-        }
-    }
-    
+
     function clearArchivedSelection() {
-        document.querySelectorAll('.archived-asset-checkbox').forEach(checkbox => {
+        selectedArchivedAssets = [];
+        try {
+            sessionStorage.removeItem(ARCHIVED_BULK_STORAGE_KEY);
+        } catch (e) {}
+        document.querySelectorAll('.archived-asset-checkbox').forEach(function (checkbox) {
             checkbox.checked = false;
         });
         const selectAllCheckbox = document.getElementById('selectAllArchivedCheckbox');
-        if (selectAllCheckbox) selectAllCheckbox.checked = false;
-        updateArchivedSelection();
+        if (selectAllCheckbox) {
+            selectAllCheckbox.checked = false;
+            selectAllCheckbox.indeterminate = false;
+        }
+        updateArchivedSelectionBar();
     }
-    
+
     function handleRestoreAsset(e) {
         // Get the button element, handling clicks on child elements (like icons)
         const button = e.target.closest('.restore-asset-btn');

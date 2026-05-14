@@ -1,0 +1,43 @@
+{% from "macros/app_components.html" import add_button %}
+<div class="settings-panel-stack">
+  <div class="filter-bar settings-panel-form">
+    <div class="filter-group" style="flex: 1; min-width: 200px; max-width: 420px;">
+      <label for="newBranchName">New branch</label>
+      <input type="text" class="form-control" id="newBranchName" placeholder="Enter branch name" maxlength="100">
+    </div>
+    <div class="filter-group">
+      <label class="settings-label-spacer" aria-hidden="true">&nbsp;</label>
+      {{ add_button('Add', button_id='addBranchBtn') }}
+    </div>
+  </div>
+
+  <h6 class="settings-section-title mb-2">Existing branches</h6>
+  <div id="settingsBranchesBulkBar" class="app-bulk-bar mb-3" style="display: none;">
+    <div class="d-flex flex-wrap justify-content-between align-items-center gap-2">
+      <span><i class="bi bi-info-circle me-1"></i> <strong><span id="settingsBranchesSelectedCount">0</span> items selected</strong> &mdash; use the buttons to act on the selection</span>
+      <div class="d-flex flex-wrap gap-2">
+        <button type="button" class="btn btn-danger btn-sm" id="bulkDeleteBranchesBtn" style="display: none;">
+          <i class="bi bi-trash"></i> Delete Selected
+        </button>
+        <button type="button" class="btn btn-sm btn-app-tab" id="clearSettingsBranchesSelectionBtn">
+          <i class="bi bi-x-lg"></i> Clear Selection
+        </button>
+      </div>
+    </div>
+  </div>
+  <div class="settings-auth-table-bleed">
+    <div style="overflow-x:auto;">
+      <table class="app-table" style="width: 100%; min-width: 520px;">
+        <thead>
+          <tr>
+            <th><input type="checkbox" id="selectAllBranchesCheckbox" title="Select all" aria-label="Select all branches"></th>
+            <th>#</th>
+            <th>Branch name</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody id="branchesList"></tbody>
+      </table>
+    </div>
+  </div>
+</div>

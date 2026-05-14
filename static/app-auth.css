@@ -1,4 +1,4 @@
-/* QC Monitor auth / login — from app/static/css/style.css (forms + auth-page) */
+/* Login / auth page — forms + auth-page layout */
 :root {
     --card-border: #EDE8DC;
     --text-mid: #5C5035;
@@ -13,8 +13,8 @@ body.login-page {
     background: var(--dark-bg);
 }
 
-/* Theme toggle — QC gold / dark navbar accent styling */
-.qc-login-theme-toggle {
+/* Theme toggle — gold accent on dark navbar */
+.app-login-theme-toggle {
     position: fixed;
     top: 1rem;
     right: 1rem;
@@ -34,24 +34,24 @@ body.login-page {
     transition: background 0.2s, color 0.2s, border-color 0.2s, box-shadow 0.2s;
 }
 
-.qc-login-theme-toggle:hover {
+.app-login-theme-toggle:hover {
     background: rgba(217, 189, 125, 0.18);
     color: #fff;
     border-color: rgba(217, 189, 125, 0.55);
     box-shadow: 0 2px 12px rgba(0, 0, 0, 0.25);
 }
 
-.qc-login-theme-toggle:focus-visible {
+.app-login-theme-toggle:focus-visible {
     outline: 2px solid var(--gold-deeper);
     outline-offset: 2px;
 }
 
-.qc-login-theme-toggle i {
+.app-login-theme-toggle i {
     font-size: 1.1rem;
     line-height: 1;
 }
 
-/* ===== FORMS (QC Monitor) ===== */
+/* ===== FORMS ===== */
 .form-card {
     background: #fff;
     border-radius: 14px;
@@ -89,11 +89,11 @@ body.login-page {
     padding: 2rem;
 }
 
-.qc-input-group {
+.app-input-group {
     margin-bottom: 1.1rem;
 }
 
-.qc-input-group label {
+.app-input-group label {
     display: block;
     font-size: 0.8rem;
     font-weight: 700;
@@ -103,9 +103,9 @@ body.login-page {
     letter-spacing: 0.05em;
 }
 
-.qc-input-group input,
-.qc-input-group select,
-.qc-input-group textarea {
+.app-input-group input,
+.app-input-group select,
+.app-input-group textarea {
     width: 100%;
     border: 1.5px solid var(--card-border);
     border-radius: 9px;
@@ -117,9 +117,9 @@ body.login-page {
     transition: border-color 0.2s, box-shadow 0.2s;
 }
 
-.qc-input-group input:focus,
-.qc-input-group select:focus,
-.qc-input-group textarea:focus {
+.app-input-group input:focus,
+.app-input-group select:focus,
+.app-input-group textarea:focus {
     border-color: var(--gold);
     box-shadow: 0 0 0 3px rgba(217, 189, 125, 0.2);
 }
@@ -145,8 +145,8 @@ body.login-page {
     box-shadow: 0 4px 16px rgba(217, 189, 125, 0.4);
 }
 
-/* Info strip (QC login helper box) */
-.qc-login-info-box {
+/* Info strip (login helper box) */
+.app-login-info-box {
     background: #f8fafc;
     border: 1px solid #e8ecf2;
     border-radius: 8px;
@@ -157,11 +157,11 @@ body.login-page {
     text-align: center;
 }
 
-.qc-login-info-box strong {
+.app-login-info-box strong {
     color: #4e73df;
 }
 
-/* ===== AUTH PAGE (QC Monitor) ===== */
+/* ===== AUTH PAGE ===== */
 .auth-page {
     flex: 1;
     min-height: 0;
@@ -185,32 +185,32 @@ body.login-page {
     background: #2a2820;
 }
 
-.login-page.dark-mode .qc-input-group label {
+.login-page.dark-mode .app-input-group label {
     color: rgba(245, 236, 214, 0.85);
 }
 
-.login-page.dark-mode .qc-input-group input {
+.login-page.dark-mode .app-input-group input {
     background: #1e1c16;
     border-color: #4a4334;
     color: #f5f5f0;
 }
 
-.login-page.dark-mode .qc-input-group input:focus {
+.login-page.dark-mode .app-input-group input:focus {
     border-color: var(--gold);
     box-shadow: 0 0 0 3px rgba(217, 189, 125, 0.15);
 }
 
-.login-page.dark-mode .qc-input-group input::placeholder {
+.login-page.dark-mode .app-input-group input::placeholder {
     color: #8a8270;
 }
 
-.login-page.dark-mode .qc-login-info-box {
+.login-page.dark-mode .app-login-info-box {
     background: #1e1c16;
     border-color: #4a4334;
     color: rgba(255, 255, 255, 0.65);
 }
 
-.login-page.dark-mode .qc-login-info-box strong {
+.login-page.dark-mode .app-login-info-box strong {
     color: var(--gold);
 }
 

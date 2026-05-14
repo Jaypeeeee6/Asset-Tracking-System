@@ -8,6 +8,7 @@ from flask import (
     abort,
     send_file,
     make_response,
+    flash,
 )
 from flask_login import login_required, current_user
 import base64
@@ -161,6 +162,138 @@ def dashboard():
                              'department_prices': department_prices,
                              'total_system_value': total_system_value
                          })
+
+
+def _register_filter_where_from_request():
+    """Build WHERE clause + params for active assets list (same rules as dashboard)."""
+    args = request.args
+    branch_filter = (args.get('branch') or args.get('building') or '').strip()
+    department_filter = (args.get('department') or '').strip()
+    search_query = (args.get('search') or '').strip()
+    status_filter = (args.get('status') or '').strip()
+    asset_type_filter = (args.get('asset_type') or '').strip()
+    where_clauses = []
+    params = []
+    if branch_filter:
+        where_clauses.append('branch = ?')
+        params.append(branch_filter)
+    if department_filter:
+        where_clauses.append('department = ?')
+        params.append(department_filter)
+    if status_filter:
+        where_clauses.append('used_status = ?')
+        params.append(status_filter)
+    if asset_type_filter:
+        where_clauses.append('asset_type = ?')
+        params.append(asset_type_filter)
+    if search_query:
+        search_clauses = [
+            'name LIKE ?',
+            'owner LIKE ?',
+            'asset_code LIKE ?',
+            'branch LIKE ?',
+            'department LIKE ?',
+            'asset_type LIKE ?'
+        ]
+        where_clauses.append(f"({' OR '.join(search_clauses)})")
+        search_param = f'%{search_query}%'
+        params.extend([search_param] * 6)
+    where_sql = ('WHERE ' + ' AND '.join(where_clauses)) if where_clauses else ''
+    return where_sql, params
+
+
+@assets_bp.route('/matching-register-ids')
+@login_required
+def matching_register_ids():
+    """All active asset ids+names matching current dashboard filters (ignores pagination)."""
+    where_sql, params = _register_filter_where_from_request()
+    conn = get_db_connection()
+    cur = conn.cursor()
+    cur.execute(f'SELECT id, name FROM assets {where_sql} ORDER BY id ASC', params)
+    rows = cur.fetchall()
+    conn.close()
+    assets = [{'id': row[0], 'name': row[1]} for row in rows]
+    return jsonify({'assets': assets, 'total': len(assets)})
+
+
+def _archived_filter_where_from_request():
+    args = request.args
+    search_query = (args.get('search') or '').strip()
+    where_clauses = []
+    params = []
+    if search_query:
+        search_clauses = [
+            'name LIKE ?',
+            'owner LIKE ?',
+            'asset_code LIKE ?',
+            'branch LIKE ?',
+            'department LIKE ?',
+            'asset_type LIKE ?',
+            'archived_by LIKE ?',
+            'archive_reason LIKE ?'
+        ]
+        where_clauses.append(f"({' OR '.join(search_clauses)})")
+        search_param = f'%{search_query}%'
+        params.extend([search_param] * 8)
+    where_sql = ('WHERE ' + ' AND '.join(where_clauses)) if where_clauses else ''
+    return where_sql, params
+
+
+@assets_bp.route('/matching-archived-ids')
+@login_required
+def matching_archived_ids():
+    """All archived asset ids+names matching current archive search (ignores pagination)."""
+    if current_user.role != 'admin':
+        return jsonify({'error': 'Forbidden'}), 403
+    where_sql, params = _archived_filter_where_from_request()
+    conn = get_db_connection()
+    cur = conn.cursor()
+    cur.execute(f'SELECT id, name FROM archived_assets {where_sql} ORDER BY id ASC', params)
+    rows = cur.fetchall()
+    conn.close()
+    assets = [{'id': row[0], 'name': row[1]} for row in rows]
+    return jsonify({'assets': assets, 'total': len(assets)})
+
+
+_SETTINGS_CHART_DATA = {
+    'status_counts': {'Used': 0, 'Not Used': 0, 'Out of Service': 0},
+    'branch_counts': {},
+    'branch_prices': {},
+    'department_counts': {},
+    'department_prices': {},
+    'total_system_value': 0.0,
+}
+
+
+@assets_bp.route('/settings')
+@login_required
+def settings():
+    if current_user.role != 'admin':
+        flash('Access denied. Only administrators can open settings.', 'error')
+        return redirect(url_for('assets.dashboard'))
+    tab = (request.args.get('tab') or 'users').strip().lower()
+    if tab not in ('users', 'branches', 'departments', 'employees', 'assets'):
+        tab = 'users'
+    auth_users = []
+    if tab == 'users':
+        conn = get_db_connection()
+        cur = conn.cursor()
+        cur.execute(
+            '''
+            SELECT ua.id, ua.username, ua.role, ua.created_at
+            FROM users_auth ua
+            ORDER BY ua.created_at DESC
+            '''
+        )
+        auth_users = cur.fetchall()
+        conn.close()
+    return render_template(
+        'settings.html',
+        active_tab=tab,
+        users=auth_users,
+        chart_data=_SETTINGS_CHART_DATA,
+    )
+
 
 @assets_bp.route('/add', methods=['POST'])
 @login_required

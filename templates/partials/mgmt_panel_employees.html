@@ -1,0 +1,90 @@
+{% from "macros/app_components.html" import add_button %}
+<div class="settings-panel-stack">
+  <h6 class="settings-section-title">Register new employee</h6>
+  <div class="filter-bar settings-panel-form flex-wrap">
+    <div class="filter-group" style="min-width: 160px;">
+      <label for="userModalBranch">Branch</label>
+      <select class="form-select" id="userModalBranch" required>
+        <option value="">Select branch</option>
+      </select>
+    </div>
+    <div class="filter-group" style="min-width: 160px;">
+      <label for="userModalDepartment">Department</label>
+      <select class="form-select" id="userModalDepartment" required>
+        <option value="">Select branch first</option>
+      </select>
+    </div>
+    <div class="filter-group" style="flex: 1; min-width: 200px;">
+      <label for="userModalName">Employee name</label>
+      <input type="text" class="form-control" id="userModalName" placeholder="Enter employee name" maxlength="100" required>
+    </div>
+    <div class="filter-group">
+      <label class="settings-label-spacer" aria-hidden="true">&nbsp;</label>
+      {{ add_button('Register Employee', button_id='addUserModalBtn', icon='bi bi-person-plus') }}
+    </div>
+  </div>
+
+  <h6 class="settings-section-title">Bulk add employees</h6>
+  <div class="filter-bar settings-panel-form flex-wrap">
+    <div class="filter-group" style="min-width: 160px;">
+      <label for="bulkUserModalBranch">Branch</label>
+      <select class="form-select" id="bulkUserModalBranch" required>
+        <option value="">Select branch</option>
+      </select>
+    </div>
+    <div class="filter-group" style="min-width: 160px;">
+      <label for="bulkUserModalDepartment">Department</label>
+      <select class="form-select" id="bulkUserModalDepartment" required>
+        <option value="">Select branch first</option>
+      </select>
+    </div>
+    <div class="filter-group" style="flex: 1; min-width: 100%;">
+      <label for="bulkUserNames">Employee names (one per line)</label>
+      <textarea class="form-control" id="bulkUserNames" rows="4" placeholder="John Doe&#10;Jane Smith"></textarea>
+    </div>
+    <div class="filter-group">
+      <label class="settings-label-spacer" aria-hidden="true">&nbsp;</label>
+      {{ add_button('Add multiple employees', button_id='addBulkUsersModalBtn', icon='bi bi-people') }}
+    </div>
+  </div>
+
+  <div class="filter-bar settings-panel-form mb-0">
+    <div class="filter-group" style="min-width: 220px;">
+      <label for="userModalFilterDepartment">Filter by department</label>
+      <select class="form-select" id="userModalFilterDepartment">
+        <option value="">All departments</option>
+      </select>
+    </div>
+  </div>
+  <h6 class="settings-section-title mt-3 mb-2">Existing Employees</h6>
+  <div id="settingsEmployeesBulkBar" class="app-bulk-bar mb-3" style="display: none;">
+    <div class="d-flex flex-wrap justify-content-between align-items-center gap-2">
+      <span><i class="bi bi-info-circle me-1"></i> <strong><span id="settingsEmployeesSelectedCount">0</span> items selected</strong> &mdash; use the buttons to act on the selection</span>
+      <div class="d-flex flex-wrap gap-2">
+        <button type="button" class="btn btn-danger btn-sm" id="bulkDeleteEmployeesRosterBtn" style="display: none;">
+          <i class="bi bi-trash"></i> Delete Selected
+        </button>
+        <button type="button" class="btn btn-sm btn-app-tab" id="clearSettingsEmployeesSelectionBtn">
+          <i class="bi bi-x-lg"></i> Clear Selection
+        </button>
+      </div>
+    </div>
+  </div>
+  <div class="settings-auth-table-bleed">
+    <div style="overflow-x:auto;">
+      <table class="app-table" style="width: 100%; min-width: 760px;">
+        <thead>
+          <tr>
+            <th><input type="checkbox" id="selectAllEmployeesRosterCheckbox" title="Select all" aria-label="Select all employees in list"></th>
+            <th>#</th>
+            <th>Name</th>
+            <th>Branch</th>
+            <th>Department</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody id="userModalList"></tbody>
+      </table>
+    </div>
+  </div>
+</div>

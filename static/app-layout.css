@@ -1,4 +1,4 @@
-/* QC Monitor layout (navbar, sidebar, content shell) — mirrored for Asset Tracking */
+/* App shell layout (navbar, sidebar, content area) */
 *, *::before, *::after {
     box-sizing: border-box;
 }
@@ -12,7 +12,7 @@ body {
     max-width: 100%;
     overflow-x: hidden;
     margin: 0;
-    /* Match QC Monitor app/static/css/style.css typography */
+    /* Typography aligned with main app style.css */
     font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
     font-size: 0.925rem;
     color: var(--text-dark);
@@ -37,7 +37,7 @@ body {
     --sidebar-width: 260px;
 }
 
-.qc-navbar {
+.app-navbar {
     background: var(--dark-bg);
     border-bottom: 2px solid var(--gold-dark);
     height: var(--navbar-height);
@@ -52,7 +52,7 @@ body {
     padding: 0 1.25rem;
 }
 
-.qc-navbar .brand {
+.app-navbar .brand {
     display: flex;
     align-items: center;
     font-size: 1.15rem;
@@ -62,7 +62,7 @@ body {
     letter-spacing: 0.03em;
 }
 
-.qc-navbar .brand i {
+.app-navbar .brand i {
     color: var(--gold);
     margin-right: 0.5rem;
     font-size: 1.3rem;
@@ -106,8 +106,8 @@ body {
 .role-badge.admin      { background: var(--gold-pale); color: var(--gold-deeper); }
 .role-badge.purchasing { background: #DCFCE7; color: #166534; }
 
-.qc-navbar .role-badge.admin,
-.qc-navbar .role-badge.purchasing { background: rgba(217,189,125,0.2); color: var(--gold); }
+.app-navbar .role-badge.admin,
+.app-navbar .role-badge.purchasing { background: rgba(217,189,125,0.2); color: var(--gold); }
 
 #wrapper {
     display: flex;
@@ -239,9 +239,9 @@ body {
     max-width: 100vw;
 }
 
-/* ----- Gold “add” actions — use macros/qc_components.html `qc_add_button` ----- */
-.btn-qc-add,
-a.btn-qc-add {
+/* ----- Gold “add” actions — use macros/app_components.html `add_button` ----- */
+.btn-app-add,
+a.btn-app-add {
     background: var(--gold);
     color: var(--dark-bg);
     border: none;
@@ -263,53 +263,53 @@ a.btn-qc-add {
     white-space: nowrap;
 }
 
-.btn-qc-add .btn-qc-add-label,
-a.btn-qc-add .btn-qc-add-label {
+.btn-app-add .btn-app-add-label,
+a.btn-app-add .btn-app-add-label {
     line-height: inherit;
 }
 
-.btn-qc-add i,
-a.btn-qc-add i {
+.btn-app-add i,
+a.btn-app-add i {
     font-size: 1em;
     line-height: 1;
     flex-shrink: 0;
 }
 
-.btn-qc-add:hover,
-a.btn-qc-add:hover {
+.btn-app-add:hover,
+a.btn-app-add:hover {
     background: var(--gold-dark);
     color: var(--dark-bg);
     text-decoration: none;
 }
 
-.btn-qc-add:focus-visible,
-a.btn-qc-add:focus-visible {
+.btn-app-add:focus-visible,
+a.btn-app-add:focus-visible {
     outline: 2px solid var(--gold-deeper);
     outline-offset: 2px;
 }
 
-.input-group > .btn-qc-add {
+.input-group > .btn-app-add {
     position: relative;
     z-index: 2;
 }
 
-.input-group:not(.has-validation) > :not(:first-child):not(.dropdown-menu):not(.valid-tooltip):not(.invalid-tooltip).btn-qc-add {
+.input-group:not(.has-validation) > :not(:first-child):not(.dropdown-menu):not(.valid-tooltip):not(.invalid-tooltip).btn-app-add {
     margin-left: calc(-1 * var(--bs-border-width, 1px));
     border-top-left-radius: 0;
     border-bottom-left-radius: 0;
 }
 
-.dark-mode .btn-qc-add,
-.dark-mode a.btn-qc-add {
+.dark-mode .btn-app-add,
+.dark-mode a.btn-app-add {
     color: var(--dark-bg);
 }
 
-.dark-mode .btn-qc-add:hover,
-.dark-mode a.btn-qc-add:hover {
+.dark-mode .btn-app-add:hover,
+.dark-mode a.btn-app-add:hover {
     color: var(--dark-bg);
 }
 
-/* ===== GLOBAL FOOTER (QC Monitor match) ===== */
+/* ===== GLOBAL FOOTER ===== */
 .app-footer {
     text-align: center;
     font-size: 0.8rem;

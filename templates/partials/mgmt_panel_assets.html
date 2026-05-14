@@ -1,0 +1,100 @@
+{% from "macros/app_components.html" import add_button %}
+<div class="settings-panel-stack">
+  <h6 class="settings-section-title">Asset types</h6>
+  <div class="filter-bar settings-panel-form flex-wrap">
+    <div class="filter-group" style="flex: 1; min-width: 200px;">
+      <label for="newAssetTypeName">New asset type</label>
+      <input type="text" class="form-control" id="newAssetTypeName" placeholder="Enter asset type name" maxlength="100">
+    </div>
+    <div class="filter-group">
+      <label class="settings-label-spacer" aria-hidden="true">&nbsp;</label>
+      {{ add_button('Add asset type', button_id='addAssetTypeBtn') }}
+    </div>
+  </div>
+  <h6 class="settings-section-title mb-2">Existing asset types</h6>
+  <div id="settingsAssetTypesBulkBar" class="app-bulk-bar mb-3" style="display: none;">
+    <div class="d-flex flex-wrap justify-content-between align-items-center gap-2">
+      <span><i class="bi bi-info-circle me-1"></i> <strong><span id="settingsAssetTypesSelectedCount">0</span> items selected</strong> &mdash; use the buttons to act on the selection</span>
+      <div class="d-flex flex-wrap gap-2">
+        <button type="button" class="btn btn-danger btn-sm" id="bulkDeleteAssetTypesBtn" style="display: none;">
+          <i class="bi bi-trash"></i> Delete Selected
+        </button>
+        <button type="button" class="btn btn-sm btn-app-tab" id="clearSettingsAssetTypesSelectionBtn">
+          <i class="bi bi-x-lg"></i> Clear Selection
+        </button>
+      </div>
+    </div>
+  </div>
+  <div class="settings-auth-table-bleed settings-mgmt-types-table-wrap">
+    <div style="overflow-x:auto;">
+      <table class="app-table" style="width: 100%; min-width: 520px;">
+        <thead>
+          <tr>
+            <th><input type="checkbox" id="selectAllAssetTypesCheckbox" title="Select all" aria-label="Select all asset types"></th>
+            <th>#</th>
+            <th>Type name</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody id="assetTypesList"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <h6 class="settings-section-title mt-4">Asset names</h6>
+  <div class="filter-bar settings-panel-form flex-wrap">
+    <div class="filter-group" style="min-width: 160px;">
+      <label for="newAssetNameType">Asset type</label>
+      <select class="form-select" id="newAssetNameType" required>
+        <option value="">Select asset type</option>
+      </select>
+    </div>
+    <div class="filter-group" style="flex: 1; min-width: 200px;">
+      <label for="newAssetName">Asset name</label>
+      <input type="text" class="form-control" id="newAssetName" placeholder="Enter asset name" maxlength="100">
+    </div>
+    <div class="filter-group">
+      <label class="settings-label-spacer" aria-hidden="true">&nbsp;</label>
+      {{ add_button('Add', button_id='addAssetNameBtn') }}
+    </div>
+  </div>
+
+  <div class="filter-bar settings-panel-form mb-0">
+    <div class="filter-group" style="min-width: 220px;">
+      <label for="assetNameFilterType">Filter by asset type</label>
+      <select class="form-select" id="assetNameFilterType">
+        <option value="">All asset types</option>
+      </select>
+    </div>
+  </div>
+  <h6 class="settings-section-title mt-3 mb-2">Existing asset names</h6>
+  <div id="settingsAssetNamesBulkBar" class="app-bulk-bar mb-3" style="display: none;">
+    <div class="d-flex flex-wrap justify-content-between align-items-center gap-2">
+      <span><i class="bi bi-info-circle me-1"></i> <strong><span id="settingsAssetNamesSelectedCount">0</span> items selected</strong> &mdash; use the buttons to act on the selection</span>
+      <div class="d-flex flex-wrap gap-2">
+        <button type="button" class="btn btn-danger btn-sm" id="bulkDeleteAssetNamesBtn" style="display: none;">
+          <i class="bi bi-trash"></i> Delete Selected
+        </button>
+        <button type="button" class="btn btn-sm btn-app-tab" id="clearSettingsAssetNamesSelectionBtn">
+          <i class="bi bi-x-lg"></i> Clear Selection
+        </button>
+      </div>
+    </div>
+  </div>
+  <div class="settings-auth-table-bleed mt-2">
+    <div style="overflow-x:auto;">
+      <table class="app-table" style="width: 100%; min-width: 680px;">
+        <thead>
+          <tr>
+            <th><input type="checkbox" id="selectAllAssetNamesCheckbox" title="Select all" aria-label="Select all asset names"></th>
+            <th>#</th>
+            <th>Asset name</th>
+            <th>Asset type</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody id="assetNamesList"></tbody>
+      </table>
+    </div>
+  </div>
+</div>

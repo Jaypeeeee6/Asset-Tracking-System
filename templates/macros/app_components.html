@@ -1,0 +1,19 @@
+{# Reusable gold-accent controls. Import: {% from 'macros/app_components.html' import add_button, modal_cancel_button %} #}
+
+{% macro modal_cancel_button(label='Cancel', button_id=None, extra_classes='', icon=None, dismiss_modal=True, aria_label=None) -%}
+<button type="button" class="btn-app-modal-cancel {{ extra_classes }}"{% if button_id %} id="{{ button_id }}"{% endif %}{% if dismiss_modal %} data-bs-dismiss="modal"{% endif %} aria-label="{{ (aria_label or label)|e }}">
+  {% if icon %}<i class="{{ icon }}" aria-hidden="true"></i>{% endif %}<span class="btn-app-modal-cancel-label">{{ label }}</span>
+</button>
+{%- endmacro %}
+
+{% macro add_button(label, href=None, button_id=None, button_type='button', modal_target=None, extra_classes='', icon='bi bi-plus-lg') -%}
+{% if href %}
+<a href="{{ href }}" class="btn-app-add {{ extra_classes }}"{% if button_id %} id="{{ button_id }}"{% endif %}>
+  <i class="{{ icon }}" aria-hidden="true"></i><span class="btn-app-add-label">{{ label }}</span>
+</a>
+{% else %}
+<button type="{{ button_type }}" class="btn-app-add {{ extra_classes }}"{% if button_id %} id="{{ button_id }}"{% endif %}{% if modal_target %} data-bs-toggle="modal" data-bs-target="{{ modal_target }}"{% endif %}>
+  <i class="{{ icon }}" aria-hidden="true"></i><span class="btn-app-add-label">{{ label }}</span>
+</button>
+{% endif %}
+{%- endmacro %}

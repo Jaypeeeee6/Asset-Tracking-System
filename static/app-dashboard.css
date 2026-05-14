@@ -1,4 +1,4 @@
-/* QC Monitor dashboard components — scoped to .asset-dashboard only */
+/* Dashboard layout components — scoped to .asset-dashboard only */
 
 .asset-dashboard {
     --card-border: #ede8dc;
@@ -8,7 +8,7 @@
     --text-muted: #bfb49a;
 }
 
-/* ----- Page header (QC Monitor) ----- */
+/* ----- Page header ----- */
 .asset-dashboard .page-header {
     margin-bottom: 1.5rem;
     padding-bottom: 1rem;
@@ -25,16 +25,24 @@
     font-weight: 700;
     color: var(--text-dark);
     margin: 0;
+    /* Override global style.css h1 { text-align: center } so title lines up with subtitle */
+    text-align: left;
+    letter-spacing: normal;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    flex-wrap: wrap;
 }
 
 .asset-dashboard .page-header .subtitle {
     color: var(--text-light);
     font-size: 0.875rem;
     margin-top: 0.2rem;
+    text-align: left;
 }
 
 /* ----- Cards ----- */
-.asset-dashboard .qc-card {
+.asset-dashboard .app-card {
     background: #fff;
     border-radius: 12px;
     box-shadow: var(--card-shadow);
@@ -42,7 +50,7 @@
     overflow: hidden;
 }
 
-.asset-dashboard .qc-card .card-header-bar {
+.asset-dashboard .app-card .card-header-bar {
     padding: 1rem 1.25rem;
     border-bottom: 1px solid var(--card-border);
     display: flex;
@@ -53,14 +61,14 @@
     background: #fff;
 }
 
-.asset-dashboard .qc-card .card-header-bar h5 {
+.asset-dashboard .app-card .card-header-bar h5 {
     margin: 0;
     font-size: 0.95rem;
     font-weight: 700;
     color: var(--text-dark);
 }
 
-.asset-dashboard .qc-card .card-body-pad {
+.asset-dashboard .app-card .card-body-pad {
     padding: 1.25rem;
 }
 
@@ -131,7 +139,7 @@
     color: var(--text-dark);
 }
 
-/* ----- Filter form (mirrors QC Monitor app/static/css/style.css) ----- */
+/* ----- Filter form ----- */
 .asset-dashboard .filter-bar {
     background: #fff;
     border: 1px solid var(--card-border);
@@ -192,7 +200,7 @@
     min-width: 200px;
 }
 
-/* ----- Asset register card (QC Monitor: qc-card + overflow-x + footer bar) ----- */
+/* ----- Asset register card (app-card + horizontal scroll + footer bar) ----- */
 .asset-dashboard .asset-register-per-page {
     width: auto;
     min-width: 4.25rem;
@@ -229,15 +237,15 @@
     font-size: 0.9rem;
 }
 
-/* QC-styled page controls (layout like data-table footers; colors from QC tokens) */
-.asset-dashboard .qc-page-nav {
+/* Page controls (pagination layout; gold accent tokens) */
+.asset-dashboard .app-page-nav {
     display: flex;
     flex-wrap: wrap;
     align-items: center;
     gap: 0.35rem;
 }
 
-.asset-dashboard .qc-page-nav .qc-page-btn {
+.asset-dashboard .app-page-nav .app-page-btn {
     display: inline-flex;
     align-items: center;
     justify-content: center;
@@ -254,27 +262,27 @@
     transition: border-color 0.15s, background 0.15s, color 0.15s, box-shadow 0.15s;
 }
 
-.asset-dashboard .qc-page-nav a.qc-page-btn:hover {
+.asset-dashboard .app-page-nav a.app-page-btn:hover {
     border-color: var(--gold);
     background: var(--gold-light);
     color: var(--text-dark);
     text-decoration: none;
 }
 
-.asset-dashboard .qc-page-nav .qc-page-btn.is-active {
+.asset-dashboard .app-page-nav .app-page-btn.is-active {
     border-color: var(--gold-dark);
     background: var(--gold-pale);
     color: var(--gold-deeper);
     cursor: default;
 }
 
-.asset-dashboard .qc-page-nav a.qc-page-btn.is-active:hover {
+.asset-dashboard .app-page-nav a.app-page-btn.is-active:hover {
     border-color: var(--gold-dark);
     background: var(--gold-pale);
     color: var(--gold-deeper);
 }
 
-.asset-dashboard .qc-page-nav .qc-page-ellipsis {
+.asset-dashboard .app-page-nav .app-page-ellipsis {
     padding: 0 0.2rem;
     color: var(--text-muted);
     font-size: 0.85rem;
@@ -282,31 +290,31 @@
     user-select: none;
 }
 
-.asset-dashboard .qc-page-nav .qc-page-next {
+.asset-dashboard .app-page-nav .app-page-next {
     padding-left: 0.75rem;
     padding-right: 0.75rem;
     gap: 0.25rem;
 }
 
-.asset-dashboard .qc-page-nav .qc-page-prev {
+.asset-dashboard .app-page-nav .app-page-prev {
     min-width: 2.1rem;
     padding-left: 0.45rem;
     padding-right: 0.45rem;
 }
 
 /* ----- Table ----- */
-.asset-dashboard .qc-table {
+.asset-dashboard .app-table {
     width: 100%;
     border-collapse: collapse;
     font-size: 0.8rem;
 }
 
-.asset-dashboard .qc-table thead tr {
+.asset-dashboard .app-table thead tr {
     background: var(--gold-light);
     border-bottom: 2px solid var(--gold-pale);
 }
 
-.asset-dashboard .qc-table thead th {
+.asset-dashboard .app-table thead th {
     padding: 0.65rem 0.85rem;
     font-weight: 700;
     color: var(--text-mid);
@@ -316,48 +324,48 @@
     white-space: nowrap;
 }
 
-.asset-dashboard .qc-table thead th a {
+.asset-dashboard .app-table thead th a {
     color: inherit;
     text-decoration: none;
 }
 
-.asset-dashboard .qc-table thead th a:hover {
+.asset-dashboard .app-table thead th a:hover {
     color: var(--gold-deeper);
     text-decoration: underline;
 }
 
-.asset-dashboard .qc-table tbody tr {
+.asset-dashboard .app-table tbody tr {
     border-bottom: 1px solid var(--gold-light);
     transition: background 0.15s;
 }
 
-.asset-dashboard .qc-table tbody tr:last-child {
+.asset-dashboard .app-table tbody tr:last-child {
     border-bottom: none;
 }
 
-.asset-dashboard .qc-table tbody tr:hover {
+.asset-dashboard .app-table tbody tr:hover {
     background: var(--gold-light);
 }
 
-.asset-dashboard .qc-table tbody td {
+.asset-dashboard .app-table tbody td {
     padding: 0.65rem 0.85rem;
     color: var(--text-dark);
     vertical-align: middle;
     font-size: 0.8rem;
 }
 
-.asset-dashboard .qc-table tbody td strong {
+.asset-dashboard .app-table tbody td strong {
     font-size: inherit;
     font-weight: 700;
 }
 
-.asset-dashboard .qc-table tbody td small,
-.asset-dashboard .qc-table .qr-code-text {
+.asset-dashboard .app-table tbody td small,
+.asset-dashboard .app-table .qr-code-text {
     font-size: 0.72rem !important;
 }
 
-/* ----- Buttons (mirrors QC Monitor style.css — no Bootstrap .btn on gold controls) ----- */
-.asset-dashboard .btn-qc-primary {
+/* ----- Buttons (gold controls; avoid Bootstrap .btn on primary actions) ----- */
+.asset-dashboard .btn-app-primary {
     background: var(--gold);
     color: var(--dark-bg);
     border: none;
@@ -373,7 +381,7 @@
     text-decoration: none;
 }
 
-.asset-dashboard .btn-qc-primary:hover {
+.asset-dashboard .btn-app-primary:hover {
     background: var(--gold-dark);
     color: var(--dark-bg);
     transform: translateY(-1px);
@@ -381,18 +389,18 @@
     text-decoration: none;
 }
 
-.asset-dashboard .btn-qc-primary:active {
+.asset-dashboard .btn-app-primary:active {
     transform: translateY(0);
 }
 
-.asset-dashboard .qc-table .btn-qc-primary,
-.asset-dashboard #bulkActionsBar .btn-qc-primary {
+.asset-dashboard .app-table .btn-app-primary,
+.asset-dashboard #bulkActionsBar .btn-app-primary {
     padding: 0.4rem 0.9rem;
     font-size: 0.8125rem;
 }
 
 /* Icon-only edit: gold outline, no fill */
-.asset-dashboard .qc-table .btn-qc-edit-icon {
+.asset-dashboard .app-table .btn-app-edit-icon {
     display: inline-flex;
     align-items: center;
     justify-content: center;
@@ -408,23 +416,39 @@
     line-height: 1;
 }
 
-.asset-dashboard .qc-table .btn-qc-edit-icon i {
+.asset-dashboard .app-table .btn-app-edit-icon i {
     font-size: 0.95rem;
 }
 
-.asset-dashboard .qc-table .btn-qc-edit-icon:hover {
+.asset-dashboard .app-table .btn-app-edit-icon:hover {
     background: rgba(217, 189, 125, 0.12);
     border-color: var(--gold);
     color: var(--gold-deeper);
 }
 
-.asset-dashboard .qc-table .btn-qc-edit-icon:focus-visible {
+.asset-dashboard .app-table .btn-app-edit-icon:focus-visible {
     outline: 2px solid var(--gold-deeper);
     outline-offset: 2px;
 }
 
-.asset-dashboard .btn.btn-qc-tab,
-.asset-dashboard a.btn.btn-qc-tab {
+.asset-dashboard .app-table .btn-app-edit-icon.btn-app-danger-icon {
+    border-color: #c53030;
+    color: #b91c1c;
+}
+
+.asset-dashboard .app-table .btn-app-edit-icon.btn-app-danger-icon:hover {
+    background: rgba(220, 38, 38, 0.1);
+    border-color: #dc2626;
+    color: #991b1b;
+}
+
+.asset-dashboard .app-table .btn-app-edit-icon.btn-app-danger-icon:focus-visible {
+    outline: 2px solid #b91c1c;
+    outline-offset: 2px;
+}
+
+.asset-dashboard .btn.btn-app-tab,
+.asset-dashboard a.btn.btn-app-tab {
     display: inline-flex;
     align-items: center;
     justify-content: center;
@@ -439,8 +463,8 @@
     transition: border-color 0.15s, background 0.15s, color 0.15s, box-shadow 0.15s;
 }
 
-.asset-dashboard .btn.btn-qc-tab:hover,
-.asset-dashboard a.btn.btn-qc-tab:hover {
+.asset-dashboard .btn.btn-app-tab:hover,
+.asset-dashboard a.btn.btn-app-tab:hover {
     background: var(--gold-light);
     border-color: var(--gold);
     color: var(--text-dark);
@@ -449,7 +473,7 @@
 }
 
 /* ----- Bulk actions strip ----- */
-.asset-dashboard .qc-bulk-bar {
+.asset-dashboard .app-bulk-bar {
     background: var(--gold-light);
     border: 1px solid var(--gold-pale);
     border-radius: 10px;
@@ -457,7 +481,7 @@
     color: var(--text-dark);
 }
 
-.asset-dashboard .qc-bulk-bar strong {
+.asset-dashboard .app-bulk-bar strong {
     color: var(--gold-deeper);
 }
 
@@ -475,7 +499,7 @@
 }
 
 /* ----- Table controls ----- */
-.asset-dashboard .qc-table .form-select {
+.asset-dashboard .app-table .form-select {
     border: 1.5px solid var(--card-border);
     border-radius: 8px;
     font-size: 0.75rem;
@@ -483,23 +507,145 @@
     padding-bottom: 0.3rem;
 }
 
-.asset-dashboard .qc-table .form-select:focus {
+.asset-dashboard .app-table .form-select:focus {
     border-color: var(--gold);
     box-shadow: 0 0 0 3px rgba(217, 189, 125, 0.2);
 }
 
 /* Status column — select width matches longest option (e.g. "Out of Service") */
-.asset-dashboard .qc-table th.qc-table-col-status,
-.asset-dashboard .qc-table td.qc-table-col-status {
+.asset-dashboard .app-table th.app-table-col-status,
+.asset-dashboard .app-table td.app-table-col-status {
     width: 1%;
     white-space: nowrap;
     box-sizing: border-box;
 }
 
-.asset-dashboard .qc-table td.qc-table-col-status .status-select {
+.asset-dashboard .app-table td.app-table-col-status .status-select {
     width: max-content;
     min-width: max-content;
     field-sizing: content;
+}
+
+/* ----- Settings page (same shell as dashboard) ----- */
+.asset-dashboard.settings-page .settings-tab-bar.filter-bar {
+    align-items: center;
+    align-content: center;
+    /* Slightly tighter shell so larger tab labels keep the same outer bar size */
+    padding: 0.6rem 1.25rem;
+    gap: 0.55rem;
+}
+
+.asset-dashboard.settings-page .settings-tab-link {
+    text-decoration: none;
+    padding: 0.5rem 1rem 0.42rem;
+    border-radius: 9px;
+    font-weight: 700;
+    font-size: 0.9rem;
+    color: var(--text-light);
+    border: 1px solid transparent;
+    border-bottom: 3px solid transparent;
+    transition: background 0.15s, color 0.15s, border-color 0.15s;
+}
+
+.asset-dashboard.settings-page .settings-tab-link:hover {
+    color: var(--text-dark);
+    background: var(--gold-light);
+    border-color: rgba(217, 189, 125, 0.35);
+}
+
+.asset-dashboard.settings-page .settings-tab-link.active {
+    color: var(--text-dark);
+    background: rgba(217, 189, 125, 0.18);
+    border-color: rgba(217, 189, 125, 0.45);
+    border-bottom-color: var(--gold);
+}
+
+.asset-dashboard.settings-page .settings-section-title {
+    margin: 0 0 0.65rem 0;
+    font-size: 0.72rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.07em;
+    color: var(--gold-deeper);
+}
+
+.asset-dashboard.settings-page .settings-label-spacer {
+    display: block;
+    font-size: 0.72rem;
+    font-weight: 700;
+    margin-bottom: 0.3rem;
+    line-height: 1.25;
+    color: transparent;
+    user-select: none;
+}
+
+.asset-dashboard.settings-page .filter-bar .filter-group textarea.form-control {
+    border: 1.5px solid var(--card-border);
+    border-radius: 8px;
+    padding: 0.45rem 0.75rem;
+    font-size: 0.875rem;
+    color: var(--text-dark);
+    background: #fff;
+    outline: none;
+    transition: border-color 0.2s;
+    min-width: 100%;
+}
+
+.asset-dashboard.settings-page .filter-bar .filter-group textarea.form-control:focus {
+    border-color: var(--gold);
+    box-shadow: 0 0 0 3px rgba(217, 189, 125, 0.2);
+}
+
+.asset-dashboard.settings-page .settings-scroll-list {
+    max-height: 400px;
+    overflow-y: auto;
+    border: 1px solid var(--card-border);
+    border-radius: 10px;
+    background: #fff;
+}
+
+.asset-dashboard.settings-page .settings-scroll-list--short {
+    max-height: 200px;
+}
+
+.asset-dashboard.settings-page .settings-scroll-list .list-group-item {
+    margin-bottom: 0;
+    border-radius: 0 !important;
+    border: none;
+    border-bottom: 1px solid var(--gold-light);
+    background: #fff;
+    color: var(--text-dark);
+    font-size: 0.875rem;
+}
+
+.asset-dashboard.settings-page .settings-scroll-list .list-group-item:last-child {
+    border-bottom: none;
+}
+
+.asset-dashboard.settings-page .settings-scroll-list .list-group-item-info,
+.asset-dashboard.settings-page .settings-scroll-list .list-group-item-light {
+    background: var(--gold-light);
+    color: var(--text-dark);
+}
+
+/* Settings tables: stay inside card padding with a little extra air around the table block */
+.asset-dashboard.settings-page .settings-auth-table-bleed {
+    margin-left: 0;
+    margin-right: 0;
+    width: 100%;
+    box-sizing: border-box;
+    padding: 0.35rem 0.5rem 0.75rem;
+}
+
+.asset-dashboard .settings-mgmt-types-table-wrap {
+    max-height: 220px;
+    overflow-y: auto;
+}
+
+.asset-dashboard.settings-page .settings-toolbar {
+    border-bottom: 1px solid var(--card-border);
+    padding-bottom: 0.75rem;
+    margin-bottom: 0.75rem;
 }
 
 /* ----- Dark mode (dashboard only) ----- */
@@ -515,7 +661,7 @@ body.dark-mode .asset-dashboard .page-header {
     border-bottom-color: rgba(217, 189, 125, 0.25);
 }
 
-body.dark-mode .asset-dashboard .qc-card,
+body.dark-mode .asset-dashboard .app-card,
 body.dark-mode .asset-dashboard .stat-card,
 body.dark-mode .asset-dashboard .filter-bar {
     background: #2a2820;
@@ -523,12 +669,12 @@ body.dark-mode .asset-dashboard .filter-bar {
     color: #f5f5f0;
 }
 
-body.dark-mode .asset-dashboard .qc-card .card-header-bar {
+body.dark-mode .asset-dashboard .app-card .card-header-bar {
     background: #2a2820;
     border-bottom-color: rgba(217, 189, 125, 0.22);
 }
 
-body.dark-mode .asset-dashboard .qc-card .card-header-bar h5 {
+body.dark-mode .asset-dashboard .app-card .card-header-bar h5 {
     color: #f5f5f0;
 }
 
@@ -559,39 +705,50 @@ body.dark-mode .asset-dashboard .stat-card .stat-icon {
     color: #fff;
 }
 
-body.dark-mode .asset-dashboard .qc-table thead tr {
+body.dark-mode .asset-dashboard .app-table thead tr {
     background: #332f26;
     border-bottom-color: rgba(217, 189, 125, 0.25);
 }
 
-body.dark-mode .asset-dashboard .qc-table thead th {
+body.dark-mode .asset-dashboard .app-table thead th {
     color: var(--gold-pale);
 }
 
-body.dark-mode .asset-dashboard .qc-table tbody tr {
+body.dark-mode .asset-dashboard .app-table tbody tr {
     border-bottom-color: #3d382a;
 }
 
-body.dark-mode .asset-dashboard .qc-table tbody tr:hover {
+body.dark-mode .asset-dashboard .app-table tbody tr:hover {
     background: #332f26;
 }
 
-body.dark-mode .asset-dashboard .qc-table tbody td {
+body.dark-mode .asset-dashboard .app-table tbody td {
     color: #f0ede4;
 }
 
-body.dark-mode .asset-dashboard .qc-table .btn-qc-edit-icon {
+body.dark-mode .asset-dashboard .app-table .btn-app-edit-icon {
     border-color: rgba(217, 189, 125, 0.55);
     color: var(--gold);
 }
 
-body.dark-mode .asset-dashboard .qc-table .btn-qc-edit-icon:hover {
+body.dark-mode .asset-dashboard .app-table .btn-app-edit-icon:hover {
     background: rgba(217, 189, 125, 0.14);
     border-color: var(--gold-pale);
     color: var(--gold-pale);
 }
 
-body.dark-mode .asset-dashboard .qc-bulk-bar {
+body.dark-mode .asset-dashboard .app-table .btn-app-edit-icon.btn-app-danger-icon {
+    border-color: rgba(248, 113, 113, 0.65);
+    color: #fca5a5;
+}
+
+body.dark-mode .asset-dashboard .app-table .btn-app-edit-icon.btn-app-danger-icon:hover {
+    background: rgba(248, 113, 113, 0.12);
+    border-color: #f87171;
+    color: #fecaca;
+}
+
+body.dark-mode .asset-dashboard .app-bulk-bar {
     background: #332f26;
     border-color: rgba(217, 189, 125, 0.28);
     color: #f5f5f0;
@@ -611,25 +768,25 @@ body.dark-mode .asset-dashboard .asset-register-show-label {
     color: #f0ede4 !important;
 }
 
-body.dark-mode .asset-dashboard .qc-page-nav .qc-page-btn {
+body.dark-mode .asset-dashboard .app-page-nav .app-page-btn {
     background: #2a2820;
     border-color: rgba(217, 189, 125, 0.28);
     color: #e7e5e4;
 }
 
-body.dark-mode .asset-dashboard .qc-page-nav a.qc-page-btn:hover {
+body.dark-mode .asset-dashboard .app-page-nav a.app-page-btn:hover {
     background: #332f26;
     border-color: var(--gold);
     color: #fff;
 }
 
-body.dark-mode .asset-dashboard .qc-page-nav .qc-page-btn.is-active {
+body.dark-mode .asset-dashboard .app-page-nav .app-page-btn.is-active {
     border-color: var(--gold-dark);
     background: rgba(217, 189, 125, 0.18);
     color: var(--gold-pale);
 }
 
-body.dark-mode .asset-dashboard .qc-page-nav .qc-page-ellipsis {
+body.dark-mode .asset-dashboard .app-page-nav .app-page-ellipsis {
     color: #7a7368;
 }
 
@@ -643,7 +800,7 @@ body.dark-mode .asset-dashboard .empty-state {
     color: #9ca3af;
 }
 
-body.dark-mode .asset-dashboard .qc-table .form-select {
+body.dark-mode .asset-dashboard .app-table .form-select {
     background: #1e1c16;
     border-color: #4a4334;
     color: #f5f5f0;
@@ -653,6 +810,59 @@ body.dark-mode .asset-dashboard .badge-type {
     background: rgba(217, 189, 125, 0.15);
     color: var(--gold-pale);
     border-color: rgba(217, 189, 125, 0.35);
+}
+
+body.dark-mode .asset-dashboard.settings-page .settings-tab-link {
+    color: #a8a29a;
+}
+
+body.dark-mode .asset-dashboard.settings-page .settings-tab-link:hover {
+    color: #f5f5f0;
+    background: #332f26;
+    border-color: rgba(217, 189, 125, 0.28);
+}
+
+body.dark-mode .asset-dashboard.settings-page .settings-tab-link.active {
+    color: #f5f5f0;
+    background: rgba(217, 189, 125, 0.14);
+    border-color: rgba(217, 189, 125, 0.35);
+    border-bottom-color: var(--gold);
+}
+
+body.dark-mode .asset-dashboard.settings-page .settings-scroll-list {
+    background: #2a2820;
+    border-color: rgba(217, 189, 125, 0.22);
+}
+
+body.dark-mode .asset-dashboard.settings-page .settings-scroll-list .list-group-item {
+    background: #2a2820;
+    color: #f0ede4;
+    border-bottom-color: #3d382a;
+}
+
+body.dark-mode .asset-dashboard.settings-page .settings-toolbar {
+    border-bottom-color: rgba(217, 189, 125, 0.22);
+}
+
+body.dark-mode .asset-dashboard.settings-page .filter-bar .filter-group textarea.form-control {
+    background: #1e1c16;
+    border-color: #4a4334;
+    color: #f5f5f0;
+}
+
+body.dark-mode .asset-dashboard.settings-page .filter-bar .filter-group textarea.form-control:focus {
+    border-color: var(--gold);
+}
+
+body.dark-mode .asset-dashboard.settings-page .settings-section-title {
+    color: var(--gold-pale);
+}
+
+body.dark-mode .asset-dashboard.settings-page .settings-scroll-list .list-group-item-info,
+body.dark-mode .asset-dashboard.settings-page .settings-scroll-list .list-group-item-light {
+    background: #332f26 !important;
+    color: #f0ede4 !important;
+    border-bottom-color: #3d382a;
 }
 
 @media (max-width: 768px) {
@@ -679,7 +889,7 @@ body.dark-mode .asset-dashboard .badge-type {
         align-items: stretch !important;
     }
 
-    .asset-dashboard .qc-page-nav {
+    .asset-dashboard .app-page-nav {
         justify-content: center;
     }
 }

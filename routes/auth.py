@@ -87,7 +87,7 @@ def add_auth_user():
             conn.commit()
             conn.close()
             flash(f'User "{username}" created successfully with role "{role}".', 'success')
-            return redirect(url_for('assets.dashboard'))
+            return redirect(url_for('assets.settings') + '?tab=users')
         except Exception as e:
             conn.close()
             flash(f'Error creating user: {str(e)}', 'error')
@@ -97,22 +97,10 @@ def add_auth_user():
 @auth_bp.route('/manage_users')
 @login_required
 def manage_users():
-    # Only admin users can manage users
     if current_user.role != 'admin':
         flash('Access denied. Only administrators can manage users.', 'error')
         return redirect(url_for('assets.dashboard'))
-    
-    conn = get_db_connection()
-    cur = conn.cursor()
-    cur.execute('''
-        SELECT ua.id, ua.username, ua.role, ua.created_at
-        FROM users_auth ua
-        ORDER BY ua.created_at DESC
-    ''')
-    users = cur.fetchall()
-    conn.close()
-    
-    return render_template('manage_users.html', users=users)
+    return redirect(url_for('assets.settings') + '?tab=users')
 
 @auth_bp.route('/delete_auth_user/<int:user_id>', methods=['POST'])
 @login_required
@@ -120,7 +108,7 @@ def delete_auth_user(user_id):
     # Only admin users can delete users
     if current_user.role != 'admin':
         flash('Access denied. Only administrators can delete users.', 'error')
-        return redirect(url_for('auth.manage_users'))
+        return redirect(url_for('assets.settings') + '?tab=users')
     
     # Prevent deletion of default admin and purchasing users
     conn = get_db_connection()
@@ -131,13 +119,13 @@ def delete_auth_user(user_id):
     if not user:
         conn.close()
         flash('User not found.', 'error')
-        return redirect(url_for('auth.manage_users'))
+        return redirect(url_for('assets.settings') + '?tab=users')
     
     username = user[0]
     if username in ['admin', 'purchasing']:
         conn.close()
         flash('Cannot delete default admin or purchasing users.', 'error')
-        return redirect(url_for('auth.manage_users'))
+        return redirect(url_for('assets.settings') + '?tab=users')
     
     # Delete the user
     try:
@@ -149,4 +137,4 @@ def delete_auth_user(user_id):
         conn.close()
         flash(f'Error deleting user: {str(e)}', 'error')
     
-    return redirect(url_for('auth.manage_users')) 
+    return redirect(url_for('assets.settings') + '?tab=users') 
