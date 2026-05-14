@@ -5,6 +5,89 @@ import sqlite3
 
 admin_bp = Blueprint('admin', __name__)
 
+# ===== BRAND MANAGEMENT API =====
+
+@admin_bp.route('/brands', methods=['GET'])
+@login_required
+def get_brands():
+    conn = get_db_connection()
+    cur = conn.cursor()
+    cur.execute('SELECT id, name FROM brands ORDER BY name')
+    brands = [{'id': row[0], 'name': row[1]} for row in cur.fetchall()]
+    conn.close()
+    return jsonify(brands)
+
+@admin_bp.route('/brands', methods=['POST'])
+@login_required
+def add_brand():
+    if not current_user.has_it_access():
+        return jsonify({'error': 'Access denied. Only IT users can add brands.'}), 403
+
+    name = request.form.get('name', '').strip()
+    if not name:
+        return jsonify({'error': 'Brand name is required'}), 400
+
+    conn = get_db_connection()
+    cur = conn.cursor()
+    try:
+        cur.execute('INSERT INTO brands (name) VALUES (?)', (name,))
+        brand_id = cur.lastrowid
+        conn.commit()
+        conn.close()
+        return jsonify({'success': True, 'id': brand_id, 'name': name})
+    except sqlite3.IntegrityError:
+        conn.close()
+        return jsonify({'error': 'Brand name already exists'}), 400
+
+@admin_bp.route('/brands/<int:brand_id>', methods=['PUT'])
+@login_required
+def update_brand(brand_id):
+    if not current_user.has_it_access():
+        return jsonify({'error': 'Access denied. Only IT users can update brands.'}), 403
+
+    name = request.form.get('name', '').strip()
+    if not name:
+        return jsonify({'error': 'Brand name is required'}), 400
+
+    conn = get_db_connection()
+    cur = conn.cursor()
+    try:
+        cur.execute('SELECT id FROM brands WHERE id = ?', (brand_id,))
+        if not cur.fetchone():
+            conn.close()
+            return jsonify({'error': 'Brand not found'}), 404
+        cur.execute('UPDATE brands SET name = ? WHERE id = ?', (name, brand_id))
+        conn.commit()
+        conn.close()
+        return jsonify({'success': True, 'id': brand_id, 'name': name})
+    except sqlite3.IntegrityError:
+        conn.close()
+        return jsonify({'error': 'Brand name already exists'}), 400
+
+@admin_bp.route('/brands/<int:brand_id>', methods=['DELETE'])
+@login_required
+def delete_brand(brand_id):
+    if not current_user.has_it_access():
+        return jsonify({'error': 'Access denied. Only IT users can delete brands.'}), 403
+
+    conn = get_db_connection()
+    cur = conn.cursor()
+    cur.execute('SELECT name FROM brands WHERE id = ?', (brand_id,))
+    row = cur.fetchone()
+    if not row:
+        conn.close()
+        return jsonify({'error': 'Brand not found'}), 404
+
+    cur.execute('SELECT COUNT(*) FROM branches WHERE brand_id = ?', (brand_id,))
+    if cur.fetchone()[0] > 0:
+        conn.close()
+        return jsonify({'error': 'Cannot delete brand while branches are assigned to it.'}), 400
+
+    cur.execute('DELETE FROM brands WHERE id = ?', (brand_id,))
+    conn.commit()
+    conn.close()
+    return jsonify({'success': True})
+
 # ===== BRANCH MANAGEMENT API =====
 
 @admin_bp.route('/branches', methods=['GET'])
@@ -12,8 +95,23 @@ admin_bp = Blueprint('admin', __name__)
 def get_branches():
     conn = get_db_connection()
     cur = conn.cursor()
-    cur.execute('SELECT id, name FROM branches ORDER BY name')
-    branches = [{'id': row[0], 'name': row[1]} for row in cur.fetchall()]
+    cur.execute(
+        '''
+        SELECT b.id, b.name, b.brand_id, br.name AS brand_name
+        FROM branches b
+        LEFT JOIN brands br ON b.brand_id = br.id
+        ORDER BY b.name
+        '''
+    )
+    branches = [
+        {
+            'id': row[0],
+            'name': row[1],
+            'brand_id': row[2],
+            'brand_name': row[3],
+        }
+        for row in cur.fetchall()
+    ]
     conn.close()
     return jsonify(branches)
 
@@ -26,15 +124,27 @@ def add_branch():
     name = request.form.get('name', '').strip()
     if not name:
         return jsonify({'error': 'Branch name is required'}), 400
+
+    brand_id_raw = request.form.get('brand_id', '').strip()
+    if not brand_id_raw:
+        return jsonify({'error': 'Brand is required'}), 400
+    try:
+        brand_id = int(brand_id_raw)
+    except ValueError:
+        return jsonify({'error': 'Invalid brand'}), 400
     
     conn = get_db_connection()
     cur = conn.cursor()
+    cur.execute('SELECT id FROM brands WHERE id = ?', (brand_id,))
+    if not cur.fetchone():
+        conn.close()
+        return jsonify({'error': 'Brand not found'}), 404
     try:
-        cur.execute('INSERT INTO branches (name) VALUES (?)', (name,))
+        cur.execute('INSERT INTO branches (name, brand_id) VALUES (?, ?)', (name, brand_id))
         branch_id = cur.lastrowid
         conn.commit()
         conn.close()
-        return jsonify({'success': True, 'id': branch_id, 'name': name})
+        return jsonify({'success': True, 'id': branch_id, 'name': name, 'brand_id': brand_id})
     except sqlite3.IntegrityError:
         conn.close()
         return jsonify({'error': 'Branch name already exists'}), 400
@@ -48,6 +158,14 @@ def update_branch(branch_id):
     name = request.form.get('name', '').strip()
     if not name:
         return jsonify({'error': 'Branch name is required'}), 400
+
+    brand_id_raw = (request.form.get('brand_id') or '').strip()
+    brand_id = None
+    if brand_id_raw:
+        try:
+            brand_id = int(brand_id_raw)
+        except ValueError:
+            return jsonify({'error': 'Invalid brand'}), 400
     
     conn = get_db_connection()
     cur = conn.cursor()
@@ -59,8 +177,15 @@ def update_branch(branch_id):
             return jsonify({'error': 'Branch not found'}), 404
         
         old_name = old_row[0]
-        
-        cur.execute('UPDATE branches SET name = ? WHERE id = ?', (name, branch_id))
+
+        if brand_id is not None:
+            cur.execute('SELECT id FROM brands WHERE id = ?', (brand_id,))
+            if not cur.fetchone():
+                conn.close()
+                return jsonify({'error': 'Brand not found'}), 404
+            cur.execute('UPDATE branches SET name = ?, brand_id = ? WHERE id = ?', (name, brand_id, branch_id))
+        else:
+            cur.execute('UPDATE branches SET name = ? WHERE id = ?', (name, branch_id))
         
         cur.execute('UPDATE assets SET branch = ? WHERE branch = ?', (name, old_name))
         cur.execute('UPDATE archived_assets SET branch = ? WHERE branch = ?', (name, old_name))

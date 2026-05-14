@@ -144,6 +144,14 @@ def init_db():
 
     _migrate_legacy_building_schema(cur)
     conn.commit()
+
+    cur.execute('''
+        CREATE TABLE IF NOT EXISTS brands (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            name TEXT NOT NULL UNIQUE,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+    ''')
     
     # Create branches table (replaces legacy "buildings")
     cur.execute('''
@@ -153,6 +161,20 @@ def init_db():
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         )
     ''')
+    cur.execute('PRAGMA table_info(branches)')
+    _branch_col_names = [row[1] for row in cur.fetchall()]
+    if 'brand_id' not in _branch_col_names:
+        cur.execute('ALTER TABLE branches ADD COLUMN brand_id INTEGER REFERENCES brands(id)')
+    cur.execute('SELECT COUNT(*) FROM branches WHERE brand_id IS NULL')
+    if cur.fetchone()[0] > 0:
+        cur.execute("INSERT OR IGNORE INTO brands (name) VALUES ('Default')")
+        cur.execute("SELECT id FROM brands WHERE name = 'Default' LIMIT 1")
+        _default_brand = cur.fetchone()
+        if _default_brand:
+            cur.execute(
+                'UPDATE branches SET brand_id = ? WHERE brand_id IS NULL',
+                (_default_brand[0],),
+            )
     
     # Create departments table
     cur.execute('''

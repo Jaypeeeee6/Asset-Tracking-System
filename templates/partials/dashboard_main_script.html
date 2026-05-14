@@ -33,6 +33,7 @@ window.chartData = {
 // GLOBAL VARIABLES & STATE MANAGEMENT
 // ============================================================================
 let branchesData = [];
+let brandsData = [];
 let departmentsData = [];
 let selectedAssets = [];
 /** Server print layout preset (2 in x 2 in labels); must match qr_label_layouts.preset_key */
@@ -49,8 +50,75 @@ const QR_LABEL_PRESET = 'label_2x2';
      * Load branches from database and update all related UI components
      * Called on page load and after branch operations
      */
+    function loadBrands() {
+        return fetch('/admin/brands')
+            .then(response => response.json())
+            .then(data => {
+                brandsData = data;
+                updateBrandsList();
+                updateNewBranchBrandSelect();
+            })
+            .catch(error => {
+                console.error('Error loading brands:', error);
+                alert('Failed to load brands. Please refresh the page.');
+                return Promise.reject(error);
+            });
+    }
+
+    function updateNewBranchBrandSelect() {
+        const sel = document.getElementById('newBranchBrand');
+        if (!sel) return;
+        const prev = sel.value;
+        sel.innerHTML = '<option value="">Select brand</option>';
+        const sorted = [...brandsData].sort((a, b) => a.name.localeCompare(b.name));
+        sorted.forEach(brand => {
+            const option = document.createElement('option');
+            option.value = String(brand.id);
+            option.textContent = brand.name;
+            sel.appendChild(option);
+        });
+        if (prev && Array.prototype.some.call(sel.options, function (opt) { return opt.value === prev; })) {
+            sel.value = prev;
+        }
+    }
+
+    function updateBrandsList() {
+        const tbody = document.getElementById('brandsList');
+        if (!tbody) return;
+        tbody.innerHTML = '';
+        const sorted = [...brandsData].sort((a, b) => a.name.localeCompare(b.name));
+        if (sorted.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="3" class="text-center text-muted py-4">No brands yet. Add one above.</td></tr>';
+            return;
+        }
+        sorted.forEach((brand, i) => {
+            const tr = document.createElement('tr');
+            tr.innerHTML = `
+                <td>${i + 1}</td>
+                <td><strong class="brand-name" data-id="${brand.id}">${brand.name}</strong></td>
+                <td>
+                    <div class="d-flex gap-2 flex-wrap align-items-center">
+                        <button type="button" class="btn-app-edit-icon edit-brand-btn" data-id="${brand.id}" data-name="${brand.name}" title="Edit brand" aria-label="Edit brand">
+                            <i class="bi bi-pencil-square" aria-hidden="true"></i>
+                        </button>
+                        <button type="button" class="btn-app-edit-icon btn-app-danger-icon delete-brand-btn" data-id="${brand.id}" data-name="${brand.name}" title="Delete brand" aria-label="Delete brand">
+                            <i class="bi bi-trash" aria-hidden="true"></i>
+                        </button>
+                    </div>
+                </td>
+            `;
+            tbody.appendChild(tr);
+        });
+        document.querySelectorAll('.edit-brand-btn').forEach(btn => {
+            btn.addEventListener('click', handleEditBrand);
+        });
+        document.querySelectorAll('.delete-brand-btn').forEach(btn => {
+            btn.addEventListener('click', handleDeleteBrand);
+        });
+    }
+
     function loadBranches() {
-        fetch('/admin/branches')
+        return fetch('/admin/branches')
             .then(response => response.json())
             .then(data => {
                 branchesData = data;
@@ -119,16 +187,18 @@ const QR_LABEL_PRESET = 'label_2x2';
 
         const sorted = [...branchesData].sort((a, b) => a.name.localeCompare(b.name));
         if (sorted.length === 0) {
-            branchesList.innerHTML = '<tr><td colspan="4" class="text-center text-muted py-4">No branches yet. Add one above.</td></tr>';
+            branchesList.innerHTML = '<tr><td colspan="5" class="text-center text-muted py-4">No branches yet. Add one above.</td></tr>';
             return;
         }
 
         sorted.forEach((building, i) => {
+            const brandLabel = building.brand_name ? building.brand_name : '—';
             const tr = document.createElement('tr');
             tr.innerHTML = `
                 <td><input type="checkbox" class="branch-row-checkbox" value="${building.id}" aria-label="Select ${building.name}"></td>
                 <td>${i + 1}</td>
                 <td><strong class="branch-name" data-id="${building.id}">${building.name}</strong></td>
+                <td>${brandLabel}</td>
                 <td>
                     <div class="d-flex gap-2 flex-wrap align-items-center">
                         <button type="button" class="btn-app-edit-icon edit-branch-btn" data-id="${building.id}" data-name="${building.name}" title="Edit branch" aria-label="Edit branch">
@@ -434,21 +504,61 @@ const QR_LABEL_PRESET = 'label_2x2';
 // EVENT LISTENERS - BRANCH MANAGEMENT
 // ============================================================================
 
+    (function bindBrandMgmt() {
+        const addBrandBtn = document.getElementById('addBrandBtn');
+        if (!addBrandBtn) return;
+        addBrandBtn.addEventListener('click', function() {
+            const nameInput = document.getElementById('newBrandName');
+            const name = nameInput.value.trim();
+            if (!name) {
+                alert('Please enter a brand name.');
+                return;
+            }
+            const formData = new FormData();
+            formData.append('name', name);
+            fetch('/admin/brands', {
+                method: 'POST',
+                body: formData
+            })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        nameInput.value = '';
+                        loadBrands();
+                    } else {
+                        alert(data.error || 'Failed to add brand.');
+                    }
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    alert('Failed to add brand.');
+                });
+        });
+    })();
+
     // Handle adding new branch
     (function bindBranchMgmt() {
         const addBranchBtn = document.getElementById('addBranchBtn');
         if (!addBranchBtn) return;
         addBranchBtn.addEventListener('click', function() {
         const nameInput = document.getElementById('newBranchName');
+        const brandSelect = document.getElementById('newBranchBrand');
         const name = nameInput.value.trim();
-        
+        const brandId = brandSelect ? brandSelect.value : '';
+
         if (!name) {
             alert('Please enter a branch name.');
             return;
         }
 
+        if (!brandId) {
+            alert('Please select a brand for this branch.');
+            return;
+        }
+
         const formData = new FormData();
         formData.append('name', name);
+        formData.append('brand_id', brandId);
 
         fetch('/admin/branches', {
             method: 'POST',
@@ -458,7 +568,7 @@ const QR_LABEL_PRESET = 'label_2x2';
         .then(data => {
             if (data.success) {
                 nameInput.value = '';
-                loadBranches(); // Reload the buildings list
+                loadBranches();
             } else {
                 alert(data.error || 'Failed to add branch.');
             }
@@ -1119,6 +1229,59 @@ const QR_LABEL_PRESET = 'label_2x2';
                 console.error('Error loading owners:', error);
                 ownerSelect.innerHTML = '<option value="">Error loading owners</option>';
             });
+    }
+
+    // Handle editing brand
+    function handleEditBrand(e) {
+        const brandId = e.currentTarget.getAttribute('data-id');
+        const currentName = e.currentTarget.getAttribute('data-name');
+        const newName = prompt('Enter new brand name:', currentName);
+
+        if (newName && newName.trim() !== currentName) {
+            const formData = new FormData();
+            formData.append('name', newName.trim());
+
+            fetch('/admin/brands/' + encodeURIComponent(brandId), {
+                method: 'PUT',
+                body: formData
+            })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        loadBrands().then(function () { return loadBranches(); });
+                    } else {
+                        alert(data.error || 'Failed to update brand.');
+                    }
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    alert('Failed to update brand.');
+                });
+        }
+    }
+
+    // Handle deleting brand
+    function handleDeleteBrand(e) {
+        const brandId = e.currentTarget.getAttribute('data-id');
+        const brandName = e.currentTarget.getAttribute('data-name');
+
+        if (confirm('Are you sure you want to delete brand "' + brandName + '"?')) {
+            fetch('/admin/brands/' + encodeURIComponent(brandId), {
+                method: 'DELETE'
+            })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        loadBrands().then(function () { return loadBranches(); });
+                    } else {
+                        alert(data.error || 'Failed to delete brand.');
+                    }
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    alert('Failed to delete brand.');
+                });
+        }
     }
 
     // Handle editing branch
@@ -2024,7 +2187,9 @@ const QR_LABEL_PRESET = 'label_2x2';
     // Initialize data on page load
     document.addEventListener('DOMContentLoaded', function() {
         setupMgmtBulkDeletes();
-        loadBranches();
+        loadBrands().then(function () {
+            return loadBranches();
+        }).catch(function () {});
         loadDepartments();
         loadUserModalData();
             loadAssetTypes();
@@ -2079,7 +2244,9 @@ const QR_LABEL_PRESET = 'label_2x2';
 
         const branchManagementModal = document.getElementById('branchManagementModal');
         if (branchManagementModal) branchManagementModal.addEventListener('show.bs.modal', function() {
-            loadBranches();
+            loadBrands().then(function () {
+                return loadBranches();
+            }).catch(function () {});
         });
 
         const departmentManagementModal = document.getElementById('departmentManagementModal');
@@ -2360,6 +2527,16 @@ const QR_LABEL_PRESET = 'label_2x2';
     });
 
     (function bindBranchFormShortcuts() {
+        const newBrandName = document.getElementById('newBrandName');
+        const addBrandBtn = document.getElementById('addBrandBtn');
+        if (newBrandName && addBrandBtn) {
+            newBrandName.addEventListener('keypress', function(e) {
+                if (e.key === 'Enter') {
+                    addBrandBtn.click();
+                }
+            });
+        }
+
         const newBranchName = document.getElementById('newBranchName');
         const addBranchBtn = document.getElementById('addBranchBtn');
         if (newBranchName && addBranchBtn) {

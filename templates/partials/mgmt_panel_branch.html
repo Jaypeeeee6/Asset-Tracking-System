@@ -1,13 +1,46 @@
 {% from "macros/app_components.html" import add_button %}
 <div class="settings-panel-stack">
-  <div class="filter-bar settings-panel-form">
-    <div class="filter-group" style="flex: 1; min-width: 200px; max-width: 420px;">
-      <label for="newBranchName">New branch</label>
-      <input type="text" class="form-control" id="newBranchName" placeholder="Enter branch name" maxlength="100">
+  <div class="filter-bar settings-panel-form flex-wrap mb-3 pb-3 border-bottom">
+    <div class="filter-group" style="flex: 1; min-width: 160px; max-width: 280px;">
+      <label for="newBrandName">New brand</label>
+      <input type="text" class="form-control" id="newBrandName" placeholder="Enter brand name" maxlength="100">
     </div>
     <div class="filter-group">
       <label class="settings-label-spacer" aria-hidden="true">&nbsp;</label>
-      {{ add_button('Add', button_id='addBranchBtn') }}
+      {{ add_button('Add brand', button_id='addBrandBtn') }}
+    </div>
+  </div>
+
+  <div class="filter-bar settings-panel-form flex-wrap mb-3">
+    <div class="filter-group" style="flex: 1; min-width: 180px; max-width: 320px;">
+      <label for="newBranchName">New branch</label>
+      <input type="text" class="form-control" id="newBranchName" placeholder="Enter branch name" maxlength="100">
+    </div>
+    <div class="filter-group" style="min-width: 180px;">
+      <label for="newBranchBrand">Brand</label>
+      <select class="form-select app-select-with-chevron" id="newBranchBrand" required aria-required="true">
+        <option value="">Select brand</option>
+      </select>
+    </div>
+    <div class="filter-group">
+      <label class="settings-label-spacer" aria-hidden="true">&nbsp;</label>
+      {{ add_button('Add branch', button_id='addBranchBtn') }}
+    </div>
+  </div>
+
+  <h6 class="settings-section-title mb-2">Existing brands</h6>
+  <div class="settings-auth-table-bleed mb-4">
+    <div style="overflow-x:auto;">
+      <table class="app-table" style="width: 100%; min-width: 400px;">
+        <thead>
+          <tr>
+            <th>#</th>
+            <th>Brand name</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody id="brandsList"></tbody>
+      </table>
     </div>
   </div>
 
@@ -27,12 +60,13 @@
   </div>
   <div class="settings-auth-table-bleed">
     <div style="overflow-x:auto;">
-      <table class="app-table" style="width: 100%; min-width: 520px;">
+      <table class="app-table" style="width: 100%; min-width: 560px;">
         <thead>
           <tr>
             <th><input type="checkbox" id="selectAllBranchesCheckbox" title="Select all" aria-label="Select all branches"></th>
             <th>#</th>
             <th>Branch name</th>
+            <th>Brand</th>
             <th>Actions</th>
           </tr>
         </thead>
