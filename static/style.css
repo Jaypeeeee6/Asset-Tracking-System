@@ -450,12 +450,12 @@ h1, .modal-title {
     padding: 0.25rem 0.5rem;
 }
 
-.role-admin {
+.role-it {
     background-color: #dc3545;
     color: white;
 }
 
-.role-purchasing {
+.role-management {
     background-color: #fd7e14;
     color: white;
 }

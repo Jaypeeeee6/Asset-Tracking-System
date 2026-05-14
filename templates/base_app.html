@@ -14,7 +14,7 @@
     {% block extra_head %}{% endblock %}
     <link rel="stylesheet" href="{{ url_for('static', filename='app-modals.css') }}">
 </head>
-<body>
+<body{% if current_user.is_authenticated %} data-app-auth-role="{{ current_user.role }}" data-it-access="{{ has_it_access()|tojson }}"{% endif %}>
 {% include 'partials/app_navbar.html' %}
 <div id="wrapper" class="app-shell {% if current_user.is_authenticated %}app-shell--authed{% else %}app-shell--public{% endif %}">
 {% if current_user.is_authenticated %}

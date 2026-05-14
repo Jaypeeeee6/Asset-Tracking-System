@@ -20,6 +20,15 @@ def create_app():
     
     # Add built-in functions to Jinja2 environment
     app.jinja_env.globals.update(max=max, min=min)
+
+    @app.template_global()
+    def has_it_access():
+        """Jinja: same checks as ``User.has_it_access()`` (legacy admin-equivalent)."""
+        from flask_login import current_user
+
+        if not current_user.is_authenticated:
+            return False
+        return current_user.has_it_access()
     
     # SECURITY: Add security headers
     @app.after_request
@@ -39,11 +48,18 @@ def create_app():
     def load_user(user_id):
         conn = get_db_connection()
         cur = conn.cursor()
-        cur.execute('SELECT id, username, role FROM users_auth WHERE id = ?', (user_id,))
+        cur.execute(
+            'SELECT id, username, role, full_name FROM users_auth WHERE id = ?',
+            (user_id,),
+        )
         user_data = cur.fetchone()
         conn.close()
         if user_data:
-            return User(user_data[0], user_data[1], user_data[2])
+            try:
+                fn = user_data['full_name'] or ''
+            except (KeyError, IndexError):
+                fn = ''
+            return User(user_data[0], user_data[1], user_data[2], fn)
         return None
     
     # Register blueprints

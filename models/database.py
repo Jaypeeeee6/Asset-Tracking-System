@@ -2,6 +2,8 @@ import sqlite3
 import uuid
 from flask import current_app
 
+from utils.auth_roles import AUTH_ROLE_IT, AUTH_ROLE_MANAGEMENT
+
 def get_db_connection():
     conn = sqlite3.connect(current_app.config['DATABASE'], timeout=10, check_same_thread=False)
     conn.row_factory = sqlite3.Row
@@ -68,6 +70,74 @@ def _migrate_legacy_building_schema(cur):
             cur.execute('ALTER TABLE archived_assets RENAME COLUMN building TO branch')
 
 
+def _migrate_users_auth_schema(conn):
+    """Add full_name, migrate admin/purchasing roles to IT/Management, and rebuild table when CHECK blocks updates."""
+    cur = conn.cursor()
+    cur.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='users_auth'")
+    if not cur.fetchone():
+        return
+    cur.execute('PRAGMA table_info(users_auth)')
+    col_names = [row[1] for row in cur.fetchall()]
+    has_full_name = 'full_name' in col_names
+    cur.execute("SELECT COUNT(*) FROM users_auth WHERE role IN ('admin', 'purchasing')")
+    needs_role_migration = cur.fetchone()[0] > 0
+    if has_full_name and not needs_role_migration:
+        return
+
+    cur.execute('SELECT * FROM users_auth')
+    rows = list(cur.fetchall())
+    cur.execute('DROP TABLE users_auth')
+    cur.execute(
+        '''
+        CREATE TABLE users_auth (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            username TEXT NOT NULL UNIQUE,
+            password_hash TEXT NOT NULL,
+            encrypted_password TEXT NOT NULL,
+            full_name TEXT NOT NULL DEFAULT '',
+            role TEXT NOT NULL CHECK (role IN ('IT', 'Management')),
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+        '''
+    )
+    for r in rows:
+        username = r['username']
+        old_role = r['role']
+        new_role = {'admin': AUTH_ROLE_IT, 'purchasing': AUTH_ROLE_MANAGEMENT}.get(old_role, old_role)
+        if new_role not in (AUTH_ROLE_IT, AUTH_ROLE_MANAGEMENT):
+            new_role = AUTH_ROLE_MANAGEMENT
+        if has_full_name:
+            fn = (r['full_name'] or '').strip()
+        else:
+            fn = ''
+        if not fn and str(username).lower() == 'admin' and old_role == 'admin':
+            fn = 'Super Admin'
+        elif not fn:
+            fn = str(username).strip().title() if str(username).strip() else 'User'
+        cur.execute(
+            '''
+            INSERT INTO users_auth
+            (id, username, password_hash, encrypted_password, full_name, role, created_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?)
+            ''',
+            (
+                r['id'],
+                r['username'],
+                r['password_hash'],
+                r['encrypted_password'],
+                fn,
+                new_role,
+                r['created_at'],
+            ),
+        )
+    cur.execute('SELECT MAX(id) FROM users_auth')
+    mx = cur.fetchone()[0]
+    if mx:
+        cur.execute("DELETE FROM sqlite_sequence WHERE name='users_auth'")
+        cur.execute("INSERT INTO sqlite_sequence (name, seq) VALUES ('users_auth', ?)", (mx,))
+    conn.commit()
+
+
 def init_db():
     conn = get_db_connection()
     cur = conn.cursor()
@@ -115,10 +185,12 @@ def init_db():
             username TEXT NOT NULL UNIQUE,
             password_hash TEXT NOT NULL,
             encrypted_password TEXT NOT NULL,
-            role TEXT NOT NULL CHECK (role IN ('admin', 'purchasing')),
+            full_name TEXT NOT NULL DEFAULT '',
+            role TEXT NOT NULL CHECK (role IN ('IT', 'Management')),
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         )
     ''')
+    _migrate_users_auth_schema(conn)
     
     # Create assets table
     cur.execute('''
@@ -198,7 +270,7 @@ def init_db():
     # Users can now add their own branches, departments, and users as needed
     
     # Note: Default auth users seeding has been removed
-    # Users must create their own admin account through the web interface
+    # IT users manage login accounts from Settings
     
     conn.commit()
     cur.execute("SELECT id FROM assets WHERE qr_random_code IS NULL OR qr_random_code = ''")

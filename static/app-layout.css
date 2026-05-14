@@ -93,6 +93,13 @@ body {
     font-size: 0.85rem;
 }
 
+.user-info-pill .user-info-pill-name {
+    max-width: 14rem;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
 .role-badge {
     font-size: 0.7rem;
     padding: 0.18rem 0.6rem;
@@ -103,11 +110,11 @@ body {
     display: inline-block;
 }
 
-.role-badge.admin      { background: var(--gold-pale); color: var(--gold-deeper); }
-.role-badge.purchasing { background: #DCFCE7; color: #166534; }
+.role-badge.role-it { background: var(--gold-pale); color: var(--gold-deeper); }
+.role-badge.role-management { background: #DCFCE7; color: #166534; }
 
-.app-navbar .role-badge.admin,
-.app-navbar .role-badge.purchasing { background: rgba(217,189,125,0.2); color: var(--gold); }
+.app-navbar .role-badge.role-it,
+.app-navbar .role-badge.role-management { background: rgba(217,189,125,0.2); color: var(--gold); }
 
 #wrapper {
     display: flex;

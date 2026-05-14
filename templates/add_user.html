@@ -138,12 +138,23 @@
             <div class="role-info">
                 <strong><i class="fas fa-info-circle"></i> Role Information:</strong>
                 <ul class="mb-0 mt-1">
-                    <li><strong>Admin:</strong> Full access to all features including user management</li>
-                    <li><strong>Purchasing:</strong> Full access to asset management features</li>
+                    <li><strong>IT:</strong> Full access including Settings, user accounts, branches, departments, and asset configuration</li>
+                    <li><strong>Management:</strong> Dashboard asset register (add, edit, archive to the archive list, QR codes); Settings and permanent archive actions remain with IT</li>
                 </ul>
             </div>
 
             <form method="POST" action="{{ url_for('auth.add_auth_user') }}">
+                <div class="row">
+                    <div class="col-md-12">
+                        <div class="form-group mb-3">
+                            <label for="full_name" class="form-label">
+                                <i class="fas fa-id-card"></i> Full name
+                            </label>
+                            <input type="text" class="form-control" id="full_name" name="full_name"
+                                   required placeholder="Enter full name" autocomplete="name">
+                        </div>
+                    </div>
+                </div>
                 <div class="row">
                     <div class="col-md-6">
                         <div class="form-group">
@@ -151,7 +162,7 @@
                                 <i class="fas fa-user"></i> Username
                             </label>
                             <input type="text" class="form-control" id="username" name="username"
-                                   required placeholder="Enter username">
+                                   required placeholder="Enter username" autocomplete="username">
                         </div>
                     </div>
                     <div class="col-md-6">
@@ -161,8 +172,8 @@
                             </label>
                             <select class="form-select" id="role" name="role" required>
                                 <option value="">Select Role</option>
-                                <option value="admin">Admin</option>
-                                <option value="purchasing">Purchasing</option>
+                                <option value="IT">IT</option>
+                                <option value="Management">Management</option>
                             </select>
                         </div>
                     </div>
@@ -192,7 +203,7 @@
 
                 <div class="d-flex justify-content-between">
                     <a href="{{ url_for('assets.settings') }}?tab=users" class="btn btn-secondary">
-                        <i class="fas fa-arrow-left"></i> Back to Manage Users
+                        <i class="fas fa-arrow-left"></i> Back to User Accounts
                     </a>
                     <button type="submit" class="btn btn-primary">
                         <i class="fas fa-user-plus"></i> Create User

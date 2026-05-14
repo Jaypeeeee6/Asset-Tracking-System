@@ -1,5 +1,5 @@
 {% extends "base_app.html" %}
-{% from "macros/app_components.html" import add_button %}
+{% from "macros/app_components.html" import add_button, modal_cancel_button %}
 {% block title %}Settings — Asset Tracking System{% endblock %}
 {% block extra_head %}
 <link rel="stylesheet" href="{{ url_for('static', filename='app-dashboard.css') }}">
@@ -27,7 +27,7 @@
             <h1><i class="bi bi-gear-wide-connected" style="color:var(--gold);" aria-hidden="true"></i>Settings</h1>
             <p class="subtitle">
                 {% if active_tab == 'users' %}
-                    Login accounts and access roles
+                    User accounts and access roles
                 {% elif active_tab == 'branches' %}
                     Branch locations
                 {% elif active_tab == 'departments' %}
@@ -54,7 +54,7 @@
     </div>
 
     <div class="filter-bar settings-tab-bar" role="tablist" aria-label="Settings sections">
-        <a href="{{ url_for('assets.settings') }}?tab=users" class="settings-tab-link {{ 'active' if active_tab == 'users' }}" role="tab" aria-selected="{{ 'true' if active_tab == 'users' else 'false' }}">Users</a>
+        <a href="{{ url_for('assets.settings') }}?tab=users" class="settings-tab-link {{ 'active' if active_tab == 'users' }}" role="tab" aria-selected="{{ 'true' if active_tab == 'users' else 'false' }}">User Accounts</a>
         <a href="{{ url_for('assets.settings') }}?tab=branches" class="settings-tab-link {{ 'active' if active_tab == 'branches' }}" role="tab" aria-selected="{{ 'true' if active_tab == 'branches' else 'false' }}">Branches</a>
         <a href="{{ url_for('assets.settings') }}?tab=departments" class="settings-tab-link {{ 'active' if active_tab == 'departments' }}" role="tab" aria-selected="{{ 'true' if active_tab == 'departments' else 'false' }}">Departments</a>
         <a href="{{ url_for('assets.settings') }}?tab=employees" class="settings-tab-link {{ 'active' if active_tab == 'employees' }}" role="tab" aria-selected="{{ 'true' if active_tab == 'employees' else 'false' }}">Employees</a>
@@ -100,24 +100,75 @@
         </div>
     </div>
 </div>
+
+<div class="modal fade app-modal" id="editUserModal" tabindex="-1" aria-labelledby="editUserModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg app-modal-dialog-comfort">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="editUserModalLabel"><i class="bi bi-pencil-square me-2" style="color:var(--gold);" aria-hidden="true"></i>Edit User</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <form id="editUserForm" method="post" action="">
+                <div class="modal-body" style="overflow-y: auto; max-height: 70vh;">
+                    <div class="app-modal-tip mb-3" role="note">
+                        <i class="bi bi-info-circle" aria-hidden="true"></i>
+                        <strong>Editing account:</strong>
+                        <span id="editUserDisplayName"></span>
+                    </div>
+                    <div class="mb-3">
+                        <label for="editUserFullName" class="form-label">Full name</label>
+                        <input type="text" class="form-control" id="editUserFullName" name="full_name" required autocomplete="name">
+                        <div id="editUserProtectedHelp" class="form-text d-none">Built-in Super Admin (IT) accounts cannot change full name or role.</div>
+                    </div>
+                    <div class="mb-3">
+                        <label for="editUserUsername" class="form-label">Username</label>
+                        <input type="text" class="form-control" id="editUserUsername" name="username" required autocomplete="username">
+                    </div>
+                    <div class="mb-3">
+                        <label for="editUserRole" class="form-label">Role</label>
+                        <select class="form-select" id="editUserRole" name="role" required>
+                            <option value="IT">IT</option>
+                            <option value="Management">Management</option>
+                        </select>
+                    </div>
+                    <div class="mb-0">
+                        <label for="editUserPassword" class="form-label">New password</label>
+                        <input type="password" class="form-control" id="editUserPassword" name="password" autocomplete="new-password" placeholder="Leave blank to keep current password">
+                        <div class="form-text">
+                            <i class="bi bi-info-circle" aria-hidden="true"></i>
+                            Optional. Minimum 6 characters recommended when changing.
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">{{ modal_cancel_button('Cancel') }}{{ add_button('Save changes', button_type='submit', icon='bi bi-check-lg') }}</div>
+            </form>
+        </div>
+    </div>
+</div>
 {% endblock %}
 
 {% block extra_scripts %}
 <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 {% include 'partials/dashboard_main_script.html' %}
 <script>
-function showUserDetails(username, role) {
+function showUserDetails(username, fullName, role) {
     const modal = new bootstrap.Modal(document.getElementById('userDetailsModal'));
     const content = document.getElementById('userDetailsContent');
+    const roleSlug = String(role || '').toLowerCase().replace(/\s+/g, '-');
+    const roleLabel = String(role || '');
     content.innerHTML = `
         <div class="row">
-            <div class="col-md-6">
+            <div class="col-md-4">
+                <strong>Full name:</strong><br>
+                <span class="text-muted">${fullName}</span>
+            </div>
+            <div class="col-md-4">
                 <strong>Username:</strong><br>
                 <span class="text-muted">${username}</span>
             </div>
-            <div class="col-md-6">
+            <div class="col-md-4">
                 <strong>Role:</strong><br>
-                <span class="badge role-${role}">${role.charAt(0).toUpperCase() + role.slice(1)}</span>
+                <span class="badge role-badge role-${roleSlug}">${roleLabel}</span>
             </div>
         </div>
         <hr>
@@ -125,9 +176,9 @@ function showUserDetails(username, role) {
             <div class="col-12">
                 <strong>Permissions:</strong><br>
                 <ul class="mt-2">
-                    ${role === 'admin'
-                        ? '<li>Full access to all features</li><li>User management</li><li>System administration</li>'
-                        : '<li>Asset management</li><li>View all assets</li><li>Add/edit/delete assets</li><li>Department management</li>'}
+                    ${role === 'IT'
+                        ? '<li>Full access to all features</li><li>Settings and user accounts</li><li>Branches, departments, and asset configuration</li>'
+                        : '<li>Asset management on the dashboard</li><li>View, add, edit, and archive assets</li><li>QR codes and asset tracking</li>'}
                 </ul>
             </div>
         </div>
@@ -154,6 +205,61 @@ function deleteUser(userId, username) {
 }
 
 document.addEventListener('DOMContentLoaded', function () {
+    const editUserModalEl = document.getElementById('editUserModal');
+    if (editUserModalEl) {
+        editUserModalEl.addEventListener('show.bs.modal', function (event) {
+            let btn = event.relatedTarget;
+            if (btn && btn.nodeType === Node.ELEMENT_NODE && !btn.classList.contains('edit-auth-user-btn')) {
+                btn = btn.closest('.edit-auth-user-btn');
+            }
+            if (!btn || !btn.classList.contains('edit-auth-user-btn')) {
+                return;
+            }
+            const userId = btn.getAttribute('data-user-id');
+            const username = btn.getAttribute('data-username') || '';
+            const fullName = btn.getAttribute('data-full-name') || '';
+            const role = btn.getAttribute('data-role') || 'Management';
+            const accountProtected = btn.getAttribute('data-account-protected') === 'true';
+
+            const form = document.getElementById('editUserForm');
+            const fullNameField = document.getElementById('editUserFullName');
+            const userField = document.getElementById('editUserUsername');
+            const roleField = document.getElementById('editUserRole');
+            const passField = document.getElementById('editUserPassword');
+            const help = document.getElementById('editUserProtectedHelp');
+            const displayName = document.getElementById('editUserDisplayName');
+            if (!form || !fullNameField || !userField || !roleField || !passField) {
+                return;
+            }
+
+            form.action = '/auth/edit_auth_user/' + String(parseInt(userId, 10));
+            if (displayName) {
+                displayName.textContent = fullName ? fullName + ' (' + username + ')' : username;
+            }
+            fullNameField.value = fullName;
+            fullNameField.readOnly = accountProtected;
+            fullNameField.classList.toggle('bg-light', accountProtected);
+            userField.value = username;
+            userField.readOnly = false;
+            userField.classList.remove('bg-light');
+            roleField.value = role;
+            if (accountProtected) {
+                roleField.removeAttribute('disabled');
+                roleField.style.pointerEvents = 'none';
+                roleField.style.opacity = '0.85';
+            } else {
+                roleField.removeAttribute('disabled');
+                roleField.style.pointerEvents = '';
+                roleField.style.opacity = '';
+            }
+            roleField.classList.toggle('bg-light', accountProtected);
+            if (help) {
+                help.classList.toggle('d-none', !accountProtected);
+            }
+            passField.value = '';
+        });
+    }
+
     const bulkDeleteBtn = document.getElementById('bulkDeleteBtn');
     const selectAllUsers = document.getElementById('selectAllUsersCheckbox');
     const checkboxes = document.querySelectorAll('.user-checkbox');

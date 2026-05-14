@@ -20,8 +20,8 @@ def get_branches():
 @admin_bp.route('/branches', methods=['POST'])
 @login_required
 def add_branch():
-    if current_user.role != 'admin':
-        return jsonify({'error': 'Access denied. Only administrators can add branches.'}), 403
+    if not current_user.has_it_access():
+        return jsonify({'error': 'Access denied. Only IT users can add branches.'}), 403
     
     name = request.form.get('name', '').strip()
     if not name:
@@ -42,8 +42,8 @@ def add_branch():
 @admin_bp.route('/branches/<int:branch_id>', methods=['PUT'])
 @login_required
 def update_branch(branch_id):
-    if current_user.role != 'admin':
-        return jsonify({'error': 'Access denied. Only administrators can update branches.'}), 403
+    if not current_user.has_it_access():
+        return jsonify({'error': 'Access denied. Only IT users can update branches.'}), 403
     
     name = request.form.get('name', '').strip()
     if not name:
@@ -75,8 +75,8 @@ def update_branch(branch_id):
 @admin_bp.route('/branches/<int:branch_id>', methods=['DELETE'])
 @login_required
 def delete_branch(branch_id):
-    if current_user.role != 'admin':
-        return jsonify({'error': 'Access denied. Only administrators can delete branches.'}), 403
+    if not current_user.has_it_access():
+        return jsonify({'error': 'Access denied. Only IT users can delete branches.'}), 403
     
     conn = get_db_connection()
     cur = conn.cursor()
@@ -131,9 +131,9 @@ def get_departments():
 @admin_bp.route('/departments', methods=['POST'])
 @login_required
 def add_department():
-    # Only admin users can add departments
-    if current_user.role != 'admin':
-        return jsonify({'error': 'Access denied. Only administrators can add departments.'}), 403
+    # Only IT users (legacy admin-equivalent) can add departments
+    if not current_user.has_it_access():
+        return jsonify({'error': 'Access denied. Only IT users can add departments.'}), 403
     
     name = request.form.get('name', '').strip()
     branch_id = request.form.get('branch_id') or request.form.get('building_id')
@@ -164,9 +164,9 @@ def add_department():
 @admin_bp.route('/departments/<int:department_id>', methods=['PUT'])
 @login_required
 def update_department(department_id):
-    # Only admin users can update departments
-    if current_user.role != 'admin':
-        return jsonify({'error': 'Access denied. Only administrators can update departments.'}), 403
+    # Only IT users can update departments
+    if not current_user.has_it_access():
+        return jsonify({'error': 'Access denied. Only IT users can update departments.'}), 403
     
     name = request.form.get('name', '').strip()
     if not name:
@@ -200,9 +200,9 @@ def update_department(department_id):
 @admin_bp.route('/departments/<int:department_id>', methods=['DELETE'])
 @login_required
 def delete_department(department_id):
-    # Only admin users can delete departments
-    if current_user.role != 'admin':
-        return jsonify({'error': 'Access denied. Only administrators can delete departments.'}), 403
+    # Only IT users can delete departments
+    if not current_user.has_it_access():
+        return jsonify({'error': 'Access denied. Only IT users can delete departments.'}), 403
     
     conn = get_db_connection()
     cur = conn.cursor()
@@ -265,9 +265,9 @@ def get_users():
 @admin_bp.route('/users', methods=['POST'])
 @login_required
 def add_user():
-    # Only admin users can add users
-    if current_user.role != 'admin':
-        return jsonify({'error': 'Access denied. Only administrators can add users.'}), 403
+    # Only IT users can add users
+    if not current_user.has_it_access():
+        return jsonify({'error': 'Access denied. Only IT users can add users.'}), 403
     
     data = request.get_json()
     name = data.get('name', '').strip()
@@ -301,9 +301,9 @@ def add_user():
 @admin_bp.route('/users/bulk', methods=['POST'])
 @login_required
 def add_bulk_users():
-    # Only admin users can add bulk users
-    if current_user.role != 'admin':
-        return jsonify({'error': 'Access denied. Only administrators can add bulk users.'}), 403
+    # Only IT users can add bulk users
+    if not current_user.has_it_access():
+        return jsonify({'error': 'Access denied. Only IT users can add bulk users.'}), 403
     
     data = request.get_json()
     users_data = data.get('users', [])
@@ -356,9 +356,9 @@ def add_bulk_users():
 @admin_bp.route('/users/<int:user_id>', methods=['PUT'])
 @login_required
 def update_user(user_id):
-    # Only admin users can update users
-    if current_user.role != 'admin':
-        return jsonify({'error': 'Access denied. Only administrators can update users.'}), 403
+    # Only IT users can update users
+    if not current_user.has_it_access():
+        return jsonify({'error': 'Access denied. Only IT users can update users.'}), 403
     
     data = request.get_json()
     name = data.get('name', '').strip()
@@ -403,9 +403,9 @@ def update_user(user_id):
 @admin_bp.route('/users/<int:user_id>', methods=['DELETE'])
 @login_required
 def delete_user(user_id):
-    # Only admin users can delete users
-    if current_user.role != 'admin':
-        return jsonify({'error': 'Access denied. Only administrators can delete users.'}), 403
+    # Only IT users can delete users
+    if not current_user.has_it_access():
+        return jsonify({'error': 'Access denied. Only IT users can delete users.'}), 403
     
     conn = get_db_connection()
     cur = conn.cursor()
@@ -454,9 +454,9 @@ def get_asset_types():
 @admin_bp.route('/asset-types', methods=['POST'])
 @login_required
 def add_asset_type():
-    # Only admin users can add asset types
-    if current_user.role != 'admin':
-        return jsonify({'error': 'Access denied. Only administrators can add asset types.'}), 403
+    # Only IT users can add asset types
+    if not current_user.has_it_access():
+        return jsonify({'error': 'Access denied. Only IT users can add asset types.'}), 403
     
     name = request.form.get('name', '').strip()
     if not name:
@@ -477,9 +477,9 @@ def add_asset_type():
 @admin_bp.route('/asset-types/<int:asset_type_id>', methods=['PUT'])
 @login_required
 def update_asset_type(asset_type_id):
-    # Only admin users can update asset types
-    if current_user.role != 'admin':
-        return jsonify({'error': 'Access denied. Only administrators can update asset types.'}), 403
+    # Only IT users can update asset types
+    if not current_user.has_it_access():
+        return jsonify({'error': 'Access denied. Only IT users can update asset types.'}), 403
     
     name = request.form.get('name', '').strip()
     if not name:
@@ -513,9 +513,9 @@ def update_asset_type(asset_type_id):
 @admin_bp.route('/asset-types/<int:asset_type_id>', methods=['DELETE'])
 @login_required
 def delete_asset_type(asset_type_id):
-    # Only admin users can delete asset types
-    if current_user.role != 'admin':
-        return jsonify({'error': 'Access denied. Only administrators can delete asset types.'}), 403
+    # Only IT users can delete asset types
+    if not current_user.has_it_access():
+        return jsonify({'error': 'Access denied. Only IT users can delete asset types.'}), 403
     
     conn = get_db_connection()
     cur = conn.cursor()
@@ -575,9 +575,9 @@ def get_asset_names():
 @admin_bp.route('/asset-names', methods=['POST'])
 @login_required
 def add_asset_name():
-    # Only admin users can add asset names
-    if current_user.role != 'admin':
-        return jsonify({'error': 'Access denied. Only administrators can add asset names.'}), 403
+    # Only IT users can add asset names
+    if not current_user.has_it_access():
+        return jsonify({'error': 'Access denied. Only IT users can add asset names.'}), 403
     
     name = request.form.get('name', '').strip()
     asset_type_id = request.form.get('asset_type_id')
@@ -608,9 +608,9 @@ def add_asset_name():
 @admin_bp.route('/asset-names/<int:asset_name_id>', methods=['PUT'])
 @login_required
 def update_asset_name(asset_name_id):
-    # Only admin users can update asset names
-    if current_user.role != 'admin':
-        return jsonify({'error': 'Access denied. Only administrators can update asset names.'}), 403
+    # Only IT users can update asset names
+    if not current_user.has_it_access():
+        return jsonify({'error': 'Access denied. Only IT users can update asset names.'}), 403
     
     name = request.form.get('name', '').strip()
     if not name:
@@ -644,9 +644,9 @@ def update_asset_name(asset_name_id):
 @admin_bp.route('/asset-names/<int:asset_name_id>', methods=['DELETE'])
 @login_required
 def delete_asset_name(asset_name_id):
-    # Only admin users can delete asset names
-    if current_user.role != 'admin':
-        return jsonify({'error': 'Access denied. Only administrators can delete asset names.'}), 403
+    # Only IT users can delete asset names
+    if not current_user.has_it_access():
+        return jsonify({'error': 'Access denied. Only IT users can delete asset names.'}), 403
     
     conn = get_db_connection()
     cur = conn.cursor()

@@ -243,7 +243,7 @@ def _archived_filter_where_from_request():
 @login_required
 def matching_archived_ids():
     """All archived asset ids+names matching current archive search (ignores pagination)."""
-    if current_user.role != 'admin':
+    if not current_user.has_it_access():
         return jsonify({'error': 'Forbidden'}), 403
     where_sql, params = _archived_filter_where_from_request()
     conn = get_db_connection()
@@ -268,8 +268,8 @@ _SETTINGS_CHART_DATA = {
 @assets_bp.route('/settings')
 @login_required
 def settings():
-    if current_user.role != 'admin':
-        flash('Access denied. Only administrators can open settings.', 'error')
+    if not current_user.has_it_access():
+        flash('Access denied. Only IT users can open settings.', 'error')
         return redirect(url_for('assets.dashboard'))
     tab = (request.args.get('tab') or 'users').strip().lower()
     if tab not in ('users', 'branches', 'departments', 'employees', 'assets'):
@@ -280,7 +280,7 @@ def settings():
         cur = conn.cursor()
         cur.execute(
             '''
-            SELECT ua.id, ua.username, ua.role, ua.created_at
+            SELECT ua.id, ua.username, ua.full_name, ua.role, ua.created_at
             FROM users_auth ua
             ORDER BY ua.created_at DESC
             '''
@@ -804,7 +804,7 @@ def get_assets():
 @assets_bp.route('/archive')
 @login_required
 def archive():
-    if current_user.role != 'admin':
+    if not current_user.has_it_access():
         return redirect(url_for('assets.dashboard'))
     
     page = int(request.args.get('page', 1))
@@ -865,8 +865,8 @@ def archive():
 @assets_bp.route('/restore/<int:archived_id>', methods=['POST'])
 @login_required
 def restore_asset(archived_id):
-    if current_user.role != 'admin':
-        return jsonify({'error': 'Access denied. Only administrators can restore assets.'}), 403
+    if not current_user.has_it_access():
+        return jsonify({'error': 'Access denied. Only IT users can restore assets.'}), 403
     
     conn = get_db_connection()
     cur = conn.cursor()
@@ -917,8 +917,8 @@ def restore_asset(archived_id):
 @assets_bp.route('/bulk_restore', methods=['POST'])
 @login_required
 def bulk_restore_assets():
-    if current_user.role != 'admin':
-        return jsonify({'error': 'Access denied. Only administrators can restore assets.'}), 403
+    if not current_user.has_it_access():
+        return jsonify({'error': 'Access denied. Only IT users can restore assets.'}), 403
     
     archived_ids = request.form.getlist('archived_ids[]')
     
@@ -992,8 +992,8 @@ def bulk_restore_assets():
 @assets_bp.route('/permanent_delete/<int:archived_id>', methods=['POST'])
 @login_required
 def permanent_delete_archived_asset(archived_id):
-    if current_user.role != 'admin':
-        return jsonify({'error': 'Access denied. Only administrators can permanently delete assets.'}), 403
+    if not current_user.has_it_access():
+        return jsonify({'error': 'Access denied. Only IT users can permanently delete assets.'}), 403
     
     conn = get_db_connection()
     cur = conn.cursor()
@@ -1021,8 +1021,8 @@ def permanent_delete_archived_asset(archived_id):
 @assets_bp.route('/bulk_permanent_delete', methods=['POST'])
 @login_required
 def bulk_permanent_delete_archived_assets():
-    if current_user.role != 'admin':
-        return jsonify({'error': 'Access denied. Only administrators can permanently delete assets.'}), 403
+    if not current_user.has_it_access():
+        return jsonify({'error': 'Access denied. Only IT users can permanently delete assets.'}), 403
     
     archived_ids = request.form.getlist('archived_ids[]')
     
@@ -1397,7 +1397,7 @@ def api_qr_label_layout(preset_key):
             return jsonify({'error': 'Unknown preset', 'layout': None}), 404
         return jsonify({'layout': qr_layout_to_api_dict(layout)})
 
-    if current_user.role != 'admin':
+    if not current_user.has_it_access():
         return jsonify({'error': 'Forbidden'}), 403
     body = request.get_json(silent=True) or {}
     conn = get_db_connection()

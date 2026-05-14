@@ -4,6 +4,12 @@
         <div class="text-muted small fw-semibold text-uppercase" style="letter-spacing:0.06em;">Accounts</div>
     </div>
 
+    <div class="alert alert-info py-2 px-3 small mb-3" role="note">
+        <i class="bi bi-info-circle me-1" aria-hidden="true"></i>
+        Accounts with <strong>full name</strong> <strong>Super Admin</strong> and role <strong>IT</strong> are built-in and cannot be deleted.
+        You can still change their sign-in username or password using <strong>Edit</strong>. Other accounts can be removed when delete is shown.
+    </div>
+
     <div id="settingsAuthUsersBulkBar" class="app-bulk-bar mb-3" style="display: none;">
         <div class="d-flex flex-wrap justify-content-between align-items-center gap-2">
             <span><i class="bi bi-info-circle me-1"></i> <strong><span id="settingsAuthUsersSelectedCount">0</span> items selected</strong> &mdash; use the buttons to act on the selection</span>
@@ -21,12 +27,13 @@
     {% if users %}
     <div class="settings-auth-table-bleed">
         <div style="overflow-x:auto;">
-            <table class="app-table" style="width: 100%; min-width: 640px;">
+            <table class="app-table" style="width: 100%; min-width: 720px;">
                 <thead>
                     <tr>
                         <th><input type="checkbox" id="selectAllUsersCheckbox" title="Select all" aria-label="Select all deletable users"></th>
                         <th>#</th>
                         <th>Username</th>
+                        <th>Full name</th>
                         <th>Role</th>
                         <th>Created</th>
                         <th>Actions</th>
@@ -34,9 +41,13 @@
                 </thead>
                 <tbody>
                 {% for user in users %}
+                    {% set full_name = user[2] %}
+                    {% set role = user[3] %}
+                    {% set fn_compact = (full_name or '')|lower|replace(' ', '') %}
+                    {% set protected = (fn_compact == 'superadmin' and role == 'IT') %}
                     <tr>
                         <td>
-                            {% if user[1] != 'admin' and user[1] != 'purchasing' %}
+                            {% if not protected %}
                                 <input type="checkbox" class="user-checkbox" value="{{ user[0] }}" id="user_{{ user[0] }}" title="Select for bulk delete" aria-label="Select {{ user[1] }} for bulk delete">
                             {% endif %}
                         </td>
@@ -44,18 +55,31 @@
                         <td>
                             <strong>{{ user[1] }}</strong>
                         </td>
+                        <td>{{ full_name }}</td>
                         <td>
-                            <span class="badge role-badge role-{{ user[2] }}">{{ user[2]|title }}</span>
+                            <span class="badge role-badge role-{{ role|lower|replace(' ', '-') }}">{{ role }}</span>
                         </td>
                         <td>
-                            <span><i class="bi bi-calendar3 me-1 text-muted" aria-hidden="true"></i>{{ user[3]|string|truncate(19, true, '') }}</span>
+                            <span><i class="bi bi-calendar3 me-1 text-muted" aria-hidden="true"></i>{{ user[4]|string|truncate(19, true, '') }}</span>
                         </td>
                         <td>
                             <div class="d-flex gap-2 flex-wrap align-items-center">
-                                <button type="button" class="btn-app-edit-icon" onclick="showUserDetails('{{ user[1]|e }}', '{{ user[2]|e }}')" title="View user" aria-label="View user">
+                                <button type="button" class="btn-app-edit-icon" onclick="showUserDetails('{{ user[1]|e }}', '{{ full_name|e }}', '{{ role|e }}')" title="View user" aria-label="View user">
                                     <i class="bi bi-eye" aria-hidden="true"></i>
                                 </button>
-                                {% if user[1] != 'admin' and user[1] != 'purchasing' %}
+                                <button type="button" class="btn-app-edit-icon edit-auth-user-btn"
+                                    data-bs-toggle="modal"
+                                    data-bs-target="#editUserModal"
+                                    data-user-id="{{ user[0] }}"
+                                    data-username="{{ user[1]|e }}"
+                                    data-full-name="{{ full_name|e }}"
+                                    data-role="{{ role|e }}"
+                                    data-account-protected="{{ 'true' if protected else 'false' }}"
+                                    title="Edit user"
+                                    aria-label="Edit user">
+                                    <i class="bi bi-pencil" aria-hidden="true"></i>
+                                </button>
+                                {% if not protected %}
                                     <button type="button" class="btn-app-edit-icon btn-app-danger-icon" onclick="deleteUser('{{ user[0] }}', '{{ user[1]|e }}')" title="Delete user" aria-label="Delete user">
                                         <i class="bi bi-trash" aria-hidden="true"></i>
                                     </button>
