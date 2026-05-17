@@ -326,6 +326,11 @@
     border-bottom: 2px solid var(--gold-pale);
 }
 
+.asset-dashboard .asset-register-card .app-table thead th,
+.asset-dashboard .asset-register-card .app-table tbody td {
+    text-align: center;
+}
+
 .asset-dashboard .app-table thead th {
     padding: 0.65rem 0.85rem;
     font-weight: 700;
@@ -364,6 +369,22 @@
     color: var(--text-dark);
     vertical-align: middle;
     font-size: 0.8rem;
+}
+
+.asset-dashboard .asset-register-card .app-table tbody td .d-flex {
+    align-items: center;
+    justify-content: center;
+}
+
+.asset-dashboard .asset-register-card .app-table .qr-code-container {
+    display: inline-flex;
+    flex-direction: column;
+    align-items: center;
+}
+
+.asset-dashboard .asset-register-card .app-table td.app-table-col-status .status-select {
+    margin-left: auto;
+    margin-right: auto;
 }
 
 .asset-dashboard .app-table tbody td strong {

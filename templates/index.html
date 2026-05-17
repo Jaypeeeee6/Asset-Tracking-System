@@ -850,7 +850,7 @@
                         <option value="Out of Service" {% if asset.used_status == 'Out of Service' %}selected{% endif %}>Out of Service</option>
                     </select>
                 </td>
-                <td class="text-center">
+                <td>
                     {% if asset.asset_code %}
                         <div class="qr-code-container">
                             <img src="/assets/qrcode/{{ asset.id }}"
