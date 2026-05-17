@@ -9,37 +9,84 @@ def get_db_connection():
     conn.row_factory = sqlite3.Row
     return conn
 
-def generate_asset_code(branch, department):
-    conn = get_db_connection()
-    cur = conn.cursor()
-    branch_code = branch.replace(' ', '').upper()
-    department_code = department.replace(' ', '').upper()
-    
-    # Get all existing asset codes for this branch/department (both active and archived)
-    cur.execute('SELECT asset_code FROM assets WHERE branch=? AND department=? ORDER BY asset_code DESC', (branch, department))
-    active_codes = cur.fetchall()
-    
-    # Also get archived asset codes for this branch/department
-    cur.execute('SELECT asset_code FROM archived_assets WHERE branch=? AND department=? ORDER BY asset_code DESC', (branch, department))
-    archived_codes = cur.fetchall()
-    
-    conn.close()
-    
-    # Find the highest number from both active and archived assets
-    highest_num = 0
-    for row in active_codes + archived_codes:
-        if row[0]:
-            try:
-                # Extract number from asset code (e.g., "MAA-HO-IT-001" -> 1)
-                num = int(row[0].split('-')[-1])
-                if num > highest_num:
-                    highest_num = num
-            except (ValueError, IndexError):
-                continue
-    
-    next_num = highest_num + 1
-    
-    return f"MAA-{branch_code}-{department_code}-{next_num:03d}"
+# Canonical branch label stored on assets for office-venue rows (must match admin/JS).
+OFFICE_BRANCH_LABEL = 'Office'
+
+
+def _asset_code_prefix(cur, branch, department):
+    """Restaurant: branch_code from DB. Office: department name."""
+    if branch == OFFICE_BRANCH_LABEL:
+        return (department or '').strip()
+    cur.execute('SELECT branch_code FROM branches WHERE name = ?', (branch,))
+    row = cur.fetchone()
+    if row and row[0] and str(row[0]).strip():
+        return str(row[0]).strip().upper()
+    return (branch or '').replace(' ', '').upper()
+
+
+def _asset_code_rows_for_scope(cur, branch, department):
+    """Active + archived asset codes for sequence calculation."""
+    if branch == OFFICE_BRANCH_LABEL:
+        cur.execute(
+            'SELECT asset_code FROM assets WHERE branch=? AND department=?',
+            (branch, department),
+        )
+        active = cur.fetchall()
+        cur.execute(
+            'SELECT asset_code FROM archived_assets WHERE branch=? AND department=?',
+            (branch, department),
+        )
+    else:
+        cur.execute('SELECT asset_code FROM assets WHERE branch=?', (branch,))
+        active = cur.fetchall()
+        cur.execute('SELECT asset_code FROM archived_assets WHERE branch=?', (branch,))
+    return active + cur.fetchall()
+
+
+def _sequence_from_asset_code(code, prefix):
+    if not code:
+        return None
+    marker = f'{prefix}-'
+    if code.upper().startswith(marker.upper()):
+        suffix = code[len(marker):]
+        if suffix.isdigit():
+            return int(suffix)
+    try:
+        last = code.rsplit('-', 1)[-1]
+        if last.isdigit():
+            return int(last)
+    except (ValueError, IndexError):
+        pass
+    return None
+
+
+def _highest_asset_sequence(cur, branch, department, prefix):
+    highest = 0
+    for row in _asset_code_rows_for_scope(cur, branch, department):
+        num = _sequence_from_asset_code(row[0], prefix)
+        if num is not None and num > highest:
+            highest = num
+    return highest
+
+
+def allocate_asset_codes(cur, branch, department, count):
+    """Return the next `count` asset codes (restaurant: [BranchCode]-0001; office: [Dept]-0001)."""
+    if count < 1:
+        return []
+    prefix = _asset_code_prefix(cur, branch, department)
+    highest = _highest_asset_sequence(cur, branch, department, prefix)
+    return [f'{prefix}-{highest + i + 1:04d}' for i in range(count)]
+
+
+def generate_asset_code(branch, department, cur=None):
+    conn = None
+    if cur is None:
+        conn = get_db_connection()
+        cur = conn.cursor()
+    codes = allocate_asset_codes(cur, branch, department, 1)
+    if conn is not None:
+        conn.close()
+    return codes[0]
 
 
 def _migrate_departments_nullable_branch_id(cur):

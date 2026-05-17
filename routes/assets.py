@@ -15,11 +15,13 @@ import base64
 from models.database import (
     get_db_connection,
     generate_asset_code,
+    allocate_asset_codes,
     normalize_department_display_code,
     get_qr_label_layout_dict,
     qr_layout_to_api_dict,
     upsert_qr_label_layout_updates,
     RESTAURANT_DEFAULT_DEPARTMENT_NAME,
+    OFFICE_BRANCH_LABEL,
     asset_type_for_venue_matches,
 )
 import qrcode
@@ -27,9 +29,6 @@ from io import BytesIO
 import uuid
 
 assets_bp = Blueprint('assets', __name__)
-
-# Canonical branch label stored on assets for office-venue rows (must match admin/JS).
-OFFICE_BRANCH_LABEL = 'Office'
 
 
 def _validate_asset_venue_location(cur, venue, branch, department, brand_id=None):
@@ -392,39 +391,12 @@ def add_asset():
             flash('Asset type does not match Restaurant / Office selection.', 'error')
             return redirect(url_for('assets.dashboard'))
     
-    # Pre-calculate asset codes for new assets to ensure sequential numbering
-    new_asset_codes = []
-    if len(asset_names) > 1:
-        # Get the base asset code format
-        branch_code = branch.replace(' ', '').upper()
-        department_code = department.replace(' ', '').upper()
-        
-        # Get all existing asset codes for this branch/department (both active and archived)
-        cur.execute('SELECT asset_code FROM assets WHERE branch=? AND department=? ORDER BY asset_code DESC', (branch, department))
-        active_codes = cur.fetchall()
-        
-        # Also get archived asset codes for this branch/department
-        cur.execute('SELECT asset_code FROM archived_assets WHERE branch=? AND department=? ORDER BY asset_code DESC', (branch, department))
-        archived_codes = cur.fetchall()
-        
-        # Find the highest number from both active and archived assets
-        highest_num = 0
-        for row in active_codes + archived_codes:
-            if row[0]:
-                try:
-                    num = int(row[0].split('-')[-1])
-                    if num > highest_num:
-                        highest_num = num
-                except (ValueError, IndexError):
-                    continue
-        
-        # Generate sequential codes starting from highest + 1
-        next_num = highest_num + 1
-        for i in range(len(asset_names)):
-            asset_code = f"MAA-{branch_code}-{department_code}-{next_num:03d}"
-            new_asset_codes.append(asset_code)
-            next_num += 1
-    
+    new_asset_codes = (
+        allocate_asset_codes(cur, branch, department, len(asset_names))
+        if len(asset_names) > 1
+        else None
+    )
+
     # Create individual assets for each selected asset name
     for i, asset_name in enumerate(asset_names):
         # Check for existing asset with same name, branch, and department
@@ -434,11 +406,10 @@ def add_asset():
             new_quantity = row[1] + quantity
             cur.execute('UPDATE assets SET quantity=?, used_status=?, asset_type=?, owner=? WHERE id=?', (new_quantity, used_status, asset_type, owner, row[0]))
         else:
-            # Use pre-calculated asset code or generate single one
-            if len(asset_names) > 1:
+            if new_asset_codes is not None:
                 asset_code = new_asset_codes[i]
             else:
-                asset_code = generate_asset_code(branch, department)
+                asset_code = generate_asset_code(branch, department, cur=cur)
             
             qr_random_code = str(uuid.uuid4())
             
@@ -516,7 +487,7 @@ def update_asset(asset_id):
         # Generate new asset code if branch or department changed
         new_asset_code = current_asset_code
         if branch_changed or department_changed:
-            new_asset_code = generate_asset_code(branch, department)
+            new_asset_code = generate_asset_code(branch, department, cur=cur)
             print(f"Asset code updated: {current_asset_code} -> {new_asset_code}")
         
         # Update the asset with new asset code if needed
