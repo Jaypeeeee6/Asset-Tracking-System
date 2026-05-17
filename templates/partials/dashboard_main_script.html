@@ -201,6 +201,8 @@ const QR_LABEL_PRESET = 'label_2x2';
             .then(response => response.json())
             .then(data => {
                 brandsData = data;
+                if (!window.AssetAppState) window.AssetAppState = {};
+                window.AssetAppState.brands = data;
                 updateBrandsList();
                 updateNewBranchBrandSelect();
                 populateAddAssetBrandSelect();
@@ -330,6 +332,8 @@ const QR_LABEL_PRESET = 'label_2x2';
             .then(response => response.json())
             .then(data => {
                 branchesData = data;
+                if (!window.AssetAppState) window.AssetAppState = {};
+                window.AssetAppState.branches = data;
                 updateBranchDropdown();
                 updateBranchesList();
                 updateDepartmentBranchDropdown();
@@ -400,17 +404,21 @@ const QR_LABEL_PRESET = 'label_2x2';
 
         const sorted = [...branchesData].sort((a, b) => a.name.localeCompare(b.name));
         if (sorted.length === 0) {
-            branchesList.innerHTML = '<tr><td colspan="5" class="text-center text-muted py-4">No branches yet. Add one above.</td></tr>';
+            branchesList.innerHTML = '<tr><td colspan="6" class="text-center text-muted py-4">No branches yet. Add one above.</td></tr>';
             return;
         }
 
         sorted.forEach((building, i) => {
+            const codeLabel = (building.branch_code && String(building.branch_code).trim())
+                ? String(building.branch_code).trim()
+                : '-';
             const brandLabel = building.brand_name ? building.brand_name : '—';
             const tr = document.createElement('tr');
             tr.innerHTML = `
                 <td><input type="checkbox" class="branch-row-checkbox" value="${building.id}" aria-label="Select ${building.name}"></td>
                 <td>${i + 1}</td>
                 <td><strong class="branch-name" data-id="${building.id}">${building.name}</strong></td>
+                <td>${codeLabel}</td>
                 <td>${brandLabel}</td>
                 <td>
                     <div class="d-flex gap-2 flex-wrap align-items-center">
@@ -765,8 +773,10 @@ const QR_LABEL_PRESET = 'label_2x2';
         if (!addBranchBtn) return;
         addBranchBtn.addEventListener('click', function() {
         const nameInput = document.getElementById('newBranchName');
+        const codeInput = document.getElementById('newBranchCode');
         const brandSelect = document.getElementById('newBranchBrand');
         const name = nameInput.value.trim();
+        const branchCode = codeInput ? codeInput.value.trim().toUpperCase() : '';
         const brandId = brandSelect ? brandSelect.value : '';
 
         if (!name) {
@@ -782,6 +792,7 @@ const QR_LABEL_PRESET = 'label_2x2';
         const formData = new FormData();
         formData.append('name', name);
         formData.append('brand_id', brandId);
+        if (branchCode) formData.append('branch_code', branchCode);
 
         fetch('/admin/branches', {
             method: 'POST',
@@ -791,6 +802,7 @@ const QR_LABEL_PRESET = 'label_2x2';
         .then(data => {
             if (data.success) {
                 nameInput.value = '';
+                if (codeInput) codeInput.value = '';
                 loadBranches();
             } else {
                 alert(data.error || 'Failed to add branch.');
@@ -1527,30 +1539,38 @@ const QR_LABEL_PRESET = 'label_2x2';
     // Handle editing branch
     function handleEditBranch(e) {
         const buildingId = e.currentTarget.getAttribute('data-id');
-        const currentName = e.currentTarget.getAttribute('data-name');
+        const building = branchesData.find(function (b) { return String(b.id) === String(buildingId); });
+        if (!building) return;
+
+        if (window.MgmtEditModals && window.MgmtEditModals.openBranch) {
+            window.MgmtEditModals.openBranch({
+                id: building.id,
+                name: building.name,
+                branchCode: building.branch_code || '',
+                brandId: building.brand_id
+            });
+            return;
+        }
+
+        const currentName = building.name;
         const newName = prompt('Enter new branch name:', currentName);
-        
         if (newName && newName.trim() !== currentName) {
             const formData = new FormData();
             formData.append('name', newName.trim());
-
-            fetch(`/admin/branches/${buildingId}`, {
-                method: 'PUT',
-                body: formData
-            })
-            .then(response => response.json())
-            .then(data => {
-                if (data.success) {
-                    loadBranches(); // Reload the buildings list
-                    loadDepartments(); // Reload departments list to update branch names
-                } else {
-                    alert(data.error || 'Failed to update branch.');
-                }
-            })
-            .catch(error => {
-                console.error('Error:', error);
-                alert('Failed to update branch.');
-            });
+            fetch(`/admin/branches/${buildingId}`, { method: 'PUT', body: formData })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        loadBranches();
+                        loadDepartments();
+                    } else {
+                        alert(data.error || 'Failed to update branch.');
+                    }
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    alert('Failed to update branch.');
+                });
         }
     }
 
@@ -2508,6 +2528,9 @@ const QR_LABEL_PRESET = 'label_2x2';
         window.MgmtEditCallbacks.onAssetNameSaved = function () {
             loadAssetNames();
             updateAssetNameDropdowns();
+        };
+        window.MgmtEditCallbacks.onBranchSaved = function () {
+            loadBranches().then(function () { loadDepartments(); });
         };
 
         setupMgmtBulkDeletes();

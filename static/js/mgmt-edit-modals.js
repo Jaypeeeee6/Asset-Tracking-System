@@ -211,8 +211,8 @@
         $('editMgmtBranchId').value = data.id;
         $('editMgmtBranchName').value = data.name || '';
         var codeEl = $('editMgmtBranchCode');
-        if (codeEl) codeEl.value = (data.branchCode || '').toUpperCase();
-        fillBrandSelect($('editMgmtBranchBrand'), data.brandId || '');
+        if (codeEl) codeEl.value = (data.branchCode || data.branch_code || '').toUpperCase();
+        fillBrandSelect($('editMgmtBranchBrand'), data.brandId || data.brand_id || '');
         getBsModal(modalEl).show();
     }
 
@@ -222,7 +222,6 @@
         var branchCode = ($('editMgmtBranchCode') && $('editMgmtBranchCode').value || '').trim().toUpperCase();
         var brandId = $('editMgmtBranchBrand').value;
         if (!name) return showError('Please enter a branch name.');
-        if (!branchCode) return showError('Please enter a branch code.');
         if (!brandId) return showError('Please select a brand for this branch.');
 
         var formData = new FormData();

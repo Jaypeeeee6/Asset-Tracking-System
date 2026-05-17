@@ -98,7 +98,7 @@ def get_branches():
     cur = conn.cursor()
     cur.execute(
         '''
-        SELECT b.id, b.name, b.brand_id, br.name AS brand_name
+        SELECT b.id, b.name, b.brand_id, b.branch_code, br.name AS brand_name
         FROM branches b
         LEFT JOIN brands br ON b.brand_id = br.id
         ORDER BY b.name
@@ -109,7 +109,8 @@ def get_branches():
             'id': row[0],
             'name': row[1],
             'brand_id': row[2],
-            'brand_name': row[3],
+            'branch_code': row[3],
+            'brand_name': row[4],
         }
         for row in cur.fetchall()
     ]
@@ -133,6 +134,8 @@ def add_branch():
         brand_id = int(brand_id_raw)
     except ValueError:
         return jsonify({'error': 'Invalid brand'}), 400
+
+    branch_code = request.form.get('branch_code', '').strip().upper() or None
     
     conn = get_db_connection()
     cur = conn.cursor()
@@ -141,7 +144,10 @@ def add_branch():
         conn.close()
         return jsonify({'error': 'Brand not found'}), 404
     try:
-        cur.execute('INSERT INTO branches (name, brand_id) VALUES (?, ?)', (name, brand_id))
+        cur.execute(
+            'INSERT INTO branches (name, brand_id, branch_code) VALUES (?, ?, ?)',
+            (name, brand_id, branch_code),
+        )
         branch_id = cur.lastrowid
         ensure_restaurant_default_department_for_branch(cur, branch_id)
         conn.commit()
@@ -168,6 +174,8 @@ def update_branch(branch_id):
             brand_id = int(brand_id_raw)
         except ValueError:
             return jsonify({'error': 'Invalid brand'}), 400
+
+    branch_code = request.form.get('branch_code', '').strip().upper() or None
     
     conn = get_db_connection()
     cur = conn.cursor()
@@ -185,9 +193,15 @@ def update_branch(branch_id):
             if not cur.fetchone():
                 conn.close()
                 return jsonify({'error': 'Brand not found'}), 404
-            cur.execute('UPDATE branches SET name = ?, brand_id = ? WHERE id = ?', (name, brand_id, branch_id))
+            cur.execute(
+                'UPDATE branches SET name = ?, brand_id = ?, branch_code = ? WHERE id = ?',
+                (name, brand_id, branch_code, branch_id),
+            )
         else:
-            cur.execute('UPDATE branches SET name = ? WHERE id = ?', (name, branch_id))
+            cur.execute(
+                'UPDATE branches SET name = ?, branch_code = ? WHERE id = ?',
+                (name, branch_code, branch_id),
+            )
         
         cur.execute('UPDATE assets SET branch = ? WHERE branch = ?', (name, old_name))
         cur.execute('UPDATE archived_assets SET branch = ? WHERE branch = ?', (name, old_name))

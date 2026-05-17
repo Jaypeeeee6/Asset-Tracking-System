@@ -309,6 +309,8 @@ def init_db():
     _branch_col_names = [row[1] for row in cur.fetchall()]
     if 'brand_id' not in _branch_col_names:
         cur.execute('ALTER TABLE branches ADD COLUMN brand_id INTEGER REFERENCES brands(id)')
+    if 'branch_code' not in _branch_col_names:
+        cur.execute('ALTER TABLE branches ADD COLUMN branch_code TEXT')
     cur.execute('SELECT COUNT(*) FROM branches WHERE brand_id IS NULL')
     if cur.fetchone()[0] > 0:
         cur.execute("INSERT OR IGNORE INTO brands (name) VALUES ('Default')")
