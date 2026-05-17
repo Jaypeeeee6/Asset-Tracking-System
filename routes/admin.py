@@ -277,7 +277,8 @@ def get_departments():
     cur.execute(
         '''
         SELECT d.id, d.name, d.branch_id,
-               CASE WHEN d.branch_id IS NULL THEN ? ELSE b.name END AS branch_name
+               CASE WHEN d.branch_id IS NULL THEN ? ELSE b.name END AS branch_name,
+               b.branch_code
         FROM departments d
         LEFT JOIN branches b ON d.branch_id = b.id
         ORDER BY branch_name, d.name
@@ -285,7 +286,13 @@ def get_departments():
         (OFFICE_BRANCH_LABEL,),
     )
     departments = [
-        {'id': row[0], 'name': row[1], 'branch_id': row[2], 'branch_name': row[3]}
+        {
+            'id': row[0],
+            'name': row[1],
+            'branch_id': row[2],
+            'branch_name': row[3],
+            'branch_code': row[4],
+        }
         for row in cur.fetchall()
     ]
     conn.close()

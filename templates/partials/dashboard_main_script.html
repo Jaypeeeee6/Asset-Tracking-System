@@ -39,6 +39,31 @@ let assetTypesData = [];
 const OFFICE_BRANCH_LABEL_JS = 'Office';
 /** Must match ``models.database.RESTAURANT_DEFAULT_DEPARTMENT_NAME`` and server assets routes. */
 const RESTAURANT_DEFAULT_DEPT_JS = 'Restaurant';
+
+/** Department QR label code (restaurant: branch code; office: MAA-{department name}). */
+function formatDepartmentDisplayCode(deptOrBranch, departmentName) {
+    if (deptOrBranch && typeof deptOrBranch === 'object') {
+        const dept = deptOrBranch;
+        if (dept.branch_id == null || dept.branch_name === OFFICE_BRANCH_LABEL_JS) {
+            return 'MAA-' + dept.name;
+        }
+        if (dept.branch_code && String(dept.branch_code).trim()) {
+            return String(dept.branch_code).trim().toUpperCase();
+        }
+        return (dept.branch_name || '').replace(/\s+/g, '').toUpperCase();
+    }
+    const branch = deptOrBranch || '';
+    const department = departmentName || '';
+    if (branch === OFFICE_BRANCH_LABEL_JS) {
+        return 'MAA-' + department;
+    }
+    const match = branchesData.find(function (b) { return b.name === branch; });
+    if (match && match.branch_code && String(match.branch_code).trim()) {
+        return String(match.branch_code).trim().toUpperCase();
+    }
+    return branch.replace(/\s+/g, '').toUpperCase();
+}
+
 let departmentsData = [];
 let selectedAssets = [];
 /** Server print layout preset (2 in x 2 in labels); must match qr_label_layouts.preset_key */
@@ -559,7 +584,7 @@ const QR_LABEL_PRESET = 'label_2x2';
             colDiv.innerHTML = `
                 <div class="card h-100">
                     <div class="card-body text-center">
-                        <h6 class="card-title text-primary">MAA-${department.branch_name.replace(/\s+/g, '').toUpperCase()}-${department.name.replace(/\s+/g, '').toUpperCase()}</h6>
+                        <h6 class="card-title text-primary">${formatDepartmentDisplayCode(department)}</h6>
                         <p class="card-text text-muted small">${department.branch_name} - ${department.name}</p>
                         <div class="mb-3">
                             <img src="/assets/department_qr/${encodeURIComponent(department.branch_name)}/${encodeURIComponent(department.name)}" 
@@ -696,7 +721,7 @@ const QR_LABEL_PRESET = 'label_2x2';
 
         // Add each department QR code
         departmentsData.forEach(dept => {
-            const departmentCode = `MAA-${dept.branch_name.replace(/\s+/g, '').toUpperCase()}-${dept.name.replace(/\s+/g, '').toUpperCase()}`;
+            const departmentCode = formatDepartmentDisplayCode(dept);
             pdfContent += `
                 <div class="qr-item">
                     <div class="qr-code">
@@ -3155,7 +3180,7 @@ const QR_LABEL_PRESET = 'label_2x2';
         // Set department QR code image
         modalImage.src = `/assets/department_qr/${encodeURIComponent(building)}/${encodeURIComponent(department)}`;
         modalName.textContent = `${department} - ${building}`;
-        modalCode.textContent = `MAA-${building.replace(/\s+/g, '').toUpperCase()}-${department.replace(/\s+/g, '').toUpperCase()}`;
+        modalCode.textContent = formatDepartmentDisplayCode(building, department);
         
         // Show the modal
         const departmentQRModal = new bootstrap.Modal(document.getElementById('individualDepartmentQRModal'));

@@ -861,11 +861,24 @@ def init_db():
     conn.close()
 
 
-def normalize_department_display_code(branch, department):
-    """Build canonical MAA-{BRANCH}-{DEPT} segment used for labels (matches dashboard JS)."""
-    b = ''.join(str(branch).upper().split())
-    d = ''.join(str(department).upper().split())
-    return f'MAA-{b}-{d}'
+def normalize_department_display_code(branch, department, cur=None):
+    """Label text for department QR codes (restaurant: branch code; office: MAA-{department})."""
+    branch = (branch or '').strip()
+    department = (department or '').strip()
+    if branch == OFFICE_BRANCH_LABEL:
+        return f'MAA-{department}'
+
+    conn = None
+    if cur is None:
+        conn = get_db_connection()
+        cur = conn.cursor()
+    cur.execute('SELECT branch_code FROM branches WHERE name = ?', (branch,))
+    row = cur.fetchone()
+    if conn is not None:
+        conn.close()
+    if row and row[0] and str(row[0]).strip():
+        return str(row[0]).strip().upper()
+    return branch.replace(' ', '').upper()
 
 
 def get_qr_label_layout_dict(conn, preset_key):

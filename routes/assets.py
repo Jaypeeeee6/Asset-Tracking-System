@@ -1543,11 +1543,12 @@ def qr_label_print_department():
     if not branch or not department:
         abort(400)
 
-    code = normalize_department_display_code(branch, department)
+    conn = get_db_connection()
+    cur = conn.cursor()
+    code = normalize_department_display_code(branch, department, cur=cur)
     secondary = f'{department} - {branch}'
 
     png = _png_bytes_department_qrcode(branch, department)
-    conn = get_db_connection()
     items = [(_png_data_uri(png), code, secondary)]
     html = _render_qr_label_html(
         conn,
@@ -1607,7 +1608,7 @@ def qr_label_print_batch():
             d = str(block.get('department') or '').strip()
             if not b or not d:
                 continue
-            code = normalize_department_display_code(b, d)
+            code = normalize_department_display_code(b, d, cur=cur)
             secondary = f'{d} - {b}'
             png = _png_bytes_department_qrcode(b, d)
             tuples.append((_png_data_uri(png), code, secondary))
