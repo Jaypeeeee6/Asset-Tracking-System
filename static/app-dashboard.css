@@ -660,6 +660,24 @@
     margin-bottom: 0.75rem;
 }
 
+.asset-dashboard.settings-page .settings-panel-search {
+    padding: 0;
+    margin-bottom: 0.75rem;
+    border: none;
+    background: transparent;
+    box-shadow: none;
+}
+
+.asset-dashboard.settings-page .settings-panel-search .filter-search-wrap {
+    flex: 1;
+    min-width: 200px;
+    max-width: 100%;
+}
+
+.asset-dashboard.settings-page .settings-panel-search .filter-search-wrap input {
+    width: 100%;
+}
+
 /* ----- Dark mode (dashboard only) ----- */
 body.dark-mode .asset-dashboard .page-header h1 {
     color: #f5f5f0;

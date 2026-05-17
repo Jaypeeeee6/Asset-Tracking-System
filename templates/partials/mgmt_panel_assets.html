@@ -1,4 +1,4 @@
-{% from "macros/app_components.html" import add_button %}
+{% from "macros/app_components.html" import add_button, settings_search_bar %}
 <div class="settings-panel-stack">
   <h6 class="settings-section-title">Asset types</h6>
   <div class="filter-bar settings-panel-form flex-wrap">
@@ -38,6 +38,7 @@
     </div>
   </div>
   <h6 class="settings-section-title mb-2">Existing asset types</h6>
+  {{ settings_search_bar('assetTypesList', 'Search asset types, locations, scope…', 'settingsAssetTypesSearch') }}
   <div id="settingsAssetTypesBulkBar" class="app-bulk-bar mb-3" style="display: none;">
     <div class="d-flex flex-wrap justify-content-between align-items-center gap-2">
       <span><i class="bi bi-info-circle me-1"></i> <strong><span id="settingsAssetTypesSelectedCount">0</span> items selected</strong> &mdash; use the buttons to act on the selection</span>
@@ -122,6 +123,7 @@
     </div>
   </div>
   <h6 class="settings-section-title mt-3 mb-2">Existing asset names</h6>
+  {{ settings_search_bar('assetNamesList', 'Search asset names, types…', 'settingsAssetNamesSearch') }}
   <div id="settingsAssetNamesBulkBar" class="app-bulk-bar mb-3" style="display: none;">
     <div class="d-flex flex-wrap justify-content-between align-items-center gap-2">
       <span><i class="bi bi-info-circle me-1"></i> <strong><span id="settingsAssetNamesSelectedCount">0</span> items selected</strong> &mdash; use the buttons to act on the selection</span>

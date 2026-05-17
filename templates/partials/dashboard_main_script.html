@@ -74,6 +74,12 @@ function mgmtShowError(message) {
     return Promise.resolve();
 }
 
+function refreshSettingsTableSearch(tbodyId) {
+    if (typeof applySettingsTableSearch === 'function') {
+        applySettingsTableSearch(tbodyId);
+    }
+}
+
 let departmentsData = [];
 let selectedAssets = [];
 /** Server print layout preset (2 in x 2 in labels); must match qr_label_layouts.preset_key */
@@ -642,6 +648,7 @@ const QR_LABEL_PRESET = 'label_2x2';
         const sorted = [...brandsData].sort((a, b) => a.name.localeCompare(b.name));
         if (sorted.length === 0) {
             tbody.innerHTML = '<tr><td colspan="3" class="text-center text-muted py-4">No brands yet. Add one above.</td></tr>';
+            refreshSettingsTableSearch('brandsList');
             return;
         }
         sorted.forEach((brand, i) => {
@@ -668,6 +675,7 @@ const QR_LABEL_PRESET = 'label_2x2';
         document.querySelectorAll('.delete-brand-btn').forEach(btn => {
             btn.addEventListener('click', handleDeleteBrand);
         });
+        refreshSettingsTableSearch('brandsList');
     }
 
     function loadBranches() {
@@ -746,6 +754,7 @@ const QR_LABEL_PRESET = 'label_2x2';
         const sorted = [...branchesData].sort((a, b) => a.name.localeCompare(b.name));
         if (sorted.length === 0) {
             branchesList.innerHTML = '<tr><td colspan="5" class="text-center text-muted py-4">No branches yet. Add one above.</td></tr>';
+            refreshSettingsTableSearch('branchesList');
             return;
         }
 
@@ -778,6 +787,7 @@ const QR_LABEL_PRESET = 'label_2x2';
             btn.addEventListener('click', handleDeleteBranch);
         });
         resetMgmtTableBulkUI('selectAllBranchesCheckbox', 'bulkDeleteBranchesBtn', 'branchesList', 'branch-row-checkbox');
+        refreshSettingsTableSearch('branchesList');
     }
 
 // ============================================================================
@@ -805,6 +815,7 @@ const QR_LABEL_PRESET = 'label_2x2';
 
         if (filteredDepartments.length === 0) {
             departmentsList.innerHTML = '<tr><td colspan="5" class="text-center text-muted py-4">No departments found</td></tr>';
+            refreshSettingsTableSearch('departmentsList');
             return;
         }
 
@@ -852,6 +863,7 @@ const QR_LABEL_PRESET = 'label_2x2';
             btn.addEventListener('click', handleDeleteDepartment);
         });
         resetMgmtTableBulkUI('selectAllDepartmentsCheckbox', 'bulkDeleteDepartmentsBtn', 'departmentsList', 'department-row-checkbox');
+        refreshSettingsTableSearch('departmentsList');
     }
 
     // Update department filter dropdown
@@ -1199,6 +1211,7 @@ const QR_LABEL_PRESET = 'label_2x2';
         if (!assetTypesData.length) {
             assetTypesList.innerHTML = '<tr><td colspan="6" class="text-center text-muted py-4">No asset types found</td></tr>';
             resetMgmtTableBulkUI('selectAllAssetTypesCheckbox', 'bulkDeleteAssetTypesBtn', 'assetTypesList', 'asset-type-row-checkbox');
+            refreshSettingsTableSearch('assetTypesList');
             return;
         }
 
@@ -1238,6 +1251,7 @@ const QR_LABEL_PRESET = 'label_2x2';
             btn.addEventListener('click', handleDeleteAssetType);
         });
         resetMgmtTableBulkUI('selectAllAssetTypesCheckbox', 'bulkDeleteAssetTypesBtn', 'assetTypesList', 'asset-type-row-checkbox');
+        refreshSettingsTableSearch('assetTypesList');
     }
 
     // Update asset names list in management modal
@@ -1260,6 +1274,7 @@ const QR_LABEL_PRESET = 'label_2x2';
 
                 if (filteredAssetNames.length === 0) {
                     assetNamesList.innerHTML = '<tr><td colspan="5" class="text-center text-muted py-4">No asset names found</td></tr>';
+                    refreshSettingsTableSearch('assetNamesList');
                     return;
                 }
 
@@ -1305,11 +1320,13 @@ const QR_LABEL_PRESET = 'label_2x2';
                     btn.addEventListener('click', handleDeleteAssetName);
                 });
                 resetMgmtTableBulkUI('selectAllAssetNamesCheckbox', 'bulkDeleteAssetNamesBtn', 'assetNamesList', 'asset-name-row-checkbox');
+                refreshSettingsTableSearch('assetNamesList');
             })
             .catch(error => {
                 console.error('Error loading asset names:', error);
                 assetNamesList.innerHTML = '<tr><td colspan="5" class="text-center text-danger py-4">Error loading asset names</td></tr>';
                 resetMgmtTableBulkUI('selectAllAssetNamesCheckbox', 'bulkDeleteAssetNamesBtn', 'assetNamesList', 'asset-name-row-checkbox');
+                refreshSettingsTableSearch('assetNamesList');
             });
     }
 
@@ -2382,6 +2399,7 @@ const QR_LABEL_PRESET = 'label_2x2';
 
                 if (users.length === 0) {
                     usersList.innerHTML = '<tr><td colspan="6" class="text-center text-muted py-4">No employees found.</td></tr>';
+                    refreshSettingsTableSearch('userModalList');
                     return;
                 }
 
@@ -2426,6 +2444,7 @@ const QR_LABEL_PRESET = 'label_2x2';
                     btn.addEventListener('click', handleDeleteUserModal);
                 });
                 resetMgmtTableBulkUI('selectAllEmployeesRosterCheckbox', 'bulkDeleteEmployeesRosterBtn', 'userModalList', 'employee-roster-checkbox');
+                refreshSettingsTableSearch('userModalList');
             })
             .catch(error => {
                 console.error('Error loading users for modal:', error);

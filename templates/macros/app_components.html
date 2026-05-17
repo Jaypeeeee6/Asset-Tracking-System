@@ -1,4 +1,4 @@
-{# Reusable gold-accent controls. Import: {% from 'macros/app_components.html' import add_button, modal_cancel_button %} #}
+{# Reusable gold-accent controls. Import: {% from 'macros/app_components.html' import add_button, modal_cancel_button, settings_search_bar %} #}
 
 {% macro modal_cancel_button(label='Cancel', button_id=None, extra_classes='', icon=None, dismiss_modal=True, aria_label=None) -%}
 <button type="button" class="btn-app-modal-cancel {{ extra_classes }}"{% if button_id %} id="{{ button_id }}"{% endif %}{% if dismiss_modal %} data-bs-dismiss="modal"{% endif %} aria-label="{{ (aria_label or label)|e }}">
@@ -16,4 +16,17 @@
   <i class="{{ icon }}" aria-hidden="true"></i><span class="btn-app-add-label">{{ label }}</span>
 </button>
 {% endif %}
+{%- endmacro %}
+
+{% macro settings_search_bar(target_tbody_id, placeholder='Search…', input_id=None) -%}
+<div class="filter-bar settings-panel-search mb-3">
+    <div class="filter-group filter-search-wrap">
+        <i class="bi bi-search filter-search-icon" aria-hidden="true"></i>
+        <input type="text" class="settings-table-search"{% if input_id %} id="{{ input_id }}"{% endif %}
+               data-settings-search-for="{{ target_tbody_id }}"
+               placeholder="{{ placeholder }}"
+               autocomplete="off"
+               aria-label="{{ placeholder }}">
+    </div>
+</div>
 {%- endmacro %}

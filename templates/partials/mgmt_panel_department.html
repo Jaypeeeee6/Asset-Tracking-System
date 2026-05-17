@@ -1,4 +1,4 @@
-{% from "macros/app_components.html" import add_button %}
+{% from "macros/app_components.html" import add_button, settings_search_bar %}
 <div class="settings-panel-stack">
   <div class="filter-bar settings-panel-form flex-wrap">
     <div class="filter-group" style="flex: 1; min-width: 200px;">
@@ -21,6 +21,7 @@
   </div>
 
   <h6 class="settings-section-title mt-4 mb-2">Existing departments</h6>
+  {{ settings_search_bar('departmentsList', 'Search departments, branches…', 'settingsDepartmentsSearch') }}
   <div id="settingsDepartmentsBulkBar" class="app-bulk-bar mb-3" style="display: none;">
     <div class="d-flex flex-wrap justify-content-between align-items-center gap-2">
       <span><i class="bi bi-info-circle me-1"></i> <strong><span id="settingsDepartmentsSelectedCount">0</span> items selected</strong> &mdash; use the buttons to act on the selection</span>

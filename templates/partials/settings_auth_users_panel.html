@@ -1,4 +1,4 @@
-{% from "macros/app_components.html" import add_button %}
+{% from "macros/app_components.html" import add_button, settings_search_bar %}
 <div class="settings-users">
     <div class="settings-toolbar d-flex flex-wrap justify-content-between align-items-center gap-2 mb-2">
         <div class="text-muted small fw-semibold text-uppercase" style="letter-spacing:0.06em;">Accounts</div>
@@ -26,6 +26,7 @@
     </div>
 
     {% if users %}
+    {{ settings_search_bar('settingsAuthUsersList', 'Search usernames, names, roles…', 'settingsAuthUsersSearch') }}
     <div class="settings-auth-table-bleed">
         <div style="overflow-x:auto;">
             <table class="app-table" style="width: 100%; min-width: 720px;">
@@ -40,7 +41,7 @@
                         <th>Actions</th>
                     </tr>
                 </thead>
-                <tbody>
+                <tbody id="settingsAuthUsersList">
                 {% for user in users %}
                     {% set full_name = user[2] %}
                     {% set role = user[3] %}

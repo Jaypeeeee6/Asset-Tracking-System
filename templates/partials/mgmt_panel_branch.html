@@ -1,4 +1,4 @@
-{% from "macros/app_components.html" import add_button %}
+{% from "macros/app_components.html" import add_button, settings_search_bar %}
 <div class="settings-panel-stack">
   <div class="filter-bar settings-panel-form flex-wrap mb-3 pb-3 border-bottom">
     <div class="filter-group" style="flex: 1; min-width: 160px; max-width: 280px;">
@@ -29,6 +29,7 @@
   </div>
 
   <h6 class="settings-section-title mb-2">Existing brands</h6>
+  {{ settings_search_bar('brandsList', 'Search brands…', 'settingsBrandsSearch') }}
   <div class="settings-auth-table-bleed mb-4">
     <div style="overflow-x:auto;">
       <table class="app-table" style="width: 100%; min-width: 400px;">
@@ -45,6 +46,7 @@
   </div>
 
   <h6 class="settings-section-title mb-2">Existing branches</h6>
+  {{ settings_search_bar('branchesList', 'Search branches, brands…', 'settingsBranchesSearch') }}
   <div id="settingsBranchesBulkBar" class="app-bulk-bar mb-3" style="display: none;">
     <div class="d-flex flex-wrap justify-content-between align-items-center gap-2">
       <span><i class="bi bi-info-circle me-1"></i> <strong><span id="settingsBranchesSelectedCount">0</span> items selected</strong> &mdash; use the buttons to act on the selection</span>

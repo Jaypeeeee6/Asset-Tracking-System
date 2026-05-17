@@ -142,6 +142,7 @@
 
 {% block extra_scripts %}
 <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+<script src="{{ url_for('static', filename='js/settings-search.js') }}"></script>
 {% include 'partials/dashboard_main_script.html' %}
 <script>
 function showUserDetails(username, fullName, role) {

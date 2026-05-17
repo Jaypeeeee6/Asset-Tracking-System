@@ -1,4 +1,4 @@
-{% from "macros/app_components.html" import add_button %}
+{% from "macros/app_components.html" import add_button, settings_search_bar %}
 <div class="settings-panel-stack">
   <h6 class="settings-section-title">Register new employee</h6>
   <div class="filter-bar settings-panel-form flex-wrap">
@@ -85,6 +85,7 @@
     </div>
   </div>
   <h6 class="settings-section-title mt-3 mb-2">Existing Employees</h6>
+  {{ settings_search_bar('userModalList', 'Search employees, branches, departments…', 'settingsEmployeesSearch') }}
   <div id="settingsEmployeesBulkBar" class="app-bulk-bar mb-3" style="display: none;">
     <div class="d-flex flex-wrap justify-content-between align-items-center gap-2">
       <span><i class="bi bi-info-circle me-1"></i> <strong><span id="settingsEmployeesSelectedCount">0</span> items selected</strong> &mdash; use the buttons to act on the selection</span>
