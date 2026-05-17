@@ -1,0 +1,159 @@
+{% from "macros/app_components.html" import modal_cancel_button %}
+
+<!-- Edit branch -->
+<div class="modal fade app-modal" id="editMgmtBranchModal" tabindex="-1" aria-labelledby="editMgmtBranchModalLabel" aria-hidden="true">
+  <div class="modal-dialog app-modal-dialog-comfort">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="editMgmtBranchModalLabel"><i class="bi bi-pencil-square me-2" style="color:var(--gold);" aria-hidden="true"></i>Edit branch</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body">
+        <input type="hidden" id="editMgmtBranchId" value="">
+        <div class="mb-3">
+          <label for="editMgmtBranchName" class="form-label">Branch name</label>
+          <input type="text" class="form-control" id="editMgmtBranchName" maxlength="100" required>
+        </div>
+        <div class="mb-0">
+          <label for="editMgmtBranchBrand" class="form-label">Brand</label>
+          <select class="form-select app-select-with-chevron" id="editMgmtBranchBrand" required>
+            <option value="">Select brand</option>
+          </select>
+        </div>
+      </div>
+      <div class="modal-footer">
+        {{ modal_cancel_button('Cancel') }}
+        <button type="button" class="btn-app-add" id="editMgmtBranchSaveBtn"><i class="bi bi-check-lg" aria-hidden="true"></i><span class="btn-app-add-label">Save changes</span></button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Edit department -->
+<div class="modal fade app-modal" id="editMgmtDepartmentModal" tabindex="-1" aria-labelledby="editMgmtDepartmentModalLabel" aria-hidden="true">
+  <div class="modal-dialog app-modal-dialog-comfort">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="editMgmtDepartmentModalLabel"><i class="bi bi-pencil-square me-2" style="color:var(--gold);" aria-hidden="true"></i>Edit department</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body">
+        <input type="hidden" id="editMgmtDepartmentId" value="">
+        <div class="mb-3">
+          <label for="editMgmtDepartmentName" class="form-label">Department name</label>
+          <input type="text" class="form-control" id="editMgmtDepartmentName" maxlength="100" required>
+        </div>
+        <div class="mb-0">
+          <label for="editMgmtDepartmentBranch" class="form-label">Branch</label>
+          <select class="form-select app-select-with-chevron" id="editMgmtDepartmentBranch" required>
+            <option value="">Select branch</option>
+            <option value="__office__">Office</option>
+          </select>
+          <div class="form-text"><i class="bi bi-info-circle" aria-hidden="true"></i> Choose Office for office-only departments, or a restaurant branch.</div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        {{ modal_cancel_button('Cancel') }}
+        <button type="button" class="btn-app-add" id="editMgmtDepartmentSaveBtn"><i class="bi bi-check-lg" aria-hidden="true"></i><span class="btn-app-add-label">Save changes</span></button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Edit employee -->
+<div class="modal fade app-modal" id="editMgmtEmployeeModal" tabindex="-1" aria-labelledby="editMgmtEmployeeModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-lg app-modal-dialog-comfort">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="editMgmtEmployeeModalLabel"><i class="bi bi-pencil-square me-2" style="color:var(--gold);" aria-hidden="true"></i>Edit employee</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body">
+        <input type="hidden" id="editMgmtEmployeeId" value="">
+        <div class="mb-3">
+          <label for="editMgmtEmployeeName" class="form-label">Employee name</label>
+          <input type="text" class="form-control" id="editMgmtEmployeeName" maxlength="100" required>
+        </div>
+        <div class="mb-3">
+          <label for="editMgmtEmployeeVenue" class="form-label">Location</label>
+          <select class="form-select app-select-with-chevron" id="editMgmtEmployeeVenue" required>
+            <option value="">Choose location</option>
+            <option value="restaurant">Restaurant</option>
+            <option value="office">Office</option>
+          </select>
+        </div>
+        <div class="mb-3" id="editMgmtEmployeeBrandWrap">
+          <label for="editMgmtEmployeeBrand" class="form-label">Brand</label>
+          <select class="form-select app-select-with-chevron" id="editMgmtEmployeeBrand">
+            <option value="">Select brand</option>
+          </select>
+        </div>
+        <div class="mb-3" id="editMgmtEmployeeBranchWrap">
+          <label for="editMgmtEmployeeBranch" class="form-label">Branch</label>
+          <select class="form-select" id="editMgmtEmployeeBranch">
+            <option value="">Select branch</option>
+          </select>
+        </div>
+        <div class="mb-0">
+          <label for="editMgmtEmployeeDepartment" class="form-label">Department</label>
+          <select class="form-select" id="editMgmtEmployeeDepartment" required>
+            <option value="">Choose location first</option>
+          </select>
+        </div>
+      </div>
+      <div class="modal-footer">
+        {{ modal_cancel_button('Cancel') }}
+        <button type="button" class="btn-app-add" id="editMgmtEmployeeSaveBtn"><i class="bi bi-check-lg" aria-hidden="true"></i><span class="btn-app-add-label">Save changes</span></button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Edit asset type -->
+<div class="modal fade app-modal" id="editMgmtAssetTypeModal" tabindex="-1" aria-labelledby="editMgmtAssetTypeModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-lg app-modal-dialog-comfort">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="editMgmtAssetTypeModalLabel"><i class="bi bi-pencil-square me-2" style="color:var(--gold);" aria-hidden="true"></i>Edit asset type</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body">
+        <input type="hidden" id="editMgmtAssetTypeId" value="">
+        <div class="mb-3">
+          <label for="editMgmtAssetTypeVenue" class="form-label">Location</label>
+          <select class="form-select app-select-with-chevron" id="editMgmtAssetTypeVenue" required>
+            <option value="">Choose location</option>
+            <option value="restaurant">Restaurant</option>
+            <option value="office">Office</option>
+          </select>
+        </div>
+        <div class="mb-3 d-none" id="editMgmtAssetTypeBrandWrap">
+          <label for="editMgmtAssetTypeBrand" class="form-label">Brand</label>
+          <select class="form-select app-select-with-chevron" id="editMgmtAssetTypeBrand">
+            <option value="">Select brand</option>
+          </select>
+        </div>
+        <div class="mb-3 d-none" id="editMgmtAssetTypeBranchWrap">
+          <label for="editMgmtAssetTypeBranch" class="form-label">Branch</label>
+          <select class="form-select" id="editMgmtAssetTypeBranch">
+            <option value="">Select branch</option>
+          </select>
+        </div>
+        <div class="mb-3 d-none" id="editMgmtAssetTypeOfficeDeptWrap">
+          <label for="editMgmtAssetTypeOfficeDepartment" class="form-label">Department</label>
+          <select class="form-select" id="editMgmtAssetTypeOfficeDepartment">
+            <option value="">Select department</option>
+          </select>
+        </div>
+        <div class="mb-0">
+          <label for="editMgmtAssetTypeName" class="form-label">Asset type name</label>
+          <input type="text" class="form-control" id="editMgmtAssetTypeName" maxlength="100" required>
+        </div>
+      </div>
+      <div class="modal-footer">
+        {{ modal_cancel_button('Cancel') }}
+        <button type="button" class="btn-app-add" id="editMgmtAssetTypeSaveBtn"><i class="bi bi-check-lg" aria-hidden="true"></i><span class="btn-app-add-label">Save changes</span></button>
+      </div>
+    </div>
+  </div>
+</div>

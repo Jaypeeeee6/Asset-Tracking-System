@@ -162,12 +162,12 @@ def update_branch(branch_id):
         return jsonify({'error': 'Branch name is required'}), 400
 
     brand_id_raw = (request.form.get('brand_id') or '').strip()
-    brand_id = None
-    if brand_id_raw:
-        try:
-            brand_id = int(brand_id_raw)
-        except ValueError:
-            return jsonify({'error': 'Invalid brand'}), 400
+    if not brand_id_raw:
+        return jsonify({'error': 'Brand is required'}), 400
+    try:
+        brand_id = int(brand_id_raw)
+    except ValueError:
+        return jsonify({'error': 'Invalid brand'}), 400
     
     conn = get_db_connection()
     cur = conn.cursor()
@@ -180,14 +180,11 @@ def update_branch(branch_id):
         
         old_name = old_row[0]
 
-        if brand_id is not None:
-            cur.execute('SELECT id FROM brands WHERE id = ?', (brand_id,))
-            if not cur.fetchone():
-                conn.close()
-                return jsonify({'error': 'Brand not found'}), 404
-            cur.execute('UPDATE branches SET name = ?, brand_id = ? WHERE id = ?', (name, brand_id, branch_id))
-        else:
-            cur.execute('UPDATE branches SET name = ? WHERE id = ?', (name, branch_id))
+        cur.execute('SELECT id FROM brands WHERE id = ?', (brand_id,))
+        if not cur.fetchone():
+            conn.close()
+            return jsonify({'error': 'Brand not found'}), 404
+        cur.execute('UPDATE branches SET name = ?, brand_id = ? WHERE id = ?', (name, brand_id, branch_id))
         
         cur.execute('UPDATE assets SET branch = ? WHERE branch = ?', (name, old_name))
         cur.execute('UPDATE archived_assets SET branch = ? WHERE branch = ?', (name, old_name))
@@ -324,13 +321,22 @@ def update_department(department_id):
     name = request.form.get('name', '').strip()
     if not name:
         return jsonify({'error': 'Department name is required'}), 400
+
+    branch_id_raw = (request.form.get('branch_id') or '').strip()
+    branch_id = None
+    if branch_id_raw and branch_id_raw != '__office__':
+        try:
+            branch_id = int(branch_id_raw)
+        except ValueError:
+            return jsonify({'error': 'Invalid branch'}), 400
     
     conn = get_db_connection()
     cur = conn.cursor()
     try:
         cur.execute(
             '''
-            SELECT d.name, CASE WHEN d.branch_id IS NULL THEN ? ELSE b.name END
+            SELECT d.name, d.branch_id,
+                   CASE WHEN d.branch_id IS NULL THEN ? ELSE b.name END
             FROM departments d
             LEFT JOIN branches b ON d.branch_id = b.id
             WHERE d.id = ?
@@ -342,18 +348,38 @@ def update_department(department_id):
             conn.close()
             return jsonify({'error': 'Department not found'}), 404
 
-        old_name, branch_name = result
+        old_name, old_branch_id, old_branch_name = result[0], result[1], result[2]
 
-        cur.execute('UPDATE departments SET name = ? WHERE id = ?', (name, department_id))
+        if branch_id is not None:
+            cur.execute('SELECT id FROM branches WHERE id = ?', (branch_id,))
+            if not cur.fetchone():
+                conn.close()
+                return jsonify({'error': 'Branch not found'}), 404
+
+        new_branch_name = OFFICE_BRANCH_LABEL
+        if branch_id is not None:
+            cur.execute('SELECT name FROM branches WHERE id = ?', (branch_id,))
+            br_row = cur.fetchone()
+            new_branch_name = br_row[0] if br_row else OFFICE_BRANCH_LABEL
 
         cur.execute(
-            'UPDATE assets SET department = ? WHERE department = ? AND branch = ?',
-            (name, old_name, branch_name),
+            'UPDATE departments SET name = ?, branch_id = ? WHERE id = ?',
+            (name, branch_id, department_id),
+        )
+
+        cur.execute(
+            'UPDATE assets SET department = ?, branch = ? WHERE department = ? AND branch = ?',
+            (name, new_branch_name, old_name, old_branch_name),
         )
         
         conn.commit()
         conn.close()
-        return jsonify({'success': True, 'id': department_id, 'name': name})
+        return jsonify({
+            'success': True,
+            'id': department_id,
+            'name': name,
+            'branch_id': branch_id,
+        })
     except sqlite3.IntegrityError:
         conn.close()
         return jsonify({'error': 'A department with this name already exists in this context'}), 400
@@ -535,8 +561,9 @@ def update_user(user_id):
     if not current_user.has_it_access():
         return jsonify({'error': 'Access denied. Only IT users can update users.'}), 403
     
-    data = request.get_json()
-    name = data.get('name', '').strip()
+    data = request.get_json() or {}
+    name = (data.get('name') or '').strip()
+    new_department_id = data.get('department_id')
     
     if not name:
         return jsonify({'error': 'Name is required'}), 400
@@ -553,6 +580,17 @@ def update_user(user_id):
     
     old_name = user[0]
     department_id = user[1]
+
+    if new_department_id is not None and str(new_department_id).strip() != '':
+        try:
+            department_id = int(new_department_id)
+        except (TypeError, ValueError):
+            conn.close()
+            return jsonify({'error': 'Invalid department'}), 400
+        cur.execute('SELECT id FROM departments WHERE id = ?', (department_id,))
+        if not cur.fetchone():
+            conn.close()
+            return jsonify({'error': 'Department not found'}), 404
     
     # Check if new name conflicts with existing user in same department
     cur.execute('SELECT id FROM users WHERE name = ? AND department_id = ? AND id != ?', (name, department_id, user_id))
@@ -560,20 +598,19 @@ def update_user(user_id):
         conn.close()
         return jsonify({'error': 'User name already exists in this department'}), 409
     
-    # Update user name
-    cur.execute('UPDATE users SET name = ? WHERE id = ?', (name, user_id))
+    cur.execute('UPDATE users SET name = ?, department_id = ? WHERE id = ?', (name, department_id, user_id))
     
-    # Update assets that reference the old user name
-    cur.execute('SELECT name FROM departments WHERE id = ?', (department_id,))
-    dept_result = cur.fetchone()
-    if dept_result:
-        dept_name = dept_result[0]
-        cur.execute('UPDATE assets SET owner = ? WHERE owner = ? AND department = ?', (name, old_name, dept_name))
+    # Update assets that reference the old user name in the old department
+    cur.execute('SELECT name FROM departments WHERE id = ?', (user[1],))
+    old_dept_result = cur.fetchone()
+    if old_dept_result:
+        old_dept_name = old_dept_result[0]
+        cur.execute('UPDATE assets SET owner = ? WHERE owner = ? AND department = ?', (name, old_name, old_dept_name))
     
     conn.commit()
     conn.close()
     
-    return jsonify({'success': True})
+    return jsonify({'success': True, 'id': user_id, 'name': name, 'department_id': department_id})
 
 @admin_bp.route('/users/<int:user_id>', methods=['DELETE'])
 @login_required
@@ -796,8 +833,33 @@ def update_asset_type(asset_type_id):
         return jsonify({'error': 'Access denied. Only IT users can update asset types.'}), 403
 
     name = request.form.get('name', '').strip()
+    for_venue = (request.form.get('for_venue') or 'restaurant').strip().lower()
+    if for_venue not in ('restaurant', 'office'):
+        return jsonify({'error': 'Location must be restaurant or office'}), 400
     if not name:
         return jsonify({'error': 'Asset type name is required'}), 400
+
+    branch_raw = (request.form.get('branch_id') or '').strip()
+    dept_raw = (request.form.get('department_id') or '').strip()
+    branch_id = None
+    department_id = None
+
+    if for_venue == 'restaurant':
+        if dept_raw:
+            return jsonify({'error': 'Office department does not apply to restaurant asset types.'}), 400
+        if branch_raw:
+            try:
+                branch_id = int(branch_raw)
+            except ValueError:
+                return jsonify({'error': 'Invalid branch.'}), 400
+    else:
+        if branch_raw:
+            return jsonify({'error': 'Branch does not apply to office asset types.'}), 400
+        if dept_raw:
+            try:
+                department_id = int(dept_raw)
+            except ValueError:
+                return jsonify({'error': 'Invalid department.'}), 400
 
     conn = get_db_connection()
     cur = conn.cursor()
@@ -818,14 +880,54 @@ def update_asset_type(asset_type_id):
             old_row[3],
         )
 
-        cur.execute('UPDATE asset_types SET name = ? WHERE id = ?', (name, asset_type_id))
+        scope_changed = (
+            for_venue != (old_venue or 'restaurant')
+            or branch_id != old_branch_id
+            or department_id != old_dept_id
+        )
+        if scope_changed:
+            asset_count = _count_assets_for_scoped_type(cur, old_name, old_branch_id, old_dept_id)
+            if asset_count > 0:
+                conn.close()
+                return jsonify({
+                    'error': (
+                        f'Cannot change location or scope while {asset_count} asset(s) use this type. '
+                        'Rename only, or remove assets first.'
+                    ),
+                }), 400
+
+        if branch_id is not None:
+            cur.execute('SELECT id FROM branches WHERE id = ?', (branch_id,))
+            if not cur.fetchone():
+                conn.close()
+                return jsonify({'error': 'Select a valid branch.'}), 400
+        if department_id is not None:
+            cur.execute(
+                'SELECT id FROM departments WHERE id = ? AND branch_id IS NULL',
+                (department_id,),
+            )
+            if not cur.fetchone():
+                conn.close()
+                return jsonify({'error': 'Select a valid office department.'}), 400
+
+        cur.execute(
+            'UPDATE asset_types SET name = ?, for_venue = ?, branch_id = ?, department_id = ? WHERE id = ?',
+            (name, for_venue, branch_id, department_id, asset_type_id),
+        )
 
         if old_name != name:
             _rename_assets_for_scoped_type(cur, old_name, name, old_branch_id, old_dept_id)
 
         conn.commit()
         conn.close()
-        return jsonify({'success': True, 'id': asset_type_id, 'name': name, 'for_venue': old_venue})
+        return jsonify({
+            'success': True,
+            'id': asset_type_id,
+            'name': name,
+            'for_venue': for_venue,
+            'branch_id': branch_id,
+            'department_id': department_id,
+        })
     except sqlite3.IntegrityError:
         conn.close()
         return jsonify({'error': 'An asset type with this name already exists for that location and scope.'}), 400

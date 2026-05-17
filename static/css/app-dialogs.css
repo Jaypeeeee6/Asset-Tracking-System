@@ -1,0 +1,108 @@
+/* Confirmation / alert dialogs — aligned with maa-inventory modal-confirm */
+.modal-confirm {
+    display: none;
+    position: fixed;
+    inset: 0;
+    z-index: 2200;
+    background: rgba(0, 0, 0, 0.5);
+    align-items: center;
+    justify-content: center;
+    padding: 24px;
+    box-sizing: border-box;
+}
+
+.modal-confirm.is-open {
+    display: flex;
+}
+
+.modal-confirm .modal-confirm-card {
+    background: #fff;
+    border-radius: 12px;
+    padding: 24px;
+    max-width: 420px;
+    width: 100%;
+    box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+    border: 1px solid #e5e7eb;
+}
+
+.modal-confirm .modal-confirm-title {
+    margin: 0 0 12px 0;
+    font-size: 18px;
+    font-weight: 600;
+    color: #101828;
+}
+
+.modal-confirm .modal-confirm-message {
+    margin: 0 0 20px 0;
+    font-size: 14px;
+    color: #374151;
+    line-height: 1.5;
+    white-space: pre-wrap;
+}
+
+.modal-confirm .modal-confirm-buttons {
+    display: flex;
+    gap: 12px;
+    justify-content: flex-end;
+}
+
+.modal-confirm .modal-confirm-btn {
+    padding: 8px 18px;
+    border-radius: 8px;
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+    font-family: inherit;
+}
+
+.modal-confirm .modal-confirm-btn-cancel {
+    background: #f9fafb;
+    color: #101828;
+    border: 1px solid #e5e7eb;
+}
+
+.modal-confirm .modal-confirm-btn-cancel:hover {
+    background: #f3f4f6;
+}
+
+.modal-confirm .modal-confirm-btn-confirm {
+    border: none;
+    color: #fff;
+}
+
+.modal-confirm .modal-confirm-btn-confirm.modal-confirm-btn-approve {
+    background: #16a34a;
+    border: 1px solid #15803d;
+}
+
+.modal-confirm .modal-confirm-btn-confirm.modal-confirm-btn-approve:hover {
+    background: #15803d;
+}
+
+.modal-confirm .modal-confirm-btn-confirm.modal-confirm-btn-reject {
+    background: #ef4444;
+    border: 1px solid #dc2626;
+}
+
+.modal-confirm .modal-confirm-btn-confirm.modal-confirm-btn-reject:hover {
+    background: #dc2626;
+}
+
+body.dark-mode .modal-confirm .modal-confirm-card {
+    background: #1f2937;
+    border-color: #374151;
+}
+
+body.dark-mode .modal-confirm .modal-confirm-title {
+    color: #f9fafb;
+}
+
+body.dark-mode .modal-confirm .modal-confirm-message {
+    color: #d1d5db;
+}
+
+body.dark-mode .modal-confirm .modal-confirm-btn-cancel {
+    background: #374151;
+    color: #f9fafb;
+    border-color: #4b5563;
+}
