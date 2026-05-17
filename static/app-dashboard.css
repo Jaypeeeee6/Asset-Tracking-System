@@ -921,6 +921,56 @@ body.dark-mode .asset-dashboard.settings-page .settings-scroll-list .list-group-
     border-bottom-color: #3d382a;
 }
 
+/* ----- Archive page ----- */
+.asset-dashboard.archive-page .archived-row {
+    background: rgba(92, 80, 53, 0.04);
+}
+
+.asset-dashboard.archive-page .archived-row td:first-child + td {
+    border-left: 3px solid var(--text-muted);
+}
+
+.asset-dashboard.archive-page .archive-meta {
+    font-size: 0.72rem;
+    color: var(--text-light);
+    line-height: 1.35;
+}
+
+.asset-dashboard.archive-page .archive-reason {
+    font-style: italic;
+    color: var(--text-mid);
+}
+
+.asset-dashboard.archive-page .archive-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.35rem;
+    justify-content: center;
+}
+
+.asset-dashboard.archive-page .app-table .qr-code-img {
+    transition: transform 0.2s ease, box-shadow 0.2s;
+    border-radius: 6px;
+}
+
+.asset-dashboard.archive-page .app-table .qr-code-img:hover {
+    transform: scale(1.08);
+    cursor: pointer;
+    box-shadow: 0 4px 12px rgba(217, 189, 125, 0.35);
+}
+
+body.dark-mode .asset-dashboard.archive-page .archived-row {
+    background: rgba(217, 189, 125, 0.06);
+}
+
+body.dark-mode .asset-dashboard.archive-page .archive-meta {
+    color: #a8a29a;
+}
+
+body.dark-mode .asset-dashboard.archive-page .archive-reason {
+    color: #d6d0c4;
+}
+
 @media (max-width: 768px) {
     .asset-dashboard .page-header {
         flex-direction: column;

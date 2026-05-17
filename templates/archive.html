@@ -1,470 +1,266 @@
 {% extends "base_app.html" %}
-{% block title %}Asset Archive - Asset Tracking System{% endblock %}
+{% block title %}Asset Archive — Asset Tracking System{% endblock %}
 {% block extra_head %}
-    <style>
-        .archived-asset {
-            background-color: #f8f9fa;
-            border-left: 4px solid #6c757d;
-        }
-        .archive-info {
-            font-size: 0.875rem;
-            color: #6c757d;
-        }
-        .archive-reason {
-            font-style: italic;
-            color: #495057;
-        }
-        
-        /* Dark Mode Styles */
-        .dark-mode {
-            background-color: #1a1a1a !important;
-            color: #ffffff !important;
-        }
-        
-        .dark-mode .card {
-            background-color: #2d2d2d !important;
-            border-color: #404040 !important;
-        }
-        
-        .dark-mode .table {
-            background-color: #2d2d2d !important;
-            color: #ffffff !important;
-        }
-        
-        .dark-mode .table thead th {
-            background-color: #404040 !important;
-            color: #ffffff !important;
-            border-color: #555555 !important;
-        }
-        
-        .dark-mode .table tbody td {
-            border-color: #404040 !important;
-        }
-        
-        .dark-mode .form-control,
-        .dark-mode .form-select {
-            background-color: #404040 !important;
-            border-color: #555555 !important;
-            color: #ffffff !important;
-        }
-        
-        .dark-mode .form-control:focus,
-        .dark-mode .form-select:focus {
-            background-color: #404040 !important;
-            border-color: #86b7fe !important;
-            color: #ffffff !important;
-        }
-        
-        .dark-mode .btn {
-            border-color: #555555 !important;
-        }
-        
-        .dark-mode .btn-outline-secondary {
-            color: #ffffff !important;
-            border-color: #6c757d !important;
-        }
-        
-        .dark-mode .btn-outline-secondary:hover {
-            background-color: #6c757d !important;
-            color: #ffffff !important;
-        }
-        
-        .dark-mode .pagination .page-link {
-            background-color: #404040 !important;
-            border-color: #555555 !important;
-            color: #ffffff !important;
-        }
-        
-        .dark-mode .pagination .page-item.active .page-link {
-            background-color: #007bff !important;
-            border-color: #007bff !important;
-        }
-        
-        .dark-mode .pagination .page-link:hover {
-            background-color: #555555 !important;
-            color: #ffffff !important;
-        }
-        
-        .dark-mode .alert {
-            background-color: #2d2d2d !important;
-            border-color: #404040 !important;
-        }
-        
-        .dark-mode .text-muted {
-            color: #b0b0b0 !important;
-        }
-        
-        .dark-mode .archived-asset {
-            background-color: #404040 !important;
-        }
-        
-        .dark-mode .archive-info {
-            color: #b0b0b0 !important;
-        }
-        
-        .dark-mode .archive-reason {
-            color: #d0d0d0 !important;
-        }
-        
-        .dark-mode .badge.bg-secondary {
-            background-color: #6c757d !important;
-        }
-        
-        .dark-mode .badge.bg-success {
-            background-color: #28a745 !important;
-        }
-        
-        .dark-mode .badge.bg-warning {
-            background-color: #ffc107 !important;
-            color: #000000 !important;
-        }
-        
-        .dark-mode .badge.bg-danger {
-            background-color: #dc3545 !important;
-        }
-        
-        .dark-mode .badge.bg-info {
-            background-color: #17a2b8 !important;
-        }
-        
-        /* Compact Archive Table Styles */
-        .asset-details, .location-info, .archive-info {
-            line-height: 1.2;
-        }
-        
-        .asset-details .asset-name {
-            margin-bottom: 2px;
-        }
-        
-                 .asset-details .asset-code {
-             margin-bottom: 2px;
-         }
-         
-         .qr-code-container {
-             display: flex;
-             flex-direction: column;
-             align-items: center;
-             justify-content: center;
-         }
-         
-         .qr-code-img {
-             transition: transform 0.2s ease;
-         }
-         
-         .qr-code-img:hover {
-             transform: scale(1.1);
-             cursor: pointer;
-             box-shadow: 0 4px 12px rgba(212, 175, 55, 0.3);
-             border-color: #FFD700;
-         }
-         
-         .location-info div, .archive-info div {
-             margin-bottom: 2px;
-             font-size: 0.85em;
-         }
-        
-        .table td {
-            vertical-align: middle;
-            padding: 8px 12px;
-        }
-        
-        .table th {
-            padding: 10px 12px;
-            font-size: 0.9em;
-        }
-        
-        /* Responsive adjustments */
-        @media (max-width: 1200px) {
-            .table td, .table th {
-                padding: 6px 8px;
-                font-size: 0.85em;
-            }
-            
-            .btn-sm {
-                padding: 0.25rem 0.5rem;
-                font-size: 0.75rem;
-            }
-        }
-    </style>
+<link rel="stylesheet" href="{{ url_for('static', filename='app-dashboard.css') }}">
 {% endblock %}
+
 {% block app_content %}
-    <div class="header-logo">
-                    <img src="{{ url_for('static', filename='images/maa-logo.png') }}" alt="MAA Logo">
-        <h1>Asset Archive</h1>
-        <div class="gold-divider"></div>
+{% macro archive_page_href(p) -%}
+{{ url_for('assets.archive', page=p, search=search_query, sort_by=sort_by, sort_dir=sort_dir, per_page=per_page) }}
+{%- endmacro %}
+
+<div class="asset-dashboard archive-page">
+    <div class="page-header">
+        <div>
+            <h1><i class="bi bi-archive" style="color:var(--gold);" aria-hidden="true"></i>Asset Archive</h1>
+            <p class="subtitle">Restored assets return to the dashboard register</p>
+        </div>
     </div>
 
-    <!-- Archive Stats -->
-    <div class="row mb-4">
-        <div class="col-md-12">
-            <div class="card bg-secondary text-white">
-                <div class="card-body text-center">
-                    <i class="fas fa-archive fa-2x mb-2"></i>
-                    <h5>{{ total_archived }}</h5>
-                    <small>Total Archived Assets</small>
-                </div>
+    <div class="row g-2 mb-4 summary-stats-row">
+        <div class="col-sm-6 col-xl-3">
+            <div class="stat-card yellow">
+                <div class="stat-label">Archived Assets</div>
+                <div class="stat-value">{{ total_archived }}</div>
+                <div class="stat-sub">Total in archive</div>
+                <i class="bi bi-archive stat-icon" aria-hidden="true"></i>
             </div>
         </div>
     </div>
 
-    <!-- Search and Filter Controls -->
-    <div class="row mb-3">
-        <div class="col-md-12">
-            <div class="card">
-                <div class="card-body">
-                    <form method="GET" class="row g-3">
-                        <div class="col-md-4">
-                            <label for="search" class="form-label">Search</label>
-                            <input type="text" class="form-control" id="search" name="search" value="{{ search_query }}" placeholder="Search archived assets...">
-                        </div>
-                        <div class="col-md-3">
-                            <label for="sort_by" class="form-label">Sort By</label>
-                            <select class="form-select" id="sort_by" name="sort_by">
-                                <option value="archived_at" {{ 'selected' if sort_by == 'archived_at' }}>Archive Date</option>
-                                <option value="name" {{ 'selected' if sort_by == 'name' }}>Asset Name</option>
-                                <option value="asset_code" {{ 'selected' if sort_by == 'asset_code' }}>Asset Code</option>
-                                <option value="branch" {{ 'selected' if sort_by == 'branch' }}>Branch</option>
-                                <option value="department" {{ 'selected' if sort_by == 'department' }}>Department</option>
-                                <option value="archived_by" {{ 'selected' if sort_by == 'archived_by' }}>Archived By</option>
-                            </select>
-                        </div>
-                        <div class="col-md-2">
-                            <label for="sort_dir" class="form-label">Order</label>
-                            <select class="form-select" id="sort_dir" name="sort_dir">
-                                <option value="desc" {{ 'selected' if sort_dir == 'desc' }}>Descending</option>
-                                <option value="asc" {{ 'selected' if sort_dir == 'asc' }}>Ascending</option>
-                            </select>
-                        </div>
-                        <div class="col-md-2">
-                            <label for="per_page" class="form-label">Per Page</label>
-                            <select class="form-select" id="per_page" name="per_page">
-                                <option value="10" {{ 'selected' if per_page == 10 }}>10</option>
-                                <option value="25" {{ 'selected' if per_page == 25 }}>25</option>
-                                <option value="50" {{ 'selected' if per_page == 50 }}>50</option>
-                                <option value="100" {{ 'selected' if per_page == 100 }}>100</option>
-                            </select>
-                        </div>
-                        <div class="col-md-1">
-                            <label class="form-label">&nbsp;</label>
-                            <button type="submit" class="btn btn-primary w-100">
-                                <i class="fas fa-search"></i>
-                            </button>
-                        </div>
-                    </form>
-                </div>
+    <form method="get" id="archiveFilterForm">
+        <div class="filter-bar">
+            <div class="filter-group filter-search-wrap">
+                <label class="visually-hidden" for="search">Search</label>
+                <i class="bi bi-search filter-search-icon" aria-hidden="true"></i>
+                <input type="text" id="search" name="search" value="{{ search_query }}"
+                       placeholder="Search archived assets&hellip;" autocomplete="off">
+            </div>
+            <div class="filter-group">
+                <label for="sort_by">Sort by</label>
+                <select id="sort_by" name="sort_by" class="app-select-with-chevron" aria-label="Sort by">
+                    <option value="archived_at" {{ 'selected' if sort_by == 'archived_at' }}>Archive date</option>
+                    <option value="name" {{ 'selected' if sort_by == 'name' }}>Asset name</option>
+                    <option value="asset_code" {{ 'selected' if sort_by == 'asset_code' }}>Asset code</option>
+                    <option value="branch" {{ 'selected' if sort_by == 'branch' }}>Branch</option>
+                    <option value="department" {{ 'selected' if sort_by == 'department' }}>Department</option>
+                    <option value="archived_by" {{ 'selected' if sort_by == 'archived_by' }}>Archived by</option>
+                </select>
+            </div>
+            <div class="filter-group">
+                <label for="sort_dir">Order</label>
+                <select id="sort_dir" name="sort_dir" class="app-select-with-chevron" aria-label="Sort order">
+                    <option value="desc" {{ 'selected' if sort_dir == 'desc' }}>Descending</option>
+                    <option value="asc" {{ 'selected' if sort_dir == 'asc' }}>Ascending</option>
+                </select>
+            </div>
+            <div class="filter-group">
+                <label for="per_page">Per page</label>
+                <select id="per_page" name="per_page" class="app-select-with-chevron" aria-label="Rows per page">
+                    <option value="10" {{ 'selected' if per_page == 10 }}>10</option>
+                    <option value="25" {{ 'selected' if per_page == 25 }}>25</option>
+                    <option value="50" {{ 'selected' if per_page == 50 }}>50</option>
+                    <option value="100" {{ 'selected' if per_page == 100 }}>100</option>
+                </select>
+            </div>
+            <div class="filter-group">
+                <label class="settings-label-spacer" aria-hidden="true">&nbsp;</label>
+                <button type="submit" class="btn-app-primary">
+                    <i class="bi bi-search" aria-hidden="true"></i> Apply
+                </button>
+            </div>
+        </div>
+    </form>
+
+    <div id="bulkRestoreActionsBar" class="app-bulk-bar mb-3" style="display: none;">
+        <div class="d-flex flex-wrap justify-content-between align-items-center gap-2">
+            <span><i class="bi bi-info-circle me-1"></i> <strong><span id="selectedArchivedCount">0</span> archived items selected</strong> &mdash; use the buttons to act on the selection</span>
+            <div class="d-flex flex-wrap gap-2">
+                <button type="button" class="btn-app-primary" id="bulkRestoreBtn">
+                    <i class="bi bi-arrow-counterclockwise"></i> Restore Selected
+                </button>
+                <button type="button" class="btn btn-danger btn-sm" id="bulkPermanentDeleteBtn">
+                    <i class="bi bi-trash"></i> Delete Selected
+                </button>
+                <button type="button" class="btn btn-sm btn-app-tab" id="clearArchivedSelectionBtn">
+                    <i class="bi bi-x-lg"></i> Clear Selection
+                </button>
             </div>
         </div>
     </div>
 
-    <!-- Archived Assets Table -->
-    <div class="row">
-        <div class="col-md-12">
-            <div class="card">
-                <div class="card-header">
-                    <h5 class="mb-0">
-                        <i class="fas fa-archive"></i> Archived Assets
-                        <span class="badge bg-secondary ms-2">{{ total_archived }}</span>
-                    </h5>
-                </div>
-                <div class="card-body">
-                    <span id="archivedMatchingTotal" class="d-none" data-total="{{ total_archived }}"></span>
-                    {% if archived_assets %}
-                        <div class="table-responsive">
-                            <table class="table table-hover">
-                                                                 <thead>
-                                     <tr>
-                                         <th><input type="checkbox" id="selectAllArchivedCheckbox" title="Select All"></th>
-                                         <th>Asset Details</th>
-                                         <th>QR Code</th>
-                                         <th>Location</th>
-                                         <th>Status</th>
-                                         <th>Archive Info</th>
-                                         <th>Actions</th>
-                                     </tr>
-                                 </thead>
-                                <tbody>
-                                    {% for asset in archived_assets %}
-                                    <tr class="archived-asset">
-                                        <td>
-                                            <input type="checkbox" class="archived-asset-checkbox" data-archived-id="{{ asset.id }}" data-archived-name="{{ asset.name }}">
-                                        </td>
-                                                                                 <td>
-                                             <div class="asset-details">
-                                                 <div class="asset-name"><strong>{{ asset.name }}</strong></div>
-                                                 <div class="asset-code" style="font-family: monospace; font-size: 0.85em; color: #007bff;">
-                                                     {{ asset.asset_code or 'N/A' }}
-                                                 </div>
-                                                 <div class="asset-info" style="font-size: 0.8em; color: #6c757d;">
-                                                     Qty: {{ asset.quantity }} | {{ asset.asset_type or 'N/A' }}
-                                                 </div>
-                                             </div>
-                                         </td>
-                                         <td class="text-center">
-                                             {% if asset.asset_code %}
-                                                 <div class="qr-code-container">
-                                                     <img src="/assets/archived_qrcode/{{ asset.id }}"  
-                                                          alt="QR Code for {{ asset.name }}" 
-                                                          class="qr-code-img" 
-                                                          style="width: 60px; height: 60px; cursor: pointer;"
-                                                          onclick="showQRModal('{{ asset.id }}', '{{ asset.asset_code }}', '{{ asset.name }}')"
-                                                          title="Click to view larger QR code">
-                                                     <div class="qr-code-text" style="font-size: 0.7em; color: #6c757d; margin-top: 2px; word-break: break-all;">
-                                                         {{ asset.asset_code }}
-                                                     </div>
-                                                 </div>
-                                             {% else %}
-                                                 <span class="text-muted">N/A</span>
-                                             {% endif %}
-                                         </td>
-                                        <td>
-                                            <div class="location-info">
-                                                <div><i class="fas fa-building"></i> {{ asset.branch }}</div>
-                                                <div><i class="fas fa-sitemap"></i> {{ asset.department }}</div>
-                                                <div><i class="fas fa-user"></i> {{ asset.owner }}</div>
-                                            </div>
-                                        </td>
-                                        <td>
-                                            {% if asset.used_status == 'Used' %}
-                                                <span class="badge bg-success">Used</span>
-                                            {% elif asset.used_status == 'Not Used' %}
-                                                <span class="badge bg-warning">Not Used</span>
-                                            {% elif asset.used_status == 'Out of Service' %}
-                                                <span class="badge bg-danger">Out of Service</span>
-                                            {% else %}
-                                                <span class="badge bg-secondary">{{ asset.used_status }}</span>
-                                            {% endif %}
-                                        </td>
-                                        <td>
-                                            <div class="archive-info">
-                                                <div><i class="fas fa-user"></i> {{ asset.archived_by }}</div>
-                                                <div><i class="fas fa-calendar"></i> {{ asset.archived_at.split(' ')[0] if asset.archived_at else 'N/A' }}</div>
-                                                <div class="archive-reason" style="font-size: 0.8em; font-style: italic;">
-                                                    {{ asset.archive_reason or 'No reason provided' }}
-                                                </div>
-                                            </div>
-                                        </td>
-                                        <td>
-                                            <div class="btn-group" role="group">
-                                                <button class="btn btn-success btn-sm restore-asset-btn" 
-                                                        data-archived-id="{{ asset.id }}" 
-                                                        data-archived-name="{{ asset.name }}"
-                                                        title="Restore to Dashboard">
-                                                    <i class="fas fa-undo"></i> Restore
-                                                </button>
-                                                <button class="btn btn-danger btn-sm permanent-delete-btn" 
-                                                        data-archived-id="{{ asset.id }}" 
-                                                        data-archived-name="{{ asset.name }}"
-                                                        title="Permanently Delete">
-                                                    <i class="fas fa-trash"></i> Delete
-                                                </button>
-                                            </div>
-                                        </td>
-                                    </tr>
-                                    {% endfor %}
-                                </tbody>
-                            </table>
-                        </div>
+    <span id="archivedMatchingTotal" class="d-none" data-total="{{ total_archived }}"></span>
 
-                        <!-- Bulk Actions Bar -->
-                        <div id="bulkRestoreActionsBar" class="alert alert-success border-success" style="display: none;">
-                            <div class="d-flex justify-content-between align-items-center">
-                                <span><i class="fas fa-info-circle"></i> <strong><span id="selectedArchivedCount">0</span> archived items selected</strong> - Use the buttons to perform actions on selected items</span>
-                                <div>
-                                    <button class="btn btn-success btn-sm me-2" id="bulkRestoreBtn">
-                                        <i class="fas fa-undo"></i> Restore Selected
-                                    </button>
-                                    <button class="btn btn-danger btn-sm me-2" id="bulkPermanentDeleteBtn">
-                                        <i class="fas fa-trash"></i> Permanently Delete Selected
-                                    </button>
-                                    <button class="btn btn-outline-secondary btn-sm" id="clearArchivedSelectionBtn">
-                                        <i class="fas fa-times"></i> Clear Selection
-                                    </button>
-                                </div>
+    <div class="app-card mb-4 asset-register-card">
+        {% if archived_assets %}
+        <div style="overflow-x:auto;">
+            <table class="app-table" style="width:100%;min-width:1100px;">
+                <thead>
+                    <tr>
+                        <th><input type="checkbox" id="selectAllArchivedCheckbox" title="Select all"></th>
+                        <th>Asset details</th>
+                        <th>QR code</th>
+                        <th>Location</th>
+                        <th>Status</th>
+                        <th>Archive info</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for asset in archived_assets %}
+                    <tr class="archived-row">
+                        <td>
+                            <input type="checkbox" class="archived-asset-checkbox"
+                                   data-archived-id="{{ asset.id }}" data-archived-name="{{ asset.name }}">
+                        </td>
+                        <td>
+                            <strong>{{ asset.name }}</strong>
+                            <br><small class="text-muted" style="font-family:monospace;">{{ asset.asset_code or 'N/A' }}</small>
+                            <br><small class="text-muted">Qty: {{ asset.quantity }} &middot; {{ asset.asset_type or 'N/A' }}</small>
+                        </td>
+                        <td>
+                            {% if asset.asset_code %}
+                            <div class="qr-code-container">
+                                <img src="/assets/archived_qrcode/{{ asset.id }}"
+                                     alt="QR Code for {{ asset.name }}"
+                                     class="qr-code-img"
+                                     style="width:60px;height:60px;cursor:pointer;"
+                                     onclick="showQRModal('{{ asset.id }}', '{{ asset.asset_code }}', '{{ asset.name }}')"
+                                     title="Click to view larger QR code">
+                                <div class="qr-code-text">{{ asset.asset_code }}</div>
                             </div>
-                        </div>
-
-                        <!-- Pagination -->
-                        {% if total_pages > 1 %}
-                        <nav aria-label="Archive pagination">
-                            <ul class="pagination justify-content-center">
-                                {% if page > 1 %}
-                                    <li class="page-item">
-                                        <a class="page-link" href="{{ url_for('assets.archive', page=page-1, search=search_query, sort_by=sort_by, sort_dir=sort_dir, per_page=per_page) }}">
-                                            <i class="fas fa-chevron-left"></i> Previous
-                                        </a>
-                                    </li>
-                                {% endif %}
-                                
-                                {% for p in range(max(1, page-2), min(total_pages+1, page+3)) %}
-                                    <li class="page-item {{ 'active' if p == page else '' }}">
-                                        <a class="page-link" href="{{ url_for('assets.archive', page=p, search=search_query, sort_by=sort_by, sort_dir=sort_dir, per_page=per_page) }}">
-                                            {{ p }}
-                                        </a>
-                                    </li>
-                                {% endfor %}
-                                
-                                {% if page < total_pages %}
-                                    <li class="page-item">
-                                        <a class="page-link" href="{{ url_for('assets.archive', page=page+1, search=search_query, sort_by=sort_by, sort_dir=sort_dir, per_page=per_page) }}">
-                                            Next <i class="fas fa-chevron-right"></i>
-                                        </a>
-                                    </li>
-                                {% endif %}
-                            </ul>
-                        </nav>
-                        {% endif %}
-                    {% else %}
-                        <div class="text-center py-5">
-                            <i class="fas fa-archive fa-3x text-muted mb-3"></i>
-                            <h5 class="text-muted">No Archived Assets Found</h5>
-                            <p class="text-muted">There are no assets in the archive at this time.</p>
-                            <a href="{{ url_for('assets.dashboard') }}" class="btn btn-primary">
-                                <i class="fas fa-arrow-left"></i> Back to Dashboard
-                            </a>
-                        </div>
-                    {% endif %}
-                </div>
-            </div>
+                            {% else %}
+                            <span class="text-muted">N/A</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <div class="archive-meta">
+                                <div><i class="bi bi-building me-1"></i>{{ asset.branch }}</div>
+                                <div><i class="bi bi-diagram-3 me-1"></i>{{ asset.department }}</div>
+                                <div><i class="bi bi-person me-1"></i>{{ asset.owner }}</div>
+                            </div>
+                        </td>
+                        <td>
+                            {% if asset.used_status == 'Used' %}
+                                <span class="badge bg-success">Used</span>
+                            {% elif asset.used_status == 'Not Used' %}
+                                <span class="badge bg-warning text-dark">Not Used</span>
+                            {% elif asset.used_status == 'Out of Service' %}
+                                <span class="badge bg-danger">Out of Service</span>
+                            {% else %}
+                                <span class="badge bg-secondary">{{ asset.used_status }}</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <div class="archive-meta">
+                                <div><i class="bi bi-person-badge me-1"></i>{{ asset.archived_by }}</div>
+                                <div><i class="bi bi-calendar3 me-1"></i>{{ asset.archived_at.split(' ')[0] if asset.archived_at else 'N/A' }}</div>
+                                <div class="archive-reason">{{ asset.archive_reason or 'No reason provided' }}</div>
+                            </div>
+                        </td>
+                        <td>
+                            <div class="archive-actions">
+                                <button type="button" class="btn btn-sm btn-app-tab restore-asset-btn"
+                                        data-archived-id="{{ asset.id }}"
+                                        data-archived-name="{{ asset.name }}"
+                                        title="Restore to dashboard">
+                                    <i class="bi bi-arrow-counterclockwise"></i> Restore
+                                </button>
+                                <button type="button" class="btn btn-danger btn-sm permanent-delete-btn"
+                                        data-archived-id="{{ asset.id }}"
+                                        data-archived-name="{{ asset.name }}"
+                                        title="Permanently delete">
+                                    <i class="bi bi-trash"></i> Delete
+                                </button>
+                            </div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
         </div>
+        <div class="d-flex flex-wrap justify-content-between align-items-end gap-3 p-3 asset-register-pagination"
+             style="border-top:1px solid var(--card-border);">
+            <div class="d-flex flex-column gap-2 asset-register-pageinfo">
+                <span class="asset-register-showing" style="font-size:0.875rem;color:#7a869a;">
+                    Showing <strong style="color:#344054;font-weight:600;">{{ (page-1)*per_page + 1 if total_archived else 0 }}</strong> to
+                    <strong style="color:#344054;font-weight:600;">{{ [page*per_page, total_archived]|min }}</strong> of
+                    <strong style="color:#344054;font-weight:600;">{{ "{:,}".format(total_archived|int) }}</strong> archived
+                </span>
+            </div>
+            {% if total_pages > 1 %}
+            <nav class="app-page-nav" aria-label="Archive pagination">
+                {% if page > 1 %}
+                <a href="{{ archive_page_href(page - 1) }}" class="app-page-btn app-page-prev" title="Previous page"><i class="bi bi-chevron-left"></i></a>
+                {% endif %}
+                {% set start_page = [1, page - 2]|max %}
+                {% set end_page = [total_pages, page + 2]|min %}
+                {% if start_page > 1 %}
+                <a href="{{ archive_page_href(1) }}" class="app-page-btn{% if page == 1 %} is-active{% endif %}">1</a>
+                {% if start_page > 2 %}
+                <span class="app-page-ellipsis" aria-hidden="true">...</span>
+                {% endif %}
+                {% endif %}
+                {% for p in range(start_page, end_page + 1) %}
+                <a href="{{ archive_page_href(p) }}" class="app-page-btn{% if p == page %} is-active{% endif %}">{{ p }}</a>
+                {% endfor %}
+                {% if end_page < total_pages %}
+                {% if end_page < total_pages - 1 %}
+                <span class="app-page-ellipsis" aria-hidden="true">...</span>
+                {% endif %}
+                <a href="{{ archive_page_href(total_pages) }}" class="app-page-btn{% if page == total_pages %} is-active{% endif %}">{{ total_pages }}</a>
+                {% endif %}
+                {% if page < total_pages %}
+                <a href="{{ archive_page_href(page + 1) }}" class="app-page-btn app-page-next">Next <i class="bi bi-chevron-right"></i></a>
+                {% endif %}
+            </nav>
+            {% endif %}
+        </div>
+        {% else %}
+        <div class="empty-state">
+            <i class="bi bi-archive" aria-hidden="true"></i>
+            <p>No archived assets found.</p>
+            <a href="{{ url_for('assets.dashboard') }}" class="btn-app-primary mt-3">
+                <i class="bi bi-arrow-left"></i> Back to Dashboard
+            </a>
+        </div>
+        {% endif %}
     </div>
-
+</div>
 {% endblock %}
+
 {% block modals %}
-    <!-- QR Code Modal -->
-    <div class="modal fade" id="qrModal" tabindex="-1" aria-labelledby="qrModalLabel" aria-hidden="true">
-        <div class="modal-dialog modal-dialog-centered">
-            <div class="modal-content">
-                <div class="modal-header">
-                    <h5 class="modal-title" id="qrModalLabel">QR Code</h5>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+<div class="modal fade app-modal" id="qrModal" tabindex="-1" aria-labelledby="qrModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="qrModalLabel"><i class="bi bi-qr-code me-2" style="color:var(--gold);" aria-hidden="true"></i>QR Code</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body text-center">
+                <img id="qrModalImage" src="" alt="QR Code" style="max-width:100%;height:auto;">
+                <div class="mt-3">
+                    <strong id="qrModalAssetName"></strong><br>
+                    <small class="text-muted" id="qrModalAssetCode"></small>
                 </div>
-                <div class="modal-body text-center">
-                    <div id="qrModalContent">
-                        <img id="qrModalImage" src="" alt="QR Code" style="max-width: 100%; height: auto;">
-                        <div class="mt-3">
-                            <strong id="qrModalAssetName"></strong><br>
-                            <small class="text-muted" id="qrModalAssetCode"></small>
-                        </div>
-                    </div>
-                </div>
-                <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
-                    <button type="button" class="btn btn-primary" onclick="downloadQRCode()">
-                        <i class="fas fa-download"></i> Download
-                    </button>
-                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                <button type="button" class="btn-app-primary" onclick="downloadQRCode()">
+                    <i class="bi bi-download"></i> Download
+                </button>
             </div>
         </div>
     </div>
-
+</div>
 {% endblock %}
+
 {% block extra_scripts %}
 <script>
     document.addEventListener('DOMContentLoaded', function() {
         initializeArchiveRestore();
     });
-    
-    // Archive restore functionality
+
     let selectedArchivedAssets = [];
     const ARCHIVED_BULK_STORAGE_KEY = 'archiveBulkSelection_v1';
 
@@ -603,29 +399,24 @@
             });
         });
 
-        // Individual restore button functionality
         document.querySelectorAll('.restore-asset-btn').forEach(btn => {
             btn.addEventListener('click', handleRestoreAsset);
         });
 
-        // Individual permanent delete button functionality
         document.querySelectorAll('.permanent-delete-btn').forEach(btn => {
             btn.addEventListener('click', handlePermanentDeleteAsset);
         });
 
-        // Bulk restore button functionality
         const bulkRestoreBtn = document.getElementById('bulkRestoreBtn');
         if (bulkRestoreBtn) {
             bulkRestoreBtn.addEventListener('click', handleBulkRestore);
         }
 
-        // Bulk permanent delete button functionality
         const bulkPermanentDeleteBtn = document.getElementById('bulkPermanentDeleteBtn');
         if (bulkPermanentDeleteBtn) {
             bulkPermanentDeleteBtn.addEventListener('click', handleBulkPermanentDelete);
         }
 
-        // Clear selection button functionality
         const clearSelectionBtn = document.getElementById('clearArchivedSelectionBtn');
         if (clearSelectionBtn) {
             clearSelectionBtn.addEventListener('click', clearArchivedSelection);
@@ -649,23 +440,21 @@
     }
 
     function handleRestoreAsset(e) {
-        // Get the button element, handling clicks on child elements (like icons)
         const button = e.target.closest('.restore-asset-btn');
         if (!button) return;
-        
+
         const archivedId = button.getAttribute('data-archived-id');
         const assetName = button.getAttribute('data-archived-name');
-        
+
         if (!archivedId || !assetName) {
-            console.error('Missing data attributes for restore button');
             alert('Error: Missing asset information. Please try again.');
             return;
         }
-        
+
         if (confirm(`Are you sure you want to restore "${assetName}" to the dashboard?`)) {
             const formData = new FormData();
             formData.append('archived_id', archivedId);
-            
+
             fetch(`/assets/restore/${archivedId}`, {
                 method: 'POST',
                 body: formData
@@ -685,25 +474,23 @@
             });
         }
     }
-    
+
     function handlePermanentDeleteAsset(e) {
-        // Get the button element, handling clicks on child elements (like icons)
         const button = e.target.closest('.permanent-delete-btn');
         if (!button) return;
-        
+
         const archivedId = button.getAttribute('data-archived-id');
         const assetName = button.getAttribute('data-archived-name');
-        
+
         if (!archivedId || !assetName) {
-            console.error('Missing data attributes for permanent delete button');
             alert('Error: Missing asset information. Please try again.');
             return;
         }
-        
+
         if (confirm(`⚠️ WARNING: This action cannot be undone!\n\nAre you sure you want to PERMANENTLY DELETE "${assetName}"?\n\nThis will permanently remove the asset from the system.`)) {
             const formData = new FormData();
             formData.append('archived_id', archivedId);
-            
+
             fetch(`/assets/permanent_delete/${archivedId}`, {
                 method: 'POST',
                 body: formData
@@ -723,15 +510,15 @@
             });
         }
     }
-    
+
     function handleBulkPermanentDelete() {
         if (selectedArchivedAssets.length === 0) return;
-        
+
         const assetNames = selectedArchivedAssets.map(asset => asset.name).join(', ');
         if (confirm(`⚠️ WARNING: This action cannot be undone!\n\nAre you sure you want to PERMANENTLY DELETE ${selectedArchivedAssets.length} items?\n\n${assetNames.substring(0, 200)}${assetNames.length > 200 ? '...' : ''}\n\nThis will permanently remove these assets from the system.`)) {
             const formData = new FormData();
             selectedArchivedAssets.forEach(asset => formData.append('archived_ids[]', asset.id));
-            
+
             fetch('/assets/bulk_permanent_delete', {
                 method: 'POST',
                 body: formData
@@ -751,15 +538,15 @@
             });
         }
     }
-    
+
     function handleBulkRestore() {
         if (selectedArchivedAssets.length === 0) return;
-        
+
         const assetNames = selectedArchivedAssets.map(asset => asset.name).join(', ');
         if (confirm(`Are you sure you want to restore ${selectedArchivedAssets.length} items?\n\n${assetNames.substring(0, 200)}${assetNames.length > 200 ? '...' : ''}`)) {
             const formData = new FormData();
             selectedArchivedAssets.forEach(asset => formData.append('archived_ids[]', asset.id));
-            
+
             fetch('/assets/bulk_restore', {
                 method: 'POST',
                 body: formData
@@ -780,18 +567,15 @@
         }
     }
 
-    // QR Code Modal Functions
     function showQRModal(archivedId, assetCode, assetName) {
         const modalImage = document.getElementById('qrModalImage');
         const modalAssetName = document.getElementById('qrModalAssetName');
         const modalAssetCode = document.getElementById('qrModalAssetCode');
-        
-        // Set larger QR code image using our own endpoint
+
         modalImage.src = `/assets/archived_qrcode/${archivedId}`;
         modalAssetName.textContent = assetName;
         modalAssetCode.textContent = assetCode;
-        
-        // Show the modal
+
         const qrModal = new bootstrap.Modal(document.getElementById('qrModal'));
         qrModal.show();
     }
@@ -800,8 +584,7 @@
         const modalImage = document.getElementById('qrModalImage');
         const assetName = document.getElementById('qrModalAssetName').textContent;
         const assetCode = document.getElementById('qrModalAssetCode').textContent;
-        
-        // Create a temporary link to download the image
+
         const link = document.createElement('a');
         link.href = modalImage.src;
         link.download = `QR_${assetCode}_${assetName.replace(/[^a-zA-Z0-9]/g, '_')}.png`;
