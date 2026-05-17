@@ -1,6 +1,6 @@
 from flask import Blueprint, request, jsonify
 from flask_login import login_required, current_user
-from models.database import get_db_connection, ensure_restaurant_default_department_for_branch
+from models.database import get_db_connection
 from routes.assets import OFFICE_BRANCH_LABEL
 import sqlite3
 
@@ -143,7 +143,6 @@ def add_branch():
     try:
         cur.execute('INSERT INTO branches (name, brand_id) VALUES (?, ?)', (name, brand_id))
         branch_id = cur.lastrowid
-        ensure_restaurant_default_department_for_branch(cur, branch_id)
         conn.commit()
         conn.close()
         return jsonify({'success': True, 'id': branch_id, 'name': name, 'brand_id': brand_id})
