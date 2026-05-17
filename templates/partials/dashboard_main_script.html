@@ -59,6 +59,9 @@ window.MgmtEditCallbacks = {
         loadAssetTypes();
         loadAssetNames();
         if (typeof updateAssetNameDropdowns === 'function') updateAssetNameDropdowns();
+        if (window.MgmtAddAssetModals && window.MgmtAddAssetModals.refreshAssetNameTypeCombo) {
+            window.MgmtAddAssetModals.refreshAssetNameTypeCombo();
+        }
     }
 };
 let brandsData = [];
@@ -108,50 +111,35 @@ const QR_LABEL_PRESET = 'label_2x2';
         if (h) h.value = getEditAssetVenue();
     }
 
-    function scopeLabelForAssetTypeRow(t) {
-        if (!t) return '';
-        if (t.branch_name) {
-            return t.brand_name ? (t.brand_name + ' — ' + t.branch_name) : t.branch_name;
+    function assetTypeAppliesToVenue(t, venue) {
+        if (!t || !venue) return false;
+        const fv = (t.for_venue || 'restaurant');
+        if (t.branch_id || t.department_id) {
+            return fv === venue;
         }
-        if (t.department_name) {
-            return 'Office: ' + t.department_name;
-        }
-        return 'All locations';
+        return fv === venue || fv === 'both';
     }
 
-    function typesMatchingAssetModalLocation(venue, isEdit) {
-        const types = assetTypesData || [];
-        const branchSel = document.getElementById(isEdit ? 'edit_branch' : 'branch');
-        const deptSel = document.getElementById(isEdit ? 'edit_department' : 'department');
-        return types.filter(function (t) {
-            if ((t.for_venue || 'restaurant') !== venue) {
-                return false;
-            }
-            if (!t.branch_id && !t.department_id) {
-                return true;
-            }
-            if (venue === 'restaurant') {
-                const bname = branchSel ? branchSel.value : '';
-                if (!bname) {
-                    return !t.branch_id;
-                }
-                const br = branchesData.find(function (x) { return x.name === bname; });
-                if (!br) {
-                    return !t.branch_id;
-                }
-                return !t.branch_id || t.branch_id === br.id;
-            }
-            const dname = deptSel ? deptSel.value : '';
-            if (!dname) {
-                return !t.department_id;
-            }
-            const dr = departmentsData.find(function (d) {
-                return d.branch_id == null && d.name === dname;
-            });
-            if (!dr) {
-                return !t.department_id;
-            }
-            return !t.department_id || t.department_id === dr.id;
+    function locationLabelForAssetTypeRow(t) {
+        if (!t) return '';
+        if (!t.branch_id && !t.department_id) {
+            const fv = (t.for_venue || 'restaurant');
+            if (fv === 'both') return 'All restaurants & All office departments';
+            return (fv === 'office') ? 'All office departments' : 'All restaurants';
+        }
+        const venue = (t.for_venue === 'office') ? 'Office' : 'Restaurant';
+        if (t.branch_name) {
+            return t.brand_name ? (venue + ' — ' + t.brand_name + ' — ' + t.branch_name) : (venue + ' — ' + t.branch_name);
+        }
+        if (t.department_name) {
+            return venue + ' — ' + t.department_name;
+        }
+        return venue;
+    }
+
+    function typesMatchingAssetModalLocation(venue) {
+        return (assetTypesData || []).filter(function (t) {
+            return !t.branch_id && !t.department_id && assetTypeAppliesToVenue(t, venue);
         });
     }
 
@@ -161,29 +149,7 @@ const QR_LABEL_PRESET = 'label_2x2';
         if (!venue) {
             return [];
         }
-        const types = assetTypesData || [];
-        return types.filter(function (t) {
-            if ((t.for_venue || 'restaurant') !== venue) {
-                return false;
-            }
-            if (!t.branch_id && !t.department_id) {
-                return true;
-            }
-            if (venue === 'restaurant') {
-                const brs = document.getElementById('newAssetNameBranch');
-                const bid = brs ? brs.value : '';
-                if (!bid) {
-                    return !t.branch_id;
-                }
-                return t.branch_id === parseInt(bid, 10);
-            }
-            const ds = document.getElementById('newAssetNameOfficeDepartment');
-            const did = ds ? ds.value : '';
-            if (!did) {
-                return !t.department_id;
-            }
-            return String(t.department_id) === String(did);
-        });
+        return typesMatchingAssetModalLocation(venue);
     }
 
     function updateSettingsNewAssetNameTypeDropdown() {
@@ -387,35 +353,14 @@ const QR_LABEL_PRESET = 'label_2x2';
         });
     }
 
-    function resolveAssetTypeIdFromContext(typeName, venue, branchName, departmentName) {
-        const list = (assetTypesData || []).filter(function (t) {
-            return (t.for_venue || 'restaurant') === venue && t.name === typeName;
+    function resolveAssetTypeIdFromContext(typeName, venue) {
+        const hit = (assetTypesData || []).find(function (t) {
+            return t.name === typeName
+                && !t.branch_id
+                && !t.department_id
+                && assetTypeAppliesToVenue(t, venue);
         });
-        if (!list.length) {
-            return '';
-        }
-        const scoped = list.filter(function (t) { return t.branch_id != null || t.department_id != null; });
-        const glob = list.filter(function (t) { return !t.branch_id && !t.department_id; });
-        if (venue === 'restaurant') {
-            const b = branchesData.find(function (x) { return x.name === branchName; });
-            const hit = scoped.find(function (t) { return b && t.branch_id === b.id; });
-            if (hit) {
-                return String(hit.id);
-            }
-            if (glob.length === 1) {
-                return String(glob[0].id);
-            }
-            return glob.length ? String(glob[0].id) : '';
-        }
-        const d = departmentsData.find(function (x) { return x.branch_id == null && x.name === departmentName; });
-        const hit2 = scoped.find(function (t) { return d && t.department_id === d.id; });
-        if (hit2) {
-            return String(hit2.id);
-        }
-        if (glob.length === 1) {
-            return String(glob[0].id);
-        }
-        return glob.length ? String(glob[0].id) : '';
+        return hit ? String(hit.id) : '';
     }
 
     function fillOfficeDepartmentsSelect(selectEl, placeholderText) {
@@ -1209,7 +1154,7 @@ const QR_LABEL_PRESET = 'label_2x2';
         resetMgmtTableBulkUI('selectAllAssetTypesCheckbox', 'bulkDeleteAssetTypesBtn', 'assetTypesList', 'asset-type-row-checkbox');
 
         if (!assetTypesData.length) {
-            assetTypesList.innerHTML = '<tr><td colspan="6" class="text-center text-muted py-4">No asset types found</td></tr>';
+            assetTypesList.innerHTML = '<tr><td colspan="5" class="text-center text-muted py-4">No asset types found</td></tr>';
             resetMgmtTableBulkUI('selectAllAssetTypesCheckbox', 'bulkDeleteAssetTypesBtn', 'assetTypesList', 'asset-type-row-checkbox');
             refreshSettingsTableSearch('assetTypesList');
             return;
@@ -1221,14 +1166,12 @@ const QR_LABEL_PRESET = 'label_2x2';
             return a.name.localeCompare(b.name);
         });
         sorted.forEach((assetType, i) => {
-            const venueLabel = (assetType.for_venue === 'office') ? 'Office' : 'Restaurant';
-            const scope = scopeLabelForAssetTypeRow(assetType);
+            const locationLabel = locationLabelForAssetTypeRow(assetType);
             const tr = document.createElement('tr');
             tr.innerHTML = `
                 <td><input type="checkbox" class="asset-type-row-checkbox" value="${assetType.id}" aria-label="Select ${assetType.name}"></td>
                 <td>${i + 1}</td>
-                <td>${venueLabel}</td>
-                <td><small class="text-muted">${scope}</small></td>
+                <td><small class="text-muted">${locationLabel}</small></td>
                 <td><strong class="asset-type-name" data-id="${assetType.id}">${assetType.name}</strong></td>
                 <td>
                     <div class="d-flex gap-2 flex-wrap align-items-center">
@@ -1350,7 +1293,7 @@ const QR_LABEL_PRESET = 'label_2x2';
         if (addAssetTypeSelect) {
             const prev = addAssetTypeSelect.value;
             addAssetTypeSelect.innerHTML = '<option value="">Select Asset Type</option>';
-            typesMatchingAssetModalLocation(addVenue, false).forEach(function (assetType) {
+            typesMatchingAssetModalLocation(addVenue).forEach(function (assetType) {
                 const option = document.createElement('option');
                 option.value = String(assetType.id);
                 option.textContent = assetType.label || assetType.name;
@@ -1366,7 +1309,7 @@ const QR_LABEL_PRESET = 'label_2x2';
         if (editAssetTypeSelect) {
             const prev = editAssetTypeSelect.value;
             editAssetTypeSelect.innerHTML = '<option value="">Select Asset Type</option>';
-            typesMatchingAssetModalLocation(editVenue, true).forEach(function (assetType) {
+            typesMatchingAssetModalLocation(editVenue).forEach(function (assetType) {
                 const option = document.createElement('option');
                 option.value = String(assetType.id);
                 option.textContent = assetType.label || assetType.name;
@@ -1962,145 +1905,22 @@ const QR_LABEL_PRESET = 'label_2x2';
 // EVENT LISTENERS - ASSET MANAGEMENT
 // ============================================================================
 
-    // Handle adding new asset type
-    (function bindAssetTypeNameMgmt() {
-        const addAssetTypeBtn = document.getElementById('addAssetTypeBtn');
-        const addAssetNameBtn = document.getElementById('addAssetNameBtn');
-        if (!addAssetTypeBtn || !addAssetNameBtn) return;
-        addAssetTypeBtn.addEventListener('click', function() {
-        const nameInput = document.getElementById('newAssetTypeName');
-        const venueSelect = document.getElementById('newAssetTypeVenue');
-        const name = nameInput.value.trim();
-        const forVenue = venueSelect ? venueSelect.value : '';
-
-        if (!forVenue) {
-            mgmtShowError('Please choose Restaurant or Office for this asset type.');
-            return;
-        }
-        
-        if (!name) {
-            mgmtShowError('Please enter an asset type name.');
-            return;
-        }
-
-        const formData = new FormData();
-        formData.append('name', name);
-        formData.append('for_venue', forVenue);
-        if (forVenue === 'restaurant') {
-            const br = document.getElementById('newAssetTypeBranch');
-            if (br && br.value) {
-                formData.append('branch_id', br.value);
-            }
-        } else if (forVenue === 'office') {
-            const od = document.getElementById('newAssetTypeOfficeDepartment');
-            if (od && od.value) {
-                formData.append('department_id', od.value);
-            }
-        }
-
-        fetch('/admin/asset-types', {
-            method: 'POST',
-            body: formData
-        })
-        .then(response => response.json())
-                    .then(data => {
-                if (data.success) {
-                    nameInput.value = '';
-                    loadAssetTypes(); // Reload the asset types list
-                    loadAssetNames(); // Reload asset names to update dropdowns
-                    updateAssetNameDropdowns(); // Update dropdown data
-                } else {
-                    mgmtShowError(data.error || 'Failed to add asset type.');
-                }
-            })
-        .catch(error => {
-            console.error('Error:', error);
-            mgmtShowError('Failed to add asset type.');
-        });
-    });
-
-    // Handle adding new asset name
-    addAssetNameBtn.addEventListener('click', function() {
-        const nameInput = document.getElementById('newAssetName');
-        const typeSelect = document.getElementById('newAssetNameType');
-        const name = nameInput.value.trim();
-        const assetTypeId = typeSelect.value;
-        
-        if (!name) {
-            alert('Please enter an asset name.');
-            return;
-        }
-
-        if (!assetTypeId) {
-            alert('Please select an asset type.');
-            return;
-        }
-
-        const formData = new FormData();
-        formData.append('name', name);
-        formData.append('asset_type_id', assetTypeId);
-
-        fetch('/admin/asset-names', {
-            method: 'POST',
-            body: formData
-        })
-        .then(response => response.json())
-                    .then(data => {
-                if (data.success) {
-                    nameInput.value = '';
-                    typeSelect.value = '';
-                    loadAssetNames(); // Reload the asset names list
-                    updateAssetNameDropdowns(); // Update dropdown data
-                } else {
-                    alert(data.error || 'Failed to add asset name.');
-                }
-            })
-        .catch(error => {
-            console.error('Error:', error);
-            alert('Failed to add asset name.');
-        });
-    });
-
-        const natv = document.getElementById('newAssetTypeVenue');
-        if (natv) {
-            natv.addEventListener('change', function () { syncSettingsNewAssetTypeVenueFields(); });
-        }
-        const ntb = document.getElementById('newAssetTypeBrand');
-        if (ntb) {
-            ntb.addEventListener('change', function () {
-                updateSettingsMgmtBranchFromBrand('newAssetTypeBrand', 'newAssetTypeBranch');
-            });
-        }
-        const nanv = document.getElementById('newAssetNameVenue');
-        if (nanv) {
-            nanv.addEventListener('change', function () { syncSettingsNewAssetNameVenueFields(); });
-        }
-        const nnb = document.getElementById('newAssetNameBrand');
-        if (nnb) {
-            nnb.addEventListener('change', function () {
-                updateSettingsMgmtBranchFromBrand('newAssetNameBrand', 'newAssetNameBranch');
-            });
-        }
-        const nnbch = document.getElementById('newAssetNameBranch');
-        if (nnbch) {
-            nnbch.addEventListener('change', function () { updateSettingsNewAssetNameTypeDropdown(); });
-        }
-        const nnod = document.getElementById('newAssetNameOfficeDepartment');
-        if (nnod) {
-            nnod.addEventListener('change', function () { updateSettingsNewAssetNameTypeDropdown(); });
-        }
-    })();
-
     // Handle editing asset type
     function handleEditAssetType(e) {
         const btn = e.currentTarget;
         if (!window.MgmtEditModals) return;
+        const typeRow = (assetTypesData || []).find(function (t) {
+            return String(t.id) === String(btn.getAttribute('data-id'));
+        });
         window.MgmtEditModals.openAssetType({
             id: btn.getAttribute('data-id'),
             name: btn.getAttribute('data-name'),
             forVenue: btn.getAttribute('data-for-venue') || 'restaurant',
             branchId: btn.getAttribute('data-branch-id') || null,
-            departmentId: btn.getAttribute('data-department-id') || null
+            departmentId: btn.getAttribute('data-department-id') || null,
+            branchName: typeRow ? typeRow.branch_name : '',
+            brandName: typeRow ? typeRow.brand_name : '',
+            departmentName: typeRow ? typeRow.department_name : ''
         });
     }
 
@@ -3009,7 +2829,7 @@ const QR_LABEL_PRESET = 'label_2x2';
                         alert('Please choose Restaurant or Office.');
                         return;
                     }
-                    if (!atRow || (atRow.for_venue || 'restaurant') !== venue) {
+                    if (!atRow || !assetTypeAppliesToVenue(atRow, venue)) {
                         e.preventDefault();
                         alert('Please select an asset type that matches Restaurant or Office.');
                         return;
@@ -3232,7 +3052,7 @@ const QR_LABEL_PRESET = 'label_2x2';
                 .then(function () {
                     updateAssetTypeDropdowns();
                     const ev = isOfficeAsset ? 'office' : 'restaurant';
-                    const tid = resolveAssetTypeIdFromContext(assetTypeToSet, ev, assetBuilding, assetDepartment);
+                    const tid = resolveAssetTypeIdFromContext(assetTypeToSet, ev);
                     const ets = document.getElementById('edit_asset_type');
                     if (ets && tid) {
                         ets.value = tid;
@@ -3356,7 +3176,7 @@ const QR_LABEL_PRESET = 'label_2x2';
                 alert('Please choose Restaurant or Office.');
                 return;
             }
-            if (!atRow || (atRow.for_venue || 'restaurant') !== venue) {
+            if (!atRow || !assetTypeAppliesToVenue(atRow, venue)) {
                 alert('Please select an asset type that matches Restaurant or Office.');
                 return;
             }

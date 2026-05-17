@@ -303,6 +303,59 @@ body.dark-mode .app-modal.app-modal--qr .app-qr-asset-code {
     box-shadow: var(--app-modal-shadow);
 }
 
+/* Searchable combobox (maa-inventory style) */
+.app-modal .app-searchable-combobox {
+    position: relative;
+}
+
+.app-modal .app-searchable-combobox-input {
+    width: 100%;
+}
+
+/* Floated to document.body while open — not clipped by modal overflow */
+.app-searchable-combobox-panel--floating {
+    overflow-y: auto;
+    overflow-x: hidden;
+    background: #fff;
+    border: 1px solid var(--app-modal-border, #ede8dc);
+    border-radius: 8px;
+    box-shadow: 0 8px 28px rgba(0, 0, 0, 0.12);
+}
+
+.app-searchable-combobox-panel--floating .dropdown-item {
+    display: block;
+    width: 100%;
+    text-align: left;
+    border: 0;
+    border-radius: 0;
+    background: transparent;
+    cursor: pointer;
+    padding: 10px 12px;
+    font-size: 14px;
+    color: var(--text-dark, #1c1a14);
+    border-bottom: 1px solid var(--gold-light, #f5f0e6);
+}
+
+.app-searchable-combobox-panel--floating .dropdown-item:last-child {
+    border-bottom: 0;
+}
+
+.app-searchable-combobox-panel--floating .dropdown-item:hover {
+    background: var(--gold-light, #f5f0e6);
+}
+
+.app-searchable-combobox-panel--floating .dropdown-item.selected {
+    background: var(--gold-pale, #faf6ee) !important;
+    color: var(--gold-deeper, #8b6914) !important;
+    font-weight: 600;
+}
+
+.app-searchable-combobox-panel--floating .app-searchable-combobox-empty {
+    padding: 10px 12px;
+    font-size: 13px;
+    color: #6b7280;
+}
+
 .app-modal .dropdown-item {
     border-bottom-color: var(--gold-light);
 }
@@ -435,6 +488,31 @@ body.dark-mode .app-modal .asset-name-input {
 body.dark-mode .app-modal .custom-dropdown {
     background: #1e1c16 !important;
     border-color: #4a4334 !important;
+}
+
+body.dark-mode .app-searchable-combobox-panel--floating {
+    background: #1e1c16 !important;
+    border-color: #4a4334 !important;
+    box-shadow: 0 8px 28px rgba(0, 0, 0, 0.45) !important;
+}
+
+body.dark-mode .app-searchable-combobox-panel--floating .dropdown-item {
+    color: #f5f5f0 !important;
+    border-bottom-color: #3d382a !important;
+}
+
+body.dark-mode .app-searchable-combobox-panel--floating .dropdown-item:hover {
+    background: #332f26 !important;
+    color: #fff !important;
+}
+
+body.dark-mode .app-searchable-combobox-panel--floating .dropdown-item.selected {
+    background: #332f26 !important;
+    color: var(--gold) !important;
+}
+
+body.dark-mode .app-searchable-combobox-panel--floating .app-searchable-combobox-empty {
+    color: #9ca3af !important;
 }
 
 body.dark-mode .app-modal .dropdown-item {

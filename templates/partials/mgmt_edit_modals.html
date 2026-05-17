@@ -120,30 +120,9 @@
       <div class="modal-body">
         <input type="hidden" id="editMgmtAssetTypeId" value="">
         <div class="mb-3">
-          <label for="editMgmtAssetTypeVenue" class="form-label">Location</label>
-          <select class="form-select app-select-with-chevron" id="editMgmtAssetTypeVenue" required>
-            <option value="">Choose location</option>
-            <option value="restaurant">Restaurant</option>
-            <option value="office">Office</option>
-          </select>
-        </div>
-        <div class="mb-3 d-none" id="editMgmtAssetTypeBrandWrap">
-          <label for="editMgmtAssetTypeBrand" class="form-label">Brand</label>
-          <select class="form-select app-select-with-chevron" id="editMgmtAssetTypeBrand">
-            <option value="">Select brand</option>
-          </select>
-        </div>
-        <div class="mb-3 d-none" id="editMgmtAssetTypeBranchWrap">
-          <label for="editMgmtAssetTypeBranch" class="form-label">Branch</label>
-          <select class="form-select" id="editMgmtAssetTypeBranch">
-            <option value="">Select branch</option>
-          </select>
-        </div>
-        <div class="mb-3 d-none" id="editMgmtAssetTypeOfficeDeptWrap">
-          <label for="editMgmtAssetTypeOfficeDepartment" class="form-label">Department</label>
-          <select class="form-select" id="editMgmtAssetTypeOfficeDepartment">
-            <option value="">Select department</option>
-          </select>
+          <span class="form-label d-block">Location</span>
+          <p class="form-control-plaintext text-muted mb-0" id="editMgmtAssetTypeLocationDisplay">—</p>
+          <input type="hidden" id="editMgmtAssetTypeVenue" value="">
         </div>
         <div class="mb-0">
           <label for="editMgmtAssetTypeName" class="form-label">Asset type name</label>

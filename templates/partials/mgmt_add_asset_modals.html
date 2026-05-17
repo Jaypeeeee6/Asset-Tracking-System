@@ -1,0 +1,72 @@
+{% from "macros/app_components.html" import modal_cancel_button, add_button %}
+
+<!-- Add asset type -->
+<div class="modal fade app-modal" id="addMgmtAssetTypeModal" tabindex="-1" aria-labelledby="addMgmtAssetTypeModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-lg app-modal-dialog-comfort">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="addMgmtAssetTypeModalLabel"><i class="bi bi-plus-lg me-2" style="color:var(--gold);" aria-hidden="true"></i>Add asset type</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body">
+        <div class="app-modal-tip mb-3" role="note">
+          <i class="bi bi-info-circle" aria-hidden="true"></i>
+          Applies everywhere in the location you select (all restaurants and/or all office departments).
+        </div>
+        <div class="mb-3">
+          <label for="addMgmtAssetTypeName" class="form-label">Asset type name</label>
+          <input type="text" class="form-control" id="addMgmtAssetTypeName" maxlength="100" required placeholder="e.g. Electronics">
+        </div>
+        <fieldset class="mb-0">
+          <legend class="form-label">Location</legend>
+          <div class="form-check">
+            <input class="form-check-input" type="checkbox" id="addMgmtAssetTypeAllRestaurants" value="1">
+            <label class="form-check-label" for="addMgmtAssetTypeAllRestaurants">All restaurants</label>
+          </div>
+          <div class="form-check">
+            <input class="form-check-input" type="checkbox" id="addMgmtAssetTypeAllOfficeDepts" value="1">
+            <label class="form-check-label" for="addMgmtAssetTypeAllOfficeDepts">All office departments</label>
+          </div>
+        </fieldset>
+      </div>
+      <div class="modal-footer">
+        {{ modal_cancel_button('Cancel') }}
+        <button type="button" class="btn-app-add" id="addMgmtAssetTypeSaveBtn"><i class="bi bi-check-lg" aria-hidden="true"></i><span class="btn-app-add-label">Add asset type</span></button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Add asset name -->
+<div class="modal fade app-modal" id="addMgmtAssetNameModal" tabindex="-1" aria-labelledby="addMgmtAssetNameModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-lg app-modal-dialog-comfort">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="addMgmtAssetNameModalLabel"><i class="bi bi-plus-lg me-2" style="color:var(--gold);" aria-hidden="true"></i>Add asset name</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body">
+        <div class="app-modal-tip mb-3" role="note">
+          <i class="bi bi-info-circle" aria-hidden="true"></i>
+          The name is added to every matching asset type (all restaurants and/or all office departments). Create the type first if needed.
+        </div>
+        <div class="mb-3">
+          <label for="addMgmtAssetNameValue" class="form-label">Asset name</label>
+          <input type="text" class="form-control" id="addMgmtAssetNameValue" maxlength="100" required placeholder="e.g. Laptop">
+        </div>
+        <div class="mb-0 app-searchable-combobox" id="addMgmtAssetNameTypeCombo">
+          <label for="addMgmtAssetNameTypeSearch" class="form-label">Asset type</label>
+          <input type="hidden" id="addMgmtAssetNameTypeId" value="">
+          <input type="text" class="form-control app-searchable-combobox-input" id="addMgmtAssetNameTypeSearch"
+                 placeholder="Search or select asset type…" autocomplete="off" role="combobox"
+                 aria-expanded="false" aria-controls="addMgmtAssetNameTypeOptions" aria-autocomplete="list">
+          <div class="app-searchable-combobox-panel" id="addMgmtAssetNameTypeOptions" role="listbox" hidden></div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        {{ modal_cancel_button('Cancel') }}
+        <button type="button" class="btn-app-add" id="addMgmtAssetNameSaveBtn"><i class="bi bi-check-lg" aria-hidden="true"></i><span class="btn-app-add-label">Add asset name</span></button>
+      </div>
+    </div>
+  </div>
+</div>

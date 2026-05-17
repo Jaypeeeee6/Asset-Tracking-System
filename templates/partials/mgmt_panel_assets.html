@@ -1,44 +1,12 @@
 {% from "macros/app_components.html" import add_button, settings_search_bar %}
 <div class="settings-panel-stack">
-  <h6 class="settings-section-title">Asset types</h6>
-  <div class="filter-bar settings-panel-form flex-wrap">
-    <div class="filter-group" style="min-width: 200px;">
-      <label for="newAssetTypeVenue">Location</label>
-      <select class="form-select app-select-with-chevron" id="newAssetTypeVenue" required>
-        <option value="">Choose location</option>
-        <option value="restaurant">Restaurant</option>
-        <option value="office">Office</option>
-      </select>
-    </div>
-    <div class="filter-group d-none" id="newAssetTypeBrandWrap" style="min-width: 160px;">
-      <label for="newAssetTypeBrand">Brand</label>
-      <select class="form-select app-select-with-chevron" id="newAssetTypeBrand">
-        <option value="">Select brand</option>
-      </select>
-    </div>
-    <div class="filter-group d-none" id="newAssetTypeBranchWrap" style="min-width: 180px;">
-      <label for="newAssetTypeBranch">Branch</label>
-      <select class="form-select" id="newAssetTypeBranch">
-        <option value="">Select branch</option>
-      </select>
-    </div>
-    <div class="filter-group d-none" id="newAssetTypeOfficeDeptWrap" style="min-width: 200px;">
-      <label for="newAssetTypeOfficeDepartment">Department</label>
-      <select class="form-select" id="newAssetTypeOfficeDepartment">
-        <option value="">Select department</option>
-      </select>
-    </div>
-    <div class="filter-group" style="flex: 1; min-width: 200px;">
-      <label for="newAssetTypeName">New asset type</label>
-      <input type="text" class="form-control" id="newAssetTypeName" placeholder="Enter asset type name" maxlength="100">
-    </div>
-    <div class="filter-group">
-      <label class="settings-label-spacer" aria-hidden="true">&nbsp;</label>
-      {{ add_button('Add asset type', button_id='addAssetTypeBtn') }}
-    </div>
+  <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
+    <h6 class="settings-section-title mb-0">Asset types</h6>
+    {{ add_button('Add Asset Type', button_id='openAddMgmtAssetTypeModalBtn', icon='bi bi-plus-lg', modal_target='#addMgmtAssetTypeModal') }}
   </div>
+
   <h6 class="settings-section-title mb-2">Existing asset types</h6>
-  {{ settings_search_bar('assetTypesList', 'Search asset types, locations, scope…', 'settingsAssetTypesSearch') }}
+  {{ settings_search_bar('assetTypesList', 'Search asset types, locations…', 'settingsAssetTypesSearch') }}
   <div id="settingsAssetTypesBulkBar" class="app-bulk-bar mb-3" style="display: none;">
     <div class="d-flex flex-wrap justify-content-between align-items-center gap-2">
       <span><i class="bi bi-info-circle me-1"></i> <strong><span id="settingsAssetTypesSelectedCount">0</span> items selected</strong> &mdash; use the buttons to act on the selection</span>
@@ -60,7 +28,6 @@
             <th><input type="checkbox" id="selectAllAssetTypesCheckbox" title="Select all" aria-label="Select all asset types"></th>
             <th>#</th>
             <th>Location</th>
-            <th>Scope</th>
             <th>Type name</th>
             <th>Actions</th>
           </tr>
@@ -70,48 +37,9 @@
     </div>
   </div>
 
-  <h6 class="settings-section-title mt-4">Asset names</h6>
-  <div class="filter-bar settings-panel-form flex-wrap">
-    <div class="filter-group" style="min-width: 200px;">
-      <label for="newAssetNameVenue">Location</label>
-      <select class="form-select app-select-with-chevron" id="newAssetNameVenue" required>
-        <option value="">Choose location</option>
-        <option value="restaurant">Restaurant</option>
-        <option value="office">Office</option>
-      </select>
-    </div>
-    <div class="filter-group d-none" id="newAssetNameBrandWrap" style="min-width: 160px;">
-      <label for="newAssetNameBrand">Brand</label>
-      <select class="form-select app-select-with-chevron" id="newAssetNameBrand">
-        <option value="">Select brand</option>
-      </select>
-    </div>
-    <div class="filter-group d-none" id="newAssetNameBranchWrap" style="min-width: 180px;">
-      <label for="newAssetNameBranch">Branch</label>
-      <select class="form-select" id="newAssetNameBranch">
-        <option value="">Select branch</option>
-      </select>
-    </div>
-    <div class="filter-group d-none" id="newAssetNameOfficeDeptWrap" style="min-width: 200px;">
-      <label for="newAssetNameOfficeDepartment">Department</label>
-      <select class="form-select" id="newAssetNameOfficeDepartment">
-        <option value="">Select department</option>
-      </select>
-    </div>
-    <div class="filter-group" style="min-width: 160px;">
-      <label for="newAssetNameType">Asset type</label>
-      <select class="form-select" id="newAssetNameType" required>
-        <option value="">Select asset type</option>
-      </select>
-    </div>
-    <div class="filter-group" style="flex: 1; min-width: 200px;">
-      <label for="newAssetName">Asset name</label>
-      <input type="text" class="form-control" id="newAssetName" placeholder="Enter asset name" maxlength="100">
-    </div>
-    <div class="filter-group">
-      <label class="settings-label-spacer" aria-hidden="true">&nbsp;</label>
-      {{ add_button('Add', button_id='addAssetNameBtn') }}
-    </div>
+  <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mt-4 mb-3">
+    <h6 class="settings-section-title mb-0">Asset names</h6>
+    {{ add_button('Add Asset Name', button_id='openAddMgmtAssetNameModalBtn', icon='bi bi-plus-lg', modal_target='#addMgmtAssetNameModal') }}
   </div>
 
   <div class="filter-bar settings-panel-form mb-0">

@@ -69,7 +69,7 @@ def _validate_asset_venue_location(cur, venue, branch, department, brand_id=None
 def _asset_type_row_matches_location(cur, row, venue, branch, department, brand_key):
     """Whether an asset_types row applies to the given asset location."""
     fv = (row['for_venue'] or 'restaurant').strip().lower()
-    if fv != venue:
+    if fv not in (venue, 'both'):
         return False
     bid = row['branch_id']
     did = row['department_id']
@@ -127,7 +127,7 @@ def _resolve_asset_type_name(cur, venue, branch, department, brand_key):
         cur.execute(
             '''
             SELECT id, name, for_venue, branch_id, department_id
-            FROM asset_types WHERE name = ? AND for_venue = ?
+            FROM asset_types WHERE name = ? AND for_venue IN (?, 'both')
             ''',
             (legacy_name, venue),
         )

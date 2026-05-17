@@ -188,6 +188,107 @@ def _migrate_asset_types_location_scope(cur):
         pass
 
 
+def _merge_global_asset_type_pairs(cur):
+    """Merge same-name global restaurant + office rows into one for_venue='both' row."""
+    cur.execute(
+        '''
+        SELECT name FROM asset_types
+        WHERE branch_id IS NULL AND department_id IS NULL
+          AND for_venue IN ('restaurant', 'office')
+        GROUP BY name
+        HAVING SUM(CASE WHEN for_venue = 'restaurant' THEN 1 ELSE 0 END) > 0
+           AND SUM(CASE WHEN for_venue = 'office' THEN 1 ELSE 0 END) > 0
+        '''
+    )
+    for (name,) in cur.fetchall():
+        cur.execute(
+            '''
+            SELECT id, for_venue FROM asset_types
+            WHERE name = ? AND branch_id IS NULL AND department_id IS NULL
+              AND for_venue IN ('restaurant', 'office')
+            ''',
+            (name,),
+        )
+        rows = cur.fetchall()
+        restaurant_id = next((row[0] for row in rows if row[1] == 'restaurant'), None)
+        office_id = next((row[0] for row in rows if row[1] == 'office'), None)
+        if not restaurant_id or not office_id:
+            continue
+        cur.execute(
+            '''
+            SELECT id FROM asset_types
+            WHERE name = ? AND for_venue = 'both'
+              AND branch_id IS NULL AND department_id IS NULL
+            ''',
+            (name,),
+        )
+        existing_both = cur.fetchone()
+        if existing_both:
+            keep_id = existing_both[0]
+            for old_id in (restaurant_id, office_id):
+                if old_id != keep_id:
+                    cur.execute(
+                        'UPDATE asset_names SET asset_type_id = ? WHERE asset_type_id = ?',
+                        (keep_id, old_id),
+                    )
+                    cur.execute('DELETE FROM asset_types WHERE id = ?', (old_id,))
+            continue
+        cur.execute(
+            "UPDATE asset_types SET for_venue = 'both' WHERE id = ?",
+            (restaurant_id,),
+        )
+        cur.execute(
+            'UPDATE asset_names SET asset_type_id = ? WHERE asset_type_id = ?',
+            (restaurant_id, office_id),
+        )
+        cur.execute('DELETE FROM asset_types WHERE id = ?', (office_id,))
+
+
+def _migrate_asset_types_both_venue(cur):
+    """Allow for_venue='both' (single row for all restaurants + all office departments)."""
+    cur.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='asset_types'")
+    if not cur.fetchone():
+        return
+    cur.execute("SELECT sql FROM sqlite_master WHERE type='table' AND name='asset_types'")
+    create_sql = (cur.fetchone() or [None])[0] or ''
+    if "'both'" not in create_sql:
+        cur.executescript(
+            '''
+            PRAGMA foreign_keys=OFF;
+            CREATE TABLE asset_types_both_venue (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                name TEXT NOT NULL,
+                for_venue TEXT NOT NULL DEFAULT 'restaurant'
+                    CHECK (for_venue IN ('restaurant', 'office', 'both')),
+                branch_id INTEGER REFERENCES branches(id),
+                department_id INTEGER REFERENCES departments(id),
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            );
+            INSERT INTO asset_types_both_venue (id, name, for_venue, branch_id, department_id, created_at)
+                SELECT id, name, for_venue, branch_id, department_id, created_at FROM asset_types;
+            DROP TABLE asset_types;
+            ALTER TABLE asset_types_both_venue RENAME TO asset_types;
+            PRAGMA foreign_keys=ON;
+            '''
+        )
+        cur.execute('SELECT MAX(id) FROM asset_types')
+        mx = cur.fetchone()[0]
+        if mx:
+            cur.execute("DELETE FROM sqlite_sequence WHERE name='asset_types'")
+            cur.execute(
+                "INSERT INTO sqlite_sequence (name, seq) VALUES ('asset_types', ?)",
+                (mx,),
+            )
+        try:
+            cur.execute(
+                'CREATE UNIQUE INDEX IF NOT EXISTS idx_asset_types_unique_scope '
+                'ON asset_types (name, for_venue, ifnull(branch_id,-1), ifnull(department_id,-1))'
+            )
+        except sqlite3.OperationalError:
+            pass
+    _merge_global_asset_type_pairs(cur)
+
+
 def _migrate_legacy_building_schema(cur):
     """Rename legacy building* tables/columns to branch* for existing SQLite databases."""
     cur.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='buildings'")
@@ -401,6 +502,7 @@ def init_db():
     ''')
     _migrate_asset_types_for_venue(cur)
     _migrate_asset_types_location_scope(cur)
+    _migrate_asset_types_both_venue(cur)
     
     # Create asset_names table
     cur.execute('''

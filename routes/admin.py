@@ -6,6 +6,150 @@ import sqlite3
 
 admin_bp = Blueprint('admin', __name__)
 
+
+def _parse_int_or_none(raw):
+    raw = (raw or '').strip()
+    if not raw or raw == '__all__':
+        return None
+    try:
+        return int(raw)
+    except ValueError:
+        return None
+
+
+def _form_flag(name):
+    value = (request.form.get(name) or '').strip().lower()
+    return value in ('1', 'true', 'on', 'yes')
+
+
+def _bulk_location_targets(all_restaurants, all_office_departments):
+    """One global-scoped row; both checkboxes => single row with for_venue='both'."""
+    if all_restaurants and all_office_departments:
+        return [('both', None, None)]
+    if all_restaurants:
+        return [('restaurant', None, None)]
+    if all_office_departments:
+        return [('office', None, None)]
+    return []
+
+
+def _normalize_asset_type_venue(raw):
+    venue = (raw or 'restaurant').strip().lower()
+    if venue in ('restaurant', 'office', 'both'):
+        return venue
+    return None
+
+
+def _asset_type_applies_to_venue(for_venue, venue):
+    fv = _normalize_asset_type_venue(for_venue) or 'restaurant'
+    target = _normalize_asset_type_venue(venue) or 'restaurant'
+    return fv == target or fv == 'both'
+
+
+def _asset_type_ids_by_name(cur, type_name):
+    """Asset type ids with this name at all-restaurants or all-office-departments scope."""
+    cur.execute(
+        '''
+        SELECT id FROM asset_types
+        WHERE name = ? AND branch_id IS NULL AND department_id IS NULL
+        ORDER BY for_venue, id
+        ''',
+        (type_name,),
+    )
+    return [row[0] for row in cur.fetchall()]
+
+
+def _restaurant_scope_targets(cur, scope_mode, brand_id=None, branch_id=None):
+    """Return list of (branch_id, department_id) rows to create for restaurant asset types."""
+    scope = (scope_mode or 'all_locations').strip().lower()
+    if scope == 'all_locations':
+        return [(None, None)]
+    if scope == 'specific_branch':
+        bid = _parse_int_or_none(branch_id)
+        return [(bid, None)] if bid is not None else []
+    if scope == 'all_branches':
+        cur.execute('SELECT id FROM branches ORDER BY name')
+        return [(row[0], None) for row in cur.fetchall()]
+    if scope == 'all_brands':
+        if brand_id is not None:
+            cur.execute('SELECT id FROM branches WHERE brand_id = ? ORDER BY name', (brand_id,))
+        else:
+            cur.execute('SELECT id FROM branches ORDER BY name')
+        return [(row[0], None) for row in cur.fetchall()]
+    bid = _parse_int_or_none(branch_id)
+    if bid is None:
+        return [(None, None)]
+    return [(bid, None)]
+
+
+def _office_scope_targets(cur, scope_mode, department_id=None):
+    """Return list of (branch_id, department_id) rows to create for office asset types."""
+    scope = (scope_mode or 'all_locations').strip().lower()
+    if scope == 'all_locations':
+        return [(None, None)]
+    if scope == 'specific_department':
+        did = _parse_int_or_none(department_id)
+        return [(None, did)] if did is not None else []
+    if scope == 'all_departments':
+        cur.execute('SELECT id FROM departments WHERE branch_id IS NULL ORDER BY name')
+        return [(None, row[0]) for row in cur.fetchall()]
+    did = _parse_int_or_none(department_id)
+    if did is None:
+        return [(None, None)]
+    return [(None, did)]
+
+
+def _asset_type_ids_for_name_scope(cur, type_name, for_venue, scope_mode, brand_id=None, branch_id=None, department_id=None):
+    """Find existing asset_type ids matching name, venue, and scope selection."""
+    scope = (scope_mode or 'all_locations').strip().lower()
+    params = [type_name, for_venue]
+    sql = 'SELECT id FROM asset_types WHERE name = ? AND for_venue = ?'
+    if for_venue == 'restaurant':
+        if scope == 'all_locations':
+            sql += ' AND branch_id IS NULL AND department_id IS NULL'
+        elif scope == 'all_branches':
+            sql += ' AND branch_id IS NOT NULL'
+        elif scope == 'all_brands':
+            if brand_id is not None:
+                sql += ' AND branch_id IN (SELECT id FROM branches WHERE brand_id = ?)'
+                params.append(brand_id)
+            else:
+                sql += ' AND branch_id IS NOT NULL'
+        elif scope == 'specific_branch':
+            bid = _parse_int_or_none(branch_id)
+            if bid is None:
+                return []
+            sql += ' AND branch_id = ?'
+            params.append(bid)
+        else:
+            bid = _parse_int_or_none(branch_id)
+            if bid is None:
+                sql += ' AND branch_id IS NULL AND department_id IS NULL'
+            else:
+                sql += ' AND branch_id = ?'
+                params.append(bid)
+    else:
+        if scope == 'all_locations':
+            sql += ' AND branch_id IS NULL AND department_id IS NULL'
+        elif scope == 'all_departments':
+            sql += ' AND department_id IS NOT NULL'
+        elif scope == 'specific_department':
+            did = _parse_int_or_none(department_id)
+            if did is None:
+                return []
+            sql += ' AND department_id = ?'
+            params.append(did)
+        else:
+            did = _parse_int_or_none(department_id)
+            if did is None:
+                sql += ' AND branch_id IS NULL AND department_id IS NULL'
+            else:
+                sql += ' AND department_id = ?'
+                params.append(did)
+    cur.execute(sql, params)
+    return [row[0] for row in cur.fetchall()]
+
+
 # ===== BRAND MANAGEMENT API =====
 
 @admin_bp.route('/brands', methods=['GET'])
@@ -755,74 +899,49 @@ def add_asset_type():
         return jsonify({'error': 'Access denied. Only IT users can add asset types.'}), 403
 
     name = request.form.get('name', '').strip()
-    for_venue = (request.form.get('for_venue') or 'restaurant').strip().lower()
-    if for_venue not in ('restaurant', 'office'):
-        return jsonify({'error': 'Location must be restaurant or office'}), 400
+    all_restaurants = _form_flag('all_restaurants')
+    all_office_departments = _form_flag('all_office_departments')
+
     if not name:
         return jsonify({'error': 'Asset type name is required'}), 400
-
-    branch_raw = (request.form.get('branch_id') or '').strip()
-    dept_raw = (request.form.get('department_id') or '').strip()
-    branch_id = None
-    department_id = None
-
-    if for_venue == 'restaurant':
-        if dept_raw:
-            return jsonify({'error': 'Office department does not apply to restaurant asset types.'}), 400
-        if branch_raw:
-            try:
-                branch_id = int(branch_raw)
-            except ValueError:
-                return jsonify({'error': 'Invalid branch.'}), 400
-            conn = get_db_connection()
-            cur = conn.cursor()
-            cur.execute('SELECT id FROM branches WHERE id = ?', (branch_id,))
-            if not cur.fetchone():
-                conn.close()
-                return jsonify({'error': 'Select a valid branch.'}), 400
-            conn.close()
-    else:
-        if branch_raw:
-            return jsonify({'error': 'Branch does not apply to office asset types.'}), 400
-        if dept_raw:
-            try:
-                department_id = int(dept_raw)
-            except ValueError:
-                return jsonify({'error': 'Invalid department.'}), 400
-            conn = get_db_connection()
-            cur = conn.cursor()
-            cur.execute(
-                'SELECT id FROM departments WHERE id = ? AND branch_id IS NULL',
-                (department_id,),
-            )
-            if not cur.fetchone():
-                conn.close()
-                return jsonify({'error': 'Select a valid office department.'}), 400
-            conn.close()
+    if not all_restaurants and not all_office_departments:
+        return jsonify({
+            'error': 'Select at least one location (all restaurants and/or all office departments).',
+        }), 400
 
     conn = get_db_connection()
     cur = conn.cursor()
-    try:
-        cur.execute(
-            'INSERT INTO asset_types (name, for_venue, branch_id, department_id) VALUES (?, ?, ?, ?)',
-            (name, for_venue, branch_id, department_id),
-        )
-        asset_type_id = cur.lastrowid
-        conn.commit()
+    targets = _bulk_location_targets(all_restaurants, all_office_departments)
+
+    created_ids = []
+    skipped = 0
+    for for_venue, branch_id, department_id in targets:
+        try:
+            cur.execute(
+                'INSERT INTO asset_types (name, for_venue, branch_id, department_id) VALUES (?, ?, ?, ?)',
+                (name, for_venue, branch_id, department_id),
+            )
+            created_ids.append(cur.lastrowid)
+        except sqlite3.IntegrityError:
+            skipped += 1
+
+    if not created_ids:
         conn.close()
-        return jsonify(
-            {
-                'success': True,
-                'id': asset_type_id,
-                'name': name,
-                'for_venue': for_venue,
-                'branch_id': branch_id,
-                'department_id': department_id,
-            }
-        )
-    except sqlite3.IntegrityError:
-        conn.close()
-        return jsonify({'error': 'An asset type with this name already exists for that location and scope.'}), 400
+        if skipped:
+            return jsonify({'error': 'Asset type already exists for every selected location.'}), 400
+        return jsonify({'error': 'Could not add asset type.'}), 400
+
+    conn.commit()
+    conn.close()
+    return jsonify(
+        {
+            'success': True,
+            'created_count': len(created_ids),
+            'skipped_count': skipped,
+            'ids': created_ids,
+            'name': name,
+        }
+    )
 
 
 @admin_bp.route('/asset-types/<int:asset_type_id>', methods=['PUT'])
@@ -832,33 +951,14 @@ def update_asset_type(asset_type_id):
         return jsonify({'error': 'Access denied. Only IT users can update asset types.'}), 403
 
     name = request.form.get('name', '').strip()
-    for_venue = (request.form.get('for_venue') or 'restaurant').strip().lower()
-    if for_venue not in ('restaurant', 'office'):
-        return jsonify({'error': 'Location must be restaurant or office'}), 400
+    for_venue = _normalize_asset_type_venue(request.form.get('for_venue'))
+    if not for_venue:
+        return jsonify({'error': 'Invalid location for this asset type.'}), 400
     if not name:
         return jsonify({'error': 'Asset type name is required'}), 400
 
-    branch_raw = (request.form.get('branch_id') or '').strip()
-    dept_raw = (request.form.get('department_id') or '').strip()
     branch_id = None
     department_id = None
-
-    if for_venue == 'restaurant':
-        if dept_raw:
-            return jsonify({'error': 'Office department does not apply to restaurant asset types.'}), 400
-        if branch_raw:
-            try:
-                branch_id = int(branch_raw)
-            except ValueError:
-                return jsonify({'error': 'Invalid branch.'}), 400
-    else:
-        if branch_raw:
-            return jsonify({'error': 'Branch does not apply to office asset types.'}), 400
-        if dept_raw:
-            try:
-                department_id = int(dept_raw)
-            except ValueError:
-                return jsonify({'error': 'Invalid department.'}), 400
 
     conn = get_db_connection()
     cur = conn.cursor()
@@ -879,35 +979,10 @@ def update_asset_type(asset_type_id):
             old_row[3],
         )
 
-        scope_changed = (
-            for_venue != (old_venue or 'restaurant')
-            or branch_id != old_branch_id
-            or department_id != old_dept_id
-        )
-        if scope_changed:
-            asset_count = _count_assets_for_scoped_type(cur, old_name, old_branch_id, old_dept_id)
-            if asset_count > 0:
-                conn.close()
-                return jsonify({
-                    'error': (
-                        f'Cannot change location or scope while {asset_count} asset(s) use this type. '
-                        'Rename only, or remove assets first.'
-                    ),
-                }), 400
-
-        if branch_id is not None:
-            cur.execute('SELECT id FROM branches WHERE id = ?', (branch_id,))
-            if not cur.fetchone():
-                conn.close()
-                return jsonify({'error': 'Select a valid branch.'}), 400
-        if department_id is not None:
-            cur.execute(
-                'SELECT id FROM departments WHERE id = ? AND branch_id IS NULL',
-                (department_id,),
-            )
-            if not cur.fetchone():
-                conn.close()
-                return jsonify({'error': 'Select a valid office department.'}), 400
+        old_normalized = _normalize_asset_type_venue(old_venue) or 'restaurant'
+        if for_venue != old_normalized:
+            conn.close()
+            return jsonify({'error': 'Location cannot be changed. Edit the name only, or delete and re-add the type.'}), 400
 
         cur.execute(
             'UPDATE asset_types SET name = ?, for_venue = ?, branch_id = ?, department_id = ? WHERE id = ?',
@@ -1023,30 +1098,66 @@ def add_asset_name():
         return jsonify({'error': 'Access denied. Only IT users can add asset names.'}), 403
     
     name = request.form.get('name', '').strip()
-    asset_type_id = request.form.get('asset_type_id')
+    asset_type_name = (request.form.get('asset_type_name') or '').strip()
+    asset_type_id_raw = (request.form.get('asset_type_id') or '').strip()
     
     if not name:
         return jsonify({'error': 'Asset name is required'}), 400
-    
-    if not asset_type_id:
-        return jsonify({'error': 'Asset type is required'}), 400
-    
-    try:
-        asset_type_id = int(asset_type_id)
-    except ValueError:
-        return jsonify({'error': 'Invalid asset type ID'}), 400
-    
+
     conn = get_db_connection()
     cur = conn.cursor()
-    try:
-        cur.execute('INSERT INTO asset_names (name, asset_type_id) VALUES (?, ?)', (name, asset_type_id))
-        asset_name_id = cur.lastrowid
-        conn.commit()
+
+    type_ids = []
+    if asset_type_id_raw:
+        try:
+            tid = int(asset_type_id_raw)
+        except ValueError:
+            conn.close()
+            return jsonify({'error': 'Invalid asset type.'}), 400
+        cur.execute('SELECT id FROM asset_types WHERE id = ?', (tid,))
+        if not cur.fetchone():
+            conn.close()
+            return jsonify({'error': 'Asset type not found.'}), 404
+        type_ids = [tid]
+    elif asset_type_name:
+        type_ids = _asset_type_ids_by_name(cur, asset_type_name)
+    else:
         conn.close()
-        return jsonify({'success': True, 'id': asset_name_id, 'name': name, 'asset_type_id': asset_type_id})
-    except sqlite3.IntegrityError:
+        return jsonify({'error': 'Asset type name is required.'}), 400
+
+    if not type_ids:
         conn.close()
-        return jsonify({'error': 'Asset name already exists for this asset type'}), 400
+        return jsonify({
+            'error': (
+                f'No asset types named "{asset_type_name}" exist yet. '
+                'Add the asset type first.'
+            ),
+        }), 400
+
+    created_ids = []
+    skipped = 0
+    for tid in type_ids:
+        try:
+            cur.execute('INSERT INTO asset_names (name, asset_type_id) VALUES (?, ?)', (name, tid))
+            created_ids.append(cur.lastrowid)
+        except sqlite3.IntegrityError:
+            skipped += 1
+
+    if not created_ids:
+        conn.close()
+        if skipped:
+            return jsonify({'error': 'Asset name already exists for every matching asset type.'}), 400
+        return jsonify({'error': 'Could not add asset name.'}), 400
+
+    conn.commit()
+    conn.close()
+    return jsonify({
+        'success': True,
+        'created_count': len(created_ids),
+        'skipped_count': skipped,
+        'ids': created_ids,
+        'name': name,
+    })
 
 @admin_bp.route('/asset-names/<int:asset_name_id>', methods=['PUT'])
 @login_required

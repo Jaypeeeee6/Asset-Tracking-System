@@ -328,37 +328,31 @@
             .catch(function () { return showError('Failed to update employee.'); });
     }
 
+    function locationLabelForEditAssetType(data) {
+        var venue = data.forVenue || 'restaurant';
+        if (!data.branchId && !data.departmentId) {
+            if (venue === 'both') return 'All restaurants & All office departments';
+            return venue === 'office' ? 'All office departments' : 'All restaurants';
+        }
+        if (data.branchName) {
+            return data.brandName
+                ? 'Restaurant — ' + data.brandName + ' — ' + data.branchName
+                : 'Restaurant — ' + data.branchName;
+        }
+        if (data.departmentName) {
+            return 'Office — ' + data.departmentName;
+        }
+        return venue === 'office' ? 'Office' : 'Restaurant';
+    }
+
     function openEditAssetType(data) {
         var modalEl = $('editMgmtAssetTypeModal');
         if (!modalEl) return;
         $('editMgmtAssetTypeId').value = data.id;
         $('editMgmtAssetTypeName').value = data.name || '';
         $('editMgmtAssetTypeVenue').value = data.forVenue || 'restaurant';
-        syncEditMgmtAssetTypeVenue();
-
-        if (data.forVenue === 'restaurant') {
-            var br = branchesList().find(function (b) {
-                return b.id === data.branchId || String(b.id) === String(data.branchId);
-            });
-            var brandId = br ? br.brand_id : '';
-            fillBrandSelect($('editMgmtAssetTypeBrand'), brandId);
-            fillBranchSelectByBrand($('editMgmtAssetTypeBranch'), brandId, data.branchId);
-        } else if (data.forVenue === 'office') {
-            fetch('/admin/departments?office_only=1')
-                .then(function (r) { return r.json(); })
-                .then(function (depts) {
-                    var od = $('editMgmtAssetTypeOfficeDepartment');
-                    if (!od) return;
-                    od.innerHTML = '<option value="">Select department</option>';
-                    depts.forEach(function (d) {
-                        var o = document.createElement('option');
-                        o.value = String(d.id);
-                        o.textContent = d.name;
-                        od.appendChild(o);
-                    });
-                    if (data.departmentId) od.value = String(data.departmentId);
-                });
-        }
+        var loc = $('editMgmtAssetTypeLocationDisplay');
+        if (loc) loc.textContent = locationLabelForEditAssetType(data);
 
         getBsModal(modalEl).show();
     }
@@ -367,19 +361,12 @@
         var id = $('editMgmtAssetTypeId').value;
         var name = ($('editMgmtAssetTypeName').value || '').trim();
         var venue = $('editMgmtAssetTypeVenue').value;
-        if (!venue) return showError('Please choose Restaurant or Office for this asset type.');
+        if (!venue) return showError('Asset type location is missing.');
         if (!name) return showError('Please enter an asset type name.');
 
         var formData = new FormData();
         formData.append('name', name);
         formData.append('for_venue', venue);
-        if (venue === 'restaurant') {
-            var br = $('editMgmtAssetTypeBranch');
-            if (br && br.value) formData.append('branch_id', br.value);
-        } else if (venue === 'office') {
-            var od = $('editMgmtAssetTypeOfficeDepartment');
-            if (od && od.value) formData.append('department_id', od.value);
-        }
 
         return fetch('/admin/asset-types/' + encodeURIComponent(id), { method: 'PUT', body: formData })
             .then(function (r) { return r.json(); })
