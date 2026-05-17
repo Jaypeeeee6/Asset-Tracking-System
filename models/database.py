@@ -541,8 +541,8 @@ def init_db():
 
     # label_2x2: asset code (primary) above QR, item name (secondary) below; tight gaps; group left.
     # Routes pass (asset_code, name) as (primary, secondary).
-    _lbl2_qr_x = 3.68
-    _lbl2_qr_y = 6.25
+    _lbl2_qr_x = 3.38
+    _lbl2_qr_y = 5.95
     _lbl2_qr_size = 14.0
     _lbl2_qr_center_x = _lbl2_qr_x + (_lbl2_qr_size / 2)
     _lbl2_primary_text_y = 2.35
@@ -855,6 +855,48 @@ def init_db():
             _lbl2_secondary_text_y,
             _lbl2_qr_size,
             _lbl2_qr_x,
+        ),
+    )
+    # Slight upward nudge for current 14 mm stack (was qr_y 6.25 mm).
+    _prev_lbl2_qr_y_ship = 6.25
+    cur.execute(
+        '''
+        UPDATE qr_label_layouts SET
+            qr_y_mm = ?,
+            secondary_text_y_mm = ?
+        WHERE preset_key = 'label_2x2'
+          AND ABS(qr_size_mm - ?) < 0.15
+          AND ABS(qr_x_mm - ?) < 0.25
+          AND ABS(qr_y_mm - ?) < 0.12
+        ''',
+        (
+            _lbl2_qr_y,
+            _lbl2_secondary_text_y,
+            _lbl2_qr_size,
+            _lbl2_qr_x,
+            _prev_lbl2_qr_y_ship,
+        ),
+    )
+    # Slight left nudge for current 14 mm stack (was qr_x 3.68 mm).
+    _prev_lbl2_qr_x_ship = 3.68
+    cur.execute(
+        '''
+        UPDATE qr_label_layouts SET
+            qr_x_mm = ?,
+            primary_text_x_mm = ?,
+            secondary_text_x_mm = ?
+        WHERE preset_key = 'label_2x2'
+          AND ABS(qr_size_mm - ?) < 0.15
+          AND ABS(qr_y_mm - ?) < 0.12
+          AND ABS(qr_x_mm - ?) < 0.12
+        ''',
+        (
+            _lbl2_qr_x,
+            _lbl2_qr_center_x,
+            _lbl2_qr_center_x,
+            _lbl2_qr_size,
+            _lbl2_qr_y,
+            _prev_lbl2_qr_x_ship,
         ),
     )
     conn.commit()
