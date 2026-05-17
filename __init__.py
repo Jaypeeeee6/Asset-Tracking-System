@@ -22,9 +22,11 @@ def create_app():
     app.jinja_env.globals.update(max=max, min=min)
 
     from utils.formatting import format_int, format_omr
+    from models.database import format_asset_location_display
 
     app.jinja_env.filters['fmt_num'] = format_int
     app.jinja_env.filters['fmt_omr'] = format_omr
+    app.jinja_env.filters['fmt_location'] = format_asset_location_display
 
     @app.template_global()
     def has_it_access():

@@ -141,6 +141,17 @@ def _ensure_department_venue_indexes(cur):
 RESTAURANT_DEFAULT_DEPARTMENT_NAME = 'Restaurant'
 
 
+def format_asset_location_display(branch, department):
+    """Single location label for lists: hide Office/Restaurant venue placeholders."""
+    branch = (branch or '').strip()
+    department = (department or '').strip()
+    if branch == OFFICE_BRANCH_LABEL:
+        return department or '—'
+    if not department or department == RESTAURANT_DEFAULT_DEPARTMENT_NAME:
+        return branch or '—'
+    return f'{branch} / {department}'
+
+
 def ensure_restaurant_default_department_for_branch(cur, branch_id):
     """Ensure branch has a default 'Restaurant' department row (used when users only pick brand + branch)."""
     cur.execute(

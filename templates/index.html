@@ -626,7 +626,7 @@
             }
         }
     </style>
-    <link rel="stylesheet" href="{{ url_for('static', filename='app-dashboard.css') }}?v=4">
+    <link rel="stylesheet" href="{{ url_for('static', filename='app-dashboard.css') }}?v=10">
 {% endblock %}
 {% block app_content %}
 {% macro page_href(p) -%}
@@ -775,44 +775,56 @@
 
     <div class="app-card mb-4 asset-register-card">
         {% if assets %}
-        <div style="overflow-x:auto;">
-        <table class="app-table asset-register-table" style="width: 100%; min-width: 1400px;">
+        <div class="asset-register-table-wrap">
+        <table class="app-table asset-register-table">
         <colgroup>
-            <col>
-            <col>
-            <col>
+            <col class="app-table-col-select">
+            <col class="app-table-col-num">
+            <col class="app-table-col-qr">
+            <col class="app-table-col-name">
             <col class="app-table-col-type">
-            <col>
+            <col class="app-table-col-qty">
             <col class="app-table-col-value">
-            <col>
-            <col>
-            <col>
-            <col>
-            <col>
-            <col>
+            <col class="app-table-col-owner">
+            <col class="app-table-col-location">
+            <col class="app-table-col-status">
+            <col class="app-table-col-actions">
         </colgroup>
         <thead>
             <tr>
-                <th><input type="checkbox" id="selectAllCheckbox" title="Select All"></th>
-                <th>#</th>
-                <th><a href="{{ url_for('assets.dashboard') }}{{ sort_href('name') }}">Name{% if sort_by == 'name' %} {% if sort_dir == 'asc' %}&#9650;{% else %}&#9660;{% endif %}{% endif %}</a></th>
+                <th class="app-table-col-select"><input type="checkbox" id="selectAllCheckbox" title="Select All"></th>
+                <th class="app-table-col-num">#</th>
+                <th class="app-table-col-qr">QR Code</th>
+                <th class="app-table-col-name"><a href="{{ url_for('assets.dashboard') }}{{ sort_href('name') }}">Name{% if sort_by == 'name' %} {% if sort_dir == 'asc' %}&#9650;{% else %}&#9660;{% endif %}{% endif %}</a></th>
                 <th class="app-table-col-type"><a href="{{ url_for('assets.dashboard') }}{{ sort_href('asset_type') }}">Type{% if sort_by == 'asset_type' %} {% if sort_dir == 'asc' %}&#9650;{% else %}&#9660;{% endif %}{% endif %}</a></th>
-                <th><a href="{{ url_for('assets.dashboard') }}{{ sort_href('quantity') }}">QTY{% if sort_by == 'quantity' %} {% if sort_dir == 'asc' %}&#9650;{% else %}&#9660;{% endif %}{% endif %}</a></th>
+                <th class="app-table-col-qty"><a href="{{ url_for('assets.dashboard') }}{{ sort_href('quantity') }}">QTY{% if sort_by == 'quantity' %} {% if sort_dir == 'asc' %}&#9650;{% else %}&#9660;{% endif %}{% endif %}</a></th>
                 <th class="app-table-col-value"><a href="{{ url_for('assets.dashboard') }}{{ sort_href('price') }}">Total Value{% if sort_by == 'price' %} {% if sort_dir == 'asc' %}&#9650;{% else %}&#9660;{% endif %}{% endif %}</a></th>
-                <th><a href="{{ url_for('assets.dashboard') }}{{ sort_href('owner') }}">Owner{% if sort_by == 'owner' %} {% if sort_dir == 'asc' %}&#9650;{% else %}&#9660;{% endif %}{% endif %}</a></th>
-                <th><a href="{{ url_for('assets.dashboard') }}{{ sort_href('branch') }}">Branch{% if sort_by == 'branch' %} {% if sort_dir == 'asc' %}&#9650;{% else %}&#9660;{% endif %}{% endif %}</a></th>
-                <th><a href="{{ url_for('assets.dashboard') }}{{ sort_href('department') }}">Department{% if sort_by == 'department' %} {% if sort_dir == 'asc' %}&#9650;{% else %}&#9660;{% endif %}{% endif %}</a></th>
+                <th class="app-table-col-owner"><a href="{{ url_for('assets.dashboard') }}{{ sort_href('owner') }}">Owner{% if sort_by == 'owner' %} {% if sort_dir == 'asc' %}&#9650;{% else %}&#9660;{% endif %}{% endif %}</a></th>
+                <th class="app-table-col-location"><a href="{{ url_for('assets.dashboard') }}{{ sort_href('branch') }}">Branch/Department{% if sort_by == 'branch' %} {% if sort_dir == 'asc' %}&#9650;{% else %}&#9660;{% endif %}{% endif %}</a></th>
                 <th class="app-table-col-status"><a href="{{ url_for('assets.dashboard') }}{{ sort_href('used_status') }}">Status{% if sort_by == 'used_status' %} {% if sort_dir == 'asc' %}&#9650;{% else %}&#9660;{% endif %}{% endif %}</a></th>
-                <th>QR CODE</th>
-                <th>Actions</th>
+                <th class="app-table-col-actions">Actions</th>
             </tr>
         </thead>
         <tbody>
         {% for asset in assets %}
             <tr>
-                <td><input type="checkbox" class="asset-checkbox" data-asset-id="{{ asset.id }}" data-asset-name="{{ asset.name }}"></td>
-                <td>{{ loop.index + (page-1)*per_page }}</td>
-                <td>
+                <td class="app-table-col-select"><input type="checkbox" class="asset-checkbox" data-asset-id="{{ asset.id }}" data-asset-name="{{ asset.name }}"></td>
+                <td class="app-table-col-num">{{ loop.index + (page-1)*per_page }}</td>
+                <td class="app-table-col-qr">
+                    {% if asset.asset_code %}
+                        <div class="qr-code-container">
+                            <img src="/assets/qrcode/{{ asset.id }}"
+                                 alt="QR Code for {{ asset.name }}"
+                                 class="qr-code-img asset-register-qr-img"
+                                 onclick="showQRModal('{{ asset.id }}', '{{ asset.asset_code }}', '{{ asset.name }}')"
+                                 title="Click to view larger QR code">
+                            <div class="qr-code-text">{{ asset.asset_code }}</div>
+                        </div>
+                    {% else %}
+                        <span class="text-muted">N/A</span>
+                    {% endif %}
+                </td>
+                <td class="app-table-col-name">
                     <strong>{{ asset.name }}</strong>
                     <br><small class="text-muted">{{ asset.asset_code }}</small>
                 </td>
@@ -823,16 +835,15 @@
                         <span class="text-muted">-</span>
                     {% endif %}
                 </td>
-                <td>{{ asset.quantity|fmt_num }}</td>
+                <td class="app-table-col-qty">{{ asset.quantity|fmt_num }}</td>
                 <td class="app-table-col-value">
                     <div class="d-flex flex-column">
                         <span class="fw-bold">OMR {{ ((asset.price or 0.0) * asset.quantity)|fmt_omr }}</span>
                         <small class="text-muted">({{ (asset.price or 0.0)|fmt_omr }} &times; {{ asset.quantity|fmt_num }})</small>
                     </div>
                 </td>
-                <td>{{ asset.owner }}</td>
-                <td>{{ asset.branch }}</td>
-                <td>{{ asset.department }}</td>
+                <td class="app-table-col-owner">{{ asset.owner }}</td>
+                <td class="app-table-col-location">{{ asset.branch|fmt_location(asset.department) }}</td>
                 <td class="app-table-col-status">
                     <select class="form-select form-select-sm status-select" data-asset-id="{{ asset.id }}">
                         <option value="Used" {% if asset.used_status == 'Used' %}selected{% endif %}>Used</option>
@@ -840,24 +851,7 @@
                         <option value="Out of Service" {% if asset.used_status == 'Out of Service' %}selected{% endif %}>Out of Service</option>
                     </select>
                 </td>
-                <td>
-                    {% if asset.asset_code %}
-                        <div class="qr-code-container">
-                            <img src="/assets/qrcode/{{ asset.id }}"
-                                 alt="QR Code for {{ asset.name }}"
-                                 class="qr-code-img"
-                                 style="width: 60px; height: 60px; cursor: pointer;"
-                                 onclick="showQRModal('{{ asset.id }}', '{{ asset.asset_code }}', '{{ asset.name }}')"
-                                 title="Click to view larger QR code">
-                            <div class="qr-code-text" style="font-size: 0.7em; color: #6c757d; margin-top: 2px; word-break: break-all;">
-                                {{ asset.asset_code }}
-                            </div>
-                        </div>
-                    {% else %}
-                        <span class="text-muted">N/A</span>
-                    {% endif %}
-                </td>
-                <td>
+                <td class="app-table-col-actions">
                     <button type="button" class="btn-app-edit-icon edit-asset-btn"
                             data-asset-id="{{ asset.id }}"
                             data-asset-name="{{ asset.name }}"

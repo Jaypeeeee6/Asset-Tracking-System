@@ -216,8 +216,7 @@ body {
     flex-direction: column;
     transition: margin-left 0.25s ease;
     background: var(--body-bg);
-    overflow-x: auto;
-    -webkit-overflow-scrolling: touch;
+    overflow-x: hidden;
 }
 
 /* Main column content: stay within the content area (wide tables scroll inside .table-responsive) */
