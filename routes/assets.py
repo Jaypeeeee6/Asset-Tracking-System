@@ -67,6 +67,60 @@ def _validate_asset_venue_location(cur, venue, branch, department, brand_id=None
 
 
 
+def _compute_chart_data_from_asset_rows(rows):
+    """Aggregate branch/department/value stats from asset rows (tuple or dict)."""
+    status_counts = {'Used': 0, 'Not Used': 0, 'Out of Service': 0}
+    branch_counts = {}
+    branch_prices = {}
+    department_counts = {}
+    department_prices = {}
+    total_system_value = 0.0
+
+    for asset in rows:
+        if isinstance(asset, dict):
+            status = asset.get('used_status')
+            branch = asset.get('branch')
+            department = asset.get('department')
+            price = asset.get('price') or 0.0
+            quantity = asset.get('quantity') or 1
+        else:
+            status, branch, department, price, quantity = (
+                asset[0], asset[1], asset[2], asset[3], asset[4]
+            )
+            price = price or 0.0
+            quantity = quantity or 1
+
+        total_price = float(price) * int(quantity)
+        if status in status_counts:
+            status_counts[status] += 1
+
+        if branch in branch_counts:
+            branch_counts[branch] += 1
+            branch_prices[branch] += total_price
+        else:
+            branch_counts[branch] = 1
+            branch_prices[branch] = total_price
+
+        dept_key = f'{branch}-{department}'
+        if dept_key in department_counts:
+            department_counts[dept_key] += 1
+            department_prices[dept_key] += total_price
+        else:
+            department_counts[dept_key] = 1
+            department_prices[dept_key] = total_price
+
+        total_system_value += total_price
+
+    return {
+        'status_counts': status_counts,
+        'branch_counts': branch_counts,
+        'branch_prices': branch_prices,
+        'department_counts': department_counts,
+        'department_prices': department_prices,
+        'total_system_value': total_system_value,
+    }
+
+
 @assets_bp.route('/dashboard')
 @login_required
 def dashboard():
@@ -135,47 +189,8 @@ def dashboard():
     cur.execute(f'SELECT * FROM assets {where_sql} ORDER BY {sort_by} {sort_dir} LIMIT ? OFFSET ?', params + [per_page, offset])
     assets = [dict(zip([desc[0] for desc in cur.description], row)) for row in cur.fetchall()]
     
-    # Get chart data (all assets, not paginated)
     cur.execute('SELECT used_status, branch, department, price, quantity FROM assets')
-    all_assets = cur.fetchall()
-    
-    # Calculate chart data
-    status_counts = {'Used': 0, 'Not Used': 0, 'Out of Service': 0}
-    branch_counts = {}
-    branch_prices = {}
-    department_counts = {}
-    department_prices = {}
-    total_system_value = 0
-    
-    for asset in all_assets:
-        status = asset[0]
-        branch = asset[1]
-        department = asset[2]
-        price = asset[3] or 0.0
-        quantity = asset[4] or 1
-        total_price = price * quantity
-        
-        if status in status_counts:
-            status_counts[status] += 1
-        
-        if branch in branch_counts:
-            branch_counts[branch] += 1
-            branch_prices[branch] += total_price
-        else:
-            branch_counts[branch] = 1
-            branch_prices[branch] = total_price
-        
-        # Department counts and prices (key is branch-department)
-        dept_key = f"{branch}-{department}"
-        if dept_key in department_counts:
-            department_counts[dept_key] += 1
-            department_prices[dept_key] += total_price
-        else:
-            department_counts[dept_key] = 1
-            department_prices[dept_key] = total_price
-        
-        total_system_value += total_price
-    
+    chart_data = _compute_chart_data_from_asset_rows(cur.fetchall())
     conn.close()
     
     return render_template('index.html', 
@@ -193,14 +208,7 @@ def dashboard():
                          search_query=search_query,
                          status_filter=status_filter,
                          asset_type_filter=asset_type_filter,
-                         chart_data={
-                             'status_counts': status_counts,
-                             'branch_counts': branch_counts,
-                             'branch_prices': branch_prices,
-                             'department_counts': department_counts,
-                             'department_prices': department_prices,
-                             'total_system_value': total_system_value
-                         })
+                         chart_data=chart_data)
 
 
 def _register_filter_where_from_request():
@@ -870,6 +878,30 @@ def get_assets():
     assets = [dict(zip([desc[0] for desc in cur.description], row)) for row in cur.fetchall()]
     conn.close()
     return jsonify(assets) 
+
+@assets_bp.route('/price-analysis')
+@login_required
+def price_analysis():
+    if not current_user.has_it_access():
+        flash('Access denied. Only IT users can view price analysis.', 'error')
+        return redirect(url_for('assets.dashboard'))
+
+    conn = get_db_connection()
+    cur = conn.cursor()
+    cur.execute('SELECT * FROM assets ORDER BY branch ASC, department ASC, name ASC')
+    assets = [dict(zip([desc[0] for desc in cur.description], row)) for row in cur.fetchall()]
+    chart_data = _compute_chart_data_from_asset_rows(assets)
+    conn.close()
+
+    return render_template(
+        'price_analysis.html',
+        assets=assets,
+        chart_data=chart_data,
+        total_assets=len(assets),
+        branch_count=len(chart_data['branch_counts']),
+        department_count=len(chart_data['department_counts']),
+    )
+
 
 @assets_bp.route('/archive')
 @login_required

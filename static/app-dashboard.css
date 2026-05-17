@@ -999,3 +999,83 @@ body.dark-mode .asset-dashboard.archive-page .archive-reason {
         justify-content: center;
     }
 }
+
+/* ----- Price analysis page ----- */
+.asset-dashboard.price-analysis-page .card-header-bar .filter-group {
+    min-width: 180px;
+}
+
+.asset-dashboard.price-analysis-page .card-header-bar .filter-group label {
+    display: block;
+    font-size: 0.72rem;
+    font-weight: 700;
+    color: var(--gold-deeper);
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    margin-bottom: 0.3rem;
+}
+
+.asset-dashboard.price-analysis-page .card-header-bar .filter-group select {
+    border: 1.5px solid var(--card-border);
+    border-radius: 8px;
+    padding: 0.45rem 0.75rem;
+    font-size: 0.875rem;
+    color: var(--text-dark);
+    background: #fff;
+    min-width: 160px;
+}
+
+.asset-dashboard.price-analysis-page .card-header-bar .filter-group select.app-select-with-chevron {
+    appearance: none;
+    -webkit-appearance: none;
+    -moz-appearance: none;
+    padding-right: 2.25rem;
+    background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3e%3cpath fill='none' stroke='%235c5346' stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M2 5l6 6 6-6'/%3e%3c/svg%3e");
+    background-repeat: no-repeat;
+    background-position: right 0.65rem center;
+    background-size: 12px 10px;
+}
+
+.asset-dashboard.price-analysis-page .price-analysis-table-wrap {
+    max-height: 420px;
+    overflow: auto;
+}
+
+.asset-dashboard.price-analysis-page .price-analysis-table-wrap--tall {
+    max-height: 480px;
+}
+
+.asset-dashboard.price-analysis-page .price-analysis-table-wrap--detail {
+    max-height: 560px;
+}
+
+.asset-dashboard.price-analysis-page .price-analysis-value {
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+}
+
+.asset-dashboard.price-analysis-page .price-analysis-value--branch {
+    color: #15803d;
+}
+
+.asset-dashboard.price-analysis-page .price-analysis-value--dept {
+    color: #0e7490;
+}
+
+.asset-dashboard.price-analysis-page .price-analysis-value--asset {
+    color: var(--gold-deeper);
+}
+
+body.dark-mode .asset-dashboard.price-analysis-page .card-header-bar .filter-group select {
+    color: #ecf0f1;
+    background-color: #2d2d2d;
+    border-color: #404040;
+}
+
+body.dark-mode .asset-dashboard.price-analysis-page .price-analysis-value--branch {
+    color: #4ade80;
+}
+
+body.dark-mode .asset-dashboard.price-analysis-page .price-analysis-value--dept {
+    color: #22d3ee;
+}

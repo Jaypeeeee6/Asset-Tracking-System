@@ -1,0 +1,193 @@
+<script>
+window.chartData = {
+    branchCounts: {{ chart_data.branch_counts|tojson }},
+    totalSystemValue: {{ chart_data.total_system_value }}
+};
+
+function filterBranchTable(buildingFilter) {
+    const table = document.getElementById('branchTable');
+    if (!table) return;
+    const rows = Array.from(table.querySelectorAll('tbody tr'));
+    rows.forEach(function (row) {
+        const firstCell = row.querySelector('td');
+        if (!firstCell) return;
+        const buildingName = firstCell.textContent.trim();
+        if (!buildingFilter || buildingName === buildingFilter) {
+            row.style.display = '';
+        } else {
+            row.style.display = 'none';
+        }
+    });
+}
+
+function filterDepartmentTable(deptFilter) {
+    const table = document.getElementById('departmentTable');
+    if (!table) return;
+    const rows = Array.from(table.querySelectorAll('tbody tr'));
+    rows.forEach(function (row) {
+        const deptKey = row.getAttribute('data-dept-key');
+        if (!deptFilter) {
+            row.style.display = '';
+        } else if (deptKey === deptFilter) {
+            row.style.display = '';
+        } else {
+            row.style.display = 'none';
+        }
+    });
+}
+
+function filterAssetTable(buildingFilter) {
+    const table = document.getElementById('assetBreakdownTable');
+    if (!table) return;
+    const rows = Array.from(table.querySelectorAll('tbody tr'));
+    rows.forEach(function (row) {
+        const branch = row.getAttribute('data-branch');
+        if (!branch) return;
+        if (!buildingFilter || branch === buildingFilter) {
+            row.style.display = '';
+        } else {
+            row.style.display = 'none';
+        }
+    });
+}
+
+function exportPriceAnalysis() {
+    const timestamp = new Date().toISOString().slice(0, 19).replace('T', '_');
+    const filename = 'Asset_Price_Analysis_' + timestamp + '.xlsx';
+
+    const buildingPrices = {{ chart_data.branch_prices|tojson }};
+    const buildingCounts = {{ chart_data.branch_counts|tojson }};
+    const departmentPrices = {{ chart_data.department_prices|tojson }};
+    const departmentCounts = {{ chart_data.department_counts|tojson }};
+    const totalSystemValue = {{ chart_data.total_system_value }};
+
+    const workbook = XLSX.utils.book_new();
+
+    const systemOverviewData = [
+        ['ASSET PRICE ANALYSIS REPORT'],
+        [''],
+        ['Report Generated:', new Date().toLocaleString()],
+        ['Total System Value:', 'OMR ' + fmtOmr(totalSystemValue)],
+        ['Total Assets:', Object.values(buildingCounts).reduce(function (a, b) { return a + b; }, 0)],
+        [''],
+        ['Currency: Omani Rial (OMR)']
+    ];
+
+    const systemOverviewSheet = XLSX.utils.aoa_to_sheet(systemOverviewData);
+    systemOverviewSheet['!cols'] = [{ width: 30 }, { width: 25 }];
+    XLSX.utils.book_append_sheet(workbook, systemOverviewSheet, 'System Overview');
+
+    const buildingData = [
+        ['BRANCH ANALYSIS'],
+        [''],
+        ['Branch Name', 'Total Assets', 'Total Value (OMR)', 'Average Value per Asset (OMR)'],
+        ['', '', '', '']
+    ];
+
+    Object.entries(buildingPrices).forEach(function (entry) {
+        const building = entry[0];
+        const value = entry[1];
+        const assetCount = buildingCounts[building] || 0;
+        const avgValue = assetCount > 0 ? fmtOmr(value / assetCount) : fmtOmr(0);
+        buildingData.push([building, assetCount, fmtOmr(value), avgValue]);
+    });
+
+    const totalAssets = Object.values(buildingCounts).reduce(function (a, b) { return a + b; }, 0);
+    buildingData.push(['', '', '', '']);
+    buildingData.push([
+        'TOTAL',
+        totalAssets,
+        fmtOmr(totalSystemValue),
+        totalAssets > 0 ? fmtOmr(totalSystemValue / totalAssets) : fmtOmr(0)
+    ]);
+
+    const buildingSheet = XLSX.utils.aoa_to_sheet(buildingData);
+    buildingSheet['!cols'] = [{ width: 20 }, { width: 15 }, { width: 20 }, { width: 25 }];
+    XLSX.utils.book_append_sheet(workbook, buildingSheet, 'Branch Analysis');
+
+    const departmentData = [
+        ['DEPARTMENT ANALYSIS'],
+        [''],
+        ['Branch', 'Department', 'Total Assets', 'Total Value (OMR)', 'Average Value per Asset (OMR)'],
+        ['', '', '', '', '']
+    ];
+
+    Object.entries(departmentPrices).forEach(function (entry) {
+        const deptKey = entry[0];
+        const value = entry[1];
+        const parts = deptKey.split('-', 2);
+        const building = parts[0];
+        const department = parts[1] || '';
+        const assetCount = departmentCounts[deptKey] || 1;
+        const avgValue = assetCount > 0 ? fmtOmr(value / assetCount) : fmtOmr(0);
+        departmentData.push([building, department, assetCount, fmtOmr(value), avgValue]);
+    });
+
+    departmentData.sort(function (a, b) {
+        if (a[0] === 'Branch' || b[0] === 'Branch') return 0;
+        return parseFloat(String(b[3]).replace(/,/g, '')) - parseFloat(String(a[3]).replace(/,/g, ''));
+    });
+
+    const departmentSheet = XLSX.utils.aoa_to_sheet(departmentData);
+    departmentSheet['!cols'] = [{ width: 15 }, { width: 20 }, { width: 15 }, { width: 20 }, { width: 25 }];
+    XLSX.utils.book_append_sheet(workbook, departmentSheet, 'Department Analysis');
+
+    const assetData = [
+        ['DETAILED ASSET BREAKDOWN'],
+        [''],
+        ['Asset Name', 'Asset Code', 'Branch', 'Department', 'Owner', 'Quantity', 'Unit Price (OMR)', 'Total Value (OMR)', 'Status', 'Asset Type'],
+        ['', '', '', '', '', '', '', '', '', '']
+    ];
+
+    fetch('/assets/get-all-assets-for-export')
+        .then(function (response) { return response.json(); })
+        .then(function (data) {
+            if (data.success) {
+                data.assets.forEach(function (asset) {
+                    const totalValue = fmtOmr((parseFloat(asset.price || 0) * parseInt(asset.quantity || 1, 10)));
+                    assetData.push([
+                        asset.name,
+                        asset.asset_code,
+                        asset.branch,
+                        asset.department,
+                        asset.owner,
+                        asset.quantity,
+                        fmtOmr(asset.price || 0),
+                        totalValue,
+                        asset.used_status,
+                        asset.asset_type
+                    ]);
+                });
+
+                assetData.sort(function (a, b) {
+                    if (a[0] === 'Asset Name' || b[0] === 'Asset Name') return 0;
+                    if (a[0] === 'DETAILED ASSET BREAKDOWN' || b[0] === 'DETAILED ASSET BREAKDOWN') return 0;
+                    if (a[0] === '' || b[0] === '') return 0;
+                    const branchA = a[2];
+                    const branchB = b[2];
+                    if (branchA !== branchB) return branchA.localeCompare(branchB);
+                    const deptA = a[3];
+                    const deptB = b[3];
+                    if (deptA !== deptB) return deptA.localeCompare(deptB);
+                    return a[0].localeCompare(b[0]);
+                });
+
+                const assetSheet = XLSX.utils.aoa_to_sheet(assetData);
+                assetSheet['!cols'] = [
+                    { width: 30 }, { width: 20 }, { width: 15 }, { width: 20 },
+                    { width: 20 }, { width: 12 }, { width: 18 }, { width: 18 },
+                    { width: 15 }, { width: 20 }
+                ];
+                XLSX.utils.book_append_sheet(workbook, assetSheet, 'Asset Details');
+                XLSX.writeFile(workbook, filename);
+                alert('Asset price analysis exported successfully!');
+            } else {
+                alert('Failed to get asset data: ' + (data.error || 'Unknown error'));
+            }
+        })
+        .catch(function (error) {
+            console.error('Export error:', error);
+            alert('Export failed. Please try again.');
+        });
+}
+</script>

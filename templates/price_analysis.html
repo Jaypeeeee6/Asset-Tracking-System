@@ -1,0 +1,197 @@
+{% extends "base_app.html" %}
+{% block title %}Price Analysis — Asset Tracking System{% endblock %}
+{% block extra_head %}
+<link rel="stylesheet" href="{{ url_for('static', filename='app-dashboard.css') }}">
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+{% endblock %}
+
+{% block app_content %}
+<div class="asset-dashboard price-analysis-page">
+    <div class="page-header">
+        <div>
+            <h1><i class="bi bi-currency-dollar" style="color:var(--gold);" aria-hidden="true"></i>Price Analysis</h1>
+            <p class="subtitle">Total values by branch, department, and asset</p>
+        </div>
+        <div class="d-flex gap-2 align-items-center flex-wrap">
+            <button type="button" class="btn-app-primary" onclick="exportPriceAnalysis()">
+                <i class="bi bi-download me-1" aria-hidden="true"></i>Export Data
+            </button>
+        </div>
+    </div>
+
+    <div class="row g-2 mb-4 summary-stats-row">
+        <div class="col-sm-6 col-xl-3">
+            <div class="stat-card blue">
+                <div class="stat-label">Total System Value</div>
+                <div class="stat-value">{{ chart_data.total_system_value|fmt_omr }}</div>
+                <div class="stat-sub">OMR</div>
+                <i class="bi bi-currency-exchange stat-icon" aria-hidden="true"></i>
+            </div>
+        </div>
+        <div class="col-sm-6 col-xl-3">
+            <div class="stat-card green">
+                <div class="stat-label">Total Assets</div>
+                <div class="stat-value">{{ total_assets|fmt_num }}</div>
+                <div class="stat-sub">In register</div>
+                <i class="bi bi-box-seam stat-icon" aria-hidden="true"></i>
+            </div>
+        </div>
+        <div class="col-sm-6 col-xl-3">
+            <div class="stat-card teal">
+                <div class="stat-label">Branches</div>
+                <div class="stat-value">{{ branch_count|fmt_num }}</div>
+                <div class="stat-sub">Locations tracked</div>
+                <i class="bi bi-building stat-icon" aria-hidden="true"></i>
+            </div>
+        </div>
+        <div class="col-sm-6 col-xl-3">
+            <div class="stat-card yellow">
+                <div class="stat-label">Departments</div>
+                <div class="stat-value">{{ department_count|fmt_num }}</div>
+                <div class="stat-sub">Branch–department pairs</div>
+                <i class="bi bi-diagram-3 stat-icon" aria-hidden="true"></i>
+            </div>
+        </div>
+    </div>
+
+    <div class="row g-3 mb-4">
+        <div class="col-lg-6">
+            <div class="app-card h-100">
+                <div class="card-header-bar">
+                    <h5><i class="bi bi-building me-2" aria-hidden="true"></i>Total Value by Branch</h5>
+                    <div class="filter-group mb-0">
+                        <label for="branchFilter">Filter</label>
+                        <select id="branchFilter" class="app-select-with-chevron" onchange="filterBranchTable(this.value)">
+                            <option value="">All branches</option>
+                            {% for branch_name in chart_data.branch_prices.keys() %}
+                            <option value="{{ branch_name }}">{{ branch_name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                </div>
+                <div class="card-body-pad p-0">
+                    <div class="table-responsive price-analysis-table-wrap">
+                        <table class="app-table mb-0" id="branchTable">
+                            <thead>
+                                <tr>
+                                    <th>Branch</th>
+                                    <th class="text-end">Total Value (OMR)</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for branch_name, value in chart_data.branch_prices.items() %}
+                                <tr data-branch="{{ branch_name }}">
+                                    <td><strong>{{ branch_name }}</strong></td>
+                                    <td class="text-end"><span class="price-analysis-value price-analysis-value--branch">{{ value|fmt_omr }}</span></td>
+                                </tr>
+                                {% else %}
+                                <tr>
+                                    <td colspan="2" class="text-center text-muted py-4">No branch data</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-lg-6">
+            <div class="app-card h-100">
+                <div class="card-header-bar">
+                    <h5><i class="bi bi-diagram-3 me-2" aria-hidden="true"></i>Total Value by Department</h5>
+                    <div class="filter-group mb-0">
+                        <label for="departmentFilter">Filter</label>
+                        <select id="departmentFilter" class="app-select-with-chevron" onchange="filterDepartmentTable(this.value)">
+                            <option value="">All departments</option>
+                            {% for dept_key in chart_data.department_prices.keys() %}
+                            {% set branch_name, department = dept_key.split('-', 1) %}
+                            <option value="{{ branch_name }}-{{ department }}">{{ branch_name }} — {{ department }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                </div>
+                <div class="card-body-pad p-0">
+                    <div class="table-responsive price-analysis-table-wrap price-analysis-table-wrap--tall">
+                        <table class="app-table mb-0" id="departmentTable">
+                            <thead>
+                                <tr>
+                                    <th>Department</th>
+                                    <th class="text-end">Total Value (OMR)</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for dept_key, value in chart_data.department_prices.items() %}
+                                {% set branch_name, department = dept_key.split('-', 1) %}
+                                <tr data-dept-key="{{ dept_key }}">
+                                    <td><strong>{{ branch_name }} — {{ department }}</strong></td>
+                                    <td class="text-end"><span class="price-analysis-value price-analysis-value--dept">{{ value|fmt_omr }}</span></td>
+                                </tr>
+                                {% else %}
+                                <tr>
+                                    <td colspan="2" class="text-center text-muted py-4">No department data</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="app-card mb-4">
+        <div class="card-header-bar">
+            <h5><i class="bi bi-list-ul me-2" aria-hidden="true"></i>Detailed Asset Breakdown</h5>
+            <div class="filter-group mb-0">
+                <label for="assetBranchFilter">Filter by branch</label>
+                <select id="assetBranchFilter" class="app-select-with-chevron" onchange="filterAssetTable(this.value)">
+                    <option value="">All assets</option>
+                    {% for branch_name in chart_data.branch_prices.keys() %}
+                    <option value="{{ branch_name }}">{{ branch_name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+        </div>
+        <div class="card-body-pad p-0">
+            <div class="table-responsive price-analysis-table-wrap price-analysis-table-wrap--detail">
+                <table class="app-table mb-0" id="assetBreakdownTable">
+                    <thead>
+                        <tr>
+                            <th>Asset</th>
+                            <th>Branch</th>
+                            <th>Department</th>
+                            <th>QTY</th>
+                            <th>Unit Price (OMR)</th>
+                            <th class="text-end">Total Value (OMR)</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for asset in assets %}
+                        <tr data-branch="{{ asset.branch }}">
+                            <td>
+                                <strong>{{ asset.name }}</strong>
+                                <br><small class="text-muted">{{ asset.asset_code }}</small>
+                            </td>
+                            <td>{{ asset.branch }}</td>
+                            <td>{{ asset.department }}</td>
+                            <td>{{ asset.quantity|fmt_num }}</td>
+                            <td>{{ (asset.price or 0.0)|fmt_omr }}</td>
+                            <td class="text-end"><span class="price-analysis-value price-analysis-value--asset">{{ ((asset.price or 0.0) * asset.quantity)|fmt_omr }}</span></td>
+                        </tr>
+                        {% else %}
+                        <tr>
+                            <td colspan="6" class="text-center text-muted py-4">No assets in register</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+{% include 'partials/price_analysis_script.html' %}
+{% endblock %}

@@ -14,8 +14,9 @@
                class="sidebar-item {{ 'active' if ep == 'assets.archive' }}">
                 <i class="bi bi-archive"></i> Asset Archive
             </a>
-            <a href="{{ url_for('assets.dashboard') }}?openModal=priceAnalysisModal" class="sidebar-item">
-                <i class="bi bi-currency-dollar"></i> View Price Analysis
+            <a href="{{ url_for('assets.price_analysis') }}"
+               class="sidebar-item {{ 'active' if ep == 'assets.price_analysis' }}">
+                <i class="bi bi-currency-dollar"></i> Price Analysis
             </a>
         {% endif %}
     </div>
