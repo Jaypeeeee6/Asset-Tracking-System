@@ -1,12 +1,10 @@
-{% from "macros/app_components.html" import add_button, settings_search_bar %}
+{% from "macros/app_components.html" import add_button %}
 <div class="settings-panel-stack">
-  <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
-    <h6 class="settings-section-title mb-0">Asset types</h6>
-    {{ add_button('Add Asset Type', button_id='openAddMgmtAssetTypeModalBtn', icon='bi bi-plus-lg', modal_target='#addMgmtAssetTypeModal') }}
+  <h6 class="settings-section-title">Asset types</h6>
+  <div class="d-flex flex-wrap gap-2 mb-3">
+    {{ add_button('Add asset type', button_id='addAssetTypeBtn', modal_target='#addMgmtAssetTypeModal') }}
   </div>
-
   <h6 class="settings-section-title mb-2">Existing asset types</h6>
-  {{ settings_search_bar('assetTypesList', 'Search asset types, locations…', 'settingsAssetTypesSearch') }}
   <div id="settingsAssetTypesBulkBar" class="app-bulk-bar mb-3" style="display: none;">
     <div class="d-flex flex-wrap justify-content-between align-items-center gap-2">
       <span><i class="bi bi-info-circle me-1"></i> <strong><span id="settingsAssetTypesSelectedCount">0</span> items selected</strong> &mdash; use the buttons to act on the selection</span>
@@ -37,9 +35,9 @@
     </div>
   </div>
 
-  <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mt-4 mb-3">
-    <h6 class="settings-section-title mb-0">Asset names</h6>
-    {{ add_button('Add Asset Name', button_id='openAddMgmtAssetNameModalBtn', icon='bi bi-plus-lg', modal_target='#addMgmtAssetNameModal') }}
+  <h6 class="settings-section-title mt-4">Asset names</h6>
+  <div class="d-flex flex-wrap gap-2 mb-3">
+    {{ add_button('Add asset name', button_id='addAssetNameBtn', modal_target='#addMgmtAssetNameModal') }}
   </div>
 
   <div class="filter-bar settings-panel-form mb-0">
@@ -51,7 +49,6 @@
     </div>
   </div>
   <h6 class="settings-section-title mt-3 mb-2">Existing asset names</h6>
-  {{ settings_search_bar('assetNamesList', 'Search asset names, types…', 'settingsAssetNamesSearch') }}
   <div id="settingsAssetNamesBulkBar" class="app-bulk-bar mb-3" style="display: none;">
     <div class="d-flex flex-wrap justify-content-between align-items-center gap-2">
       <span><i class="bi bi-info-circle me-1"></i> <strong><span id="settingsAssetNamesSelectedCount">0</span> items selected</strong> &mdash; use the buttons to act on the selection</span>

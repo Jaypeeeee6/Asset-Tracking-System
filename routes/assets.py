@@ -20,6 +20,7 @@ from models.database import (
     qr_layout_to_api_dict,
     upsert_qr_label_layout_updates,
     RESTAURANT_DEFAULT_DEPARTMENT_NAME,
+    asset_type_for_venue_matches,
 )
 import qrcode
 from io import BytesIO
@@ -65,89 +66,6 @@ def _validate_asset_venue_location(cur, venue, branch, department, brand_id=None
         return 'Restaurant location is not fully set up for this branch. Contact IT.'
     return None
 
-
-def _asset_type_row_matches_location(cur, row, venue, branch, department, brand_key):
-    """Whether an asset_types row applies to the given asset location."""
-    fv = (row['for_venue'] or 'restaurant').strip().lower()
-    if fv not in (venue, 'both'):
-        return False
-    bid = row['branch_id']
-    did = row['department_id']
-    if bid is None and did is None:
-        return True
-    if venue == 'restaurant':
-        if bid is None:
-            return True
-        cur.execute('SELECT id, brand_id FROM branches WHERE name = ?', (branch,))
-        br = cur.fetchone()
-        if not br:
-            return False
-        if br['id'] != bid:
-            return False
-        if brand_key is not None and br['brand_id'] != brand_key:
-            return False
-        return True
-    if did is None:
-        return True
-    cur.execute(
-        'SELECT id FROM departments WHERE branch_id IS NULL AND name = ?',
-        (department,),
-    )
-    dr = cur.fetchone()
-    return dr is not None and dr['id'] == did
-
-
-def _resolve_asset_type_name(cur, venue, branch, department, brand_key):
-    """
-    Resolve submitted asset type to the canonical name string stored on assets.
-    Prefers ``asset_type_id``; falls back to legacy ``asset_type`` name.
-    Returns (name_or_empty, error_message_or_None).
-    """
-    type_id_raw = (request.form.get('asset_type_id') or '').strip()
-    legacy_name = (request.form.get('asset_type') or '').strip()
-
-    rows = []
-    if type_id_raw:
-        try:
-            tid = int(type_id_raw)
-        except ValueError:
-            return '', 'Invalid asset type.'
-        cur.execute(
-            '''
-            SELECT id, name, for_venue, branch_id, department_id
-            FROM asset_types WHERE id = ?
-            ''',
-            (tid,),
-        )
-        r = cur.fetchone()
-        if not r:
-            return '', 'Invalid asset type.'
-        rows = [r]
-    elif legacy_name:
-        cur.execute(
-            '''
-            SELECT id, name, for_venue, branch_id, department_id
-            FROM asset_types WHERE name = ? AND for_venue IN (?, 'both')
-            ''',
-            (legacy_name, venue),
-        )
-        rows = cur.fetchall()
-
-    if not rows:
-        return '', None
-
-    matches = [r for r in rows if _asset_type_row_matches_location(cur, r, venue, branch, department, brand_key)]
-    if not matches:
-        return '', 'Selected asset type does not apply to this location.'
-
-    scoped_hits = [m for m in matches if m['branch_id'] is not None or m['department_id'] is not None]
-    if scoped_hits:
-        if len(scoped_hits) > 1:
-            return '', 'Multiple asset types match this location; pick a specific type from the list.'
-        return scoped_hits[0]['name'], None
-    if len(matches) > 1:
-        return '', 'Ambiguous asset type; pick again from the list.'
-    return matches[0]['name'], None
 
 
 @assets_bp.route('/dashboard')
@@ -421,7 +339,7 @@ def settings():
 @login_required
 def add_asset():
     selected_asset_names = request.form.get('selected_asset_names', '')
-    asset_type = (request.form.get('asset_type') or '').strip()
+    asset_type = request.form.get('asset_type', '')
     owner = request.form.get('owner', '')
     branch = request.form.get('branch') or request.form.get('building')
     venue = (request.form.get('asset_venue') or 'restaurant').strip().lower()
@@ -462,17 +380,17 @@ def add_asset():
         flash(err, 'error')
         return redirect(url_for('assets.dashboard'))
 
-    if (request.form.get('asset_type_id') or '').strip() or asset_type:
-        resolved, err = _resolve_asset_type_name(cur, venue, branch, department, brand_key)
-        if err:
-            conn.close()
-            flash(err, 'error')
-            return redirect(url_for('assets.dashboard'))
-        if not resolved:
+    if asset_type:
+        cur.execute('SELECT for_venue FROM asset_types WHERE name = ?', (asset_type,))
+        vt_rows = cur.fetchall()
+        if not vt_rows:
             conn.close()
             flash('Invalid asset type.', 'error')
             return redirect(url_for('assets.dashboard'))
-        asset_type = resolved
+        if not any(asset_type_for_venue_matches(r[0], venue) for r in vt_rows):
+            conn.close()
+            flash('Asset type does not match Restaurant / Office selection.', 'error')
+            return redirect(url_for('assets.dashboard'))
     
     # Pre-calculate asset codes for new assets to ensure sequential numbering
     new_asset_codes = []
@@ -534,7 +452,7 @@ def add_asset():
 @login_required
 def update_asset(asset_id):
     name = request.form['name']
-    asset_type = (request.form.get('asset_type') or '').strip()
+    asset_type = request.form.get('asset_type', '')
     owner = request.form.get('owner', '')
     branch = request.form.get('branch') or request.form.get('building')
     venue = (request.form.get('asset_venue') or 'restaurant').strip().lower()
@@ -568,16 +486,16 @@ def update_asset(asset_id):
         conn.close()
         return jsonify({'error': err}), 400
 
-    if (request.form.get('asset_type_id') or '').strip() or asset_type:
-        resolved, err = _resolve_asset_type_name(cur, venue, branch, department, brand_key)
-        if err:
-            conn.close()
-            return jsonify({'error': err}), 400
-        if not resolved:
+    if asset_type:
+        cur.execute('SELECT for_venue FROM asset_types WHERE name = ?', (asset_type,))
+        vt_rows = cur.fetchall()
+        if not vt_rows:
             conn.close()
             return jsonify({'error': 'Invalid asset type.'}), 400
-        asset_type = resolved
-
+        if not any(asset_type_for_venue_matches(r[0], venue) for r in vt_rows):
+            conn.close()
+            return jsonify({'error': 'Asset type does not match Restaurant / Office selection.'}), 400
+    
     try:
         # Get current asset data to check if branch or department changed
         cur.execute('SELECT branch, department, asset_code FROM assets WHERE id=?', (asset_id,))

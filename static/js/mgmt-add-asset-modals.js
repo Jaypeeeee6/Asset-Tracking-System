@@ -33,25 +33,16 @@
 
     function assetTypeLocationLabel(t) {
         if (!t) return '';
-        if (!t.branch_id && !t.department_id) {
-            var fv = (t.for_venue || 'restaurant');
-            if (fv === 'both') return 'All restaurants & All office departments';
-            if (fv === 'office') return 'All office departments';
-            return 'All restaurants';
-        }
-        var venue = (t.for_venue === 'office') ? 'Office' : 'Restaurant';
-        if (t.branch_name) {
-            return t.brand_name
-                ? venue + ' — ' + t.brand_name + ' — ' + t.branch_name
-                : venue + ' — ' + t.branch_name;
-        }
-        if (t.department_name) {
-            return venue + ' — ' + t.department_name;
-        }
-        return venue;
+        var fv = t.for_venue || 'restaurant';
+        if (fv === 'both') return 'All restaurants & All office departments';
+        if (fv === 'office') return 'All office departments';
+        return 'All restaurants';
     }
 
     function getAssetTypesList() {
+        if (typeof global.assetTypesData !== 'undefined' && global.assetTypesData) {
+            return global.assetTypesData;
+        }
         if (global.AssetAppState && global.AssetAppState.assetTypes) {
             return global.AssetAppState.assetTypes;
         }
@@ -147,14 +138,23 @@
                     var msg = 'Added ' + (data.created_count || 1) + ' asset type(s).';
                     if (data.skipped_count) msg += ' ' + data.skipped_count + ' already existed.';
                     showSuccess(msg);
-                    if (global.MgmtEditCallbacks && global.MgmtEditCallbacks.onAssetTypeSaved) {
-                        global.MgmtEditCallbacks.onAssetTypeSaved();
-                    }
+                    reloadAfterAssetTypeChange();
                 } else {
                     return showError(data.error || 'Failed to add asset type.');
                 }
             })
             .catch(function () { return showError('Failed to add asset type.'); });
+    }
+
+    function reloadAfterAssetTypeChange() {
+        if (global.MgmtEditCallbacks && global.MgmtEditCallbacks.onAssetTypeSaved) {
+            global.MgmtEditCallbacks.onAssetTypeSaved();
+            return;
+        }
+        if (typeof global.loadAssetTypes === 'function') global.loadAssetTypes();
+        if (typeof global.loadAssetNames === 'function') global.loadAssetNames();
+        if (typeof global.updateAssetNameDropdowns === 'function') global.updateAssetNameDropdowns();
+        refreshAssetNameTypeCombo();
     }
 
     function saveAddAssetName() {
@@ -182,8 +182,13 @@
                     var msg = 'Added ' + (data.created_count || 1) + ' asset name(s).';
                     if (data.skipped_count) msg += ' ' + data.skipped_count + ' already existed.';
                     showSuccess(msg);
-                    if (typeof loadAssetNames === 'function') loadAssetNames();
-                    if (typeof updateAssetNameDropdowns === 'function') updateAssetNameDropdowns();
+                    if (global.MgmtEditCallbacks && global.MgmtEditCallbacks.onAssetNameSaved) {
+                        global.MgmtEditCallbacks.onAssetNameSaved();
+                    } else {
+                        if (typeof global.loadAssetNames === 'function') global.loadAssetNames();
+                        if (typeof global.updateAssetNameDropdowns === 'function') global.updateAssetNameDropdowns();
+                    }
+                    refreshAssetNameTypeCombo();
                 } else {
                     return showError(data.error || 'Failed to add asset name.');
                 }
@@ -199,6 +204,11 @@
         if (saveType) saveType.addEventListener('click', saveAddAssetType);
         var saveName = $('addMgmtAssetNameSaveBtn');
         if (saveName) saveName.addEventListener('click', saveAddAssetName);
+
+        var typeModal = $('addMgmtAssetTypeModal');
+        if (typeModal) {
+            typeModal.addEventListener('show.bs.modal', resetAddAssetTypeModal);
+        }
 
         var nameModal = $('addMgmtAssetNameModal');
         if (nameModal) {

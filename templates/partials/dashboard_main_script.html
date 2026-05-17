@@ -33,56 +33,12 @@ window.chartData = {
 // GLOBAL VARIABLES & STATE MANAGEMENT
 // ============================================================================
 let branchesData = [];
-
-window.AssetAppState = {
-    get brands() { return brandsData; },
-    get branches() { return branchesData; },
-    get departments() { return departmentsData; },
-    get assetTypes() { return assetTypesData; }
-};
-
-window.MgmtEditCallbacks = {
-    onBranchSaved: function () {
-        loadBranches();
-        loadDepartments();
-    },
-    onDepartmentSaved: function () {
-        loadDepartments();
-        if (typeof updateDepartmentQRList === 'function') updateDepartmentQRList();
-    },
-    onEmployeeSaved: function () {
-        var filter = document.getElementById('userModalFilterDepartment');
-        loadUserModalUsers(filter && filter.value ? filter.value : '');
-        if (typeof refreshOwnersIfAddAssetForm === 'function') refreshOwnersIfAddAssetForm();
-    },
-    onAssetTypeSaved: function () {
-        loadAssetTypes();
-        loadAssetNames();
-        if (typeof updateAssetNameDropdowns === 'function') updateAssetNameDropdowns();
-        if (window.MgmtAddAssetModals && window.MgmtAddAssetModals.refreshAssetNameTypeCombo) {
-            window.MgmtAddAssetModals.refreshAssetNameTypeCombo();
-        }
-    }
-};
 let brandsData = [];
 let assetTypesData = [];
 /** Must match ``routes.assets.OFFICE_BRANCH_LABEL`` and server admin responses. */
 const OFFICE_BRANCH_LABEL_JS = 'Office';
 /** Must match ``models.database.RESTAURANT_DEFAULT_DEPARTMENT_NAME`` and server assets routes. */
 const RESTAURANT_DEFAULT_DEPT_JS = 'Restaurant';
-
-function mgmtShowError(message) {
-    if (window.AppDialogs) return AppDialogs.error(message);
-    alert(message);
-    return Promise.resolve();
-}
-
-function refreshSettingsTableSearch(tbodyId) {
-    if (typeof applySettingsTableSearch === 'function') {
-        applySettingsTableSearch(tbodyId);
-    }
-}
-
 let departmentsData = [];
 let selectedAssets = [];
 /** Server print layout preset (2 in x 2 in labels); must match qr_label_layouts.preset_key */
@@ -109,258 +65,6 @@ const QR_LABEL_PRESET = 'label_2x2';
     function syncEditAssetVenueField() {
         const h = document.getElementById('editAssetVenueField');
         if (h) h.value = getEditAssetVenue();
-    }
-
-    function assetTypeAppliesToVenue(t, venue) {
-        if (!t || !venue) return false;
-        const fv = (t.for_venue || 'restaurant');
-        if (t.branch_id || t.department_id) {
-            return fv === venue;
-        }
-        return fv === venue || fv === 'both';
-    }
-
-    function locationLabelForAssetTypeRow(t) {
-        if (!t) return '';
-        if (!t.branch_id && !t.department_id) {
-            const fv = (t.for_venue || 'restaurant');
-            if (fv === 'both') return 'All restaurants & All office departments';
-            return (fv === 'office') ? 'All office departments' : 'All restaurants';
-        }
-        const venue = (t.for_venue === 'office') ? 'Office' : 'Restaurant';
-        if (t.branch_name) {
-            return t.brand_name ? (venue + ' — ' + t.brand_name + ' — ' + t.branch_name) : (venue + ' — ' + t.branch_name);
-        }
-        if (t.department_name) {
-            return venue + ' — ' + t.department_name;
-        }
-        return venue;
-    }
-
-    function typesMatchingAssetModalLocation(venue) {
-        return (assetTypesData || []).filter(function (t) {
-            return !t.branch_id && !t.department_id && assetTypeAppliesToVenue(t, venue);
-        });
-    }
-
-    function settingsAssetTypesForNewNameRow() {
-        const vEl = document.getElementById('newAssetNameVenue');
-        const venue = vEl ? vEl.value : '';
-        if (!venue) {
-            return [];
-        }
-        return typesMatchingAssetModalLocation(venue);
-    }
-
-    function updateSettingsNewAssetNameTypeDropdown() {
-        const sel = document.getElementById('newAssetNameType');
-        if (!sel) {
-            return;
-        }
-        const prev = sel.value;
-        sel.innerHTML = '<option value="">Select asset type</option>';
-        settingsAssetTypesForNewNameRow().forEach(function (t) {
-            const o = document.createElement('option');
-            o.value = String(t.id);
-            o.textContent = t.label || t.name;
-            sel.appendChild(o);
-        });
-        if (prev && Array.prototype.some.call(sel.options, function (opt) { return opt.value === prev; })) {
-            sel.value = prev;
-        }
-    }
-
-    function updateSettingsAssetNameFilterDropdown() {
-        const sel = document.getElementById('assetNameFilterType');
-        if (!sel) {
-            return;
-        }
-        const prev = sel.value;
-        sel.innerHTML = '<option value="">All asset types</option>';
-        (assetTypesData || []).forEach(function (t) {
-            const o = document.createElement('option');
-            o.value = String(t.id);
-            o.textContent = t.label || t.name;
-            sel.appendChild(o);
-        });
-        if (prev && Array.prototype.some.call(sel.options, function (opt) { return opt.value === prev; })) {
-            sel.value = prev;
-        }
-    }
-
-    function syncSettingsNewAssetTypeVenueFields() {
-        const v = document.getElementById('newAssetTypeVenue');
-        const bw = document.getElementById('newAssetTypeBrandWrap');
-        const rw = document.getElementById('newAssetTypeBranchWrap');
-        const ow = document.getElementById('newAssetTypeOfficeDeptWrap');
-        const b = document.getElementById('newAssetTypeBrand');
-        const br = document.getElementById('newAssetTypeBranch');
-        const od = document.getElementById('newAssetTypeOfficeDepartment');
-        if (!v || !bw || !rw || !ow) {
-            return;
-        }
-        const val = v.value;
-        if (val === 'restaurant') {
-            bw.classList.remove('d-none');
-            rw.classList.remove('d-none');
-            ow.classList.add('d-none');
-            if (od) {
-                od.innerHTML = '<option value="">Select department</option>';
-                od.value = '';
-            }
-            _fillBrandSelect(b);
-            if (br) {
-                br.innerHTML = '<option value="">Select branch</option>';
-            }
-            if (b) {
-                b.value = '';
-            }
-        } else if (val === 'office') {
-            bw.classList.add('d-none');
-            rw.classList.add('d-none');
-            ow.classList.remove('d-none');
-            if (b) {
-                b.value = '';
-            }
-            if (br) {
-                br.innerHTML = '<option value="">Select branch</option>';
-            }
-            if (od) {
-                od.innerHTML = '<option value="">Loading...</option>';
-                fetch('/admin/departments?office_only=1')
-                    .then(function (r) { return r.json(); })
-                    .then(function (depts) {
-                        od.innerHTML = '<option value="">Select department</option>';
-                        depts.forEach(function (d) {
-                            const option = document.createElement('option');
-                            option.value = String(d.id);
-                            option.textContent = d.name;
-                            od.appendChild(option);
-                        });
-                    })
-                    .catch(function () {
-                        od.innerHTML = '<option value="">Error loading departments</option>';
-                    });
-            }
-        } else {
-            bw.classList.add('d-none');
-            rw.classList.add('d-none');
-            ow.classList.add('d-none');
-            if (b) {
-                b.value = '';
-            }
-            if (br) {
-                br.innerHTML = '<option value="">Select branch</option>';
-            }
-            if (od) {
-                od.innerHTML = '<option value="">Select department</option>';
-                od.value = '';
-            }
-        }
-    }
-
-    function syncSettingsNewAssetNameVenueFields() {
-        const v = document.getElementById('newAssetNameVenue');
-        const bw = document.getElementById('newAssetNameBrandWrap');
-        const rw = document.getElementById('newAssetNameBranchWrap');
-        const ow = document.getElementById('newAssetNameOfficeDeptWrap');
-        const b = document.getElementById('newAssetNameBrand');
-        const br = document.getElementById('newAssetNameBranch');
-        const od = document.getElementById('newAssetNameOfficeDepartment');
-        if (!v || !bw || !rw || !ow) {
-            return;
-        }
-        const val = v.value;
-        if (val === 'restaurant') {
-            bw.classList.remove('d-none');
-            rw.classList.remove('d-none');
-            ow.classList.add('d-none');
-            if (od) {
-                od.innerHTML = '<option value="">Select department</option>';
-                od.value = '';
-            }
-            _fillBrandSelect(b);
-            if (br) {
-                br.innerHTML = '<option value="">Select branch</option>';
-            }
-            if (b) {
-                b.value = '';
-            }
-        } else if (val === 'office') {
-            bw.classList.add('d-none');
-            rw.classList.add('d-none');
-            ow.classList.remove('d-none');
-            if (b) {
-                b.value = '';
-            }
-            if (br) {
-                br.innerHTML = '<option value="">Select branch</option>';
-            }
-            if (od) {
-                od.innerHTML = '<option value="">Loading...</option>';
-                fetch('/admin/departments?office_only=1')
-                    .then(function (r) { return r.json(); })
-                    .then(function (depts) {
-                        od.innerHTML = '<option value="">Select department</option>';
-                        depts.forEach(function (d) {
-                            const option = document.createElement('option');
-                            option.value = String(d.id);
-                            option.textContent = d.name;
-                            od.appendChild(option);
-                        });
-                        updateSettingsNewAssetNameTypeDropdown();
-                    })
-                    .catch(function () {
-                        od.innerHTML = '<option value="">Error loading departments</option>';
-                    });
-            }
-        } else {
-            bw.classList.add('d-none');
-            rw.classList.add('d-none');
-            ow.classList.add('d-none');
-            if (b) {
-                b.value = '';
-            }
-            if (br) {
-                br.innerHTML = '<option value="">Select branch</option>';
-            }
-            if (od) {
-                od.innerHTML = '<option value="">Select department</option>';
-                od.value = '';
-            }
-        }
-        updateSettingsNewAssetNameTypeDropdown();
-    }
-
-    function updateSettingsMgmtBranchFromBrand(brandSelectId, branchSelectId) {
-        const brandEl = document.getElementById(brandSelectId);
-        const buildingSelect = document.getElementById(branchSelectId);
-        if (!brandEl || !buildingSelect) {
-            return;
-        }
-        const brandId = brandEl.value;
-        buildingSelect.innerHTML = '<option value="">Select branch</option>';
-        if (!brandId) {
-            return;
-        }
-        const sorted = branchesData.filter(function (b) { return String(b.brand_id) === String(brandId); })
-            .sort(function (a, b) { return a.name.localeCompare(b.name); });
-        sorted.forEach(function (building) {
-            const option = document.createElement('option');
-            option.value = String(building.id);
-            option.textContent = building.name;
-            buildingSelect.appendChild(option);
-        });
-    }
-
-    function resolveAssetTypeIdFromContext(typeName, venue) {
-        const hit = (assetTypesData || []).find(function (t) {
-            return t.name === typeName
-                && !t.branch_id
-                && !t.department_id
-                && assetTypeAppliesToVenue(t, venue);
-        });
-        return hit ? String(hit.id) : '';
     }
 
     function fillOfficeDepartmentsSelect(selectEl, placeholderText) {
@@ -593,7 +297,6 @@ const QR_LABEL_PRESET = 'label_2x2';
         const sorted = [...brandsData].sort((a, b) => a.name.localeCompare(b.name));
         if (sorted.length === 0) {
             tbody.innerHTML = '<tr><td colspan="3" class="text-center text-muted py-4">No brands yet. Add one above.</td></tr>';
-            refreshSettingsTableSearch('brandsList');
             return;
         }
         sorted.forEach((brand, i) => {
@@ -620,7 +323,6 @@ const QR_LABEL_PRESET = 'label_2x2';
         document.querySelectorAll('.delete-brand-btn').forEach(btn => {
             btn.addEventListener('click', handleDeleteBrand);
         });
-        refreshSettingsTableSearch('brandsList');
     }
 
     function loadBranches() {
@@ -699,7 +401,6 @@ const QR_LABEL_PRESET = 'label_2x2';
         const sorted = [...branchesData].sort((a, b) => a.name.localeCompare(b.name));
         if (sorted.length === 0) {
             branchesList.innerHTML = '<tr><td colspan="5" class="text-center text-muted py-4">No branches yet. Add one above.</td></tr>';
-            refreshSettingsTableSearch('branchesList');
             return;
         }
 
@@ -713,7 +414,7 @@ const QR_LABEL_PRESET = 'label_2x2';
                 <td>${brandLabel}</td>
                 <td>
                     <div class="d-flex gap-2 flex-wrap align-items-center">
-                        <button type="button" class="btn-app-edit-icon edit-branch-btn" data-id="${building.id}" data-name="${building.name}" data-brand-id="${building.brand_id || ''}" title="Edit branch" aria-label="Edit branch">
+                        <button type="button" class="btn-app-edit-icon edit-branch-btn" data-id="${building.id}" data-name="${building.name}" title="Edit branch" aria-label="Edit branch">
                             <i class="bi bi-pencil-square" aria-hidden="true"></i>
                         </button>
                         <button type="button" class="btn-app-edit-icon btn-app-danger-icon delete-branch-btn" data-id="${building.id}" data-name="${building.name}" title="Delete branch" aria-label="Delete branch">
@@ -732,7 +433,6 @@ const QR_LABEL_PRESET = 'label_2x2';
             btn.addEventListener('click', handleDeleteBranch);
         });
         resetMgmtTableBulkUI('selectAllBranchesCheckbox', 'bulkDeleteBranchesBtn', 'branchesList', 'branch-row-checkbox');
-        refreshSettingsTableSearch('branchesList');
     }
 
 // ============================================================================
@@ -760,7 +460,6 @@ const QR_LABEL_PRESET = 'label_2x2';
 
         if (filteredDepartments.length === 0) {
             departmentsList.innerHTML = '<tr><td colspan="5" class="text-center text-muted py-4">No departments found</td></tr>';
-            refreshSettingsTableSearch('departmentsList');
             return;
         }
 
@@ -783,8 +482,6 @@ const QR_LABEL_PRESET = 'label_2x2';
                                 data-id="${department.id}"
                                 data-name="${department.name}"
                                 data-branch="${department.branch_name}"
-                                data-branch-id="${department.branch_id != null ? department.branch_id : ''}"
-                                data-is-office="${department.branch_id == null ? '1' : '0'}"
                                 title="Edit department" aria-label="Edit department">
                             <i class="bi bi-pencil-square" aria-hidden="true"></i>
                         </button>
@@ -808,7 +505,6 @@ const QR_LABEL_PRESET = 'label_2x2';
             btn.addEventListener('click', handleDeleteDepartment);
         });
         resetMgmtTableBulkUI('selectAllDepartmentsCheckbox', 'bulkDeleteDepartmentsBtn', 'departmentsList', 'department-row-checkbox');
-        refreshSettingsTableSearch('departmentsList');
     }
 
     // Update department filter dropdown
@@ -1074,12 +770,12 @@ const QR_LABEL_PRESET = 'label_2x2';
         const brandId = brandSelect ? brandSelect.value : '';
 
         if (!name) {
-            mgmtShowError('Please enter a branch name.');
+            alert('Please enter a branch name.');
             return;
         }
 
         if (!brandId) {
-            mgmtShowError('Please select a brand for this branch.');
+            alert('Please select a brand for this branch.');
             return;
         }
 
@@ -1097,12 +793,12 @@ const QR_LABEL_PRESET = 'label_2x2';
                 nameInput.value = '';
                 loadBranches();
             } else {
-                mgmtShowError(data.error || 'Failed to add branch.');
+                alert(data.error || 'Failed to add branch.');
             }
         })
         .catch(error => {
             console.error('Error:', error);
-            mgmtShowError('Failed to add branch.');
+            alert('Failed to add branch.');
         });
     });
     })();
@@ -1115,13 +811,33 @@ const QR_LABEL_PRESET = 'label_2x2';
      * Load asset types from database and update all related UI components
      * Called on page load and after asset type operations
      */
+    function assetTypeMatchesVenue(forVenue, venue) {
+        const fv = forVenue || 'restaurant';
+        if (fv === 'both') return venue === 'restaurant' || venue === 'office';
+        return fv === venue;
+    }
+
+    function assetTypeLocationLabel(assetType) {
+        if (!assetType) return '';
+        const fv = assetType.for_venue || 'restaurant';
+        if (fv === 'both') return 'All restaurants & All office departments';
+        if (fv === 'office') return 'All office departments';
+        return 'All restaurants';
+    }
+
     function loadAssetTypes() {
         return fetch('/admin/asset-types')
             .then(response => response.json())
             .then(data => {
                 assetTypesData = data;
+                window.assetTypesData = data;
+                if (!window.AssetAppState) window.AssetAppState = {};
+                window.AssetAppState.assetTypes = data;
                 updateAssetTypesList();
                 updateAssetTypeDropdowns();
+                if (window.MgmtAddAssetModals && window.MgmtAddAssetModals.refreshAssetNameTypeCombo) {
+                    window.MgmtAddAssetModals.refreshAssetNameTypeCombo();
+                }
             })
             .catch(error => {
                 console.error('Error loading asset types:', error);
@@ -1156,7 +872,6 @@ const QR_LABEL_PRESET = 'label_2x2';
         if (!assetTypesData.length) {
             assetTypesList.innerHTML = '<tr><td colspan="5" class="text-center text-muted py-4">No asset types found</td></tr>';
             resetMgmtTableBulkUI('selectAllAssetTypesCheckbox', 'bulkDeleteAssetTypesBtn', 'assetTypesList', 'asset-type-row-checkbox');
-            refreshSettingsTableSearch('assetTypesList');
             return;
         }
 
@@ -1166,16 +881,16 @@ const QR_LABEL_PRESET = 'label_2x2';
             return a.name.localeCompare(b.name);
         });
         sorted.forEach((assetType, i) => {
-            const locationLabel = locationLabelForAssetTypeRow(assetType);
+            const venueLabel = assetTypeLocationLabel(assetType);
             const tr = document.createElement('tr');
             tr.innerHTML = `
                 <td><input type="checkbox" class="asset-type-row-checkbox" value="${assetType.id}" aria-label="Select ${assetType.name}"></td>
                 <td>${i + 1}</td>
-                <td><small class="text-muted">${locationLabel}</small></td>
+                <td>${venueLabel}</td>
                 <td><strong class="asset-type-name" data-id="${assetType.id}">${assetType.name}</strong></td>
                 <td>
                     <div class="d-flex gap-2 flex-wrap align-items-center">
-                        <button type="button" class="btn-app-edit-icon edit-asset-type-btn" data-id="${assetType.id}" data-name="${assetType.name}" data-for-venue="${assetType.for_venue || 'restaurant'}" data-branch-id="${assetType.branch_id != null ? assetType.branch_id : ''}" data-department-id="${assetType.department_id != null ? assetType.department_id : ''}" title="Edit asset type" aria-label="Edit asset type">
+                        <button type="button" class="btn-app-edit-icon edit-asset-type-btn" data-id="${assetType.id}" data-name="${assetType.name}" data-for-venue="${assetType.for_venue || 'restaurant'}" title="Edit asset type" aria-label="Edit asset type">
                             <i class="bi bi-pencil-square" aria-hidden="true"></i>
                         </button>
                         <button type="button" class="btn-app-edit-icon btn-app-danger-icon delete-asset-type-btn" data-id="${assetType.id}" data-name="${assetType.name}" title="Delete asset type" aria-label="Delete asset type">
@@ -1194,7 +909,6 @@ const QR_LABEL_PRESET = 'label_2x2';
             btn.addEventListener('click', handleDeleteAssetType);
         });
         resetMgmtTableBulkUI('selectAllAssetTypesCheckbox', 'bulkDeleteAssetTypesBtn', 'assetTypesList', 'asset-type-row-checkbox');
-        refreshSettingsTableSearch('assetTypesList');
     }
 
     // Update asset names list in management modal
@@ -1217,7 +931,6 @@ const QR_LABEL_PRESET = 'label_2x2';
 
                 if (filteredAssetNames.length === 0) {
                     assetNamesList.innerHTML = '<tr><td colspan="5" class="text-center text-muted py-4">No asset names found</td></tr>';
-                    refreshSettingsTableSearch('assetNamesList');
                     return;
                 }
 
@@ -1233,7 +946,7 @@ const QR_LABEL_PRESET = 'label_2x2';
                         <td><input type="checkbox" class="asset-name-row-checkbox" value="${assetName.id}" aria-label="Select ${assetName.name}"></td>
                         <td>${i + 1}</td>
                         <td><strong class="asset-name-name" data-id="${assetName.id}">${assetName.name}</strong></td>
-                        <td>${assetName.asset_type_label || assetName.asset_type_name}</td>
+                        <td>${assetName.asset_type_name}</td>
                         <td>
                             <div class="d-flex gap-2 flex-wrap align-items-center">
                                 <button type="button" class="btn-app-edit-icon edit-asset-name-btn"
@@ -1263,13 +976,11 @@ const QR_LABEL_PRESET = 'label_2x2';
                     btn.addEventListener('click', handleDeleteAssetName);
                 });
                 resetMgmtTableBulkUI('selectAllAssetNamesCheckbox', 'bulkDeleteAssetNamesBtn', 'assetNamesList', 'asset-name-row-checkbox');
-                refreshSettingsTableSearch('assetNamesList');
             })
             .catch(error => {
                 console.error('Error loading asset names:', error);
                 assetNamesList.innerHTML = '<tr><td colspan="5" class="text-center text-danger py-4">Error loading asset names</td></tr>';
                 resetMgmtTableBulkUI('selectAllAssetNamesCheckbox', 'bulkDeleteAssetNamesBtn', 'assetNamesList', 'asset-name-row-checkbox');
-                refreshSettingsTableSearch('assetNamesList');
             });
     }
 
@@ -1278,14 +989,18 @@ const QR_LABEL_PRESET = 'label_2x2';
         const types = assetTypesData || [];
 
         function typesForVenue(v) {
-            return types.filter(function (t) { return (t.for_venue || 'restaurant') === v; });
+            return types.filter(function (t) { return assetTypeMatchesVenue(t.for_venue, v); });
         }
-
-        updateSettingsNewAssetNameTypeDropdown();
 
         const assetNameFilterSelect = document.getElementById('assetNameFilterType');
         if (assetNameFilterSelect) {
-            updateSettingsAssetNameFilterDropdown();
+            assetNameFilterSelect.innerHTML = '<option value="">All asset types</option>';
+            types.forEach(function (assetType) {
+                const option = document.createElement('option');
+                option.value = assetType.id;
+                option.textContent = assetType.name + ' — ' + assetTypeLocationLabel(assetType);
+                assetNameFilterSelect.appendChild(option);
+            });
         }
 
         const addVenue = getAddAssetVenue();
@@ -1293,10 +1008,10 @@ const QR_LABEL_PRESET = 'label_2x2';
         if (addAssetTypeSelect) {
             const prev = addAssetTypeSelect.value;
             addAssetTypeSelect.innerHTML = '<option value="">Select Asset Type</option>';
-            typesMatchingAssetModalLocation(addVenue).forEach(function (assetType) {
+            typesForVenue(addVenue).forEach(function (assetType) {
                 const option = document.createElement('option');
-                option.value = String(assetType.id);
-                option.textContent = assetType.label || assetType.name;
+                option.value = assetType.name;
+                option.textContent = assetType.name;
                 addAssetTypeSelect.appendChild(option);
             });
             if (prev && Array.from(addAssetTypeSelect.options).some(function (o) { return o.value === prev; })) {
@@ -1309,10 +1024,10 @@ const QR_LABEL_PRESET = 'label_2x2';
         if (editAssetTypeSelect) {
             const prev = editAssetTypeSelect.value;
             editAssetTypeSelect.innerHTML = '<option value="">Select Asset Type</option>';
-            typesMatchingAssetModalLocation(editVenue).forEach(function (assetType) {
+            typesForVenue(editVenue).forEach(function (assetType) {
                 const option = document.createElement('option');
-                option.value = String(assetType.id);
-                option.textContent = assetType.label || assetType.name;
+                option.value = assetType.name;
+                option.textContent = assetType.name;
                 editAssetTypeSelect.appendChild(option);
             });
             if (prev && Array.from(editAssetTypeSelect.options).some(function (o) { return o.value === prev; })) {
@@ -1326,7 +1041,7 @@ const QR_LABEL_PRESET = 'label_2x2';
             types.forEach(function (assetType) {
                 const option = document.createElement('option');
                 option.value = assetType.name;
-                option.textContent = assetType.label || assetType.name;
+                option.textContent = assetType.name;
                 if (new URLSearchParams(window.location.search).get('asset_type') === assetType.name) {
                     option.selected = true;
                 }
@@ -1350,16 +1065,17 @@ const QR_LABEL_PRESET = 'label_2x2';
         fetch('/admin/asset-names')
             .then(response => response.json())
             .then(assetNames => {
-                const assetNamesByTypeId = {};
+                // Group asset names by asset type
+                const assetNamesByType = {};
                 assetNames.forEach(assetName => {
-                    const key = String(assetName.asset_type_id);
-                    if (!assetNamesByTypeId[key]) {
-                        assetNamesByTypeId[key] = [];
+                    if (!assetNamesByType[assetName.asset_type_name]) {
+                        assetNamesByType[assetName.asset_type_name] = [];
                     }
-                    assetNamesByTypeId[key].push(assetName);
+                    assetNamesByType[assetName.asset_type_name].push(assetName);
                 });
                 
-                window.assetNamesByTypeId = assetNamesByTypeId;
+                // Store the grouped data for use in change handlers
+                window.assetNamesByType = assetNamesByType;
             })
             .catch(error => {
                 console.error('Error loading asset names for dropdowns:', error);
@@ -1367,7 +1083,7 @@ const QR_LABEL_PRESET = 'label_2x2';
     }
 
     // Update asset name datalist based on selected asset type
-    function updateAssetNameDropdown(assetTypeId, inputId) {
+    function updateAssetNameDropdown(assetTypeName, inputId) {
         const input = document.getElementById(inputId);
         const datalistId = inputId === 'name' ? 'assetNameList' : 'editAssetNameList';
         const datalist = document.getElementById(datalistId);
@@ -1377,8 +1093,7 @@ const QR_LABEL_PRESET = 'label_2x2';
         // Clear existing options
         datalist.innerHTML = '';
         
-        const key = assetTypeId != null && assetTypeId !== '' ? String(assetTypeId) : '';
-        if (!key || !window.assetNamesByTypeId || !window.assetNamesByTypeId[key]) {
+        if (!assetTypeName || !window.assetNamesByType || !window.assetNamesByType[assetTypeName]) {
             const option = document.createElement('option');
             option.value = '';
             option.textContent = 'No asset names available for this type';
@@ -1387,7 +1102,7 @@ const QR_LABEL_PRESET = 'label_2x2';
         }
         
         // Add all asset names for the selected type
-        window.assetNamesByTypeId[key].forEach(assetName => {
+        window.assetNamesByType[assetTypeName].forEach(assetName => {
             const option = document.createElement('option');
             option.value = assetName.name;
             option.textContent = assetName.name;
@@ -1395,19 +1110,19 @@ const QR_LABEL_PRESET = 'label_2x2';
         });
         
         // Set initial placeholder
-        const totalOptions = window.assetNamesByTypeId[key].length;
+        const totalOptions = window.assetNamesByType[assetTypeName].length;
         input.placeholder = `Type to search predefined names (${totalOptions} available)`;
         
         // Add event listener for real-time filtering
         input.addEventListener('input', function() {
-            filterAssetNameOptions(assetTypeId, inputId);
+            filterAssetNameOptions(assetTypeName, inputId);
         });
         
         // Add event listener for selection (only for add asset form)
         if (inputId === 'name') {
             input.addEventListener('change', function() {
                 const selectedValue = this.value.trim();
-                if (selectedValue && validateAssetName(assetTypeId, selectedValue)) {
+                if (selectedValue && validateAssetName(assetTypeName, selectedValue)) {
                     addAssetNameToSelection(selectedValue);
                     this.value = '';
                 }
@@ -1416,13 +1131,12 @@ const QR_LABEL_PRESET = 'label_2x2';
     }
 
     // Filter asset name options based on user input
-    function filterAssetNameOptions(assetTypeId, inputId) {
+    function filterAssetNameOptions(assetTypeName, inputId) {
         const input = document.getElementById(inputId);
         const datalistId = inputId === 'name' ? 'assetNameList' : 'editAssetNameList';
         const datalist = document.getElementById(datalistId);
         
-        const key = assetTypeId != null && assetTypeId !== '' ? String(assetTypeId) : '';
-        if (!input || !datalist || !window.assetNamesByTypeId || !window.assetNamesByTypeId[key]) {
+        if (!input || !datalist || !window.assetNamesByType || !window.assetNamesByType[assetTypeName]) {
             return;
         }
         
@@ -1433,7 +1147,7 @@ const QR_LABEL_PRESET = 'label_2x2';
         
         if (!userInput) {
             // If no input, show all asset names for the type
-            window.assetNamesByTypeId[key].forEach(assetName => {
+            window.assetNamesByType[assetTypeName].forEach(assetName => {
                 const option = document.createElement('option');
                 option.value = assetName.name;
                 option.textContent = assetName.name;
@@ -1443,7 +1157,7 @@ const QR_LABEL_PRESET = 'label_2x2';
         }
         
         // Filter asset names that start with the user input
-        const filteredNames = window.assetNamesByTypeId[key].filter(assetName => 
+        const filteredNames = window.assetNamesByType[assetTypeName].filter(assetName => 
             assetName.name.toLowerCase().startsWith(userInput)
         );
         
@@ -1464,7 +1178,7 @@ const QR_LABEL_PRESET = 'label_2x2';
         }
         
         // Update placeholder to show available options
-        const totalOptions = window.assetNamesByTypeId[key].length;
+        const totalOptions = window.assetNamesByType[assetTypeName].length;
         const availableOptions = filteredNames.length;
         if (userInput) {
             input.placeholder = `Found ${availableOptions} of ${totalOptions} asset names (type to filter)`;
@@ -1474,13 +1188,12 @@ const QR_LABEL_PRESET = 'label_2x2';
     }
 
     // Validate asset name exists in predefined list
-    function validateAssetName(assetTypeId, assetName) {
-        const key = assetTypeId != null && assetTypeId !== '' ? String(assetTypeId) : '';
-        if (!key || !assetName || !window.assetNamesByTypeId || !window.assetNamesByTypeId[key]) {
+    function validateAssetName(assetTypeName, assetName) {
+        if (!assetTypeName || !assetName || !window.assetNamesByType || !window.assetNamesByType[assetTypeName]) {
             return false;
         }
         
-        const validNames = window.assetNamesByTypeId[key].map(item => item.name);
+        const validNames = window.assetNamesByType[assetTypeName].map(item => item.name);
         return validNames.includes(assetName);
     }
 
@@ -1518,7 +1231,9 @@ const QR_LABEL_PRESET = 'label_2x2';
             tag.className = 'asset-name-tag';
             tag.innerHTML = `
                 <span class="asset-name-text">${assetName}</span>
-                <button type="button" class="tag-remove" aria-label="Remove ${assetName}" onclick="removeAssetNameFromSelection('${assetName.replace(/'/g, "\\'")}')">&times;</button>
+                <button type="button" class="remove-btn" onclick="removeAssetNameFromSelection('${assetName}')">
+                    <i class="fas fa-times"></i>
+                </button>
             `;
             container.appendChild(tag);
         });
@@ -1554,7 +1269,7 @@ const QR_LABEL_PRESET = 'label_2x2';
         const name = nameInput.value.trim();
 
         if (!name) {
-            mgmtShowError('Please enter a department name.');
+            alert('Please enter a department name.');
             return;
         }
 
@@ -1572,12 +1287,12 @@ const QR_LABEL_PRESET = 'label_2x2';
                 loadDepartments();
                 updateDepartmentQRList();
             } else {
-                mgmtShowError(data.error || 'Failed to add department.');
+                alert(data.error || 'Failed to add department.');
             }
         })
         .catch(error => {
             console.error('Error:', error);
-            mgmtShowError('Failed to add department.');
+            alert('Failed to add department.');
         });
     });
     })();
@@ -1811,59 +1526,87 @@ const QR_LABEL_PRESET = 'label_2x2';
 
     // Handle editing branch
     function handleEditBranch(e) {
-        const btn = e.currentTarget;
-        const building = branchesData.find(function (b) { return String(b.id) === String(btn.getAttribute('data-id')); });
-        if (!window.MgmtEditModals) return;
-        window.MgmtEditModals.openBranch({
-            id: btn.getAttribute('data-id'),
-            name: btn.getAttribute('data-name'),
-            brandId: building ? building.brand_id : btn.getAttribute('data-brand-id')
-        });
+        const buildingId = e.currentTarget.getAttribute('data-id');
+        const currentName = e.currentTarget.getAttribute('data-name');
+        const newName = prompt('Enter new branch name:', currentName);
+        
+        if (newName && newName.trim() !== currentName) {
+            const formData = new FormData();
+            formData.append('name', newName.trim());
+
+            fetch(`/admin/branches/${buildingId}`, {
+                method: 'PUT',
+                body: formData
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    loadBranches(); // Reload the buildings list
+                    loadDepartments(); // Reload departments list to update branch names
+                } else {
+                    alert(data.error || 'Failed to update branch.');
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('Failed to update branch.');
+            });
+        }
     }
 
     // Handle editing department
     function handleEditDepartment(e) {
-        const btn = e.currentTarget;
-        if (!window.MgmtEditModals) return;
-        window.MgmtEditModals.openDepartment({
-            id: btn.getAttribute('data-id'),
-            name: btn.getAttribute('data-name'),
-            branchId: btn.getAttribute('data-branch-id') || null,
-            isOffice: btn.getAttribute('data-is-office') === '1'
-        });
+        const departmentId = e.currentTarget.getAttribute('data-id');
+        const currentName = e.currentTarget.getAttribute('data-name');
+        const buildingName = e.currentTarget.getAttribute('data-branch');
+        
+        const newName = prompt(`Edit department name for "${buildingName}":\n\nCurrent name: ${currentName}\nEnter new name:`, currentName);
+        
+        if (newName && newName.trim() !== currentName) {
+            const formData = new FormData();
+            formData.append('name', newName.trim());
+
+            fetch(`/admin/departments/${departmentId}`, {
+                method: 'PUT',
+                body: formData
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    loadDepartments(); // Reload the departments list
+                } else {
+                    alert(data.error || 'Failed to update department.');
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('Failed to update department.');
+            });
+        }
     }
 
     // Handle deleting branch
     function handleDeleteBranch(e) {
         const buildingId = e.currentTarget.getAttribute('data-id');
         const buildingName = e.currentTarget.getAttribute('data-name');
-        const runDelete = function () {
-            fetch(`/admin/branches/${buildingId}`, { method: 'DELETE' })
-                .then(response => response.json())
-                .then(data => {
-                    if (data.success) {
-                        loadBranches();
-                        loadDepartments();
-                    } else if (window.AppDialogs) {
-                        AppDialogs.error(data.error || 'Failed to delete branch.');
-                    } else {
-                        alert(data.error || 'Failed to delete branch.');
-                    }
-                })
-                .catch(function () {
-                    if (window.AppDialogs) AppDialogs.error('Failed to delete branch.');
-                    else alert('Failed to delete branch.');
-                });
-        };
-        if (window.AppDialogs) {
-            AppDialogs.confirm({
-                title: 'Delete branch',
-                message: 'Are you sure you want to delete "' + buildingName + '"? This will also delete all its departments.',
-                confirmText: 'Delete',
-                confirmClass: 'modal-confirm-btn-reject'
-            }).then(function (ok) { if (ok) runDelete(); });
-        } else if (confirm('Are you sure you want to delete "' + buildingName + '"?')) {
-            runDelete();
+        
+        if (confirm(`Are you sure you want to delete "${buildingName}"? This will also delete all its departments.`)) {
+            fetch(`/admin/branches/${buildingId}`, {
+                method: 'DELETE'
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    loadBranches(); // Reload the buildings list
+                    loadDepartments(); // Reload departments list
+                } else {
+                    alert(data.error || 'Failed to delete branch.');
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('Failed to delete branch.');
+            });
         }
     }
 
@@ -1872,32 +1615,23 @@ const QR_LABEL_PRESET = 'label_2x2';
         const departmentId = e.currentTarget.getAttribute('data-id');
         const departmentName = e.currentTarget.getAttribute('data-name');
         const buildingName = e.currentTarget.getAttribute('data-branch');
-        const runDelete = function () {
-            fetch(`/admin/departments/${departmentId}`, { method: 'DELETE' })
-                .then(response => response.json())
-                .then(data => {
-                    if (data.success) {
-                        loadDepartments();
-                    } else if (window.AppDialogs) {
-                        AppDialogs.error(data.error || 'Failed to delete department.');
-                    } else {
-                        alert(data.error || 'Failed to delete department.');
-                    }
-                })
-                .catch(function () {
-                    if (window.AppDialogs) AppDialogs.error('Failed to delete department.');
-                    else alert('Failed to delete department.');
-                });
-        };
-        if (window.AppDialogs) {
-            AppDialogs.confirm({
-                title: 'Delete department',
-                message: 'Are you sure you want to delete "' + departmentName + '" from "' + buildingName + '"?',
-                confirmText: 'Delete',
-                confirmClass: 'modal-confirm-btn-reject'
-            }).then(function (ok) { if (ok) runDelete(); });
-        } else if (confirm('Delete "' + departmentName + '"?')) {
-            runDelete();
+        
+        if (confirm(`Are you sure you want to delete "${departmentName}" from "${buildingName}"?`)) {
+            fetch(`/admin/departments/${departmentId}`, {
+                method: 'DELETE'
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    loadDepartments(); // Reload the departments list
+                } else {
+                    alert(data.error || 'Failed to delete department.');
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('Failed to delete department.');
+            });
         }
     }
 
@@ -1905,23 +1639,37 @@ const QR_LABEL_PRESET = 'label_2x2';
 // EVENT LISTENERS - ASSET MANAGEMENT
 // ============================================================================
 
+    function refreshMgmtAssetCatalog() {
+        loadAssetTypes();
+        loadAssetNames();
+        updateAssetNameDropdowns();
+    }
+
     // Handle editing asset type
     function handleEditAssetType(e) {
         const btn = e.currentTarget;
-        if (!window.MgmtEditModals) return;
-        const typeRow = (assetTypesData || []).find(function (t) {
-            return String(t.id) === String(btn.getAttribute('data-id'));
-        });
-        window.MgmtEditModals.openAssetType({
-            id: btn.getAttribute('data-id'),
-            name: btn.getAttribute('data-name'),
-            forVenue: btn.getAttribute('data-for-venue') || 'restaurant',
-            branchId: btn.getAttribute('data-branch-id') || null,
-            departmentId: btn.getAttribute('data-department-id') || null,
-            branchName: typeRow ? typeRow.branch_name : '',
-            brandName: typeRow ? typeRow.brand_name : '',
-            departmentName: typeRow ? typeRow.department_name : ''
-        });
+        if (window.MgmtEditModals && window.MgmtEditModals.openAssetType) {
+            window.MgmtEditModals.openAssetType({
+                id: btn.getAttribute('data-id'),
+                name: btn.getAttribute('data-name'),
+                forVenue: btn.getAttribute('data-for-venue') || 'restaurant'
+            });
+            return;
+        }
+        const assetTypeId = btn.getAttribute('data-id');
+        const currentName = btn.getAttribute('data-name');
+        const newName = prompt('Enter new asset type name:', currentName);
+        if (newName && newName.trim() !== currentName) {
+            const formData = new FormData();
+            formData.append('name', newName.trim());
+            fetch(`/admin/asset-types/${assetTypeId}`, { method: 'PUT', body: formData })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) refreshMgmtAssetCatalog();
+                    else alert(data.error || 'Failed to update asset type.');
+                })
+                .catch(() => alert('Failed to update asset type.'));
+        }
     }
 
     // Handle editing asset name
@@ -1960,34 +1708,25 @@ const QR_LABEL_PRESET = 'label_2x2';
     function handleDeleteAssetType(e) {
         const assetTypeId = e.currentTarget.getAttribute('data-id');
         const assetTypeName = e.currentTarget.getAttribute('data-name');
-        const runDelete = function () {
-            fetch(`/admin/asset-types/${assetTypeId}`, { method: 'DELETE' })
-                .then(response => response.json())
-                .then(data => {
-                    if (data.success) {
-                        loadAssetTypes();
-                        loadAssetNames();
-                        updateAssetNameDropdowns();
-                    } else if (window.AppDialogs) {
-                        AppDialogs.error(data.error || 'Failed to delete asset type.');
-                    } else {
-                        alert(data.error || 'Failed to delete asset type.');
-                    }
-                })
-                .catch(function () {
-                    if (window.AppDialogs) AppDialogs.error('Failed to delete asset type.');
-                    else alert('Failed to delete asset type.');
-                });
-        };
-        if (window.AppDialogs) {
-            AppDialogs.confirm({
-                title: 'Delete asset type',
-                message: 'Are you sure you want to delete "' + assetTypeName + '"? This will also delete all its asset names.',
-                confirmText: 'Delete',
-                confirmClass: 'modal-confirm-btn-reject'
-            }).then(function (ok) { if (ok) runDelete(); });
-        } else if (confirm('Delete "' + assetTypeName + '"?')) {
-            runDelete();
+        
+        if (confirm(`Are you sure you want to delete "${assetTypeName}"? This will also delete all its asset names.`)) {
+            fetch(`/admin/asset-types/${assetTypeId}`, {
+                method: 'DELETE'
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    loadAssetTypes(); // Reload the asset types list
+                    loadAssetNames(); // Reload asset names list
+                    updateAssetNameDropdowns(); // Update dropdown data
+                } else {
+                    alert(data.error || 'Failed to delete asset type.');
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('Failed to delete asset type.');
+            });
         }
     }
 
@@ -2219,7 +1958,6 @@ const QR_LABEL_PRESET = 'label_2x2';
 
                 if (users.length === 0) {
                     usersList.innerHTML = '<tr><td colspan="6" class="text-center text-muted py-4">No employees found.</td></tr>';
-                    refreshSettingsTableSearch('userModalList');
                     return;
                 }
 
@@ -2241,13 +1979,12 @@ const QR_LABEL_PRESET = 'label_2x2';
                         <td>${user.department_name}</td>
                         <td>
                             <div class="d-flex gap-2 flex-wrap align-items-center">
-                                <button type="button" class="btn-app-edit-icon edit-employee-btn"
+                                <button type="button" class="btn-app-edit-icon" onclick="handleEditUserModal(event)"
                                         data-id="${user.id}" data-name="${user.name}" data-department="${user.department_name}"
-                                        data-department-id="${user.department_id}" data-branch="${user.branch_name || ''}"
                                         title="Edit employee" aria-label="Edit employee">
                                     <i class="bi bi-pencil-square" aria-hidden="true"></i>
                                 </button>
-                                <button type="button" class="btn-app-edit-icon btn-app-danger-icon delete-employee-btn"
+                                <button type="button" class="btn-app-edit-icon btn-app-danger-icon" onclick="handleDeleteUserModal(event)"
                                         data-id="${user.id}" data-name="${user.name}" data-department="${user.department_name}"
                                         title="Delete employee" aria-label="Delete employee">
                                     <i class="bi bi-trash" aria-hidden="true"></i>
@@ -2257,14 +1994,7 @@ const QR_LABEL_PRESET = 'label_2x2';
                     `;
                     usersList.appendChild(tr);
                 });
-                document.querySelectorAll('.edit-employee-btn').forEach(function (btn) {
-                    btn.addEventListener('click', handleEditUserModal);
-                });
-                document.querySelectorAll('.delete-employee-btn').forEach(function (btn) {
-                    btn.addEventListener('click', handleDeleteUserModal);
-                });
                 resetMgmtTableBulkUI('selectAllEmployeesRosterCheckbox', 'bulkDeleteEmployeesRosterBtn', 'userModalList', 'employee-roster-checkbox');
-                refreshSettingsTableSearch('userModalList');
             })
             .catch(error => {
                 console.error('Error loading users for modal:', error);
@@ -2319,27 +2049,27 @@ const QR_LABEL_PRESET = 'label_2x2';
         const name = document.getElementById('userModalName').value.trim();
 
         if (!venue) {
-            mgmtShowError('Please choose Restaurant or Office.');
+            alert('Please choose Restaurant or Office.');
             return;
         }
         if (venue === 'restaurant') {
             if (!brandId) {
-                mgmtShowError('Please select a brand.');
+                alert('Please select a brand.');
                 return;
             }
             if (!buildingId) {
-                mgmtShowError('Please select a branch.');
+                alert('Please select a branch.');
                 return;
             }
         }
 
         if (!departmentId) {
-            mgmtShowError('Please select a department.');
+            alert('Please select a department.');
             return;
         }
         
         if (!name) {
-            mgmtShowError('Please enter an employee name.');
+            alert('Please enter an employee name.');
             return;
         }
         
@@ -2366,40 +2096,48 @@ const QR_LABEL_PRESET = 'label_2x2';
                 syncEmployeeRegisterVenue();
                 loadUserModalUsers(); // Reload the users list
                 refreshOwnersIfAddAssetForm();
-                if (window.AppDialogs) AppDialogs.success('Employee "' + name + '" registered successfully!');
-                else alert('Employee "' + name + '" registered successfully!');
+                alert(`Employee "${name}" registered successfully!`);
             } else {
-                mgmtShowError(data.error || 'Failed to register employee.');
+                alert(data.error || 'Failed to register employee.');
             }
         })
         .catch(error => {
             console.error('Error:', error);
-            mgmtShowError('Failed to register employee.');
+            alert('Failed to register employee.');
         });
     }
 
     // Handle editing user from modal
     function handleEditUserModal(e) {
-        const btn = e.currentTarget;
-        if (!window.MgmtEditModals) return;
-        const departmentId = btn.getAttribute('data-department-id');
-        const branchName = btn.getAttribute('data-branch') || '';
-        const dept = departmentsData.find(function (d) { return String(d.id) === String(departmentId); });
-        var branchId = dept && dept.branch_id != null ? dept.branch_id : null;
-        var brandId = '';
-        if (branchId) {
-            var br = branchesData.find(function (b) { return b.id === branchId; });
-            brandId = br ? br.brand_id : '';
+        const userId = e.currentTarget.getAttribute('data-id');
+        const currentName = e.currentTarget.getAttribute('data-name');
+        const departmentName = e.currentTarget.getAttribute('data-department');
+        
+        const newName = prompt(`Edit employee name for "${departmentName}" department:`, currentName);
+        if (newName && newName.trim() && newName.trim() !== currentName) {
+            fetch(`/admin/users/${userId}`, {
+                method: 'PUT',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    name: newName.trim()
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    loadUserModalUsers(); // Reload the users list
+                    refreshOwnersIfAddAssetForm();
+                } else {
+                    alert(data.error || 'Failed to update employee.');
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('Failed to update employee.');
+            });
         }
-        window.MgmtEditModals.openEmployee({
-            id: btn.getAttribute('data-id'),
-            name: btn.getAttribute('data-name'),
-            departmentId: departmentId,
-            branchName: branchName,
-            branchId: branchId,
-            brandId: brandId,
-            venue: branchName === OFFICE_BRANCH_LABEL_JS ? 'office' : 'restaurant'
-        });
     }
 
     // Handle deleting user from modal
@@ -2407,34 +2145,24 @@ const QR_LABEL_PRESET = 'label_2x2';
         const userId = e.currentTarget.getAttribute('data-id');
         const userName = e.currentTarget.getAttribute('data-name');
         const departmentName = e.currentTarget.getAttribute('data-department');
-        const runDelete = function () {
-            fetch(`/admin/users/${userId}`, { method: 'DELETE' })
-                .then(response => response.json())
-                .then(data => {
-                    if (data.success) {
-                        var filter = document.getElementById('userModalFilterDepartment');
-                        loadUserModalUsers(filter && filter.value ? filter.value : '');
-                        refreshOwnersIfAddAssetForm();
-                    } else if (window.AppDialogs) {
-                        AppDialogs.error(data.error || 'Failed to delete employee.');
-                    } else {
-                        alert(data.error || 'Failed to delete employee.');
-                    }
-                })
-                .catch(function () {
-                    if (window.AppDialogs) AppDialogs.error('Failed to delete employee.');
-                    else alert('Failed to delete employee.');
-                });
-        };
-        if (window.AppDialogs) {
-            AppDialogs.confirm({
-                title: 'Delete employee',
-                message: 'Are you sure you want to delete employee "' + userName + '" from "' + departmentName + '"?',
-                confirmText: 'Delete',
-                confirmClass: 'modal-confirm-btn-reject'
-            }).then(function (ok) { if (ok) runDelete(); });
-        } else if (confirm('Delete employee "' + userName + '"?')) {
-            runDelete();
+        
+        if (confirm(`Are you sure you want to delete employee "${userName}" from "${departmentName}"?`)) {
+            fetch(`/admin/users/${userId}`, {
+                method: 'DELETE'
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    loadUserModalUsers(); // Reload the users list
+                    refreshOwnersIfAddAssetForm();
+                } else {
+                    alert(data.error || 'Failed to delete employee.');
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('Failed to delete employee.');
+            });
         }
     }
 
@@ -2741,44 +2469,30 @@ const QR_LABEL_PRESET = 'label_2x2';
             bulkBtn.addEventListener('click', function () {
                 const checked = Array.prototype.slice.call(tbody.querySelectorAll('.' + cfg.rowClass + ':checked'));
                 if (!checked.length) return;
-                const runBulkDelete = function () {
-                    Promise.all(checked.map(function (cb) {
-                        return fetch(cfg.deleteUrl(cb.value), { method: 'DELETE' })
-                            .then(function (r) {
-                                return r.json().catch(function () { return {}; }).then(function (data) {
-                                    if (!r.ok || data.success !== true) {
-                                        return { error: data.error || 'Request failed' };
-                                    }
-                                    return {};
-                                });
+                if (!confirm('Delete ' + checked.length + ' selected item(s)? This cannot be undone.')) return;
+                Promise.all(checked.map(function (cb) {
+                    return fetch(cfg.deleteUrl(cb.value), { method: 'DELETE' })
+                        .then(function (r) {
+                            return r.json().catch(function () { return {}; }).then(function (data) {
+                                if (!r.ok || data.success !== true) {
+                                    return { error: data.error || 'Request failed' };
+                                }
+                                return {};
                             });
-                    })).then(function (results) {
-                        const errs = results.filter(function (x) { return x && x.error; });
-                        if (errs.length) {
-                            const msg = 'Some items could not be deleted:\n' + errs.map(function (e) { return e.error; }).join('\n');
-                            if (window.AppDialogs) AppDialogs.error(msg);
-                            else alert(msg);
-                        }
-                        selectAll.checked = false;
-                        selectAll.indeterminate = false;
-                        bulkBtn.style.display = 'none';
-                        hideSettingsMgmtBulkBar(cfg.tbodyId);
-                        cfg.afterDelete();
-                    }).catch(function () {
-                        if (window.AppDialogs) AppDialogs.error('Network error during bulk delete.');
-                        else alert('Network error during bulk delete.');
-                    });
-                };
-                if (window.AppDialogs) {
-                    AppDialogs.confirm({
-                        title: 'Delete selected',
-                        message: 'Delete ' + checked.length + ' selected item(s)? This cannot be undone.',
-                        confirmText: 'Delete',
-                        confirmClass: 'modal-confirm-btn-reject'
-                    }).then(function (ok) { if (ok) runBulkDelete(); });
-                } else if (confirm('Delete ' + checked.length + ' selected item(s)?')) {
-                    runBulkDelete();
-                }
+                        });
+                })).then(function (results) {
+                    const errs = results.filter(function (x) { return x && x.error; });
+                    if (errs.length) {
+                        alert('Some items could not be deleted:\n' + errs.map(function (e) { return e.error; }).join('\n'));
+                    }
+                    selectAll.checked = false;
+                    selectAll.indeterminate = false;
+                    bulkBtn.style.display = 'none';
+                    hideSettingsMgmtBulkBar(cfg.tbodyId);
+                    cfg.afterDelete();
+                }).catch(function () {
+                    alert('Network error during bulk delete.');
+                });
             });
         });
     }
@@ -2789,20 +2503,20 @@ const QR_LABEL_PRESET = 'label_2x2';
 
     // Initialize data on page load
     document.addEventListener('DOMContentLoaded', function() {
+        window.MgmtEditCallbacks = window.MgmtEditCallbacks || {};
+        window.MgmtEditCallbacks.onAssetTypeSaved = refreshMgmtAssetCatalog;
+        window.MgmtEditCallbacks.onAssetNameSaved = function () {
+            loadAssetNames();
+            updateAssetNameDropdowns();
+        };
+
         setupMgmtBulkDeletes();
         loadBrands().then(function () {
             return loadBranches();
         }).catch(function () {});
         loadDepartments();
         loadUserModalData();
-            loadAssetTypes().then(function () {
-                if (document.getElementById('newAssetTypeVenue')) {
-                    syncSettingsNewAssetTypeVenueFields();
-                }
-                if (document.getElementById('newAssetNameVenue')) {
-                    syncSettingsNewAssetNameVenueFields();
-                }
-            });
+            loadAssetTypes();
             loadAssetNames();
             updateAssetNameDropdowns();
 
@@ -2812,7 +2526,6 @@ const QR_LABEL_PRESET = 'label_2x2';
             if (assetTypeInput && editAssetTypeInput && addAssetFormEl) {
                 assetTypeInput.addEventListener('change', function() {
                     updateAssetNameDropdown(this.value, 'name');
-                    updateAllAssetNames();
                 });
 
                 editAssetTypeInput.addEventListener('change', function() {
@@ -2822,21 +2535,21 @@ const QR_LABEL_PRESET = 'label_2x2';
                 addAssetFormEl.addEventListener('submit', function(e) {
                     syncAddAssetVenueField();
                     const venue = getAddAssetVenue();
-                    const assetTypeId = document.getElementById('asset_type').value;
-                    const atRow = (assetTypesData || []).find(function (t) { return String(t.id) === String(assetTypeId); });
+                    const assetType = document.getElementById('asset_type').value;
+                    const atRow = (assetTypesData || []).find(function (t) { return t.name === assetType; });
                     if (!venue || (venue !== 'restaurant' && venue !== 'office')) {
                         e.preventDefault();
                         alert('Please choose Restaurant or Office.');
                         return;
                     }
-                    if (!atRow || !assetTypeAppliesToVenue(atRow, venue)) {
+                    if (!atRow || !assetTypeMatchesVenue(atRow.for_venue, venue)) {
                         e.preventDefault();
                         alert('Please select an asset type that matches Restaurant or Office.');
                         return;
                     }
                     const selectedAssetNamesInput = document.getElementById('selectedAssetNamesInput');
 
-                    if (!assetTypeId) {
+                    if (!assetType) {
                         e.preventDefault();
                         alert('Please select an asset type.');
                         return;
@@ -2850,7 +2563,7 @@ const QR_LABEL_PRESET = 'label_2x2';
 
                     const selectedNames = selectedAssetNamesInput.value.split(',').filter(name => name.trim());
                     for (const assetName of selectedNames) {
-                        if (!validateAssetName(assetTypeId, assetName.trim())) {
+                        if (!validateAssetName(assetType, assetName.trim())) {
                             e.preventDefault();
                             alert(`Asset name "${assetName.trim()}" does not exist. Please select from the available asset names or add it first through the "Manage Assets" button.`);
                             return;
@@ -2911,16 +2624,9 @@ const QR_LABEL_PRESET = 'label_2x2';
 
         const assetManagementModal = document.getElementById('assetManagementModal');
         if (assetManagementModal) assetManagementModal.addEventListener('show.bs.modal', function() {
-            loadAssetTypes().then(function () {
-                loadAssetNames();
-                updateAssetNameDropdowns();
-                if (document.getElementById('newAssetTypeVenue')) {
-                    syncSettingsNewAssetTypeVenueFields();
-                }
-                if (document.getElementById('newAssetNameVenue')) {
-                    syncSettingsNewAssetNameVenueFields();
-                }
-            });
+            loadAssetTypes();
+            loadAssetNames();
+            updateAssetNameDropdowns();
         });
 
         const addAssetModal = document.getElementById('addAssetModal');
@@ -3025,11 +2731,26 @@ const QR_LABEL_PRESET = 'label_2x2';
                 if (editDeptField) editDeptField.classList.add('d-none');
             }
             
-            // Load asset types and asset names; asset type selection is set after branch/department load
-            loadAssetTypes().then(function () {
-                loadAssetNames();
-                updateAssetNameDropdowns();
-            });
+            // Load asset types and asset names for the dropdowns, then set the asset type
+            loadAssetTypes();
+            loadAssetNames();
+            updateAssetNameDropdowns();
+            
+            // Set asset type after dropdowns are loaded
+            setTimeout(() => {
+                console.log('Setting asset type to:', assetTypeToSet);
+                console.log('Available asset type options:', Array.from(document.getElementById('edit_asset_type').options).map(opt => opt.value));
+                
+                document.getElementById('edit_asset_type').value = assetTypeToSet;
+                console.log('Asset type dropdown value after setting:', document.getElementById('edit_asset_type').value);
+                console.log('Asset type dropdown selected option:', document.getElementById('edit_asset_type').selectedOptions[0]?.text);
+                
+                // Set asset name after asset type is set
+                updateAssetNameDropdown(assetTypeToSet, 'edit_name');
+                setTimeout(() => {
+                    document.getElementById('edit_name').value = assetName;
+                }, 100);
+            }, 300);
             
             populateEditAssetBrandSelect();
             fetch('/admin/branches')
@@ -3048,22 +2769,6 @@ const QR_LABEL_PRESET = 'label_2x2';
                 })
                 .then(function () {
                     return loadEditOwners(assetBuilding, assetDepartment, assetOwner);
-                })
-                .then(function () {
-                    updateAssetTypeDropdowns();
-                    const ev = isOfficeAsset ? 'office' : 'restaurant';
-                    const tid = resolveAssetTypeIdFromContext(assetTypeToSet, ev);
-                    const ets = document.getElementById('edit_asset_type');
-                    if (ets && tid) {
-                        ets.value = tid;
-                    }
-                    updateAssetNameDropdown(tid || '', 'edit_name');
-                    setTimeout(function () {
-                        const en = document.getElementById('edit_name');
-                        if (en) {
-                            en.value = assetName;
-                        }
-                    }, 50);
                 })
                 .catch(error => {
                     console.error('Error loading edit data:', error);
@@ -3106,7 +2811,6 @@ const QR_LABEL_PRESET = 'label_2x2';
                                 option.textContent = department.name;
                                 departmentSelect.appendChild(option);
                             });
-                            updateAssetTypeDropdowns();
                         })
                         .catch(error => console.error('Error loading departments:', error));
                     return;
@@ -3121,7 +2825,6 @@ const QR_LABEL_PRESET = 'label_2x2';
                     departmentSelect.dispatchEvent(new Event('change'));
                 }
             }
-            updateAssetTypeDropdowns();
         });
         
         // Handle edit department change
@@ -3158,7 +2861,6 @@ const QR_LABEL_PRESET = 'label_2x2';
                             option.textContent = user.name;
                             ownerSelect.appendChild(option);
                         });
-                        updateAssetTypeDropdowns();
                     })
                     .catch(error => console.error('Error loading users:', error));
             }
@@ -3170,13 +2872,13 @@ const QR_LABEL_PRESET = 'label_2x2';
             
             syncEditAssetVenueField();
             const venue = getEditAssetVenue();
-            const assetTypeId = document.getElementById('edit_asset_type').value;
-            const atRow = (assetTypesData || []).find(function (t) { return String(t.id) === String(assetTypeId); });
+            const assetType = document.getElementById('edit_asset_type').value;
+            const atRow = (assetTypesData || []).find(function (t) { return t.name === assetType; });
             if (!venue || (venue !== 'restaurant' && venue !== 'office')) {
                 alert('Please choose Restaurant or Office.');
                 return;
             }
-            if (!atRow || !assetTypeAppliesToVenue(atRow, venue)) {
+            if (!atRow || !assetTypeMatchesVenue(atRow.for_venue, venue)) {
                 alert('Please select an asset type that matches Restaurant or Office.');
                 return;
             }
@@ -3202,7 +2904,7 @@ const QR_LABEL_PRESET = 'label_2x2';
 
             const assetName = document.getElementById('edit_name').value.trim();
             
-            if (!assetTypeId) {
+            if (!assetType) {
                 alert('Please select an asset type.');
                 return;
             }
@@ -3213,7 +2915,7 @@ const QR_LABEL_PRESET = 'label_2x2';
             }
             
             // Validate that the asset name exists in the predefined list
-            if (!validateAssetName(assetTypeId, assetName)) {
+            if (!validateAssetName(assetType, assetName)) {
                 alert(`Asset name "${assetName}" does not exist. Please select from the available asset names or add it first through the "Manage Assets" button.`);
                 return;
             }
@@ -3316,7 +3018,6 @@ const QR_LABEL_PRESET = 'label_2x2';
                     ds.value = RESTAURANT_DEFAULT_DEPT_JS;
                 }
                 checkNoOwnerOption();
-                updateAssetTypeDropdowns();
             });
         }
 
@@ -3329,9 +3030,7 @@ const QR_LABEL_PRESET = 'label_2x2';
                 if (br) br.value = '';
                 const own = document.getElementById('edit_owner');
                 if (own) own.innerHTML = '<option value="">Select branch first</option>';
-                loadEditBranches('', bid || '').then(function () {
-                    updateAssetTypeDropdowns();
-                }).catch(function () {});
+                loadEditBranches('', bid || '').catch(function () {});
             });
         }
 
@@ -3352,12 +3051,10 @@ const QR_LABEL_PRESET = 'label_2x2';
                 if (!selectedBuilding) {
                     if (ownerSelect) ownerSelect.innerHTML = '<option value="">Select branch first</option>';
                     checkNoOwnerOption();
-                    updateAssetTypeDropdowns();
                     return;
                 }
                 loadOwnersForDepartment(RESTAURANT_DEFAULT_DEPT_JS);
                 checkNoOwnerOption();
-                updateAssetTypeDropdowns();
             });
         }
     })();
@@ -4118,8 +3815,8 @@ const QR_LABEL_PRESET = 'label_2x2';
         const assetTypeSelect = document.getElementById('asset_type');
         const selectedType = assetTypeSelect.value;
         
-        if (selectedType && window.assetNamesByTypeId && window.assetNamesByTypeId[selectedType]) {
-            allAssetNames = window.assetNamesByTypeId[selectedType].map(item => item.name);
+        if (selectedType && window.assetNamesByType && window.assetNamesByType[selectedType]) {
+            allAssetNames = window.assetNamesByType[selectedType].map(item => item.name);
         } else {
             allAssetNames = [];
         }

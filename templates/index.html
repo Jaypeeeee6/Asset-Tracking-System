@@ -28,49 +28,41 @@
         .asset-name-tag {
             display: inline-flex;
             align-items: center;
-            gap: 6px;
-            padding: 5px 8px 5px 12px;
-            background: #EFF6FF;
-            color: #1E40AF;
-            border-radius: 6px;
-            font-size: 12px;
-            margin-right: 6px;
-            margin-bottom: 6px;
+            background: linear-gradient(90deg, #007bff 60%, #0056b3 100%);
+            color: #fff;
+            border-radius: 18px;
+            padding: 6px 14px 6px 12px;
+            font-size: 15px;
+            margin: 3px 4px 3px 0;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.08);
             font-weight: 500;
+            transition: background 0.2s, box-shadow 0.2s;
         }
         
         .asset-name-tag .asset-name-text {
+            flex: 1;
             overflow: hidden;
             text-overflow: ellipsis;
             white-space: nowrap;
             max-width: 120px;
         }
         
-        .asset-name-tag .tag-remove {
-            display: inline-flex;
-            align-items: center;
-            justify-content: center;
-            width: 18px;
-            height: 18px;
-            padding: 0;
-            margin: 0;
-            background: transparent;
-            color: #B91C1C;
+        .asset-name-tag .remove-btn {
+            background: none;
             border: none;
-            border-radius: 4px;
-            font-size: 16px;
-            line-height: 1;
+            color: #fff;
+            margin-left: 10px;
             cursor: pointer;
-            transition: background 0.15s, color 0.15s;
+            padding: 0 2px;
+            font-size: 15px;
+            line-height: 1;
+            border-radius: 50%;
+            transition: background 0.2s, color 0.2s;
         }
         
-        .asset-name-tag .tag-remove:hover {
-            background: rgba(185, 28, 28, 0.15);
-            color: #991B1B;
-        }
-        
-        .asset-name-tag .tag-remove:focus {
-            outline: none;
+        .asset-name-tag .remove-btn:hover {
+            background: #fff2;
+            color: #ffc107;
         }
         
         .asset-name-input {
@@ -993,7 +985,7 @@
             </div>
             <div class="mb-3">
                 <label for="asset_type" class="form-label">Asset Type</label>
-                <select class="form-select" id="asset_type" name="asset_type_id" required>
+                <select class="form-select" id="asset_type" name="asset_type" required>
                     <option value="">Select Asset Type</option>
                 </select>
             </div>
@@ -1013,7 +1005,7 @@
                 <input type="number" class="form-control" id="quantity" name="quantity" min="1" value="1" required>
             </div>
             <div class="mb-3">
-                <label for="price" class="form-label">Price per Unit (OMR)</label>
+                <label for="price" class="form-label">Price (OMR)</label>
                 <input type="number" class="form-control" id="price" name="price" min="0" step="0.01" placeholder="0.00" required>
                 <div class="form-text">
                     <i class="bi bi-info-circle" aria-hidden="true"></i> Enter the price in Omani Rial (OMR)
@@ -1098,7 +1090,7 @@
           </div>
             <div class="mb-3">
                 <label for="edit_asset_type" class="form-label">Asset Type</label>
-                <select class="form-select" id="edit_asset_type" name="asset_type_id" required>
+                <select class="form-select" id="edit_asset_type" name="asset_type" required>
                     <option value="">Select Asset Type</option>
                 </select>
             </div>
@@ -1114,7 +1106,7 @@
                 <input type="number" class="form-control" id="edit_quantity" name="quantity" min="1" value="1" required>
             </div>
             <div class="mb-3">
-                <label for="edit_price" class="form-label">Price per Unit (OMR)</label>
+                <label for="edit_price" class="form-label">Price (OMR)</label>
                 <input type="number" class="form-control" id="edit_price" name="price" min="0" step="0.01" placeholder="0.00" required>
                 <div class="form-text">
                     <i class="bi bi-info-circle" aria-hidden="true"></i> Enter the price in Omani Rial (OMR)

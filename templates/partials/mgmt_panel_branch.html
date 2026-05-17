@@ -16,6 +16,10 @@
       <label for="newBranchName">New branch</label>
       <input type="text" class="form-control" id="newBranchName" placeholder="Enter branch name" maxlength="100">
     </div>
+    <div class="filter-group" style="min-width: 120px; max-width: 160px;">
+      <label for="newBranchCode">Branch code</label>
+      <input type="text" class="form-control" id="newBranchCode" placeholder="e.g. SOH" maxlength="20" style="text-transform: uppercase;">
+    </div>
     <div class="filter-group" style="min-width: 180px;">
       <label for="newBranchBrand">Brand</label>
       <select class="form-select app-select-with-chevron" id="newBranchBrand" required aria-required="true">
@@ -46,7 +50,7 @@
   </div>
 
   <h6 class="settings-section-title mb-2">Existing branches</h6>
-  {{ settings_search_bar('branchesList', 'Search branches, brands…', 'settingsBranchesSearch') }}
+  {{ settings_search_bar('branchesList', 'Search branches, codes, brands…', 'settingsBranchesSearch') }}
   <div id="settingsBranchesBulkBar" class="app-bulk-bar mb-3" style="display: none;">
     <div class="d-flex flex-wrap justify-content-between align-items-center gap-2">
       <span><i class="bi bi-info-circle me-1"></i> <strong><span id="settingsBranchesSelectedCount">0</span> items selected</strong> &mdash; use the buttons to act on the selection</span>
@@ -62,12 +66,13 @@
   </div>
   <div class="settings-auth-table-bleed">
     <div style="overflow-x:auto;">
-      <table class="app-table" style="width: 100%; min-width: 560px;">
+      <table class="app-table" style="width: 100%; min-width: 640px;">
         <thead>
           <tr>
             <th><input type="checkbox" id="selectAllBranchesCheckbox" title="Select all" aria-label="Select all branches"></th>
             <th>#</th>
             <th>Branch name</th>
+            <th>Branch code</th>
             <th>Brand</th>
             <th>Actions</th>
           </tr>

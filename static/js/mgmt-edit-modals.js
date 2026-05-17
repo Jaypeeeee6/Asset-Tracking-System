@@ -210,6 +210,8 @@
         if (!modalEl) return;
         $('editMgmtBranchId').value = data.id;
         $('editMgmtBranchName').value = data.name || '';
+        var codeEl = $('editMgmtBranchCode');
+        if (codeEl) codeEl.value = (data.branchCode || '').toUpperCase();
         fillBrandSelect($('editMgmtBranchBrand'), data.brandId || '');
         getBsModal(modalEl).show();
     }
@@ -217,12 +219,15 @@
     function saveEditBranch() {
         var id = $('editMgmtBranchId').value;
         var name = ($('editMgmtBranchName').value || '').trim();
+        var branchCode = ($('editMgmtBranchCode') && $('editMgmtBranchCode').value || '').trim().toUpperCase();
         var brandId = $('editMgmtBranchBrand').value;
         if (!name) return showError('Please enter a branch name.');
+        if (!branchCode) return showError('Please enter a branch code.');
         if (!brandId) return showError('Please select a brand for this branch.');
 
         var formData = new FormData();
         formData.append('name', name);
+        formData.append('branch_code', branchCode);
         formData.append('brand_id', brandId);
 
         return fetch('/admin/branches/' + encodeURIComponent(id), { method: 'PUT', body: formData })
@@ -330,19 +335,9 @@
 
     function locationLabelForEditAssetType(data) {
         var venue = data.forVenue || 'restaurant';
-        if (!data.branchId && !data.departmentId) {
-            if (venue === 'both') return 'All restaurants & All office departments';
-            return venue === 'office' ? 'All office departments' : 'All restaurants';
-        }
-        if (data.branchName) {
-            return data.brandName
-                ? 'Restaurant — ' + data.brandName + ' — ' + data.branchName
-                : 'Restaurant — ' + data.branchName;
-        }
-        if (data.departmentName) {
-            return 'Office — ' + data.departmentName;
-        }
-        return venue === 'office' ? 'Office' : 'Restaurant';
+        if (venue === 'both') return 'All restaurants & All office departments';
+        if (venue === 'office') return 'All office departments';
+        return 'All restaurants';
     }
 
     function openEditAssetType(data) {
@@ -360,13 +355,10 @@
     function saveEditAssetType() {
         var id = $('editMgmtAssetTypeId').value;
         var name = ($('editMgmtAssetTypeName').value || '').trim();
-        var venue = $('editMgmtAssetTypeVenue').value;
-        if (!venue) return showError('Asset type location is missing.');
         if (!name) return showError('Please enter an asset type name.');
 
         var formData = new FormData();
         formData.append('name', name);
-        formData.append('for_venue', venue);
 
         return fetch('/admin/asset-types/' + encodeURIComponent(id), { method: 'PUT', body: formData })
             .then(function (r) { return r.json(); })
