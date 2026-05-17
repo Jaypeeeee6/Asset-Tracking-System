@@ -21,7 +21,7 @@
         <div class="col-sm-6 col-xl-3">
             <div class="stat-card yellow">
                 <div class="stat-label">Archived Assets</div>
-                <div class="stat-value">{{ total_archived }}</div>
+                <div class="stat-value">{{ total_archived|fmt_num }}</div>
                 <div class="stat-sub">Total in archive</div>
                 <i class="bi bi-archive stat-icon" aria-hidden="true"></i>
             </div>
@@ -116,7 +116,7 @@
                         <td>
                             <strong>{{ asset.name }}</strong>
                             <br><small class="text-muted" style="font-family:monospace;">{{ asset.asset_code or 'N/A' }}</small>
-                            <br><small class="text-muted">Qty: {{ asset.quantity }} &middot; {{ asset.asset_type or 'N/A' }}</small>
+                            <br><small class="text-muted">Qty: {{ asset.quantity|fmt_num }} &middot; {{ asset.asset_type or 'N/A' }}</small>
                         </td>
                         <td>
                             {% if asset.asset_code %}
@@ -183,9 +183,9 @@
              style="border-top:1px solid var(--card-border);">
             <div class="d-flex flex-column gap-2 asset-register-pageinfo">
                 <span class="asset-register-showing" style="font-size:0.875rem;color:#7a869a;">
-                    Showing <strong style="color:#344054;font-weight:600;">{{ (page-1)*per_page + 1 if total_archived else 0 }}</strong> to
-                    <strong style="color:#344054;font-weight:600;">{{ [page*per_page, total_archived]|min }}</strong> of
-                    <strong style="color:#344054;font-weight:600;">{{ "{:,}".format(total_archived|int) }}</strong> archived
+                    Showing <strong style="color:#344054;font-weight:600;">{{ ((page-1)*per_page + 1 if total_archived else 0)|fmt_num }}</strong> to
+                    <strong style="color:#344054;font-weight:600;">{{ ([page*per_page, total_archived]|min)|fmt_num }}</strong> of
+                    <strong style="color:#344054;font-weight:600;">{{ total_archived|fmt_num }}</strong> archived
                 </span>
             </div>
             {% if total_pages > 1 %}
@@ -343,7 +343,7 @@
     function updateArchivedSelectionBar() {
         const selectedCount = document.getElementById('selectedArchivedCount');
         const bulkActionsBar = document.getElementById('bulkRestoreActionsBar');
-        if (selectedCount) selectedCount.textContent = selectedArchivedAssets.length;
+        if (selectedCount) selectedCount.textContent = fmtNum(selectedArchivedAssets.length);
         if (bulkActionsBar) bulkActionsBar.style.display = selectedArchivedAssets.length > 0 ? 'block' : 'none';
         syncArchivedSelectAllVisual();
     }

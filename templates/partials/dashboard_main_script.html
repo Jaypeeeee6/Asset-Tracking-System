@@ -3295,7 +3295,7 @@ const QR_LABEL_PRESET = 'label_2x2';
 
         if (selectedAssets.length > 0) {
             bulkBar.style.display = 'block';
-            selectedCount.textContent = selectedAssets.length;
+            selectedCount.textContent = fmtNum(selectedAssets.length);
         } else {
             bulkBar.style.display = 'none';
         }
@@ -4152,13 +4152,13 @@ const QR_LABEL_PRESET = 'label_2x2';
         const buildingCounts = {{ chart_data.branch_counts|tojson }};
         const buildingValue = buildingPrices[buildingFilter] || 0;
         const buildingCount = buildingCounts[buildingFilter] || 0;
-            const avgValue = buildingCount > 0 ? (buildingValue / buildingCount).toFixed(3) : '0.000';
+            const avgValue = buildingCount > 0 ? fmtOmr(buildingValue / buildingCount) : fmtOmr(0);
             
             const cells = totalRow.querySelectorAll('td');
             if (cells.length >= 4) {
                 cells[0].textContent = `${buildingFilter} TOTAL`;
-                cells[1].textContent = buildingCount;
-                cells[2].textContent = buildingValue.toFixed(3);
+                cells[1].textContent = fmtNum(buildingCount);
+                cells[2].textContent = fmtOmr(buildingValue);
                 cells[3].textContent = avgValue;
             }
         }
@@ -4169,13 +4169,13 @@ const QR_LABEL_PRESET = 'label_2x2';
         if (totalRow) {
             const totalAssets = Object.values(window.chartData.branchCounts).reduce((a, b) => a + b, 0);
             const totalValue = window.chartData.totalSystemValue;
-            const avgValue = totalAssets > 0 ? (totalValue / totalAssets).toFixed(3) : '0.000';
+            const avgValue = totalAssets > 0 ? fmtOmr(totalValue / totalAssets) : fmtOmr(0);
             
             const cells = totalRow.querySelectorAll('td');
             if (cells.length >= 4) {
                 cells[0].textContent = 'TOTAL';
-                cells[1].textContent = totalAssets;
-                cells[2].textContent = totalValue.toFixed(3);
+                cells[1].textContent = fmtNum(totalAssets);
+                cells[2].textContent = fmtOmr(totalValue);
                 cells[3].textContent = avgValue;
             }
         }

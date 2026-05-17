@@ -24,9 +24,9 @@
                 <li class="list-group-item"><b>Owner:</b> {{ asset.owner }}</li>
                 <li class="list-group-item"><b>Branch:</b> {{ asset.branch }}</li>
                 <li class="list-group-item"><b>Department:</b> {{ asset.department }}</li>
-                <li class="list-group-item"><b>Quantity:</b> {{ asset.quantity }}</li>
-                <li class="list-group-item"><b>Unit Price:</b> OMR {{ "%.3f"|format(asset.price or 0.0) }}</li>
-                <li class="list-group-item"><b>Total Value:</b> OMR {{ "%.3f"|format((asset.price or 0.0) * asset.quantity) }}</li>
+                <li class="list-group-item"><b>Quantity:</b> {{ asset.quantity|fmt_num }}</li>
+                <li class="list-group-item"><b>Unit Price:</b> OMR {{ (asset.price or 0.0)|fmt_omr }}</li>
+                <li class="list-group-item"><b>Total Value:</b> OMR {{ ((asset.price or 0.0) * asset.quantity)|fmt_omr }}</li>
                 <li class="list-group-item"><b>Asset Type:</b> {{ asset.asset_type or 'N/A' }}</li>
                 <li class="list-group-item">
                     <b>Status:</b>

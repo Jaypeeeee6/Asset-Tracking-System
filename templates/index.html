@@ -693,7 +693,7 @@
         <div class="col-sm-6 col-xl-3">
             <div class="stat-card blue">
                 <div class="stat-label">Total System Value</div>
-                <div class="stat-value">{{ chart_data.total_system_value|round(3) }}</div>
+                <div class="stat-value">{{ chart_data.total_system_value|fmt_omr }}</div>
                 <div class="stat-sub">OMR</div>
                 <i class="bi bi-currency-exchange stat-icon"></i>
             </div>
@@ -701,7 +701,7 @@
         <div class="col-sm-6 col-xl-3">
             <div class="stat-card green">
                 <div class="stat-label">Total Assets</div>
-                <div class="stat-value">{{ total_assets }}</div>
+                <div class="stat-value">{{ total_assets|fmt_num }}</div>
                 <div class="stat-sub">In register</div>
                 <i class="bi bi-box-seam stat-icon"></i>
             </div>
@@ -833,11 +833,11 @@
                         <span class="text-muted">-</span>
                     {% endif %}
                 </td>
-                <td>{{ asset.quantity }}</td>
+                <td>{{ asset.quantity|fmt_num }}</td>
                 <td>
                     <div class="d-flex flex-column">
-                        <span class="fw-bold">OMR {{ "%.3f"|format((asset.price or 0.0) * asset.quantity) }}</span>
-                        <small class="text-muted">({{ "%.3f"|format(asset.price or 0.0) }} &times; {{ asset.quantity }})</small>
+                        <span class="fw-bold">OMR {{ ((asset.price or 0.0) * asset.quantity)|fmt_omr }}</span>
+                        <small class="text-muted">({{ (asset.price or 0.0)|fmt_omr }} &times; {{ asset.quantity|fmt_num }})</small>
                     </div>
                 </td>
                 <td>{{ asset.owner }}</td>
@@ -894,9 +894,9 @@
              style="border-top:1px solid #e8ecf2;">
             <div class="d-flex flex-column gap-2 asset-register-pageinfo">
                 <span class="asset-register-showing" style="font-size:0.875rem;color:#7a869a;">
-                    Showing <strong style="color:#344054;font-weight:600;">{{ (page-1)*per_page + 1 }}</strong> to
-                    <strong style="color:#344054;font-weight:600;">{{ [page*per_page, total_assets]|min }}</strong> of
-                    <strong style="color:#344054;font-weight:600;">{{ "{:,}".format(total_assets|int) }}</strong> assets
+                    Showing <strong style="color:#344054;font-weight:600;">{{ ((page-1)*per_page + 1)|fmt_num }}</strong> to
+                    <strong style="color:#344054;font-weight:600;">{{ ([page*per_page, total_assets]|min)|fmt_num }}</strong> of
+                    <strong style="color:#344054;font-weight:600;">{{ total_assets|fmt_num }}</strong> assets
                 </span>
                 <div class="d-flex align-items-center gap-2 flex-wrap asset-register-show-row" style="font-size:0.875rem;color:#7a869a;">
                     <strong class="asset-register-show-label" style="color:#344054;font-weight:700;">Show:</strong>
@@ -1511,7 +1511,7 @@
                  <div class="col-md-12">
                    <div class="alert alert-success">
                      <h6><i class="fas fa-info-circle"></i> System Overview</h6>
-                     <p class="mb-0 system-value-text" style="font-weight: 500;">Total System Value: <strong class="system-value-text">OMR {{ "%.3f"|format(chart_data.total_system_value) }}</strong></p>
+                     <p class="mb-0 system-value-text" style="font-weight: 500;">Total System Value: <strong class="system-value-text">OMR {{ chart_data.total_system_value|fmt_omr }}</strong></p>
                    </div>
                  </div>
                </div>
@@ -1545,7 +1545,7 @@
                       {% for branch_name, value in chart_data.branch_prices.items() %}
                       <tr data-branch="{{ branch_name }}" data-value="{{ value }}">
                         <td><strong>{{ branch_name }}</strong></td>
-                        <td class="text-end"><span class="badge bg-success">{{ "%.3f"|format(value) }}</span></td>
+                        <td class="text-end"><span class="badge bg-success">{{ value|fmt_omr }}</span></td>
                       </tr>
                       {% endfor %}
                     </tbody>
@@ -1585,7 +1585,7 @@
                       {% set branch_name, department = dept_key.split('-', 1) %}
                       <tr>
                         <td><strong>{{ branch_name }} - {{ department }}</strong></td>
-                        <td class="text-end"><span class="badge bg-info">{{ "%.3f"|format(value) }}</span></td>
+                        <td class="text-end"><span class="badge bg-info">{{ value|fmt_omr }}</span></td>
                       </tr>
                       {% endfor %}
                     </tbody>
@@ -1631,9 +1631,9 @@
                         <td><strong>{{ asset.name }}</strong><br><small class="text-muted">{{ asset.asset_code }}</small></td>
                         <td>{{ asset.branch }}</td>
                         <td>{{ asset.department }}</td>
-                        <td>{{ asset.quantity }}</td>
-                        <td>{{ "%.3f"|format(asset.price or 0.0) }}</td>
-                        <td class="text-end"><span class="badge bg-primary">{{ "%.3f"|format((asset.price or 0.0) * asset.quantity) }}</span></td>
+                        <td>{{ asset.quantity|fmt_num }}</td>
+                        <td>{{ (asset.price or 0.0)|fmt_omr }}</td>
+                        <td class="text-end"><span class="badge bg-primary">{{ ((asset.price or 0.0) * asset.quantity)|fmt_omr }}</span></td>
                       </tr>
                       {% endfor %}
                     </tbody>

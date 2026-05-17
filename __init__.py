@@ -21,6 +21,11 @@ def create_app():
     # Add built-in functions to Jinja2 environment
     app.jinja_env.globals.update(max=max, min=min)
 
+    from utils.formatting import format_int, format_omr
+
+    app.jinja_env.filters['fmt_num'] = format_int
+    app.jinja_env.filters['fmt_omr'] = format_omr
+
     @app.template_global()
     def has_it_access():
         """Jinja: same checks as ``User.has_it_access()`` (legacy admin-equivalent)."""
