@@ -559,6 +559,36 @@
     field-sizing: content;
 }
 
+/* Type column — slightly narrower */
+.asset-dashboard .asset-register-card .app-table col.app-table-col-type {
+    width: 6.25rem;
+}
+
+.asset-dashboard .asset-register-card .app-table th.app-table-col-type,
+.asset-dashboard .asset-register-card .app-table td.app-table-col-type {
+    width: 6.25rem;
+    max-width: 6.25rem;
+    white-space: normal;
+    overflow-wrap: anywhere;
+    box-sizing: border-box;
+    text-align: center;
+}
+
+/* Total Value column — col width; max-width alone is ignored on table cells */
+.asset-dashboard .asset-register-card .app-table col.app-table-col-value {
+    width: 11.5rem;
+}
+
+.asset-dashboard .asset-register-card .app-table th.app-table-col-value,
+.asset-dashboard .asset-register-card .app-table td.app-table-col-value {
+    width: 11.5rem;
+    max-width: 11.5rem;
+    white-space: normal;
+    overflow-wrap: anywhere;
+    box-sizing: border-box;
+    text-align: center;
+}
+
 /* ----- Settings page (same shell as dashboard) ----- */
 .asset-dashboard.settings-page .settings-tab-bar.filter-bar {
     align-items: center;

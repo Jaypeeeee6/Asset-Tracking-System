@@ -626,7 +626,7 @@
             }
         }
     </style>
-    <link rel="stylesheet" href="{{ url_for('static', filename='app-dashboard.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='app-dashboard.css') }}?v=4">
 {% endblock %}
 {% block app_content %}
 {% macro page_href(p) -%}
@@ -776,15 +776,29 @@
     <div class="app-card mb-4 asset-register-card">
         {% if assets %}
         <div style="overflow-x:auto;">
-        <table class="app-table" style="width: 100%; min-width: 1400px;">
+        <table class="app-table asset-register-table" style="width: 100%; min-width: 1400px;">
+        <colgroup>
+            <col>
+            <col>
+            <col>
+            <col class="app-table-col-type">
+            <col>
+            <col class="app-table-col-value">
+            <col>
+            <col>
+            <col>
+            <col>
+            <col>
+            <col>
+        </colgroup>
         <thead>
             <tr>
                 <th><input type="checkbox" id="selectAllCheckbox" title="Select All"></th>
                 <th>#</th>
                 <th><a href="{{ url_for('assets.dashboard') }}{{ sort_href('name') }}">Name{% if sort_by == 'name' %} {% if sort_dir == 'asc' %}&#9650;{% else %}&#9660;{% endif %}{% endif %}</a></th>
-                <th><a href="{{ url_for('assets.dashboard') }}{{ sort_href('asset_type') }}">Type{% if sort_by == 'asset_type' %} {% if sort_dir == 'asc' %}&#9650;{% else %}&#9660;{% endif %}{% endif %}</a></th>
+                <th class="app-table-col-type"><a href="{{ url_for('assets.dashboard') }}{{ sort_href('asset_type') }}">Type{% if sort_by == 'asset_type' %} {% if sort_dir == 'asc' %}&#9650;{% else %}&#9660;{% endif %}{% endif %}</a></th>
                 <th><a href="{{ url_for('assets.dashboard') }}{{ sort_href('quantity') }}">QTY{% if sort_by == 'quantity' %} {% if sort_dir == 'asc' %}&#9650;{% else %}&#9660;{% endif %}{% endif %}</a></th>
-                <th><a href="{{ url_for('assets.dashboard') }}{{ sort_href('price') }}">Total Value (OMR){% if sort_by == 'price' %} {% if sort_dir == 'asc' %}&#9650;{% else %}&#9660;{% endif %}{% endif %}</a></th>
+                <th class="app-table-col-value"><a href="{{ url_for('assets.dashboard') }}{{ sort_href('price') }}">Total Value{% if sort_by == 'price' %} {% if sort_dir == 'asc' %}&#9650;{% else %}&#9660;{% endif %}{% endif %}</a></th>
                 <th><a href="{{ url_for('assets.dashboard') }}{{ sort_href('owner') }}">Owner{% if sort_by == 'owner' %} {% if sort_dir == 'asc' %}&#9650;{% else %}&#9660;{% endif %}{% endif %}</a></th>
                 <th><a href="{{ url_for('assets.dashboard') }}{{ sort_href('branch') }}">Branch{% if sort_by == 'branch' %} {% if sort_dir == 'asc' %}&#9650;{% else %}&#9660;{% endif %}{% endif %}</a></th>
                 <th><a href="{{ url_for('assets.dashboard') }}{{ sort_href('department') }}">Department{% if sort_by == 'department' %} {% if sort_dir == 'asc' %}&#9650;{% else %}&#9660;{% endif %}{% endif %}</a></th>
@@ -802,7 +816,7 @@
                     <strong>{{ asset.name }}</strong>
                     <br><small class="text-muted">{{ asset.asset_code }}</small>
                 </td>
-                <td>
+                <td class="app-table-col-type">
                     {% if asset.asset_type %}
                         <span class="badge-type">{{ asset.asset_type }}</span>
                     {% else %}
@@ -810,7 +824,7 @@
                     {% endif %}
                 </td>
                 <td>{{ asset.quantity|fmt_num }}</td>
-                <td>
+                <td class="app-table-col-value">
                     <div class="d-flex flex-column">
                         <span class="fw-bold">OMR {{ ((asset.price or 0.0) * asset.quantity)|fmt_omr }}</span>
                         <small class="text-muted">({{ (asset.price or 0.0)|fmt_omr }} &times; {{ asset.quantity|fmt_num }})</small>
