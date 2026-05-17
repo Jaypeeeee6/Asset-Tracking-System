@@ -10,6 +10,24 @@
         <option value="office">Office</option>
       </select>
     </div>
+    <div class="filter-group d-none" id="newAssetTypeBrandWrap" style="min-width: 160px;">
+      <label for="newAssetTypeBrand">Brand</label>
+      <select class="form-select app-select-with-chevron" id="newAssetTypeBrand">
+        <option value="">Select brand</option>
+      </select>
+    </div>
+    <div class="filter-group d-none" id="newAssetTypeBranchWrap" style="min-width: 180px;">
+      <label for="newAssetTypeBranch">Branch</label>
+      <select class="form-select" id="newAssetTypeBranch">
+        <option value="">Select branch</option>
+      </select>
+    </div>
+    <div class="filter-group d-none" id="newAssetTypeOfficeDeptWrap" style="min-width: 200px;">
+      <label for="newAssetTypeOfficeDepartment">Department</label>
+      <select class="form-select" id="newAssetTypeOfficeDepartment">
+        <option value="">Select department</option>
+      </select>
+    </div>
     <div class="filter-group" style="flex: 1; min-width: 200px;">
       <label for="newAssetTypeName">New asset type</label>
       <input type="text" class="form-control" id="newAssetTypeName" placeholder="Enter asset type name" maxlength="100">
@@ -41,6 +59,7 @@
             <th><input type="checkbox" id="selectAllAssetTypesCheckbox" title="Select all" aria-label="Select all asset types"></th>
             <th>#</th>
             <th>Location</th>
+            <th>Scope</th>
             <th>Type name</th>
             <th>Actions</th>
           </tr>
@@ -52,6 +71,32 @@
 
   <h6 class="settings-section-title mt-4">Asset names</h6>
   <div class="filter-bar settings-panel-form flex-wrap">
+    <div class="filter-group" style="min-width: 200px;">
+      <label for="newAssetNameVenue">Location</label>
+      <select class="form-select app-select-with-chevron" id="newAssetNameVenue" required>
+        <option value="">Choose location</option>
+        <option value="restaurant">Restaurant</option>
+        <option value="office">Office</option>
+      </select>
+    </div>
+    <div class="filter-group d-none" id="newAssetNameBrandWrap" style="min-width: 160px;">
+      <label for="newAssetNameBrand">Brand</label>
+      <select class="form-select app-select-with-chevron" id="newAssetNameBrand">
+        <option value="">Select brand</option>
+      </select>
+    </div>
+    <div class="filter-group d-none" id="newAssetNameBranchWrap" style="min-width: 180px;">
+      <label for="newAssetNameBranch">Branch</label>
+      <select class="form-select" id="newAssetNameBranch">
+        <option value="">Select branch</option>
+      </select>
+    </div>
+    <div class="filter-group d-none" id="newAssetNameOfficeDeptWrap" style="min-width: 200px;">
+      <label for="newAssetNameOfficeDepartment">Department</label>
+      <select class="form-select" id="newAssetNameOfficeDepartment">
+        <option value="">Select department</option>
+      </select>
+    </div>
     <div class="filter-group" style="min-width: 160px;">
       <label for="newAssetNameType">Asset type</label>
       <select class="form-select" id="newAssetNameType" required>

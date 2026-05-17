@@ -616,105 +616,251 @@ def delete_user(user_id):
 
 # ===== ASSET TYPE MANAGEMENT API =====
 
+
+def _count_assets_for_scoped_type(cur, type_name, branch_id, department_id):
+    if branch_id is not None:
+        cur.execute('SELECT name FROM branches WHERE id = ?', (branch_id,))
+        row = cur.fetchone()
+        if not row:
+            return 0
+        cur.execute(
+            'SELECT COUNT(*) FROM assets WHERE asset_type = ? AND branch = ?',
+            (type_name, row[0]),
+        )
+        return cur.fetchone()[0]
+    if department_id is not None:
+        cur.execute(
+            'SELECT name FROM departments WHERE id = ? AND branch_id IS NULL',
+            (department_id,),
+        )
+        row = cur.fetchone()
+        if not row:
+            return 0
+        cur.execute(
+            'SELECT COUNT(*) FROM assets WHERE asset_type = ? AND branch = ? AND department = ?',
+            (type_name, OFFICE_BRANCH_LABEL, row[0]),
+        )
+        return cur.fetchone()[0]
+    cur.execute('SELECT COUNT(*) FROM assets WHERE asset_type = ?', (type_name,))
+    return cur.fetchone()[0]
+
+
+def _rename_assets_for_scoped_type(cur, old_name, new_name, branch_id, department_id):
+    if branch_id is not None:
+        cur.execute('SELECT name FROM branches WHERE id = ?', (branch_id,))
+        row = cur.fetchone()
+        if not row:
+            return
+        cur.execute(
+            'UPDATE assets SET asset_type = ? WHERE asset_type = ? AND branch = ?',
+            (new_name, old_name, row[0]),
+        )
+    elif department_id is not None:
+        cur.execute(
+            'SELECT name FROM departments WHERE id = ? AND branch_id IS NULL',
+            (department_id,),
+        )
+        row = cur.fetchone()
+        if not row:
+            return
+        cur.execute(
+            'UPDATE assets SET asset_type = ? WHERE asset_type = ? AND branch = ? AND department = ?',
+            (new_name, old_name, OFFICE_BRANCH_LABEL, row[0]),
+        )
+    else:
+        cur.execute('UPDATE assets SET asset_type = ? WHERE asset_type = ?', (new_name, old_name))
+
+
 @admin_bp.route('/asset-types', methods=['GET'])
 @login_required
 def get_asset_types():
     conn = get_db_connection()
     cur = conn.cursor()
-    cur.execute('SELECT id, name, for_venue FROM asset_types ORDER BY for_venue, name')
-    asset_types = [{'id': row[0], 'name': row[1], 'for_venue': row[2]} for row in cur.fetchall()]
+    cur.execute(
+        '''
+        SELECT at.id, at.name, at.for_venue, at.branch_id, at.department_id,
+               b.name AS branch_name, br.name AS brand_name, d.name AS department_name
+        FROM asset_types at
+        LEFT JOIN branches b ON at.branch_id = b.id
+        LEFT JOIN brands br ON b.brand_id = br.id
+        LEFT JOIN departments d ON at.department_id = d.id
+        ORDER BY at.for_venue, COALESCE(br.name, ''), COALESCE(b.name, ''), COALESCE(d.name, ''), at.name
+        '''
+    )
+    asset_types = []
+    for row in cur.fetchall():
+        bid, did = row[3], row[4]
+        label = row[1]
+        if bid is not None and row[5]:
+            label = f'{row[1]} — {row[5]}'
+        elif did is not None and row[7]:
+            label = f'{row[1]} — Office: {row[7]}'
+        asset_types.append(
+            {
+                'id': row[0],
+                'name': row[1],
+                'for_venue': row[2],
+                'branch_id': bid,
+                'department_id': did,
+                'branch_name': row[5],
+                'brand_name': row[6],
+                'department_name': row[7],
+                'label': label,
+            }
+        )
     conn.close()
     return jsonify(asset_types)
+
 
 @admin_bp.route('/asset-types', methods=['POST'])
 @login_required
 def add_asset_type():
-    # Only IT users can add asset types
     if not current_user.has_it_access():
         return jsonify({'error': 'Access denied. Only IT users can add asset types.'}), 403
-    
+
     name = request.form.get('name', '').strip()
     for_venue = (request.form.get('for_venue') or 'restaurant').strip().lower()
     if for_venue not in ('restaurant', 'office'):
         return jsonify({'error': 'Location must be restaurant or office'}), 400
     if not name:
         return jsonify({'error': 'Asset type name is required'}), 400
-    
+
+    branch_raw = (request.form.get('branch_id') or '').strip()
+    dept_raw = (request.form.get('department_id') or '').strip()
+    branch_id = None
+    department_id = None
+
+    if for_venue == 'restaurant':
+        if dept_raw:
+            return jsonify({'error': 'Office department does not apply to restaurant asset types.'}), 400
+        if branch_raw:
+            try:
+                branch_id = int(branch_raw)
+            except ValueError:
+                return jsonify({'error': 'Invalid branch.'}), 400
+            conn = get_db_connection()
+            cur = conn.cursor()
+            cur.execute('SELECT id FROM branches WHERE id = ?', (branch_id,))
+            if not cur.fetchone():
+                conn.close()
+                return jsonify({'error': 'Select a valid branch.'}), 400
+            conn.close()
+    else:
+        if branch_raw:
+            return jsonify({'error': 'Branch does not apply to office asset types.'}), 400
+        if dept_raw:
+            try:
+                department_id = int(dept_raw)
+            except ValueError:
+                return jsonify({'error': 'Invalid department.'}), 400
+            conn = get_db_connection()
+            cur = conn.cursor()
+            cur.execute(
+                'SELECT id FROM departments WHERE id = ? AND branch_id IS NULL',
+                (department_id,),
+            )
+            if not cur.fetchone():
+                conn.close()
+                return jsonify({'error': 'Select a valid office department.'}), 400
+            conn.close()
+
     conn = get_db_connection()
     cur = conn.cursor()
     try:
-        cur.execute('INSERT INTO asset_types (name, for_venue) VALUES (?, ?)', (name, for_venue))
+        cur.execute(
+            'INSERT INTO asset_types (name, for_venue, branch_id, department_id) VALUES (?, ?, ?, ?)',
+            (name, for_venue, branch_id, department_id),
+        )
         asset_type_id = cur.lastrowid
         conn.commit()
         conn.close()
-        return jsonify({'success': True, 'id': asset_type_id, 'name': name, 'for_venue': for_venue})
+        return jsonify(
+            {
+                'success': True,
+                'id': asset_type_id,
+                'name': name,
+                'for_venue': for_venue,
+                'branch_id': branch_id,
+                'department_id': department_id,
+            }
+        )
     except sqlite3.IntegrityError:
         conn.close()
-        return jsonify({'error': 'An asset type with this name already exists for that location'}), 400
+        return jsonify({'error': 'An asset type with this name already exists for that location and scope.'}), 400
+
 
 @admin_bp.route('/asset-types/<int:asset_type_id>', methods=['PUT'])
 @login_required
 def update_asset_type(asset_type_id):
-    # Only IT users can update asset types
     if not current_user.has_it_access():
         return jsonify({'error': 'Access denied. Only IT users can update asset types.'}), 403
-    
+
     name = request.form.get('name', '').strip()
     if not name:
         return jsonify({'error': 'Asset type name is required'}), 400
-    
+
     conn = get_db_connection()
     cur = conn.cursor()
     try:
-        cur.execute('SELECT name, for_venue FROM asset_types WHERE id = ?', (asset_type_id,))
+        cur.execute(
+            'SELECT name, for_venue, branch_id, department_id FROM asset_types WHERE id = ?',
+            (asset_type_id,),
+        )
         old_row = cur.fetchone()
         if not old_row:
             conn.close()
             return jsonify({'error': 'Asset type not found'}), 404
 
-        old_name, old_venue = old_row[0], old_row[1]
+        old_name, old_venue, old_branch_id, old_dept_id = (
+            old_row[0],
+            old_row[1],
+            old_row[2],
+            old_row[3],
+        )
 
         cur.execute('UPDATE asset_types SET name = ? WHERE id = ?', (name, asset_type_id))
 
-        cur.execute('UPDATE assets SET asset_type = ? WHERE asset_type = ?', (name, old_name))
-        
+        if old_name != name:
+            _rename_assets_for_scoped_type(cur, old_name, name, old_branch_id, old_dept_id)
+
         conn.commit()
         conn.close()
         return jsonify({'success': True, 'id': asset_type_id, 'name': name, 'for_venue': old_venue})
     except sqlite3.IntegrityError:
         conn.close()
-        return jsonify({'error': 'An asset type with this name already exists for that location'}), 400
+        return jsonify({'error': 'An asset type with this name already exists for that location and scope.'}), 400
+
 
 @admin_bp.route('/asset-types/<int:asset_type_id>', methods=['DELETE'])
 @login_required
 def delete_asset_type(asset_type_id):
-    # Only IT users can delete asset types
     if not current_user.has_it_access():
         return jsonify({'error': 'Access denied. Only IT users can delete asset types.'}), 403
-    
+
     conn = get_db_connection()
     cur = conn.cursor()
-    
-    cur.execute('SELECT name FROM asset_types WHERE id = ?', (asset_type_id,))
+
+    cur.execute(
+        'SELECT name, branch_id, department_id FROM asset_types WHERE id = ?',
+        (asset_type_id,),
+    )
     asset_type = cur.fetchone()
     if not asset_type:
         conn.close()
         return jsonify({'error': 'Asset type not found'}), 404
-    
-    asset_type_name = asset_type[0]
-    
-    cur.execute('SELECT COUNT(*) FROM assets WHERE asset_type = ?', (asset_type_name,))
-    asset_count = cur.fetchone()[0]
-    
+
+    asset_type_name, br_id, dep_id = asset_type[0], asset_type[1], asset_type[2]
+    asset_count = _count_assets_for_scoped_type(cur, asset_type_name, br_id, dep_id)
+
     if asset_count > 0:
         conn.close()
         return jsonify({'error': f'Cannot delete asset type. It is being used by {asset_count} asset(s)'}), 400
-    
+
     cur.execute('DELETE FROM asset_names WHERE asset_type_id = ?', (asset_type_id,))
     cur.execute('DELETE FROM asset_types WHERE id = ?', (asset_type_id,))
     conn.commit()
     conn.close()
-    
+
     return jsonify({'success': True})
 
 # ===== ASSET NAME MANAGEMENT API =====
@@ -729,17 +875,41 @@ def get_asset_names():
     if asset_type_id:
         cur.execute('SELECT id, name FROM asset_names WHERE asset_type_id = ? ORDER BY name', (asset_type_id,))
     else:
-        cur.execute('''
-            SELECT an.id, an.name, an.asset_type_id, at.name as asset_type_name 
-            FROM asset_names an 
-            JOIN asset_types at ON an.asset_type_id = at.id 
+        cur.execute(
+            '''
+            SELECT an.id, an.name, an.asset_type_id, at.name AS asset_type_name,
+                   at.branch_id, at.department_id, b.name AS scope_branch_name,
+                   d.name AS scope_department_name
+            FROM asset_names an
+            JOIN asset_types at ON an.asset_type_id = at.id
+            LEFT JOIN branches b ON at.branch_id = b.id
+            LEFT JOIN departments d ON at.department_id = d.id
             ORDER BY at.name, an.name
-        ''')
-    
+            '''
+        )
+
     if asset_type_id:
         asset_names = [{'id': row[0], 'name': row[1]} for row in cur.fetchall()]
     else:
-        asset_names = [{'id': row[0], 'name': row[1], 'asset_type_id': row[2], 'asset_type_name': row[3]} for row in cur.fetchall()]
+        rows = cur.fetchall()
+        asset_names = []
+        for row in rows:
+            at_name = row[3]
+            br_id, dep_id = row[4], row[5]
+            label = at_name
+            if br_id is not None and row[6]:
+                label = f'{at_name} — {row[6]}'
+            elif dep_id is not None and row[7]:
+                label = f'{at_name} — Office: {row[7]}'
+            asset_names.append(
+                {
+                    'id': row[0],
+                    'name': row[1],
+                    'asset_type_id': row[2],
+                    'asset_type_name': at_name,
+                    'asset_type_label': label,
+                }
+            )
     
     conn.close()
     return jsonify(asset_names)

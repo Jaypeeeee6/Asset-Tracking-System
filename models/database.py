@@ -140,6 +140,54 @@ def _migrate_asset_types_for_venue(cur):
         cur.execute("INSERT INTO sqlite_sequence (name, seq) VALUES ('asset_types', ?)", (mx,))
 
 
+def _migrate_asset_types_location_scope(cur):
+    """Add optional branch_id / department_id scoping; unique (name, venue, scope)."""
+    cur.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='asset_types'")
+    if not cur.fetchone():
+        return
+    cur.execute('PRAGMA table_info(asset_types)')
+    cols = [r[1] for r in cur.fetchall()]
+    if 'branch_id' in cols:
+        try:
+            cur.execute(
+                'CREATE UNIQUE INDEX IF NOT EXISTS idx_asset_types_unique_scope '
+                'ON asset_types (name, for_venue, ifnull(branch_id,-1), ifnull(department_id,-1))'
+            )
+        except sqlite3.OperationalError:
+            pass
+        return
+    cur.executescript(
+        '''
+        PRAGMA foreign_keys=OFF;
+        CREATE TABLE asset_types_scoped (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            name TEXT NOT NULL,
+            for_venue TEXT NOT NULL DEFAULT 'restaurant' CHECK (for_venue IN ('restaurant','office')),
+            branch_id INTEGER REFERENCES branches(id),
+            department_id INTEGER REFERENCES departments(id),
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        );
+        INSERT INTO asset_types_scoped (id, name, for_venue, branch_id, department_id, created_at)
+            SELECT id, name, for_venue, NULL, NULL, created_at FROM asset_types;
+        DROP TABLE asset_types;
+        ALTER TABLE asset_types_scoped RENAME TO asset_types;
+        PRAGMA foreign_keys=ON;
+        '''
+    )
+    cur.execute('SELECT MAX(id) FROM asset_types')
+    mx = cur.fetchone()[0]
+    if mx:
+        cur.execute("DELETE FROM sqlite_sequence WHERE name='asset_types'")
+        cur.execute("INSERT INTO sqlite_sequence (name, seq) VALUES ('asset_types', ?)", (mx,))
+    try:
+        cur.execute(
+            'CREATE UNIQUE INDEX IF NOT EXISTS idx_asset_types_unique_scope '
+            'ON asset_types (name, for_venue, ifnull(branch_id,-1), ifnull(department_id,-1))'
+        )
+    except sqlite3.OperationalError:
+        pass
+
+
 def _migrate_legacy_building_schema(cur):
     """Rename legacy building* tables/columns to branch* for existing SQLite databases."""
     cur.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='buildings'")
@@ -352,6 +400,7 @@ def init_db():
         )
     ''')
     _migrate_asset_types_for_venue(cur)
+    _migrate_asset_types_location_scope(cur)
     
     # Create asset_names table
     cur.execute('''
