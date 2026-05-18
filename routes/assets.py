@@ -256,10 +256,10 @@ def matching_register_ids():
     where_sql, params = _register_filter_where_from_request()
     conn = get_db_connection()
     cur = conn.cursor()
-    cur.execute(f'SELECT id, name FROM assets {where_sql} ORDER BY id ASC', params)
+    cur.execute(f'SELECT id, name, asset_code FROM assets {where_sql} ORDER BY id ASC', params)
     rows = cur.fetchall()
     conn.close()
-    assets = [{'id': row[0], 'name': row[1]} for row in rows]
+    assets = [{'id': row[0], 'name': row[1], 'code': row[2] or ''} for row in rows]
     return jsonify({'assets': assets, 'total': len(assets)})
 
 

@@ -88,13 +88,11 @@
     function showError(msg) {
         if (global.AppDialogs) return global.AppDialogs.error(msg);
         if (typeof mgmtShowError === 'function') return mgmtShowError(msg);
-        global.alert(msg);
         return Promise.resolve();
     }
 
     function showSuccess(msg) {
         if (global.AppDialogs) return global.AppDialogs.success(msg);
-        global.alert(msg);
         return Promise.resolve();
     }
 

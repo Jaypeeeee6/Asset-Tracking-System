@@ -18,7 +18,6 @@
 
     function showError(msg) {
         if (dlg()) return dlg().error(msg);
-        global.alert(msg);
         return Promise.resolve();
     }
 

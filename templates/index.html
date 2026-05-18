@@ -808,7 +808,7 @@
         <tbody>
         {% for asset in assets %}
             <tr>
-                <td class="app-table-col-select"><input type="checkbox" class="asset-checkbox" data-asset-id="{{ asset.id }}" data-asset-name="{{ asset.name }}"></td>
+                <td class="app-table-col-select"><input type="checkbox" class="asset-checkbox" data-asset-id="{{ asset.id }}" data-asset-name="{{ asset.name }}" data-asset-code="{{ asset.asset_code or '' }}"></td>
                 <td class="app-table-col-num">{{ loop.index + (page-1)*per_page }}</td>
                 <td class="app-table-col-qr">
                     {% if asset.asset_code %}

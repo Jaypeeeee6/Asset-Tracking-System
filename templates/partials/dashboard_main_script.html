@@ -64,6 +64,10 @@ let selectedAssets = [];
 /** Server print layout preset (2 in x 2 in labels); must match qr_label_layouts.preset_key */
 const QR_LABEL_PRESET = 'label_2x2';
 
+function appDeleteConfirm(message, title) {
+    return AppDialogs.deleteConfirm(message, title);
+}
+
 
 
 
@@ -1507,9 +1511,12 @@ const QR_LABEL_PRESET = 'label_2x2';
     function handleEditBrand(e) {
         const brandId = e.currentTarget.getAttribute('data-id');
         const currentName = e.currentTarget.getAttribute('data-name');
-        const newName = prompt('Enter new brand name:', currentName);
-
-        if (newName && newName.trim() !== currentName) {
+        AppDialogs.prompt({
+            title: 'Edit brand',
+            message: 'Enter new brand name:',
+            defaultValue: currentName
+        }).then(function (newName) {
+            if (!newName || newName.trim() === currentName) return;
             const formData = new FormData();
             formData.append('name', newName.trim());
 
@@ -1529,7 +1536,7 @@ const QR_LABEL_PRESET = 'label_2x2';
                     console.error('Error:', error);
                     alert('Failed to update brand.');
                 });
-        }
+        });
     }
 
     // Handle deleting brand
@@ -1537,7 +1544,8 @@ const QR_LABEL_PRESET = 'label_2x2';
         const brandId = e.currentTarget.getAttribute('data-id');
         const brandName = e.currentTarget.getAttribute('data-name');
 
-        if (confirm('Are you sure you want to delete brand "' + brandName + '"?')) {
+        appDeleteConfirm('Are you sure you want to delete brand "' + brandName + '"?', 'Delete brand').then(function (ok) {
+            if (!ok) return;
             fetch('/admin/brands/' + encodeURIComponent(brandId), {
                 method: 'DELETE'
             })
@@ -1553,7 +1561,7 @@ const QR_LABEL_PRESET = 'label_2x2';
                     console.error('Error:', error);
                     alert('Failed to delete brand.');
                 });
-        }
+        });
     }
 
     // Handle editing branch
@@ -1572,26 +1580,6 @@ const QR_LABEL_PRESET = 'label_2x2';
             return;
         }
 
-        const currentName = building.name;
-        const newName = prompt('Enter new branch name:', currentName);
-        if (newName && newName.trim() !== currentName) {
-            const formData = new FormData();
-            formData.append('name', newName.trim());
-            fetch(`/admin/branches/${buildingId}`, { method: 'PUT', body: formData })
-                .then(response => response.json())
-                .then(data => {
-                    if (data.success) {
-                        loadBranches();
-                        loadDepartments();
-                    } else {
-                        alert(data.error || 'Failed to update branch.');
-                    }
-                })
-                .catch(error => {
-                    console.error('Error:', error);
-                    alert('Failed to update branch.');
-                });
-        }
     }
 
     // Handle editing department
@@ -1599,28 +1587,15 @@ const QR_LABEL_PRESET = 'label_2x2';
         const departmentId = e.currentTarget.getAttribute('data-id');
         const currentName = e.currentTarget.getAttribute('data-name');
         const buildingName = e.currentTarget.getAttribute('data-branch');
-        
-        const newName = prompt(`Edit department name for "${buildingName}":\n\nCurrent name: ${currentName}\nEnter new name:`, currentName);
-        
-        if (newName && newName.trim() !== currentName) {
-            const formData = new FormData();
-            formData.append('name', newName.trim());
+        const dept = departmentsData.find(function (d) { return String(d.id) === String(departmentId); });
+        const building = branchesData.find(function (b) { return b.name === buildingName; });
 
-            fetch(`/admin/departments/${departmentId}`, {
-                method: 'PUT',
-                body: formData
-            })
-            .then(response => response.json())
-            .then(data => {
-                if (data.success) {
-                    loadDepartments(); // Reload the departments list
-                } else {
-                    alert(data.error || 'Failed to update department.');
-                }
-            })
-            .catch(error => {
-                console.error('Error:', error);
-                alert('Failed to update department.');
+        if (window.MgmtEditModals && window.MgmtEditModals.openDepartment) {
+            window.MgmtEditModals.openDepartment({
+                id: departmentId,
+                name: currentName,
+                branchId: dept ? dept.branch_id : (building ? building.id : null),
+                isOffice: buildingName === OFFICE_BRANCH_LABEL_JS
             });
         }
     }
@@ -1630,15 +1605,19 @@ const QR_LABEL_PRESET = 'label_2x2';
         const buildingId = e.currentTarget.getAttribute('data-id');
         const buildingName = e.currentTarget.getAttribute('data-name');
         
-        if (confirm(`Are you sure you want to delete "${buildingName}"? This will also delete all its departments.`)) {
+        appDeleteConfirm(
+            `Are you sure you want to delete "${buildingName}"? This will also delete all its departments.`,
+            'Delete branch'
+        ).then(function (ok) {
+            if (!ok) return;
             fetch(`/admin/branches/${buildingId}`, {
                 method: 'DELETE'
             })
             .then(response => response.json())
             .then(data => {
                 if (data.success) {
-                    loadBranches(); // Reload the buildings list
-                    loadDepartments(); // Reload departments list
+                    loadBranches();
+                    loadDepartments();
                 } else {
                     alert(data.error || 'Failed to delete branch.');
                 }
@@ -1647,7 +1626,7 @@ const QR_LABEL_PRESET = 'label_2x2';
                 console.error('Error:', error);
                 alert('Failed to delete branch.');
             });
-        }
+        });
     }
 
     // Handle deleting department
@@ -1655,15 +1634,19 @@ const QR_LABEL_PRESET = 'label_2x2';
         const departmentId = e.currentTarget.getAttribute('data-id');
         const departmentName = e.currentTarget.getAttribute('data-name');
         const buildingName = e.currentTarget.getAttribute('data-branch');
-        
-        if (confirm(`Are you sure you want to delete "${departmentName}" from "${buildingName}"?`)) {
+
+        appDeleteConfirm(
+            `Are you sure you want to delete "${departmentName}" from "${buildingName}"?`,
+            'Delete department'
+        ).then(function (ok) {
+            if (!ok) return;
             fetch(`/admin/departments/${departmentId}`, {
                 method: 'DELETE'
             })
             .then(response => response.json())
             .then(data => {
                 if (data.success) {
-                    loadDepartments(); // Reload the departments list
+                    loadDepartments();
                 } else {
                     alert(data.error || 'Failed to delete department.');
                 }
@@ -1672,7 +1655,7 @@ const QR_LABEL_PRESET = 'label_2x2';
                 console.error('Error:', error);
                 alert('Failed to delete department.');
             });
-        }
+        });
     }
 
 // ============================================================================
@@ -1696,20 +1679,6 @@ const QR_LABEL_PRESET = 'label_2x2';
             });
             return;
         }
-        const assetTypeId = btn.getAttribute('data-id');
-        const currentName = btn.getAttribute('data-name');
-        const newName = prompt('Enter new asset type name:', currentName);
-        if (newName && newName.trim() !== currentName) {
-            const formData = new FormData();
-            formData.append('name', newName.trim());
-            fetch(`/admin/asset-types/${assetTypeId}`, { method: 'PUT', body: formData })
-                .then(response => response.json())
-                .then(data => {
-                    if (data.success) refreshMgmtAssetCatalog();
-                    else alert(data.error || 'Failed to update asset type.');
-                })
-                .catch(() => alert('Failed to update asset type.'));
-        }
     }
 
     // Handle editing asset name
@@ -1717,10 +1686,13 @@ const QR_LABEL_PRESET = 'label_2x2';
         const assetNameId = e.currentTarget.getAttribute('data-id');
         const currentName = e.currentTarget.getAttribute('data-name');
         const assetTypeName = e.currentTarget.getAttribute('data-asset-type');
-        
-        const newName = prompt(`Edit asset name for "${assetTypeName}":\n\nCurrent name: ${currentName}\nEnter new name:`, currentName);
-        
-        if (newName && newName.trim() !== currentName) {
+
+        AppDialogs.prompt({
+            title: 'Edit asset name',
+            message: `Enter new name for "${assetTypeName}":`,
+            defaultValue: currentName
+        }).then(function (newName) {
+        if (!newName || newName.trim() === currentName) return;
             const formData = new FormData();
             formData.append('name', newName.trim());
 
@@ -1741,7 +1713,7 @@ const QR_LABEL_PRESET = 'label_2x2';
                 console.error('Error:', error);
                 alert('Failed to update asset name.');
             });
-        }
+        });
     }
 
     // Handle deleting asset type
@@ -1749,16 +1721,20 @@ const QR_LABEL_PRESET = 'label_2x2';
         const assetTypeId = e.currentTarget.getAttribute('data-id');
         const assetTypeName = e.currentTarget.getAttribute('data-name');
         
-        if (confirm(`Are you sure you want to delete "${assetTypeName}"? This will also delete all its asset names.`)) {
+        appDeleteConfirm(
+            `Are you sure you want to delete "${assetTypeName}"? This will also delete all its asset names.`,
+            'Delete asset type'
+        ).then(function (ok) {
+            if (!ok) return;
             fetch(`/admin/asset-types/${assetTypeId}`, {
                 method: 'DELETE'
             })
             .then(response => response.json())
             .then(data => {
                 if (data.success) {
-                    loadAssetTypes(); // Reload the asset types list
-                    loadAssetNames(); // Reload asset names list
-                    updateAssetNameDropdowns(); // Update dropdown data
+                    loadAssetTypes();
+                    loadAssetNames();
+                    updateAssetNameDropdowns();
                 } else {
                     alert(data.error || 'Failed to delete asset type.');
                 }
@@ -1767,7 +1743,7 @@ const QR_LABEL_PRESET = 'label_2x2';
                 console.error('Error:', error);
                 alert('Failed to delete asset type.');
             });
-        }
+        });
     }
 
     // Handle deleting asset name
@@ -1775,16 +1751,20 @@ const QR_LABEL_PRESET = 'label_2x2';
         const assetNameId = e.currentTarget.getAttribute('data-id');
         const assetName = e.currentTarget.getAttribute('data-name');
         const assetTypeName = e.currentTarget.getAttribute('data-asset-type');
-        
-        if (confirm(`Are you sure you want to delete "${assetName}" from "${assetTypeName}"?`)) {
+
+        appDeleteConfirm(
+            `Are you sure you want to delete "${assetName}" from "${assetTypeName}"?`,
+            'Delete asset name'
+        ).then(function (ok) {
+            if (!ok) return;
             fetch(`/admin/asset-names/${assetNameId}`, {
                 method: 'DELETE'
             })
             .then(response => response.json())
             .then(data => {
                 if (data.success) {
-                    loadAssetNames(); // Reload the asset names list
-                    updateAssetNameDropdowns(); // Update dropdown data
+                    loadAssetNames();
+                    updateAssetNameDropdowns();
                 } else {
                     alert(data.error || 'Failed to delete asset name.');
                 }
@@ -1793,7 +1773,7 @@ const QR_LABEL_PRESET = 'label_2x2';
                 console.error('Error:', error);
                 alert('Failed to delete asset name.');
             });
-        }
+        });
     }
 
     // ===== USER MODAL FUNCTIONS =====
@@ -2008,6 +1988,7 @@ const QR_LABEL_PRESET = 'label_2x2';
                     if (byDept !== 0) return byDept;
                     return (a.name || '').localeCompare(b.name || '');
                 });
+                window.__employeeRosterUsers = sorted;
 
                 sorted.forEach((user, i) => {
                     const tr = document.createElement('tr');
@@ -2149,33 +2130,22 @@ const QR_LABEL_PRESET = 'label_2x2';
 
     // Handle editing user from modal
     function handleEditUserModal(e) {
-        const userId = e.currentTarget.getAttribute('data-id');
-        const currentName = e.currentTarget.getAttribute('data-name');
-        const departmentName = e.currentTarget.getAttribute('data-department');
-        
-        const newName = prompt(`Edit employee name for "${departmentName}" department:`, currentName);
-        if (newName && newName.trim() && newName.trim() !== currentName) {
-            fetch(`/admin/users/${userId}`, {
-                method: 'PUT',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({
-                    name: newName.trim()
-                })
-            })
-            .then(response => response.json())
-            .then(data => {
-                if (data.success) {
-                    loadUserModalUsers(); // Reload the users list
-                    refreshOwnersIfAddAssetForm();
-                } else {
-                    alert(data.error || 'Failed to update employee.');
-                }
-            })
-            .catch(error => {
-                console.error('Error:', error);
-                alert('Failed to update employee.');
+        const btn = e.currentTarget;
+        const userId = btn.getAttribute('data-id');
+        const currentName = btn.getAttribute('data-name');
+        const departmentName = btn.getAttribute('data-department');
+
+        if (window.MgmtEditModals && window.MgmtEditModals.openEmployee) {
+            const rowUser = (window.__employeeRosterUsers || []).find(function (u) {
+                return String(u.id) === String(userId);
+            });
+            window.MgmtEditModals.openEmployee({
+                id: userId,
+                name: currentName,
+                departmentId: rowUser ? rowUser.department_id : null,
+                departmentName: departmentName,
+                branchName: rowUser ? rowUser.branch_name : '',
+                venue: rowUser && rowUser.branch_name === OFFICE_BRANCH_LABEL_JS ? 'office' : 'restaurant'
             });
         }
     }
@@ -2186,14 +2156,18 @@ const QR_LABEL_PRESET = 'label_2x2';
         const userName = e.currentTarget.getAttribute('data-name');
         const departmentName = e.currentTarget.getAttribute('data-department');
         
-        if (confirm(`Are you sure you want to delete employee "${userName}" from "${departmentName}"?`)) {
+        appDeleteConfirm(
+            `Are you sure you want to delete employee "${userName}" from "${departmentName}"?`,
+            'Delete employee'
+        ).then(function (ok) {
+            if (!ok) return;
             fetch(`/admin/users/${userId}`, {
                 method: 'DELETE'
             })
             .then(response => response.json())
             .then(data => {
                 if (data.success) {
-                    loadUserModalUsers(); // Reload the users list
+                    loadUserModalUsers();
                     refreshOwnersIfAddAssetForm();
                 } else {
                     alert(data.error || 'Failed to delete employee.');
@@ -2203,7 +2177,7 @@ const QR_LABEL_PRESET = 'label_2x2';
                 console.error('Error:', error);
                 alert('Failed to delete employee.');
             });
-        }
+        });
     }
 
     // Handle bulk adding users from modal
@@ -2250,9 +2224,12 @@ const QR_LABEL_PRESET = 'label_2x2';
         }
         
         // Show confirmation with count
-        if (!confirm(`Add ${userNames.length} employee(s) to the selected department?\n\nEmployees to add:\n${userNames.join('\n')}`)) {
-            return;
-        }
+        AppDialogs.confirm({
+            title: 'Add employees',
+            message: `Add ${userNames.length} employee(s) to the selected department?\n\nEmployees to add:\n${userNames.join('\n')}`,
+            confirmText: 'Add'
+        }).then(function (ok) {
+        if (!ok) return;
         
         fetch('/admin/users/bulk', {
             method: 'POST',
@@ -2294,6 +2271,7 @@ const QR_LABEL_PRESET = 'label_2x2';
         .catch(error => {
             console.error('Error:', error);
             alert('Failed to add employees.');
+        });
         });
     }
 
@@ -2509,7 +2487,11 @@ const QR_LABEL_PRESET = 'label_2x2';
             bulkBtn.addEventListener('click', function () {
                 const checked = Array.prototype.slice.call(tbody.querySelectorAll('.' + cfg.rowClass + ':checked'));
                 if (!checked.length) return;
-                if (!confirm('Delete ' + checked.length + ' selected item(s)? This cannot be undone.')) return;
+                appDeleteConfirm(
+                    'Delete ' + checked.length + ' selected item(s)? This cannot be undone.',
+                    'Delete selected'
+                ).then(function (ok) {
+                if (!ok) return;
                 Promise.all(checked.map(function (cb) {
                     return fetch(cfg.deleteUrl(cb.value), { method: 'DELETE' })
                         .then(function (r) {
@@ -2533,6 +2515,7 @@ const QR_LABEL_PRESET = 'label_2x2';
                 }).catch(function () {
                     alert('Network error during bulk delete.');
                 });
+                });
             });
         });
     }
@@ -2551,6 +2534,13 @@ const QR_LABEL_PRESET = 'label_2x2';
         };
         window.MgmtEditCallbacks.onBranchSaved = function () {
             loadBranches().then(function () { loadDepartments(); });
+        };
+        window.MgmtEditCallbacks.onDepartmentSaved = function () {
+            loadDepartments();
+        };
+        window.MgmtEditCallbacks.onEmployeeSaved = function () {
+            loadUserModalUsers();
+            refreshOwnersIfAddAssetForm();
         };
 
         setupMgmtBulkDeletes();
@@ -2963,39 +2953,41 @@ const QR_LABEL_PRESET = 'label_2x2';
                 return;
             }
             
-            // Show confirmation dialog
-            if (!confirm(`Are you sure you want to update the asset "${assetName}"?`)) {
-                return; // User cancelled
-            }
-            
-            const formData = new FormData(this);
-            
-            fetch(this.action, {
-                method: 'POST',
-                body: formData
-            })
-            .then(response => response.json())
-            .then(data => {
-                if (data.success) {
-                    // Check if asset code changed
-                    if (data.asset_code_changed) {
-                        const message = `Asset updated successfully!\n\nAsset code has been updated:\nOld: ${data.old_asset_code}\nNew: ${data.new_asset_code}\n\nThis change was made because the branch or department was modified.`;
-                        alert(message);
+            AppDialogs.confirm({
+                title: 'Update asset',
+                message: `Are you sure you want to update the asset "${assetName}"?`,
+                confirmText: 'Update'
+            }).then(function (ok) {
+                if (!ok) return;
+
+                const form = document.getElementById('editAssetForm');
+                const formData = new FormData(form);
+
+                fetch(form.action, {
+                    method: 'POST',
+                    body: formData
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        if (data.asset_code_changed) {
+                            const message = `Asset updated successfully!\n\nAsset code has been updated:\nOld: ${data.old_asset_code}\nNew: ${data.new_asset_code}\n\nThis change was made because the branch or department was modified.`;
+                            alert(message);
+                        } else {
+                            alert('Asset updated successfully!');
+                        }
+
+                        const modal = bootstrap.Modal.getInstance(document.getElementById('editAssetModal'));
+                        modal.hide();
+                        window.location.reload();
                     } else {
-                        alert('Asset updated successfully!');
+                        alert('Error updating asset: ' + (data.error || 'Unknown error'));
                     }
-                    
-                    // Close modal and refresh page
-                    const modal = bootstrap.Modal.getInstance(document.getElementById('editAssetModal'));
-                    modal.hide();
-                    window.location.reload();
-                } else {
-                    alert('Error updating asset: ' + (data.error || 'Unknown error'));
-                }
-            })
-            .catch(error => {
-                console.error('Error:', error);
-                alert('Error updating asset. Please try again.');
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    alert('Error updating asset. Please try again.');
+                });
             });
         });
         }
@@ -3419,10 +3411,11 @@ const QR_LABEL_PRESET = 'label_2x2';
             checkbox.addEventListener('change', function () {
                 const assetId = this.getAttribute('data-asset-id');
                 const assetName = this.getAttribute('data-asset-name');
+                const assetCode = this.getAttribute('data-asset-code') || '';
 
                 if (this.checked) {
                     if (!selectedAssets.some(function (a) { return String(a.id) === String(assetId); })) {
-                        selectedAssets.push({ id: assetId, name: assetName });
+                        selectedAssets.push({ id: assetId, name: assetName, code: assetCode });
                     }
                 } else {
                     selectedAssets = selectedAssets.filter(function (asset) { return String(asset.id) !== String(assetId); });
@@ -3484,11 +3477,16 @@ const QR_LABEL_PRESET = 'label_2x2';
             return;
         }
         
-        if (confirm(`Update ${selectedAssets.length} asset(s) to status "${newStatus}"?`)) {
+        AppDialogs.confirm({
+            title: 'Update status',
+            message: `Update ${selectedAssets.length} asset(s) to status "${newStatus}"?`,
+            confirmText: 'Update'
+        }).then(function (ok) {
+            if (!ok) return;
             const formData = new FormData();
             selectedAssets.forEach(asset => formData.append('asset_ids[]', asset.id));
             formData.append('used_status', newStatus);
-            
+
             fetch('/assets/bulk_update_status', {
                 method: 'POST',
                 body: formData
@@ -3496,11 +3494,8 @@ const QR_LABEL_PRESET = 'label_2x2';
             .then(response => response.json())
             .then(data => {
                 if (data.success) {
-                    // Close the modal
                     const bulkStatusModal = bootstrap.Modal.getInstance(document.getElementById('bulkStatusModal'));
                     bulkStatusModal.hide();
-                    
-                    // Reload the page
                     location.reload();
                 } else {
                     alert('Failed to update assets.');
@@ -3510,21 +3505,29 @@ const QR_LABEL_PRESET = 'label_2x2';
                 console.error('Error:', error);
                 alert('Failed to update assets.');
             });
-        }
+        });
     });
 
     // Bulk delete
     document.getElementById('bulkDeleteBtn').addEventListener('click', function() {
         if (selectedAssets.length === 0) return;
         
-        const assetNames = selectedAssets.map(asset => asset.name).join(', ');
-        const archiveReason = prompt(`Are you sure you want to archive ${selectedAssets.length} items?\n\n${assetNames.substring(0, 200)}${assetNames.length > 200 ? '...' : ''}\n\nPlease provide a reason for archiving (optional):`);
-        
-        if (archiveReason !== null) { // User didn't cancel
+        AppDialogs.prompt({
+            title: 'Archive assets',
+            message: `Archive ${selectedAssets.length} selected item(s)?`,
+            chips: selectedAssets.map(function (asset) {
+                return { code: asset.code || asset.asset_code || '', name: asset.name || '' };
+            }),
+            submessage: 'Reason (optional):',
+            defaultValue: '',
+            multiline: true,
+            okText: 'Archive'
+        }).then(function (archiveReason) {
+            if (archiveReason === null) return;
             const formData = new FormData();
             selectedAssets.forEach(asset => formData.append('asset_ids[]', asset.id));
             formData.append('archive_reason', archiveReason || 'Assets bulk archived by user');
-            
+
             fetch('/assets/bulk_delete', {
                 method: 'POST',
                 body: formData
@@ -3542,7 +3545,7 @@ const QR_LABEL_PRESET = 'label_2x2';
                 console.error('Error:', error);
                 alert('Failed to archive assets. Please check the console for details.');
             });
-        }
+        });
     });
 
     // Bulk QR code printing

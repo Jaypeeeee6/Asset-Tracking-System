@@ -25,6 +25,10 @@
     border: 1px solid #e5e7eb;
 }
 
+.modal-confirm .modal-confirm-card.modal-confirm-card--wide {
+    max-width: 520px;
+}
+
 .modal-confirm .modal-confirm-title {
     margin: 0 0 12px 0;
     font-size: 18px;
@@ -33,11 +37,87 @@
 }
 
 .modal-confirm .modal-confirm-message {
-    margin: 0 0 20px 0;
+    margin: 0 0 12px 0;
     font-size: 14px;
     color: #374151;
     line-height: 1.5;
     white-space: pre-wrap;
+}
+
+.modal-confirm .modal-confirm-submessage {
+    margin: 0 0 8px 0;
+    font-size: 13px;
+    font-weight: 500;
+    color: #4b5563;
+}
+
+.modal-confirm .modal-confirm-chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    max-height: 140px;
+    overflow-y: auto;
+    margin: 0 0 16px 0;
+    padding: 2px 0;
+}
+
+.modal-confirm .modal-confirm-chip {
+    display: inline-flex;
+    align-items: center;
+    max-width: 200px;
+    padding: 5px 12px;
+    border-radius: 999px;
+    font-size: 13px;
+    font-weight: 500;
+    line-height: 1.3;
+    background: #eff6ff;
+    color: #1e40af;
+    border: 1px solid #bfdbfe;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.modal-confirm .modal-confirm-chip.modal-confirm-chip--with-code {
+    flex-direction: column;
+    align-items: flex-start;
+    max-width: 220px;
+    padding: 6px 12px;
+    border-radius: 10px;
+    white-space: normal;
+    gap: 2px;
+}
+
+.modal-confirm .modal-confirm-chip-code {
+    font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.02em;
+    color: #1e3a8a;
+    line-height: 1.25;
+    word-break: break-all;
+}
+
+.modal-confirm .modal-confirm-chip-name {
+    font-size: 12px;
+    font-weight: 500;
+    color: #374151;
+    line-height: 1.3;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+}
+
+.modal-confirm .modal-confirm-message:last-child,
+.modal-confirm .modal-confirm-chips[hidden] + .modal-confirm-submessage[hidden] + .modal-confirm-field,
+.modal-confirm .modal-confirm-chips[hidden] + .modal-confirm-submessage[hidden] + input.modal-confirm-field {
+    margin-top: 0;
+}
+
+.modal-confirm .modal-confirm-submessage:not([hidden]) + .modal-confirm-field {
+    margin-top: 0;
 }
 
 .modal-confirm .modal-confirm-buttons {
@@ -101,8 +181,57 @@ body.dark-mode .modal-confirm .modal-confirm-message {
     color: #d1d5db;
 }
 
+body.dark-mode .modal-confirm .modal-confirm-submessage {
+    color: #9ca3af;
+}
+
+body.dark-mode .modal-confirm .modal-confirm-chip {
+    background: #1e3a5f;
+    color: #93c5fd;
+    border-color: #2563eb;
+}
+
+body.dark-mode .modal-confirm .modal-confirm-chip-code {
+    color: #bfdbfe;
+}
+
+body.dark-mode .modal-confirm .modal-confirm-chip-name {
+    color: #d1d5db;
+}
+
 body.dark-mode .modal-confirm .modal-confirm-btn-cancel {
     background: #374151;
     color: #f9fafb;
     border-color: #4b5563;
+}
+
+.modal-confirm .modal-confirm-field {
+    display: block;
+    width: 100%;
+    box-sizing: border-box;
+    margin: 0 0 20px 0;
+    padding: 10px 12px;
+    border: 1px solid #e5e7eb;
+    border-radius: 8px;
+    font-size: 14px;
+    font-family: inherit;
+    color: #101828;
+    background: #fff;
+}
+
+.modal-confirm .modal-confirm-field:focus {
+    outline: none;
+    border-color: #16a34a;
+    box-shadow: 0 0 0 3px rgba(22, 163, 74, 0.15);
+}
+
+.modal-confirm .modal-confirm-textarea {
+    resize: vertical;
+    min-height: 72px;
+}
+
+body.dark-mode .modal-confirm .modal-confirm-field {
+    background: #111827;
+    border-color: #4b5563;
+    color: #f9fafb;
 }

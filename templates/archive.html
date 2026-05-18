@@ -451,7 +451,12 @@
             return;
         }
 
-        if (confirm(`Are you sure you want to restore "${assetName}" to the dashboard?`)) {
+        AppDialogs.confirm({
+            title: 'Restore asset',
+            message: `Are you sure you want to restore "${assetName}" to the dashboard?`,
+            confirmText: 'Restore'
+        }).then(function (ok) {
+            if (!ok) return;
             const formData = new FormData();
             formData.append('archived_id', archivedId);
 
@@ -462,17 +467,16 @@
             .then(response => response.json())
             .then(data => {
                 if (data.success) {
-                    alert('Asset restored successfully!');
-                    location.reload();
+                    AppDialogs.success('Asset restored successfully!').then(function () { location.reload(); });
                 } else {
-                    alert('Error restoring asset: ' + (data.error || 'Unknown error'));
+                    AppDialogs.error('Error restoring asset: ' + (data.error || 'Unknown error'));
                 }
             })
             .catch(error => {
                 console.error('Error:', error);
-                alert('Error restoring asset. Please try again.');
+                AppDialogs.error('Error restoring asset. Please try again.');
             });
-        }
+        });
     }
 
     function handlePermanentDeleteAsset(e) {
@@ -487,7 +491,11 @@
             return;
         }
 
-        if (confirm(`⚠️ WARNING: This action cannot be undone!\n\nAre you sure you want to PERMANENTLY DELETE "${assetName}"?\n\nThis will permanently remove the asset from the system.`)) {
+        AppDialogs.deleteConfirm(
+            `Are you sure you want to PERMANENTLY DELETE "${assetName}"?\n\nThis will permanently remove the asset from the system.`,
+            'Permanent delete'
+        ).then(function (ok) {
+            if (!ok) return;
             const formData = new FormData();
             formData.append('archived_id', archivedId);
 
@@ -498,24 +506,27 @@
             .then(response => response.json())
             .then(data => {
                 if (data.success) {
-                    alert('Asset permanently deleted successfully!');
-                    location.reload();
+                    AppDialogs.success('Asset permanently deleted successfully!').then(function () { location.reload(); });
                 } else {
-                    alert('Error permanently deleting asset: ' + (data.error || 'Unknown error'));
+                    AppDialogs.error('Error permanently deleting asset: ' + (data.error || 'Unknown error'));
                 }
             })
             .catch(error => {
                 console.error('Error:', error);
-                alert('Error permanently deleting asset. Please try again.');
+                AppDialogs.error('Error permanently deleting asset. Please try again.');
             });
-        }
+        });
     }
 
     function handleBulkPermanentDelete() {
         if (selectedArchivedAssets.length === 0) return;
 
         const assetNames = selectedArchivedAssets.map(asset => asset.name).join(', ');
-        if (confirm(`⚠️ WARNING: This action cannot be undone!\n\nAre you sure you want to PERMANENTLY DELETE ${selectedArchivedAssets.length} items?\n\n${assetNames.substring(0, 200)}${assetNames.length > 200 ? '...' : ''}\n\nThis will permanently remove these assets from the system.`)) {
+        AppDialogs.deleteConfirm(
+            `Are you sure you want to PERMANENTLY DELETE ${selectedArchivedAssets.length} items?\n\n${assetNames.substring(0, 200)}${assetNames.length > 200 ? '...' : ''}\n\nThis will permanently remove these assets from the system.`,
+            'Permanent delete'
+        ).then(function (ok) {
+            if (!ok) return;
             const formData = new FormData();
             selectedArchivedAssets.forEach(asset => formData.append('archived_ids[]', asset.id));
 
@@ -526,24 +537,28 @@
             .then(response => response.json())
             .then(data => {
                 if (data.success) {
-                    alert(data.message || 'Assets permanently deleted successfully!');
-                    location.reload();
+                    AppDialogs.success(data.message || 'Assets permanently deleted successfully!').then(function () { location.reload(); });
                 } else {
-                    alert('Error permanently deleting assets: ' + (data.error || 'Unknown error'));
+                    AppDialogs.error('Error permanently deleting assets: ' + (data.error || 'Unknown error'));
                 }
             })
             .catch(error => {
                 console.error('Error:', error);
-                alert('Error permanently deleting assets. Please try again.');
+                AppDialogs.error('Error permanently deleting assets. Please try again.');
             });
-        }
+        });
     }
 
     function handleBulkRestore() {
         if (selectedArchivedAssets.length === 0) return;
 
         const assetNames = selectedArchivedAssets.map(asset => asset.name).join(', ');
-        if (confirm(`Are you sure you want to restore ${selectedArchivedAssets.length} items?\n\n${assetNames.substring(0, 200)}${assetNames.length > 200 ? '...' : ''}`)) {
+        AppDialogs.confirm({
+            title: 'Restore assets',
+            message: `Are you sure you want to restore ${selectedArchivedAssets.length} items?\n\n${assetNames.substring(0, 200)}${assetNames.length > 200 ? '...' : ''}`,
+            confirmText: 'Restore'
+        }).then(function (ok) {
+            if (!ok) return;
             const formData = new FormData();
             selectedArchivedAssets.forEach(asset => formData.append('archived_ids[]', asset.id));
 
@@ -554,17 +569,16 @@
             .then(response => response.json())
             .then(data => {
                 if (data.success) {
-                    alert(data.message || 'Assets restored successfully!');
-                    location.reload();
+                    AppDialogs.success(data.message || 'Assets restored successfully!').then(function () { location.reload(); });
                 } else {
-                    alert('Error restoring assets: ' + (data.error || 'Unknown error'));
+                    AppDialogs.error('Error restoring assets: ' + (data.error || 'Unknown error'));
                 }
             })
             .catch(error => {
                 console.error('Error:', error);
-                alert('Error restoring assets. Please try again.');
+                AppDialogs.error('Error restoring assets. Please try again.');
             });
-        }
+        });
     }
 
     function showQRModal(archivedId, assetCode, assetName) {

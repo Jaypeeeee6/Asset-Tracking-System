@@ -20,3 +20,19 @@
     </div>
   </div>
 </div>
+
+<!-- Prompt dialog (text input) -->
+<div id="appPromptModal" class="modal-confirm" role="dialog" aria-modal="true" aria-labelledby="appPromptTitle" aria-describedby="appPromptMessage" aria-hidden="true">
+  <div class="modal-confirm-card">
+    <h3 id="appPromptTitle" class="modal-confirm-title">Enter value</h3>
+    <p id="appPromptMessage" class="modal-confirm-message"></p>
+    <div id="appPromptChips" class="modal-confirm-chips" hidden aria-label="Selected items"></div>
+    <p id="appPromptSubmessage" class="modal-confirm-submessage" hidden></p>
+    <input type="text" id="appPromptInput" class="modal-confirm-field" autocomplete="off">
+    <textarea id="appPromptTextarea" class="modal-confirm-field modal-confirm-textarea" rows="3" hidden></textarea>
+    <div class="modal-confirm-buttons">
+      <button type="button" class="modal-confirm-btn modal-confirm-btn-cancel" id="appPromptCancel">Cancel</button>
+      <button type="button" class="modal-confirm-btn modal-confirm-btn-confirm modal-confirm-btn-approve" id="appPromptOk">OK</button>
+    </div>
+  </div>
+</div>
