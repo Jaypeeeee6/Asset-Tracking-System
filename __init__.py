@@ -1,9 +1,14 @@
 import os
 import secrets
+from pathlib import Path
+
+from dotenv import load_dotenv
 from flask import Flask
 from flask_login import LoginManager
 from models.database import get_db_connection, init_db
 from models.user import User
+
+load_dotenv(Path(__file__).resolve().parent / '.env')
 
 def create_app():
     app = Flask(__name__)
