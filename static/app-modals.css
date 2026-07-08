@@ -38,6 +38,12 @@
     background: #fff;
 }
 
+.app-required-mark {
+    color: #dc3545;
+    margin-left: 0.2em;
+    font-weight: 700;
+}
+
 .app-modal .modal-footer {
     display: flex;
     flex-wrap: wrap;

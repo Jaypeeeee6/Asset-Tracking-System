@@ -1,4 +1,4 @@
-{% from "macros/app_components.html" import modal_cancel_button %}
+{% from "macros/app_components.html" import modal_cancel_button, form_label %}
 
 <!-- Edit branch -->
 <div class="modal fade app-modal" id="editMgmtBranchModal" tabindex="-1" aria-labelledby="editMgmtBranchModalLabel" aria-hidden="true">
@@ -11,11 +11,11 @@
       <div class="modal-body">
         <input type="hidden" id="editMgmtBranchId" value="">
         <div class="mb-3">
-          <label for="editMgmtBranchName" class="form-label">Branch name</label>
+          {{ form_label('Branch name', 'editMgmtBranchName', true) }}
           <input type="text" class="form-control" id="editMgmtBranchName" maxlength="100" required>
         </div>
         <div class="mb-3">
-          <label for="editMgmtBranchCode" class="form-label">Branch code</label>
+          {{ form_label('Branch code', 'editMgmtBranchCode', false) }}
           <input type="text" class="form-control" id="editMgmtBranchCode" maxlength="20" placeholder="e.g. K-MU001" style="text-transform: uppercase;">
         </div>
         <div class="mb-0">
@@ -44,11 +44,11 @@
       <div class="modal-body">
         <input type="hidden" id="editMgmtDepartmentId" value="">
         <div class="mb-3">
-          <label for="editMgmtDepartmentName" class="form-label">Department name</label>
+          {{ form_label('Department name', 'editMgmtDepartmentName', true) }}
           <input type="text" class="form-control" id="editMgmtDepartmentName" maxlength="100" required>
         </div>
         <div class="mb-0">
-          <label for="editMgmtDepartmentBranch" class="form-label">Branch</label>
+          {{ form_label('Branch', 'editMgmtDepartmentBranch', true) }}
           <select class="form-select app-select-with-chevron" id="editMgmtDepartmentBranch" required>
             <option value="">Select branch</option>
             <option value="__office__">Office</option>
@@ -75,11 +75,15 @@
       <div class="modal-body">
         <input type="hidden" id="editMgmtEmployeeId" value="">
         <div class="mb-3">
-          <label for="editMgmtEmployeeName" class="form-label">Employee name</label>
+          {{ form_label('Employee ID', 'editMgmtEmployeeEmployeeId', true) }}
+          <input type="text" class="form-control" id="editMgmtEmployeeEmployeeId" maxlength="50" required autocomplete="off">
+        </div>
+        <div class="mb-3">
+          {{ form_label('Employee name', 'editMgmtEmployeeName', true) }}
           <input type="text" class="form-control" id="editMgmtEmployeeName" maxlength="100" required>
         </div>
         <div class="mb-3">
-          <label for="editMgmtEmployeeVenue" class="form-label">Location</label>
+          {{ form_label('Location', 'editMgmtEmployeeVenue', true) }}
           <select class="form-select app-select-with-chevron" id="editMgmtEmployeeVenue" required>
             <option value="">Choose location</option>
             <option value="restaurant">Restaurant</option>
@@ -87,19 +91,19 @@
           </select>
         </div>
         <div class="mb-3" id="editMgmtEmployeeBrandWrap">
-          <label for="editMgmtEmployeeBrand" class="form-label">Brand</label>
+          {{ form_label('Brand', 'editMgmtEmployeeBrand', true) }}
           <select class="form-select app-select-with-chevron" id="editMgmtEmployeeBrand">
             <option value="">Select brand</option>
           </select>
         </div>
         <div class="mb-3" id="editMgmtEmployeeBranchWrap">
-          <label for="editMgmtEmployeeBranch" class="form-label">Branch</label>
+          {{ form_label('Branch', 'editMgmtEmployeeBranch', true) }}
           <select class="form-select" id="editMgmtEmployeeBranch">
             <option value="">Select branch</option>
           </select>
         </div>
         <div class="mb-0">
-          <label for="editMgmtEmployeeDepartment" class="form-label">Department</label>
+          {{ form_label('Department', 'editMgmtEmployeeDepartment', true) }}
           <select class="form-select" id="editMgmtEmployeeDepartment" required>
             <option value="">Choose location first</option>
           </select>
@@ -129,7 +133,7 @@
           <p class="mb-0 text-muted" id="editMgmtAssetTypeLocationDisplay"></p>
         </div>
         <div class="mb-0">
-          <label for="editMgmtAssetTypeName" class="form-label">Asset type name</label>
+          {{ form_label('Asset type name', 'editMgmtAssetTypeName', true) }}
           <input type="text" class="form-control" id="editMgmtAssetTypeName" maxlength="100" required>
         </div>
       </div>

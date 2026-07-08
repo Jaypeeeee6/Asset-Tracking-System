@@ -286,6 +286,8 @@
         var modalEl = $('editMgmtEmployeeModal');
         if (!modalEl) return;
         $('editMgmtEmployeeId').value = data.id;
+        var employeeIdEl = $('editMgmtEmployeeEmployeeId');
+        if (employeeIdEl) employeeIdEl.value = data.employeeId || data.employee_id || '';
         $('editMgmtEmployeeName').value = data.name || '';
         global.__editMgmtEmployeeDeptId = data.departmentId || null;
 
@@ -307,15 +309,17 @@
 
     function saveEditEmployee() {
         var id = $('editMgmtEmployeeId').value;
+        var employeeId = ($('editMgmtEmployeeEmployeeId') && $('editMgmtEmployeeEmployeeId').value || '').trim();
         var name = ($('editMgmtEmployeeName').value || '').trim();
         var departmentId = $('editMgmtEmployeeDepartment').value;
+        if (!employeeId) return showError('Please enter an employee ID.');
         if (!name) return showError('Please enter an employee name.');
         if (!departmentId) return showError('Please select a department.');
 
         return fetch('/admin/users/' + encodeURIComponent(id), {
             method: 'PUT',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ name: name, department_id: departmentId })
+            body: JSON.stringify({ name: name, employee_id: employeeId, department_id: departmentId })
         })
             .then(function (r) { return r.json(); })
             .then(function (data) {

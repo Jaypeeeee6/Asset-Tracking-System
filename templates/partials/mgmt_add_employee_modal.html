@@ -1,0 +1,56 @@
+{% from "macros/app_components.html" import modal_cancel_button, form_label %}
+
+<div class="modal fade app-modal" id="addMgmtEmployeeModal" tabindex="-1" aria-labelledby="addMgmtEmployeeModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-lg app-modal-dialog-comfort">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="addMgmtEmployeeModalLabel"><i class="bi bi-person-plus me-2" style="color:var(--gold);" aria-hidden="true"></i>Register employee</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body">
+        <div class="app-modal-tip mb-3" role="note">
+          <i class="bi bi-info-circle" aria-hidden="true"></i>
+          Fields marked with <span class="app-required-mark" aria-hidden="true">*</span> are required.
+        </div>
+        <div class="mb-3">
+          {{ form_label('Location', 'addMgmtEmployeeVenue', true) }}
+          <select class="form-select app-select-with-chevron" id="addMgmtEmployeeVenue" required>
+            <option value="">Choose location</option>
+            <option value="restaurant">Restaurant</option>
+            <option value="office">Office</option>
+          </select>
+        </div>
+        <div class="mb-3" id="addMgmtEmployeeBrandWrap">
+          {{ form_label('Brand', 'addMgmtEmployeeBrand', true) }}
+          <select class="form-select app-select-with-chevron" id="addMgmtEmployeeBrand">
+            <option value="">Select brand</option>
+          </select>
+        </div>
+        <div class="mb-3" id="addMgmtEmployeeBranchWrap">
+          {{ form_label('Branch', 'addMgmtEmployeeBranch', true) }}
+          <select class="form-select" id="addMgmtEmployeeBranch">
+            <option value="">Select branch</option>
+          </select>
+        </div>
+        <div class="mb-3" id="addMgmtEmployeeDepartmentWrap">
+          {{ form_label('Department', 'addMgmtEmployeeDepartment', true) }}
+          <select class="form-select" id="addMgmtEmployeeDepartment" required>
+            <option value="">Choose location first</option>
+          </select>
+        </div>
+        <div class="mb-3">
+          {{ form_label('Employee ID', 'addMgmtEmployeeIdInput', true) }}
+          <input type="text" class="form-control" id="addMgmtEmployeeIdInput" maxlength="50" required placeholder="e.g. EMP-00142" autocomplete="off">
+        </div>
+        <div class="mb-0">
+          {{ form_label('Employee name', 'addMgmtEmployeeName', true) }}
+          <input type="text" class="form-control" id="addMgmtEmployeeName" maxlength="100" required placeholder="Enter employee name" autocomplete="name">
+        </div>
+      </div>
+      <div class="modal-footer">
+        {{ modal_cancel_button('Cancel') }}
+        <button type="button" class="btn-app-add" id="addMgmtEmployeeSaveBtn"><i class="bi bi-check-lg" aria-hidden="true"></i><span class="btn-app-add-label">Register employee</span></button>
+      </div>
+    </div>
+  </div>
+</div>

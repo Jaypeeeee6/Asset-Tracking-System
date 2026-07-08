@@ -1,41 +1,7 @@
 {% from "macros/app_components.html" import add_button, settings_search_bar %}
 <div class="settings-panel-stack">
-  <h6 class="settings-section-title">Register new employee</h6>
-  <div class="filter-bar settings-panel-form flex-wrap">
-    <div class="filter-group" style="min-width: 200px;">
-      <label for="employeeVenue">Location</label>
-      <select class="form-select app-select-with-chevron" id="employeeVenue" required>
-        <option value="">Choose location</option>
-        <option value="restaurant">Restaurant</option>
-        <option value="office">Office</option>
-      </select>
-    </div>
-    <div class="filter-group" id="employeeBrandWrap" style="min-width: 160px;">
-      <label for="userModalBrand">Brand</label>
-      <select class="form-select app-select-with-chevron" id="userModalBrand">
-        <option value="">Select brand</option>
-      </select>
-    </div>
-    <div class="filter-group" id="employeeBranchWrap" style="min-width: 160px;">
-      <label for="userModalBranch">Branch</label>
-      <select class="form-select" id="userModalBranch">
-        <option value="">Select branch</option>
-      </select>
-    </div>
-    <div class="filter-group" id="employeeDepartmentWrap" style="min-width: 160px;">
-      <label for="userModalDepartment">Department</label>
-      <select class="form-select" id="userModalDepartment" required>
-        <option value="">Choose location first</option>
-      </select>
-    </div>
-    <div class="filter-group" style="flex: 1; min-width: 200px;">
-      <label for="userModalName">Employee name</label>
-      <input type="text" class="form-control" id="userModalName" placeholder="Enter employee name" maxlength="100" required>
-    </div>
-    <div class="filter-group">
-      <label class="settings-label-spacer" aria-hidden="true">&nbsp;</label>
-      {{ add_button('Register Employee', button_id='addUserModalBtn', icon='bi bi-person-plus') }}
-    </div>
+  <div class="d-flex flex-wrap gap-2 mb-3">
+    {{ add_button('Register employee', button_id='addEmployeeBtn', modal_target='#addMgmtEmployeeModal', icon='bi bi-person-plus') }}
   </div>
 
   <h6 class="settings-section-title">Bulk add employees</h6>
@@ -85,7 +51,7 @@
     </div>
   </div>
   <h6 class="settings-section-title mt-3 mb-2">Existing Employees</h6>
-  {{ settings_search_bar('userModalList', 'Search employees, branches, departments…', 'settingsEmployeesSearch') }}
+  {{ settings_search_bar('userModalList', 'Search employee IDs, names, branches, departments…', 'settingsEmployeesSearch') }}
   <div id="settingsEmployeesBulkBar" class="app-bulk-bar mb-3" style="display: none;">
     <div class="d-flex flex-wrap justify-content-between align-items-center gap-2">
       <span><i class="bi bi-info-circle me-1"></i> <strong><span id="settingsEmployeesSelectedCount">0</span> items selected</strong> &mdash; use the buttons to act on the selection</span>
@@ -101,11 +67,12 @@
   </div>
   <div class="settings-auth-table-bleed">
     <div style="overflow-x:auto;">
-      <table class="app-table" style="width: 100%; min-width: 760px;">
+      <table class="app-table" style="width: 100%; min-width: 860px;">
         <thead>
           <tr>
             <th><input type="checkbox" id="selectAllEmployeesRosterCheckbox" title="Select all" aria-label="Select all employees in list"></th>
             <th>#</th>
+            <th>Employee ID</th>
             <th>Name</th>
             <th>Branch</th>
             <th>Department</th>

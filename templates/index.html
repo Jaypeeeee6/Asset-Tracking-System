@@ -942,6 +942,7 @@
 
 {% endblock %}
 {% block modals %}
+{% from "macros/app_components.html" import modal_cancel_button, add_button, form_label %}
 <!-- Add Asset Modal -->
 <div class="modal fade app-modal" id="addAssetModal" tabindex="-1" aria-labelledby="addAssetModalLabel" aria-hidden="true">
   <div class="modal-dialog modal-lg app-modal-dialog-comfort">
@@ -954,7 +955,7 @@
         <div class="modal-body" style="overflow-y: auto; max-height: 70vh;">
             <input type="hidden" name="asset_venue" id="assetVenueField" value="restaurant">
             <div class="mb-3">
-                <label class="form-label">Location</label>
+                {{ form_label('Location', 'assetVenueRestaurant', true) }}
                 <div class="d-flex flex-wrap gap-3">
                     <div class="form-check">
                         <input class="form-check-input" type="radio" name="asset_venue_ui" id="assetVenueRestaurant" value="restaurant" checked>
@@ -968,13 +969,13 @@
                 <div class="form-text"><i class="bi bi-info-circle" aria-hidden="true"></i> Restaurant: pick a brand, then a branch. Office: pick an office department only.</div>
             </div>
             <div class="mb-3">
-                <label for="asset_type" class="form-label">Asset Type</label>
+                {{ form_label('Asset type', 'asset_type', true) }}
                 <select class="form-select" id="asset_type" name="asset_type" required>
                     <option value="">Select Asset Type</option>
                 </select>
             </div>
             <div class="mb-3">
-                <label for="name" class="form-label">Asset Names</label>
+                {{ form_label('Asset names', 'name', true) }}
                 <div class="asset-names-container" id="assetNamesContainer">
                     <div class="selected-asset-names" id="selectedAssetNames"></div>
                     <input type="text" class="form-control asset-name-input" id="name" name="name" placeholder="Click to select asset names..." autocomplete="off">
@@ -985,11 +986,11 @@
                 <input type="hidden" id="selectedAssetNamesInput" name="selected_asset_names" value="">
             </div>
             <div class="mb-3">
-                <label for="quantity" class="form-label">Quantity</label>
+                {{ form_label('Quantity', 'quantity', true) }}
                 <input type="number" class="form-control" id="quantity" name="quantity" min="1" value="1" required>
             </div>
             <div class="mb-3">
-                <label for="price" class="form-label">Price (OMR)</label>
+                {{ form_label('Price (OMR)', 'price', true) }}
                 <input type="number" class="form-control" id="price" name="price" min="0" step="0.01" placeholder="0.00" required>
                 <div class="form-text">
                     <i class="bi bi-info-circle" aria-hidden="true"></i> Enter the price in Omani Rial (OMR)
@@ -1002,13 +1003,13 @@
                 </select>
             </div>
             <div class="mb-3" id="addAssetBranchField">
-                <label for="branch" class="form-label">Branch</label>
+                {{ form_label('Branch', 'branch', true) }}
                 <select class="form-select" id="branch" name="branch" required>
                     <option value="">Select Branch</option>
                 </select>
             </div>
             <div class="mb-3" id="addAssetDepartmentField">
-                <label for="department" class="form-label">Department</label>
+                {{ form_label('Department', 'department', true) }}
                 <select class="form-select" id="department" name="department">
                     <option value="">Select location first</option>
                 </select>
@@ -1020,7 +1021,7 @@
                         <i class="bi bi-person-x" aria-hidden="true"></i> No Owner Required
                     </label>
                 </div>
-                <label for="owner" class="form-label">Owner</label>
+                {{ form_label('Owner', 'owner', true) }}
                 <select class="form-select" id="owner" name="owner" required>
                     <option value="">Select branch or department first</option>
                 </select>
@@ -1029,7 +1030,7 @@
                 </div>
             </div>
             <div class="mb-3">
-                <label for="used_status" class="form-label">Status</label>
+                {{ form_label('Status', 'used_status', true) }}
                 <select class="form-select" id="used_status" name="used_status" required>
                     <option value="Used">Used</option>
                     <option value="Not Used">Not Used</option>

@@ -18,6 +18,10 @@
 {% endif %}
 {%- endmacro %}
 
+{% macro form_label(text, for_id, required=false) -%}
+<label for="{{ for_id }}" class="form-label">{{ text }}{% if required %}<span class="app-required-mark" aria-hidden="true">*</span>{% endif %}</label>
+{%- endmacro %}
+
 {% macro settings_search_bar(target_tbody_id, placeholder='Search…', input_id=None) -%}
 <div class="filter-bar settings-panel-search mb-3">
     <div class="filter-group filter-search-wrap">

@@ -282,8 +282,10 @@ function appDeleteConfirm(message, title) {
     }
 
     function populateEmployeeBrandSelects() {
-        _fillBrandSelect(document.getElementById('userModalBrand'));
         _fillBrandSelect(document.getElementById('bulkUserModalBrand'));
+        if (window.MgmtAddEmployeeModal && window.MgmtAddEmployeeModal.populateBrands) {
+            window.MgmtAddEmployeeModal.populateBrands();
+        }
     }
 
     function updateAddAssetRestaurantBranchDropdown(brandId) {
@@ -1337,40 +1339,23 @@ function appDeleteConfirm(message, title) {
 // EVENT LISTENERS - USER MANAGEMENT
 // ============================================================================
 
-    // USER MODAL EVENT LISTENERS
+    // USER MODAL EVENT LISTENERS (bulk add + roster filter)
     (function bindEmployeeMgmt() {
-        if (!document.getElementById('addUserModalBtn') ||
-            !document.getElementById('addBulkUsersModalBtn') ||
-            !document.getElementById('userModalBrand') ||
+        if (!document.getElementById('addBulkUsersModalBtn') ||
             !document.getElementById('bulkUserModalBrand') ||
-            !document.getElementById('userModalBranch') ||
             !document.getElementById('bulkUserModalBranch') ||
             !document.getElementById('userModalFilterDepartment') ||
-            !document.getElementById('userModalName') ||
-            !document.getElementById('employeeVenue') ||
             !document.getElementById('bulkEmployeeVenue')) {
             return;
         }
-        document.getElementById('addUserModalBtn').addEventListener('click', handleAddUserModal);
         document.getElementById('addBulkUsersModalBtn').addEventListener('click', handleAddBulkUsersModal);
 
-        document.getElementById('employeeVenue').addEventListener('change', syncEmployeeRegisterVenue);
         document.getElementById('bulkEmployeeVenue').addEventListener('change', syncBulkEmployeeRegisterVenue);
-
-        document.getElementById('userModalBrand').addEventListener('change', function() {
-            updateUserModalBranchesFromBrand(this.value, 'userModalBranch');
-            const dep = document.getElementById('userModalDepartment');
-            if (dep) dep.innerHTML = '<option value="">Select branch first</option>';
-        });
 
         document.getElementById('bulkUserModalBrand').addEventListener('change', function() {
             updateUserModalBranchesFromBrand(this.value, 'bulkUserModalBranch');
             const dep = document.getElementById('bulkUserModalDepartment');
             if (dep) dep.innerHTML = '<option value="">Select branch first</option>';
-        });
-
-        document.getElementById('userModalBranch').addEventListener('change', function() {
-            updateUserModalDepartments(this.value);
         });
 
         document.getElementById('bulkUserModalBranch').addEventListener('change', function() {
@@ -1379,12 +1364,6 @@ function appDeleteConfirm(message, title) {
 
         document.getElementById('userModalFilterDepartment').addEventListener('change', function() {
             loadUserModalUsers(this.value);
-        });
-
-        document.getElementById('userModalName').addEventListener('keypress', function(e) {
-            if (e.key === 'Enter') {
-                handleAddUserModal();
-            }
         });
     })();
 
@@ -1783,88 +1762,19 @@ function appDeleteConfirm(message, title) {
         loadBranches()
             .then(function () {
                 populateEmployeeBrandSelects();
-                const ub = document.getElementById('userModalBranch');
                 const bub = document.getElementById('bulkUserModalBranch');
-                if (ub) ub.innerHTML = '<option value="">Select branch</option>';
                 if (bub) bub.innerHTML = '<option value="">Select branch</option>';
-                const ubm = document.getElementById('userModalBrand');
                 const bubm = document.getElementById('bulkUserModalBrand');
-                if (ubm) ubm.value = '';
                 if (bubm) bubm.value = '';
                 loadUserModalUsers();
                 loadUserModalFilterDropdown();
-                if (document.getElementById('employeeVenue')) syncEmployeeRegisterVenue();
                 if (document.getElementById('bulkEmployeeVenue')) syncBulkEmployeeRegisterVenue();
             })
             .catch(function () {
                 loadUserModalUsers();
                 loadUserModalFilterDropdown();
-                if (document.getElementById('employeeVenue')) syncEmployeeRegisterVenue();
                 if (document.getElementById('bulkEmployeeVenue')) syncBulkEmployeeRegisterVenue();
             });
-    }
-
-    // Load buildings for user modal
-    function loadUserModalBranches() {
-        const buildingSelect = document.getElementById('userModalBranch');
-        if (!buildingSelect) return;
-        buildingSelect.innerHTML = '<option value="">Select branch</option>';
-    }
-
-    // Load buildings for bulk user modal
-    function loadBulkUserModalBranches() {
-        const buildingSelect = document.getElementById('bulkUserModalBranch');
-        if (!buildingSelect) return;
-        buildingSelect.innerHTML = '<option value="">Select branch</option>';
-    }
-
-    function syncEmployeeRegisterVenue() {
-        const venueEl = document.getElementById('employeeVenue');
-        const bwrap = document.getElementById('employeeBrandWrap');
-        const wrap = document.getElementById('employeeBranchWrap');
-        const dwrap = document.getElementById('employeeDepartmentWrap');
-        const dept = document.getElementById('userModalDepartment');
-        const branch = document.getElementById('userModalBranch');
-        const brand = document.getElementById('userModalBrand');
-        if (!venueEl || !dept) return;
-        const val = venueEl.value;
-        if (val === 'office') {
-            if (bwrap) bwrap.classList.add('d-none');
-            if (wrap) wrap.classList.add('d-none');
-            if (dwrap) dwrap.classList.remove('d-none');
-            if (brand) brand.value = '';
-            if (branch) branch.value = '';
-            dept.innerHTML = '<option value="">Loading...</option>';
-            fetch('/admin/departments?office_only=1')
-                .then(function (r) { return r.json(); })
-                .then(function (depts) {
-                    dept.innerHTML = '<option value="">Select department</option>';
-                    depts.forEach(function (d) {
-                        const option = document.createElement('option');
-                        option.value = d.id;
-                        option.textContent = d.name;
-                        dept.appendChild(option);
-                    });
-                })
-                .catch(function () {
-                    dept.innerHTML = '<option value="">Error loading departments</option>';
-                });
-        } else if (val === 'restaurant') {
-            if (bwrap) bwrap.classList.remove('d-none');
-            if (wrap) wrap.classList.remove('d-none');
-            if (dwrap) dwrap.classList.add('d-none');
-            populateEmployeeBrandSelects();
-            if (brand) brand.value = '';
-            if (branch) branch.innerHTML = '<option value="">Select branch</option>';
-            dept.innerHTML = '<option value="">Select branch first</option>';
-        } else {
-            if (bwrap) bwrap.classList.add('d-none');
-            if (wrap) wrap.classList.add('d-none');
-            if (dwrap) dwrap.classList.remove('d-none');
-            if (brand) brand.value = '';
-            if (branch) branch.innerHTML = '<option value="">Select branch</option>';
-            dept.innerHTML = '<option value="">Choose location first</option>';
-        }
     }
 
     function syncBulkEmployeeRegisterVenue() {
@@ -1916,54 +1826,6 @@ function appDeleteConfirm(message, title) {
         }
     }
 
-    // Update departments in user modal based on building
-    function updateUserModalDepartments(buildingId) {
-        const departmentSelect = document.getElementById('userModalDepartment');
-        if (!departmentSelect) return;
-
-        if (!buildingId) {
-            departmentSelect.innerHTML = '<option value="">Select Branch First</option>';
-            return;
-        }
-        
-        departmentSelect.innerHTML = '<option value="">Loading...</option>';
-        
-        fetch(`/admin/departments?branch_id=${buildingId}`)
-            .then(response => response.json())
-            .then(departments => {
-                const venueEl = document.getElementById('employeeVenue');
-                const venue = venueEl ? venueEl.value : '';
-                if (venue === 'restaurant') {
-                    const pick = departments.filter(function (d) { return d.name === RESTAURANT_DEFAULT_DEPT_JS; });
-                    departmentSelect.innerHTML = '';
-                    if (pick.length === 0) {
-                        departmentSelect.innerHTML = '<option value="">Default department missing; contact IT</option>';
-                        return;
-                    }
-                    pick.forEach(function (dept) {
-                        const option = document.createElement('option');
-                        option.value = dept.id;
-                        option.textContent = dept.name;
-                        departmentSelect.appendChild(option);
-                    });
-                    departmentSelect.value = String(pick[0].id);
-                    return;
-                }
-                departmentSelect.innerHTML = '<option value="">Select department</option>';
-                
-                departments.forEach(dept => {
-                    const option = document.createElement('option');
-                    option.value = dept.id;
-                    option.textContent = dept.name;
-                    departmentSelect.appendChild(option);
-                });
-            })
-            .catch(error => {
-                console.error('Error loading departments for user modal:', error);
-                departmentSelect.innerHTML = '<option value="">Error loading departments</option>';
-            });
-    }
-
     // Load users for user modal
     function loadUserModalUsers(filterDepartmentId = '') {
         const url = filterDepartmentId ? `/admin/users?department_id=${filterDepartmentId}` : '/admin/users';
@@ -1977,7 +1839,7 @@ function appDeleteConfirm(message, title) {
                 resetMgmtTableBulkUI('selectAllEmployeesRosterCheckbox', 'bulkDeleteEmployeesRosterBtn', 'userModalList', 'employee-roster-checkbox');
 
                 if (users.length === 0) {
-                    usersList.innerHTML = '<tr><td colspan="6" class="text-center text-muted py-4">No employees found.</td></tr>';
+                    usersList.innerHTML = '<tr><td colspan="7" class="text-center text-muted py-4">No employees found.</td></tr>';
                     return;
                 }
 
@@ -1991,10 +1853,12 @@ function appDeleteConfirm(message, title) {
                 window.__employeeRosterUsers = sorted;
 
                 sorted.forEach((user, i) => {
+                    const employeeId = user.employee_id || '—';
                     const tr = document.createElement('tr');
                     tr.innerHTML = `
                         <td><input type="checkbox" class="employee-roster-checkbox" value="${user.id}" aria-label="Select ${user.name}"></td>
                         <td>${i + 1}</td>
+                        <td><span class="text-muted">${employeeId}</span></td>
                         <td><strong>${user.name}</strong></td>
                         <td>${user.branch_name}</td>
                         <td>${user.department_name}</td>
@@ -2061,73 +1925,6 @@ function appDeleteConfirm(message, title) {
             });
     }
 
-    // Handle adding user from modal
-    function handleAddUserModal() {
-        const venue = document.getElementById('employeeVenue') ? document.getElementById('employeeVenue').value : '';
-        const brandId = document.getElementById('userModalBrand') ? document.getElementById('userModalBrand').value : '';
-        const buildingId = document.getElementById('userModalBranch').value;
-        const departmentId = document.getElementById('userModalDepartment').value;
-        const name = document.getElementById('userModalName').value.trim();
-
-        if (!venue) {
-            alert('Please choose Restaurant or Office.');
-            return;
-        }
-        if (venue === 'restaurant') {
-            if (!brandId) {
-                alert('Please select a brand.');
-                return;
-            }
-            if (!buildingId) {
-                alert('Please select a branch.');
-                return;
-            }
-        }
-
-        if (!departmentId) {
-            alert('Please select a department.');
-            return;
-        }
-        
-        if (!name) {
-            alert('Please enter an employee name.');
-            return;
-        }
-        
-        fetch('/admin/users', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({
-                name: name,
-                department_id: parseInt(departmentId)
-            })
-        })
-        .then(response => response.json())
-        .then(data => {
-            if (data.id) {
-                document.getElementById('userModalName').value = '';
-                if (document.getElementById('employeeVenue')) document.getElementById('employeeVenue').value = '';
-                const ubm = document.getElementById('userModalBrand');
-                if (ubm) ubm.value = '';
-                document.getElementById('userModalBranch').value = '';
-                document.getElementById('userModalDepartment').value = '';
-                document.getElementById('userModalDepartment').innerHTML = '<option value="">Choose location first</option>';
-                syncEmployeeRegisterVenue();
-                loadUserModalUsers(); // Reload the users list
-                refreshOwnersIfAddAssetForm();
-                alert(`Employee "${name}" registered successfully!`);
-            } else {
-                alert(data.error || 'Failed to register employee.');
-            }
-        })
-        .catch(error => {
-            console.error('Error:', error);
-            alert('Failed to register employee.');
-        });
-    }
-
     // Handle editing user from modal
     function handleEditUserModal(e) {
         const btn = e.currentTarget;
@@ -2142,6 +1939,7 @@ function appDeleteConfirm(message, title) {
             window.MgmtEditModals.openEmployee({
                 id: userId,
                 name: currentName,
+                employeeId: rowUser ? rowUser.employee_id : '',
                 departmentId: rowUser ? rowUser.department_id : null,
                 departmentName: departmentName,
                 branchName: rowUser ? rowUser.branch_name : '',

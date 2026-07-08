@@ -272,6 +272,23 @@ def _migrate_legacy_building_schema(cur):
             cur.execute('ALTER TABLE archived_assets RENAME COLUMN building TO branch')
 
 
+def _migrate_users_employee_id(conn):
+    """Add employee_id column to users (employees roster)."""
+    cur = conn.cursor()
+    cur.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='users'")
+    if not cur.fetchone():
+        return
+    cur.execute('PRAGMA table_info(users)')
+    col_names = [row[1] for row in cur.fetchall()]
+    if 'employee_id' not in col_names:
+        cur.execute('ALTER TABLE users ADD COLUMN employee_id TEXT')
+        cur.execute(
+            'CREATE UNIQUE INDEX IF NOT EXISTS idx_users_employee_id '
+            'ON users(employee_id) WHERE employee_id IS NOT NULL'
+        )
+        conn.commit()
+
+
 def _migrate_users_auth_username_to_email(conn):
     """Rename legacy users_auth.username column to email."""
     cur = conn.cursor()
@@ -414,12 +431,14 @@ def init_db():
         CREATE TABLE IF NOT EXISTS users (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             name TEXT NOT NULL,
+            employee_id TEXT,
             department_id INTEGER NOT NULL,
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
             FOREIGN KEY (department_id) REFERENCES departments (id),
             UNIQUE(name, department_id)
         )
     ''')
+    _migrate_users_employee_id(conn)
     
     # Create users_auth table for login authentication
     cur.execute('''

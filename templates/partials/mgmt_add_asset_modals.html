@@ -1,4 +1,4 @@
-{% from "macros/app_components.html" import modal_cancel_button, add_button %}
+{% from "macros/app_components.html" import modal_cancel_button, add_button, form_label %}
 
 <!-- Add asset type -->
 <div class="modal fade app-modal" id="addMgmtAssetTypeModal" tabindex="-1" aria-labelledby="addMgmtAssetTypeModalLabel" aria-hidden="true">
@@ -11,10 +11,10 @@
       <div class="modal-body">
         <div class="app-modal-tip mb-3" role="note">
           <i class="bi bi-info-circle" aria-hidden="true"></i>
-          Applies everywhere in the location you select (all restaurants and/or all office departments).
+          Fields marked with <span class="app-required-mark" aria-hidden="true">*</span> are required. Applies everywhere in the location you select (all restaurants and/or all office departments).
         </div>
         <div class="mb-3">
-          <label for="addMgmtAssetTypeName" class="form-label">Asset type name</label>
+          {{ form_label('Asset type name', 'addMgmtAssetTypeName', true) }}
           <input type="text" class="form-control" id="addMgmtAssetTypeName" maxlength="100" required placeholder="e.g. Electronics">
         </div>
         <fieldset class="mb-0">
@@ -48,14 +48,14 @@
       <div class="modal-body">
         <div class="app-modal-tip mb-3" role="note">
           <i class="bi bi-info-circle" aria-hidden="true"></i>
-          Choose the asset type (including its location). Create the type first if it is not listed.
+          Fields marked with <span class="app-required-mark" aria-hidden="true">*</span> are required. Choose the asset type (including its location). Create the type first if it is not listed.
         </div>
         <div class="mb-3">
-          <label for="addMgmtAssetNameValue" class="form-label">Asset name</label>
+          {{ form_label('Asset name', 'addMgmtAssetNameValue', true) }}
           <input type="text" class="form-control" id="addMgmtAssetNameValue" maxlength="100" required placeholder="e.g. Laptop">
         </div>
         <div class="mb-0 app-searchable-combobox" id="addMgmtAssetNameTypeCombo">
-          <label for="addMgmtAssetNameTypeSearch" class="form-label">Asset type</label>
+          {{ form_label('Asset type', 'addMgmtAssetNameTypeSearch', true) }}
           <input type="hidden" id="addMgmtAssetNameTypeId" value="">
           <input type="text" class="form-control app-searchable-combobox-input" id="addMgmtAssetNameTypeSearch"
                  placeholder="Search or select asset type…" autocomplete="off" role="combobox"
