@@ -14,21 +14,25 @@ from utils.auth_roles import (
 auth_bp = Blueprint('auth', __name__)
 
 
+def _normalize_email(email):
+    return (email or '').strip().lower()
+
+
 @auth_bp.route('/login', methods=['GET', 'POST'])
 def login():
     if request.method == 'POST':
-        username = request.form.get('username', '').strip()
+        email = _normalize_email(request.form.get('email', ''))
         password = request.form.get('password', '')
 
-        if not username or not password:
-            flash('Username and password are required.', 'error')
+        if not email or not password:
+            flash('Email and password are required.', 'error')
             return render_template('login.html')
 
         conn = get_db_connection()
         cur = conn.cursor()
         cur.execute(
-            'SELECT id, username, password_hash, role, full_name FROM users_auth WHERE username = ?',
-            (username,),
+            'SELECT id, email, password_hash, role, full_name FROM users_auth WHERE email = ?',
+            (email,),
         )
         user_data = cur.fetchone()
         conn.close()
@@ -40,7 +44,7 @@ def login():
             flash('Login successful!', 'success')
             return redirect(url_for('assets.dashboard'))
         else:
-            flash('Invalid username or password', 'error')
+            flash('Invalid email or password', 'error')
 
     return render_template('login.html')
 
@@ -67,13 +71,13 @@ def add_auth_user():
         return redirect(url_for('assets.dashboard'))
 
     if request.method == 'POST':
-        username = request.form['username'].strip()
+        email = _normalize_email(request.form.get('email', ''))
         full_name = normalize_full_name(request.form.get('full_name'))
         password = request.form['password']
         role = request.form['role']
 
-        if not username or not password or not role or not full_name:
-            flash('Full name, username, password, and role are required.', 'error')
+        if not email or not password or not role or not full_name:
+            flash('Full name, email, password, and role are required.', 'error')
             return render_template('add_user.html')
 
         if role not in AUTH_ROLES:
@@ -82,10 +86,10 @@ def add_auth_user():
 
         conn = get_db_connection()
         cur = conn.cursor()
-        cur.execute('SELECT id FROM users_auth WHERE username = ?', (username,))
+        cur.execute('SELECT id FROM users_auth WHERE email = ?', (email,))
         if cur.fetchone():
             conn.close()
-            flash('Username already exists.', 'error')
+            flash('Email already exists.', 'error')
             return render_template('add_user.html')
 
         password_hash = hash_password(password)
@@ -94,14 +98,14 @@ def add_auth_user():
         try:
             cur.execute(
                 '''
-                INSERT INTO users_auth (username, password_hash, encrypted_password, full_name, role)
+                INSERT INTO users_auth (email, password_hash, encrypted_password, full_name, role)
                 VALUES (?, ?, ?, ?, ?)
                 ''',
-                (username, password_hash, encrypted_password, full_name, role),
+                (email, password_hash, encrypted_password, full_name, role),
             )
             conn.commit()
             conn.close()
-            flash(f'User "{full_name}" ({username}) created successfully with role "{role}".', 'success')
+            flash(f'User "{full_name}" ({email}) created successfully with role "{role}".', 'success')
             return redirect(url_for('assets.settings') + '?tab=users')
         except Exception as e:
             conn.close()
@@ -117,7 +121,7 @@ def edit_auth_user(user_id):
         flash('Access denied. Only IT users can edit users.', 'error')
         return redirect(url_for('assets.settings') + '?tab=users')
 
-    username_new = (request.form.get('username') or '').strip()
+    email_new = _normalize_email(request.form.get('email') or '')
     full_name_new = normalize_full_name(request.form.get('full_name'))
     role = (request.form.get('role') or '').strip()
     password = (request.form.get('password') or '').strip()
@@ -129,7 +133,7 @@ def edit_auth_user(user_id):
     conn = get_db_connection()
     cur = conn.cursor()
     cur.execute(
-        'SELECT id, username, full_name, role FROM users_auth WHERE id = ?',
+        'SELECT id, email, full_name, role FROM users_auth WHERE id = ?',
         (user_id,),
     )
     row = cur.fetchone()
@@ -138,7 +142,7 @@ def edit_auth_user(user_id):
         flash('User not found.', 'error')
         return redirect(url_for('assets.settings') + '?tab=users')
 
-    old_username = row[1]
+    old_email = row[1]
     old_full_name = (row[2] or '').strip()
     old_role = row[3]
     protected = is_super_admin_account(old_full_name, old_role)
@@ -152,19 +156,19 @@ def edit_auth_user(user_id):
         flash('Full name is required.', 'error')
         return redirect(url_for('assets.settings') + '?tab=users')
 
-    if not username_new:
+    if not email_new:
         conn.close()
-        flash('Username is required.', 'error')
+        flash('Email is required.', 'error')
         return redirect(url_for('assets.settings') + '?tab=users')
 
-    if username_new != old_username:
+    if email_new != old_email:
         cur.execute(
-            'SELECT id FROM users_auth WHERE username = ? AND id != ?',
-            (username_new, user_id),
+            'SELECT id FROM users_auth WHERE email = ? AND id != ?',
+            (email_new, user_id),
         )
         if cur.fetchone():
             conn.close()
-            flash('Username already exists.', 'error')
+            flash('Email already exists.', 'error')
             return redirect(url_for('assets.settings') + '?tab=users')
 
     if old_role == AUTH_ROLE_IT and role == AUTH_ROLE_MANAGEMENT:
@@ -183,15 +187,15 @@ def edit_auth_user(user_id):
             cur.execute(
                 '''
                 UPDATE users_auth
-                SET username = ?, full_name = ?, role = ?, password_hash = ?, encrypted_password = ?
+                SET email = ?, full_name = ?, role = ?, password_hash = ?, encrypted_password = ?
                 WHERE id = ?
                 ''',
-                (username_new, full_name_new, role, password_hash, 'DEPRECATED', user_id),
+                (email_new, full_name_new, role, password_hash, 'DEPRECATED', user_id),
             )
         else:
             cur.execute(
-                'UPDATE users_auth SET username = ?, full_name = ?, role = ? WHERE id = ?',
-                (username_new, full_name_new, role, user_id),
+                'UPDATE users_auth SET email = ?, full_name = ?, role = ? WHERE id = ?',
+                (email_new, full_name_new, role, user_id),
             )
         conn.commit()
     except Exception as e:
@@ -222,7 +226,7 @@ def delete_auth_user(user_id):
 
     conn = get_db_connection()
     cur = conn.cursor()
-    cur.execute('SELECT username, full_name, role FROM users_auth WHERE id = ?', (user_id,))
+    cur.execute('SELECT email, full_name, role FROM users_auth WHERE id = ?', (user_id,))
     user = cur.fetchone()
 
     if not user:
@@ -230,7 +234,7 @@ def delete_auth_user(user_id):
         flash('User not found.', 'error')
         return redirect(url_for('assets.settings') + '?tab=users')
 
-    username = user[0]
+    email = user[0]
     full_name = (user[1] or '').strip()
     role = user[2]
     if is_super_admin_account(full_name, role):
@@ -238,11 +242,13 @@ def delete_auth_user(user_id):
         flash('Cannot delete built-in Super Admin (IT) accounts.', 'error')
         return redirect(url_for('assets.settings') + '?tab=users')
 
+    display_name = full_name or email
+
     try:
         cur.execute('DELETE FROM users_auth WHERE id = ?', (user_id,))
         conn.commit()
         conn.close()
-        flash(f'User "{username}" has been deleted successfully.', 'success')
+        flash(f'User "{display_name}" has been deleted successfully.', 'success')
     except Exception as e:
         conn.close()
         flash(f'Error deleting user: {str(e)}', 'error')

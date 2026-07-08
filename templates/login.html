@@ -42,11 +42,11 @@
 
                     <form method="POST" action="{{ url_for('auth.login') }}">
                         <div class="app-input-group">
-                            <label for="username"><i class="bi bi-person me-1"></i>Username</label>
-                            <input type="text" id="username" name="username"
-                                   placeholder="Enter your username"
-                                   value="{{ request.form.get('username', '') }}"
-                                   autocomplete="username" required>
+                            <label for="email"><i class="bi bi-envelope me-1"></i>Email</label>
+                            <input type="email" id="email" name="email"
+                                   placeholder="Enter your email"
+                                   value="{{ request.form.get('email', '') }}"
+                                   autocomplete="email" required>
                         </div>
 
                         <div class="app-input-group">

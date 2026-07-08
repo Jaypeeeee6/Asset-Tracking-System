@@ -61,7 +61,7 @@ def create_app():
         conn = get_db_connection()
         cur = conn.cursor()
         cur.execute(
-            'SELECT id, username, role, full_name FROM users_auth WHERE id = ?',
+            'SELECT id, email, role, full_name FROM users_auth WHERE id = ?',
             (user_id,),
         )
         user_data = cur.fetchone()

@@ -272,6 +272,19 @@ def _migrate_legacy_building_schema(cur):
             cur.execute('ALTER TABLE archived_assets RENAME COLUMN building TO branch')
 
 
+def _migrate_users_auth_username_to_email(conn):
+    """Rename legacy users_auth.username column to email."""
+    cur = conn.cursor()
+    cur.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='users_auth'")
+    if not cur.fetchone():
+        return
+    cur.execute('PRAGMA table_info(users_auth)')
+    col_names = [row[1] for row in cur.fetchall()]
+    if 'username' in col_names and 'email' not in col_names:
+        cur.execute('ALTER TABLE users_auth RENAME COLUMN username TO email')
+        conn.commit()
+
+
 def _migrate_users_auth_schema(conn):
     """Add full_name, migrate admin/purchasing roles to IT/Management, and rebuild table when CHECK blocks updates."""
     cur = conn.cursor()
@@ -293,7 +306,7 @@ def _migrate_users_auth_schema(conn):
         '''
         CREATE TABLE users_auth (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
-            username TEXT NOT NULL UNIQUE,
+            email TEXT NOT NULL UNIQUE,
             password_hash TEXT NOT NULL,
             encrypted_password TEXT NOT NULL,
             full_name TEXT NOT NULL DEFAULT '',
@@ -303,7 +316,7 @@ def _migrate_users_auth_schema(conn):
         '''
     )
     for r in rows:
-        username = r['username']
+        email = r['email'] if 'email' in r.keys() else r['username']
         old_role = r['role']
         new_role = {'admin': AUTH_ROLE_IT, 'purchasing': AUTH_ROLE_MANAGEMENT}.get(old_role, old_role)
         if new_role not in (AUTH_ROLE_IT, AUTH_ROLE_MANAGEMENT):
@@ -312,19 +325,19 @@ def _migrate_users_auth_schema(conn):
             fn = (r['full_name'] or '').strip()
         else:
             fn = ''
-        if not fn and str(username).lower() == 'admin' and old_role == 'admin':
+        if not fn and str(email).lower() == 'admin' and old_role == 'admin':
             fn = 'Super Admin'
         elif not fn:
-            fn = str(username).strip().title() if str(username).strip() else 'User'
+            fn = str(email).strip().title() if str(email).strip() else 'User'
         cur.execute(
             '''
             INSERT INTO users_auth
-            (id, username, password_hash, encrypted_password, full_name, role, created_at)
+            (id, email, password_hash, encrypted_password, full_name, role, created_at)
             VALUES (?, ?, ?, ?, ?, ?, ?)
             ''',
             (
                 r['id'],
-                r['username'],
+                email,
                 r['password_hash'],
                 r['encrypted_password'],
                 fn,
@@ -412,7 +425,7 @@ def init_db():
     cur.execute('''
         CREATE TABLE IF NOT EXISTS users_auth (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
-            username TEXT NOT NULL UNIQUE,
+            email TEXT NOT NULL UNIQUE,
             password_hash TEXT NOT NULL,
             encrypted_password TEXT NOT NULL,
             full_name TEXT NOT NULL DEFAULT '',
@@ -421,6 +434,7 @@ def init_db():
         )
     ''')
     _migrate_users_auth_schema(conn)
+    _migrate_users_auth_username_to_email(conn)
     
     # Create assets table
     cur.execute('''

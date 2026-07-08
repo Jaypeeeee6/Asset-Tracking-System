@@ -327,7 +327,7 @@ def settings():
         cur = conn.cursor()
         cur.execute(
             '''
-            SELECT ua.id, ua.username, ua.full_name, ua.role, ua.created_at
+            SELECT ua.id, ua.email, ua.full_name, ua.role, ua.created_at
             FROM users_auth ua
             ORDER BY ua.created_at DESC
             '''
@@ -544,7 +544,7 @@ def delete_asset(asset_id):
         asset['id'], asset['name'], asset['quantity'], asset['price'] if asset['price'] is not None else 0.0, asset['owner'], 
         asset['branch'], asset['department'], asset['asset_code'], 
         asset['qr_random_code'], asset['used_status'], asset['asset_type'],
-        current_user.username, archive_reason
+        current_user.display_name, archive_reason
     ))
     
     # Delete from assets table
@@ -623,7 +623,7 @@ def bulk_delete():
                 asset['id'], asset['name'], asset['quantity'], asset['price'] if asset['price'] is not None else 0.0, asset['owner'], 
                 asset['branch'], asset['department'], asset['asset_code'], 
                 asset['qr_random_code'], asset['used_status'], asset['asset_type'],
-                current_user.username, archive_reason
+                current_user.display_name, archive_reason
             ))
         
         # Delete from assets table

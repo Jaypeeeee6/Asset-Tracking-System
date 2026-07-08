@@ -114,8 +114,8 @@
                         <div id="editUserProtectedHelp" class="form-text d-none">Built-in Super Admin (IT) accounts cannot change full name or role.</div>
                     </div>
                     <div class="mb-3">
-                        <label for="editUserUsername" class="form-label">Username</label>
-                        <input type="text" class="form-control" id="editUserUsername" name="username" required autocomplete="username">
+                        <label for="editUserEmail" class="form-label">Email</label>
+                        <input type="email" class="form-control" id="editUserEmail" name="email" required autocomplete="email">
                     </div>
                     <div class="mb-3">
                         <label for="editUserRole" class="form-label">Role</label>
@@ -145,7 +145,7 @@
 <script src="{{ url_for('static', filename='js/settings-search.js') }}"></script>
 {% include 'partials/dashboard_main_script.html' %}
 <script>
-function showUserDetails(username, fullName, role) {
+function showUserDetails(email, fullName, role) {
     const modal = new bootstrap.Modal(document.getElementById('userDetailsModal'));
     const content = document.getElementById('userDetailsContent');
     const roleSlug = String(role || '').toLowerCase().replace(/\s+/g, '-');
@@ -157,8 +157,8 @@ function showUserDetails(username, fullName, role) {
                 <span class="text-muted">${fullName}</span>
             </div>
             <div class="col-md-4">
-                <strong>Username:</strong><br>
-                <span class="text-muted">${username}</span>
+                <strong>Email:</strong><br>
+                <span class="text-muted">${email}</span>
             </div>
             <div class="col-md-4">
                 <strong>Role:</strong><br>
@@ -180,9 +180,9 @@ function showUserDetails(username, fullName, role) {
     modal.show();
 }
 
-function deleteUser(userId, username) {
+function deleteUser(userId, displayName) {
     AppDialogs.deleteConfirm(
-        `Are you sure you want to delete user "${username}"? This action cannot be undone.`,
+        `Are you sure you want to delete user "${displayName}"? This action cannot be undone.`,
         'Delete user'
     ).then(function (ok) {
         if (!ok) return;
@@ -215,32 +215,32 @@ document.addEventListener('DOMContentLoaded', function () {
                 return;
             }
             const userId = btn.getAttribute('data-user-id');
-            const username = btn.getAttribute('data-username') || '';
+            const email = btn.getAttribute('data-email') || '';
             const fullName = btn.getAttribute('data-full-name') || '';
             const role = btn.getAttribute('data-role') || 'Management';
             const accountProtected = btn.getAttribute('data-account-protected') === 'true';
 
             const form = document.getElementById('editUserForm');
             const fullNameField = document.getElementById('editUserFullName');
-            const userField = document.getElementById('editUserUsername');
+            const emailField = document.getElementById('editUserEmail');
             const roleField = document.getElementById('editUserRole');
             const passField = document.getElementById('editUserPassword');
             const help = document.getElementById('editUserProtectedHelp');
             const displayName = document.getElementById('editUserDisplayName');
-            if (!form || !fullNameField || !userField || !roleField || !passField) {
+            if (!form || !fullNameField || !emailField || !roleField || !passField) {
                 return;
             }
 
             form.action = '/auth/edit_auth_user/' + String(parseInt(userId, 10));
             if (displayName) {
-                displayName.textContent = fullName ? fullName + ' (' + username + ')' : username;
+                displayName.textContent = fullName ? fullName + ' (' + email + ')' : email;
             }
             fullNameField.value = fullName;
             fullNameField.readOnly = accountProtected;
             fullNameField.classList.toggle('bg-light', accountProtected);
-            userField.value = username;
-            userField.readOnly = false;
-            userField.classList.remove('bg-light');
+            emailField.value = email;
+            emailField.readOnly = false;
+            emailField.classList.remove('bg-light');
             roleField.value = role;
             if (accountProtected) {
                 roleField.removeAttribute('disabled');

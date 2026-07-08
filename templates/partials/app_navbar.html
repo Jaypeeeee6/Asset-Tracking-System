@@ -16,7 +16,7 @@
         </button>
         <div class="user-info-pill d-none d-md-flex">
             <i class="bi bi-person-circle" style="font-size:1.1rem;"></i>
-            <span class="user-info-pill-name">{{ current_user.full_name or current_user.username }}</span>
+            <span class="user-info-pill-name">{{ current_user.display_name }}</span>
             <span class="role-badge role-{{ current_user.role|lower|replace(' ', '-') }}">{{ current_user.role }}</span>
         </div>
     </div>
