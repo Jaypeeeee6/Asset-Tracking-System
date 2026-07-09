@@ -288,6 +288,17 @@ function appDeleteConfirm(message, title) {
         }
     }
 
+    /**
+     * Display label for branch dropdown options (add-asset modal).
+     * Stored asset branch value remains the branch name.
+     */
+    function formatBranchOptionLabel(building) {
+        const name = (building && building.name || '').trim();
+        const code = (building && building.branch_code || '').trim();
+        if (code && name) return code + ' ' + name;
+        return name || code;
+    }
+
     function updateAddAssetRestaurantBranchDropdown(brandId) {
         var buildingSelect = document.getElementById('branch');
         if (!buildingSelect) return;
@@ -298,7 +309,7 @@ function appDeleteConfirm(message, title) {
         sorted.forEach(function (building) {
             var option = document.createElement('option');
             option.value = building.name;
-            option.textContent = building.name;
+            option.textContent = formatBranchOptionLabel(building);
             buildingSelect.appendChild(option);
         });
     }
@@ -442,8 +453,8 @@ function appDeleteConfirm(message, title) {
             tr.innerHTML = `
                 <td><input type="checkbox" class="branch-row-checkbox" value="${building.id}" aria-label="Select ${building.name}"></td>
                 <td>${i + 1}</td>
-                <td><strong class="branch-name" data-id="${building.id}">${building.name}</strong></td>
                 <td>${codeLabel}</td>
+                <td><strong class="branch-name" data-id="${building.id}">${building.name}</strong></td>
                 <td>${brandLabel}</td>
                 <td>
                     <div class="d-flex gap-2 flex-wrap align-items-center">
