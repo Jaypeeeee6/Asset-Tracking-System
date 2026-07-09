@@ -1436,6 +1436,17 @@ function appDeleteConfirm(message, title) {
     }
 
     /**
+     * Display label for employee owner dropdown options (add-asset modal).
+     * Stored asset owner value remains the employee name.
+     */
+    function formatEmployeeOwnerLabel(user) {
+        const name = (user && user.name || '').trim();
+        const employeeId = (user && user.employee_id || '').trim();
+        if (employeeId && name) return employeeId + ' — ' + name;
+        return name || employeeId;
+    }
+
+    /**
      * Dynamically load owners for a selected department
      * Updates the owner dropdown based on department selection
      * @param {string} departmentName - The selected department name
@@ -1472,10 +1483,14 @@ function appDeleteConfirm(message, title) {
                     option.disabled = true;
                     ownerSelect.appendChild(option);
                 } else {
-                    users.sort((a, b) => a.name.localeCompare(b.name)).forEach(user => {
+                    users.sort(function (a, b) {
+                        const byId = (a.employee_id || '').localeCompare(b.employee_id || '');
+                        if (byId !== 0) return byId;
+                        return (a.name || '').localeCompare(b.name || '');
+                    }).forEach(function (user) {
                         const option = document.createElement('option');
                         option.value = user.name;
-                        option.textContent = user.name;
+                        option.textContent = formatEmployeeOwnerLabel(user);
                         ownerSelect.appendChild(option);
                     });
                 }
@@ -1925,6 +1940,32 @@ function appDeleteConfirm(message, title) {
             });
     }
 
+    function resolveEmployeeEditLocation(rowUser) {
+        const result = {
+            departmentId: rowUser ? rowUser.department_id : null,
+            brandId: null,
+            branchId: null,
+            venue: rowUser && rowUser.branch_name === OFFICE_BRANCH_LABEL_JS ? 'office' : 'restaurant',
+        };
+        if (!rowUser || !rowUser.department_id) return result;
+
+        const dept = departmentsData.find(function (d) {
+            return String(d.id) === String(rowUser.department_id);
+        });
+        if (!dept || dept.branch_id == null) {
+            result.venue = 'office';
+            return result;
+        }
+
+        result.venue = 'restaurant';
+        result.branchId = dept.branch_id;
+        const branch = branchesData.find(function (b) {
+            return String(b.id) === String(dept.branch_id);
+        });
+        if (branch) result.brandId = branch.brand_id;
+        return result;
+    }
+
     // Handle editing user from modal
     function handleEditUserModal(e) {
         const btn = e.currentTarget;
@@ -1936,14 +1977,17 @@ function appDeleteConfirm(message, title) {
             const rowUser = (window.__employeeRosterUsers || []).find(function (u) {
                 return String(u.id) === String(userId);
             });
+            const loc = resolveEmployeeEditLocation(rowUser);
             window.MgmtEditModals.openEmployee({
                 id: userId,
                 name: currentName,
                 employeeId: rowUser ? rowUser.employee_id : '',
-                departmentId: rowUser ? rowUser.department_id : null,
+                departmentId: loc.departmentId,
                 departmentName: departmentName,
                 branchName: rowUser ? rowUser.branch_name : '',
-                venue: rowUser && rowUser.branch_name === OFFICE_BRANCH_LABEL_JS ? 'office' : 'restaurant'
+                brandId: loc.brandId,
+                branchId: loc.branchId,
+                venue: loc.venue,
             });
         }
     }
