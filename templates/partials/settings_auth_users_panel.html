@@ -2,7 +2,7 @@
 <div class="settings-users">
     <div class="settings-toolbar d-flex flex-wrap justify-content-between align-items-center gap-2 mb-2">
         <div class="text-muted small fw-semibold text-uppercase" style="letter-spacing:0.06em;">Accounts</div>
-        {{ add_button('Add New User', href=url_for('auth.add_auth_user'), icon='bi bi-person-plus') }}
+        {{ add_button('Add New User', button_id='addAuthUserBtn', modal_target='#addUserModal', icon='bi bi-person-plus') }}
     </div>
 
     <div class="alert alert-info py-2 px-3 small mb-3" role="note">
@@ -101,7 +101,7 @@
             <i class="bi bi-people"></i>
             <p><strong>No users found</strong></p>
             <p>Start by adding your first login account.</p>
-            {{ add_button('Add First User', href=url_for('auth.add_auth_user'), icon='bi bi-person-plus') }}
+            {{ add_button('Add First User', button_id='addAuthUserEmptyBtn', modal_target='#addUserModal', icon='bi bi-person-plus') }}
         </div>
     {% endif %}
 </div>

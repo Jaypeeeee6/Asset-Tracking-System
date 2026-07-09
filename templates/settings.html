@@ -1,5 +1,5 @@
 {% extends "base_app.html" %}
-{% from "macros/app_components.html" import add_button, modal_cancel_button %}
+{% from "macros/app_components.html" import add_button, modal_cancel_button, form_label %}
 {% block title %}Settings — Asset Tracking System{% endblock %}
 {% block extra_head %}
 <link rel="stylesheet" href="{{ url_for('static', filename='app-dashboard.css') }}">
@@ -94,6 +94,51 @@
     </div>
 </div>
 
+<div class="modal fade app-modal" id="addUserModal" tabindex="-1" aria-labelledby="addUserModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg app-modal-dialog-comfort">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="addUserModalLabel"><i class="bi bi-person-plus me-2" style="color:var(--gold);" aria-hidden="true"></i>Add New User</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <form id="addUserForm" method="post" action="{{ url_for('auth.add_auth_user') }}">
+                <div class="modal-body" style="overflow-y: auto; max-height: 70vh;">
+                    <div class="app-modal-tip mb-3" role="note">
+                        <i class="bi bi-info-circle" aria-hidden="true"></i>
+                        Fields marked with <span class="app-required-mark" aria-hidden="true">*</span> are required.
+                        <strong>IT</strong> has full Settings access; <strong>Management</strong> can manage assets on the dashboard.
+                    </div>
+                    <div class="mb-3">
+                        {{ form_label('Full name', 'addUserFullName', true) }}
+                        <input type="text" class="form-control" id="addUserFullName" name="full_name" required placeholder="Enter full name" autocomplete="name">
+                    </div>
+                    <div class="mb-3">
+                        {{ form_label('Email', 'addUserEmail', true) }}
+                        <input type="email" class="form-control" id="addUserEmail" name="email" required placeholder="Enter email address" autocomplete="email">
+                    </div>
+                    <div class="mb-3">
+                        {{ form_label('Role', 'addUserRole', true) }}
+                        <select class="form-select" id="addUserRole" name="role" required>
+                            <option value="">Select role</option>
+                            <option value="IT">IT</option>
+                            <option value="Management">Management</option>
+                        </select>
+                    </div>
+                    <div class="mb-0">
+                        {{ form_label('Password', 'addUserPassword', true) }}
+                        <input type="password" class="form-control" id="addUserPassword" name="password" required placeholder="Enter password" autocomplete="new-password">
+                        <div class="form-text">
+                            <i class="bi bi-info-circle" aria-hidden="true"></i>
+                            Minimum 6 characters recommended. Use a mix of letters, numbers, and symbols.
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">{{ modal_cancel_button('Cancel') }}{{ add_button('Create user', button_type='submit', icon='bi bi-person-plus') }}</div>
+            </form>
+        </div>
+    </div>
+</div>
+
 <div class="modal fade app-modal" id="editUserModal" tabindex="-1" aria-labelledby="editUserModalLabel" aria-hidden="true">
     <div class="modal-dialog modal-lg app-modal-dialog-comfort">
         <div class="modal-content">
@@ -109,16 +154,16 @@
                         <span id="editUserDisplayName"></span>
                     </div>
                     <div class="mb-3">
-                        <label for="editUserFullName" class="form-label">Full name</label>
+                        {{ form_label('Full name', 'editUserFullName', true) }}
                         <input type="text" class="form-control" id="editUserFullName" name="full_name" required autocomplete="name">
                         <div id="editUserProtectedHelp" class="form-text d-none">Built-in Super Admin (IT) accounts cannot change full name or role.</div>
                     </div>
                     <div class="mb-3">
-                        <label for="editUserEmail" class="form-label">Email</label>
+                        {{ form_label('Email', 'editUserEmail', true) }}
                         <input type="email" class="form-control" id="editUserEmail" name="email" required autocomplete="email">
                     </div>
                     <div class="mb-3">
-                        <label for="editUserRole" class="form-label">Role</label>
+                        {{ form_label('Role', 'editUserRole', true) }}
                         <select class="form-select" id="editUserRole" name="role" required>
                             <option value="IT">IT</option>
                             <option value="Management">Management</option>
@@ -204,6 +249,14 @@ function deleteUser(userId, displayName) {
 }
 
 document.addEventListener('DOMContentLoaded', function () {
+    const addUserModalEl = document.getElementById('addUserModal');
+    if (addUserModalEl) {
+        addUserModalEl.addEventListener('show.bs.modal', function () {
+            const form = document.getElementById('addUserForm');
+            if (form) form.reset();
+        });
+    }
+
     const editUserModalEl = document.getElementById('editUserModal');
     if (editUserModalEl) {
         editUserModalEl.addEventListener('show.bs.modal', function (event) {

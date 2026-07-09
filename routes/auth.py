@@ -63,55 +63,55 @@ def logout():
     return redirect(url_for('auth.login'))
 
 
-@auth_bp.route('/add_auth_user', methods=['GET', 'POST'])
+@auth_bp.route('/add_auth_user', methods=['POST'])
 @login_required
 def add_auth_user():
     if not current_user.has_it_access():
         flash('Access denied. Only IT users can add new users.', 'error')
         return redirect(url_for('assets.dashboard'))
 
-    if request.method == 'POST':
-        email = _normalize_email(request.form.get('email', ''))
-        full_name = normalize_full_name(request.form.get('full_name'))
-        password = request.form['password']
-        role = request.form['role']
+    users_settings = url_for('assets.settings') + '?tab=users'
 
-        if not email or not password or not role or not full_name:
-            flash('Full name, email, password, and role are required.', 'error')
-            return render_template('add_user.html')
+    email = _normalize_email(request.form.get('email', ''))
+    full_name = normalize_full_name(request.form.get('full_name'))
+    password = request.form.get('password', '')
+    role = request.form.get('role', '')
 
-        if role not in AUTH_ROLES:
-            flash('Invalid role selected.', 'error')
-            return render_template('add_user.html')
+    if not email or not password or not role or not full_name:
+        flash('Full name, email, password, and role are required.', 'error')
+        return redirect(users_settings)
 
-        conn = get_db_connection()
-        cur = conn.cursor()
-        cur.execute('SELECT id FROM users_auth WHERE email = ?', (email,))
-        if cur.fetchone():
-            conn.close()
-            flash('Email already exists.', 'error')
-            return render_template('add_user.html')
+    if role not in AUTH_ROLES:
+        flash('Invalid role selected.', 'error')
+        return redirect(users_settings)
 
-        password_hash = hash_password(password)
-        encrypted_password = 'DEPRECATED'
+    conn = get_db_connection()
+    cur = conn.cursor()
+    cur.execute('SELECT id FROM users_auth WHERE email = ?', (email,))
+    if cur.fetchone():
+        conn.close()
+        flash('Email already exists.', 'error')
+        return redirect(users_settings)
 
-        try:
-            cur.execute(
-                '''
-                INSERT INTO users_auth (email, password_hash, encrypted_password, full_name, role)
-                VALUES (?, ?, ?, ?, ?)
-                ''',
-                (email, password_hash, encrypted_password, full_name, role),
-            )
-            conn.commit()
-            conn.close()
-            flash(f'User "{full_name}" ({email}) created successfully with role "{role}".', 'success')
-            return redirect(url_for('assets.settings') + '?tab=users')
-        except Exception as e:
-            conn.close()
-            flash(f'Error creating user: {str(e)}', 'error')
+    password_hash = hash_password(password)
+    encrypted_password = 'DEPRECATED'
 
-    return render_template('add_user.html')
+    try:
+        cur.execute(
+            '''
+            INSERT INTO users_auth (email, password_hash, encrypted_password, full_name, role)
+            VALUES (?, ?, ?, ?, ?)
+            ''',
+            (email, password_hash, encrypted_password, full_name, role),
+        )
+        conn.commit()
+        conn.close()
+        flash(f'User "{full_name}" ({email}) created successfully with role "{role}".', 'success')
+    except Exception as e:
+        conn.close()
+        flash(f'Error creating user: {str(e)}', 'error')
+
+    return redirect(users_settings)
 
 
 @auth_bp.route('/edit_auth_user/<int:user_id>', methods=['POST'])
