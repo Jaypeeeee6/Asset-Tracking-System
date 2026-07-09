@@ -73,21 +73,6 @@
         if (selectedBranchId) sel.value = String(selectedBranchId);
     }
 
-    function fillDepartmentBranchSelect(sel, selectedBranchId, isOffice) {
-        if (!sel) return;
-        var prev = isOffice ? '__office__' : (selectedBranchId ? String(selectedBranchId) : '');
-        sel.innerHTML = '<option value="">Select branch</option><option value="__office__">Office</option>';
-        branchesList().slice().sort(function (a, b) {
-            return a.name.localeCompare(b.name);
-        }).forEach(function (b) {
-            var o = document.createElement('option');
-            o.value = String(b.id);
-            o.textContent = b.name;
-            sel.appendChild(o);
-        });
-        if (prev) sel.value = prev;
-    }
-
     function syncEditMgmtAssetTypeVenue() {
         var v = $('editMgmtAssetTypeVenue');
         var bw = $('editMgmtAssetTypeBrandWrap');
@@ -254,24 +239,16 @@
         if (!modalEl) return;
         $('editMgmtDepartmentId').value = data.id;
         $('editMgmtDepartmentName').value = data.name || '';
-        fillDepartmentBranchSelect(
-            $('editMgmtDepartmentBranch'),
-            data.branchId,
-            data.isOffice
-        );
         getBsModal(modalEl).show();
     }
 
     function saveEditDepartment() {
         var id = $('editMgmtDepartmentId').value;
         var name = ($('editMgmtDepartmentName').value || '').trim();
-        var branchVal = $('editMgmtDepartmentBranch').value;
         if (!name) return showError('Please enter a department name.');
-        if (!branchVal) return showError('Please select a branch or Office.');
 
         var formData = new FormData();
         formData.append('name', name);
-        formData.append('branch_id', branchVal);
 
         return fetch('/admin/departments/' + encodeURIComponent(id), { method: 'PUT', body: formData })
             .then(function (r) { return r.json(); })

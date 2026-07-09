@@ -43,17 +43,10 @@
       </div>
       <div class="modal-body">
         <input type="hidden" id="editMgmtDepartmentId" value="">
-        <div class="mb-3">
+        <div class="mb-0">
           {{ form_label('Department name', 'editMgmtDepartmentName', true) }}
           <input type="text" class="form-control" id="editMgmtDepartmentName" maxlength="100" required>
-        </div>
-        <div class="mb-0">
-          {{ form_label('Branch', 'editMgmtDepartmentBranch', true) }}
-          <select class="form-select app-select-with-chevron" id="editMgmtDepartmentBranch" required>
-            <option value="">Select branch</option>
-            <option value="__office__">Office</option>
-          </select>
-          <div class="form-text"><i class="bi bi-info-circle" aria-hidden="true"></i> Choose Office for office-only departments, or a restaurant branch.</div>
+          <div class="form-text"><i class="bi bi-info-circle" aria-hidden="true"></i> Office departments only. Restaurant locations are managed under Branches.</div>
         </div>
       </div>
       <div class="modal-footer">

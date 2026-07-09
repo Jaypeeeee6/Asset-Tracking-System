@@ -381,7 +381,6 @@ function appDeleteConfirm(message, title) {
                 departmentsData = data;
                 updateDepartmentsList();
                 updateDepartmentQRList();
-                updateDepartmentFilterDropdown();
             })
             .catch(error => console.error('Error loading departments:', error));
     }
@@ -473,35 +472,26 @@ function appDeleteConfirm(message, title) {
 // DEPARTMENT MANAGEMENT FUNCTIONS
 // ============================================================================
 
-    // Update departments list in management modal
+    function isOfficeDepartment(dept) {
+        return dept.branch_id == null || dept.branch_name === OFFICE_BRANCH_LABEL_JS;
+    }
+
+    // Update departments list in management modal (office departments only; restaurant branches live in Branches)
     function updateDepartmentsList() {
         const departmentsList = document.getElementById('departmentsList');
         if (!departmentsList) return;
-        const filterSelect = document.getElementById('departmentFilterBranch');
-        const selectedBuilding = filterSelect ? filterSelect.value : '';
 
         departmentsList.innerHTML = '';
         resetMgmtTableBulkUI('selectAllDepartmentsCheckbox', 'bulkDeleteDepartmentsBtn', 'departmentsList', 'department-row-checkbox');
 
-        let filteredDepartments = departmentsData;
-        if (selectedBuilding === '__office__') {
-            filteredDepartments = departmentsData.filter(function (dept) {
-                return dept.branch_id == null || dept.branch_name === OFFICE_BRANCH_LABEL_JS;
-            });
-        } else if (selectedBuilding) {
-            filteredDepartments = departmentsData.filter(dept => dept.branch_name === selectedBuilding);
-        }
+        const filteredDepartments = departmentsData.filter(isOfficeDepartment);
 
         if (filteredDepartments.length === 0) {
-            departmentsList.innerHTML = '<tr><td colspan="5" class="text-center text-muted py-4">No departments found</td></tr>';
+            departmentsList.innerHTML = '<tr><td colspan="4" class="text-center text-muted py-4">No departments found</td></tr>';
             return;
         }
 
-        const sorted = [...filteredDepartments].sort((a, b) => {
-            const byBranch = a.branch_name.localeCompare(b.branch_name);
-            if (byBranch !== 0) return byBranch;
-            return a.name.localeCompare(b.name);
-        });
+        const sorted = [...filteredDepartments].sort((a, b) => a.name.localeCompare(b.name));
 
         sorted.forEach((department, i) => {
             const tr = document.createElement('tr');
@@ -509,7 +499,6 @@ function appDeleteConfirm(message, title) {
                 <td><input type="checkbox" class="department-row-checkbox" value="${department.id}" aria-label="Select ${department.name}"></td>
                 <td>${i + 1}</td>
                 <td><strong class="department-name" data-id="${department.id}">${department.name}</strong></td>
-                <td>${department.branch_name}</td>
                 <td>
                     <div class="d-flex gap-2 flex-wrap align-items-center">
                         <button type="button" class="btn-app-edit-icon edit-department-btn"
@@ -539,33 +528,6 @@ function appDeleteConfirm(message, title) {
             btn.addEventListener('click', handleDeleteDepartment);
         });
         resetMgmtTableBulkUI('selectAllDepartmentsCheckbox', 'bulkDeleteDepartmentsBtn', 'departmentsList', 'department-row-checkbox');
-    }
-
-    // Update department filter dropdown
-    function updateDepartmentFilterDropdown() {
-        const filterSelect = document.getElementById('departmentFilterBranch');
-        if (!filterSelect) return;
-        
-        filterSelect.innerHTML = '<option value="">All branches</option>';
-        const hasOffice = departmentsData.some(function (d) { return d.branch_id == null; });
-        if (hasOffice) {
-            const officeOpt = document.createElement('option');
-            officeOpt.value = '__office__';
-            officeOpt.textContent = 'Office';
-            filterSelect.appendChild(officeOpt);
-        }
-        const branchNames = [...new Set(departmentsData.filter(function (d) { return d.branch_id != null; }).map(function (d) { return d.branch_name; }))].sort();
-        branchNames.forEach(function (building) {
-            const option = document.createElement('option');
-            option.value = building;
-            option.textContent = building;
-            filterSelect.appendChild(option);
-        });
-        
-        // Add change listener (replace to avoid duplicates on repeated loads)
-        filterSelect.onchange = function() {
-            updateDepartmentsList();
-        };
     }
 
     // Update department QR codes list
@@ -1580,16 +1542,11 @@ function appDeleteConfirm(message, title) {
     function handleEditDepartment(e) {
         const departmentId = e.currentTarget.getAttribute('data-id');
         const currentName = e.currentTarget.getAttribute('data-name');
-        const buildingName = e.currentTarget.getAttribute('data-branch');
-        const dept = departmentsData.find(function (d) { return String(d.id) === String(departmentId); });
-        const building = branchesData.find(function (b) { return b.name === buildingName; });
 
         if (window.MgmtEditModals && window.MgmtEditModals.openDepartment) {
             window.MgmtEditModals.openDepartment({
                 id: departmentId,
-                name: currentName,
-                branchId: dept ? dept.branch_id : (building ? building.id : null),
-                isOffice: buildingName === OFFICE_BRANCH_LABEL_JS
+                name: currentName
             });
         }
     }
