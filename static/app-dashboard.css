@@ -680,13 +680,13 @@
 
 /* Owner column — slightly narrower */
 .asset-dashboard .asset-register-card .app-table col.app-table-col-owner {
-    width: 8rem;
+    width: 10rem;
 }
 
 .asset-dashboard .asset-register-card .app-table th.app-table-col-owner,
 .asset-dashboard .asset-register-card .app-table td.app-table-col-owner {
-    width: 8rem;
-    max-width: 8rem;
+    width: 10rem;
+    max-width: 10rem;
     white-space: normal;
     overflow-wrap: anywhere;
     box-sizing: border-box;

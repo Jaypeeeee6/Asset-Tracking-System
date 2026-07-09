@@ -51,7 +51,7 @@
     </div>
   </div>
   <h6 class="settings-section-title mt-3 mb-2">Existing Employees</h6>
-  {{ settings_search_bar('userModalList', 'Search employee IDs, names, branches, departments…', 'settingsEmployeesSearch') }}
+  {{ settings_search_bar('userModalList', 'Search employee IDs, names, mobile, email, branches, departments…', 'settingsEmployeesSearch') }}
   <div id="settingsEmployeesBulkBar" class="app-bulk-bar mb-3" style="display: none;">
     <div class="d-flex flex-wrap justify-content-between align-items-center gap-2">
       <span><i class="bi bi-info-circle me-1"></i> <strong><span id="settingsEmployeesSelectedCount">0</span> items selected</strong> &mdash; use the buttons to act on the selection</span>
@@ -67,13 +67,15 @@
   </div>
   <div class="settings-auth-table-bleed">
     <div style="overflow-x:auto;">
-      <table class="app-table" style="width: 100%; min-width: 860px;">
+      <table class="app-table" style="width: 100%; min-width: 1040px;">
         <thead>
           <tr>
             <th><input type="checkbox" id="selectAllEmployeesRosterCheckbox" title="Select all" aria-label="Select all employees in list"></th>
             <th>#</th>
             <th>Employee ID</th>
             <th>Name</th>
+            <th>Mobile</th>
+            <th>Email</th>
             <th>Branch</th>
             <th>Department</th>
             <th>Actions</th>

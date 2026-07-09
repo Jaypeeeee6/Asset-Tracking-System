@@ -431,8 +431,8 @@ def get_users():
     if department_id:
         cur.execute(
             '''
-            SELECT u.id, u.name, u.employee_id, u.department_id, d.name as department_name,
-                   COALESCE(b.name, ?) as branch_name
+            SELECT u.id, u.name, u.employee_id, u.mobile, u.email, u.department_id,
+                   d.name as department_name, COALESCE(b.name, ?) as branch_name
             FROM users u
             JOIN departments d ON u.department_id = d.id
             LEFT JOIN branches b ON d.branch_id = b.id
@@ -444,8 +444,8 @@ def get_users():
     else:
         cur.execute(
             '''
-            SELECT u.id, u.name, u.employee_id, u.department_id, d.name as department_name,
-                   COALESCE(b.name, ?) as branch_name
+            SELECT u.id, u.name, u.employee_id, u.mobile, u.email, u.department_id,
+                   d.name as department_name, COALESCE(b.name, ?) as branch_name
             FROM users u
             JOIN departments d ON u.department_id = d.id
             LEFT JOIN branches b ON d.branch_id = b.id
@@ -468,6 +468,8 @@ def add_user():
     data = request.get_json()
     name = data.get('name', '').strip()
     employee_id = data.get('employee_id', '').strip()
+    mobile = data.get('mobile', '').strip()
+    email = data.get('email', '').strip()
     department_id = data.get('department_id')
     
     if not name or not employee_id or not department_id:
@@ -494,14 +496,21 @@ def add_user():
         return jsonify({'error': 'User already exists in this department'}), 409
     
     cur.execute(
-        'INSERT INTO users (name, employee_id, department_id) VALUES (?, ?, ?)',
-        (name, employee_id, department_id),
+        'INSERT INTO users (name, employee_id, mobile, email, department_id) VALUES (?, ?, ?, ?, ?)',
+        (name, employee_id, mobile or None, email or None, department_id),
     )
     conn.commit()
     user_id = cur.lastrowid
     conn.close()
     
-    return jsonify({'id': user_id, 'name': name, 'employee_id': employee_id, 'department_id': department_id})
+    return jsonify({
+        'id': user_id,
+        'name': name,
+        'employee_id': employee_id,
+        'mobile': mobile,
+        'email': email,
+        'department_id': department_id,
+    })
 
 @admin_bp.route('/users/bulk', methods=['POST'])
 @login_required
@@ -568,6 +577,8 @@ def update_user(user_id):
     data = request.get_json()
     name = data.get('name', '').strip()
     employee_id = data.get('employee_id', '').strip()
+    mobile = data.get('mobile', '').strip()
+    email = data.get('email', '').strip()
     
     if not name or not employee_id:
         return jsonify({'error': 'Employee ID and name are required'}), 400
@@ -596,8 +607,11 @@ def update_user(user_id):
         conn.close()
         return jsonify({'error': 'User name already exists in this department'}), 409
     
-    # Update user name and employee ID
-    cur.execute('UPDATE users SET name = ?, employee_id = ? WHERE id = ?', (name, employee_id, user_id))
+    # Update user name, employee ID, and contact info
+    cur.execute(
+        'UPDATE users SET name = ?, employee_id = ?, mobile = ?, email = ? WHERE id = ?',
+        (name, employee_id, mobile or None, email or None, user_id),
+    )
     
     # Update assets that reference the old user name
     cur.execute('SELECT name FROM departments WHERE id = ?', (department_id,))

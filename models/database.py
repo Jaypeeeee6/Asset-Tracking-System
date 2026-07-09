@@ -289,6 +289,21 @@ def _migrate_users_employee_id(conn):
         conn.commit()
 
 
+def _migrate_users_contact_info(conn):
+    """Add mobile and email columns to users (employees roster)."""
+    cur = conn.cursor()
+    cur.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='users'")
+    if not cur.fetchone():
+        return
+    cur.execute('PRAGMA table_info(users)')
+    col_names = [row[1] for row in cur.fetchall()]
+    if 'mobile' not in col_names:
+        cur.execute('ALTER TABLE users ADD COLUMN mobile TEXT')
+    if 'email' not in col_names:
+        cur.execute('ALTER TABLE users ADD COLUMN email TEXT')
+    conn.commit()
+
+
 def _migrate_users_auth_username_to_email(conn):
     """Rename legacy users_auth.username column to email."""
     cur = conn.cursor()
@@ -439,6 +454,7 @@ def init_db():
         )
     ''')
     _migrate_users_employee_id(conn)
+    _migrate_users_contact_info(conn)
     
     # Create users_auth table for login authentication
     cur.execute('''

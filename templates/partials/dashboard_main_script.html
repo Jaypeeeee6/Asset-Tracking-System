@@ -1854,7 +1854,7 @@ function appDeleteConfirm(message, title) {
                 resetMgmtTableBulkUI('selectAllEmployeesRosterCheckbox', 'bulkDeleteEmployeesRosterBtn', 'userModalList', 'employee-roster-checkbox');
 
                 if (users.length === 0) {
-                    usersList.innerHTML = '<tr><td colspan="7" class="text-center text-muted py-4">No employees found.</td></tr>';
+                    usersList.innerHTML = '<tr><td colspan="9" class="text-center text-muted py-4">No employees found.</td></tr>';
                     return;
                 }
 
@@ -1869,12 +1869,16 @@ function appDeleteConfirm(message, title) {
 
                 sorted.forEach((user, i) => {
                     const employeeId = user.employee_id || '—';
+                    const mobile = user.mobile || '—';
+                    const email = user.email || '—';
                     const tr = document.createElement('tr');
                     tr.innerHTML = `
                         <td><input type="checkbox" class="employee-roster-checkbox" value="${user.id}" aria-label="Select ${user.name}"></td>
                         <td>${i + 1}</td>
                         <td><span class="text-muted">${employeeId}</span></td>
                         <td><strong>${user.name}</strong></td>
+                        <td>${mobile === '—' ? '<span class="text-muted">—</span>' : mobile}</td>
+                        <td>${email === '—' ? '<span class="text-muted">—</span>' : email}</td>
                         <td>${user.branch_name}</td>
                         <td>${user.department_name}</td>
                         <td>
@@ -1982,6 +1986,8 @@ function appDeleteConfirm(message, title) {
                 id: userId,
                 name: currentName,
                 employeeId: rowUser ? rowUser.employee_id : '',
+                mobile: rowUser ? rowUser.mobile : '',
+                email: rowUser ? rowUser.email : '',
                 departmentId: loc.departmentId,
                 departmentName: departmentName,
                 branchName: rowUser ? rowUser.branch_name : '',

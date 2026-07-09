@@ -295,6 +295,10 @@
         var employeeIdEl = $('editMgmtEmployeeEmployeeId');
         if (employeeIdEl) employeeIdEl.value = data.employeeId || data.employee_id || '';
         $('editMgmtEmployeeName').value = data.name || '';
+        var mobileEl = $('editMgmtEmployeeMobile');
+        if (mobileEl) mobileEl.value = data.mobile || '';
+        var emailEl = $('editMgmtEmployeeEmail');
+        if (emailEl) emailEl.value = data.email || '';
 
         var departmentId = data.departmentId || data.department_id || null;
         var venue = data.venue || (data.branchName === OFFICE_BRANCH_LABEL ? 'office' : 'restaurant');
@@ -371,6 +375,8 @@
         var id = $('editMgmtEmployeeId').value;
         var employeeId = ($('editMgmtEmployeeEmployeeId') && $('editMgmtEmployeeEmployeeId').value || '').trim();
         var name = ($('editMgmtEmployeeName').value || '').trim();
+        var mobile = ($('editMgmtEmployeeMobile') && $('editMgmtEmployeeMobile').value || '').trim();
+        var email = ($('editMgmtEmployeeEmail') && $('editMgmtEmployeeEmail').value || '').trim();
         var departmentId = $('editMgmtEmployeeDepartment').value;
         if (!employeeId) return showError('Please enter an employee ID.');
         if (!name) return showError('Please enter an employee name.');
@@ -379,7 +385,13 @@
         return fetch('/admin/users/' + encodeURIComponent(id), {
             method: 'PUT',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ name: name, employee_id: employeeId, department_id: departmentId })
+            body: JSON.stringify({
+                name: name,
+                employee_id: employeeId,
+                mobile: mobile,
+                email: email,
+                department_id: departmentId
+            })
         })
             .then(function (r) { return r.json(); })
             .then(function (data) {

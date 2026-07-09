@@ -83,6 +83,14 @@
           <input type="text" class="form-control" id="editMgmtEmployeeName" maxlength="100" required>
         </div>
         <div class="mb-3">
+          {{ form_label('Mobile number', 'editMgmtEmployeeMobile', false) }}
+          <input type="tel" class="form-control" id="editMgmtEmployeeMobile" maxlength="30" placeholder="e.g. +968 9123 4567" autocomplete="tel">
+        </div>
+        <div class="mb-3">
+          {{ form_label('Email', 'editMgmtEmployeeEmail', false) }}
+          <input type="email" class="form-control" id="editMgmtEmployeeEmail" maxlength="120" placeholder="e.g. name@company.com" autocomplete="email">
+        </div>
+        <div class="mb-3">
           {{ form_label('Location', 'editMgmtEmployeeVenue', true) }}
           <select class="form-select app-select-with-chevron" id="editMgmtEmployeeVenue" required>
             <option value="">Choose location</option>

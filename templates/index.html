@@ -842,7 +842,13 @@
                         <small class="text-muted">({{ (asset.price or 0.0)|fmt_omr }} &times; {{ asset.quantity|fmt_num }})</small>
                     </div>
                 </td>
-                <td class="app-table-col-owner">{{ asset.owner }}</td>
+                <td class="app-table-col-owner">
+                    {{ asset.owner }}
+                    {% if asset.owner != 'No Owner' and (asset.owner_mobile or asset.owner_email) %}
+                    {% if asset.owner_mobile %}<br><small class="text-muted">{{ asset.owner_mobile }}</small>{% endif %}
+                    {% if asset.owner_email %}<br><small class="text-muted">{{ asset.owner_email }}</small>{% endif %}
+                    {% endif %}
+                </td>
                 <td class="app-table-col-location">{{ asset.branch|fmt_location(asset.department) }}</td>
                 <td class="app-table-col-status">
                     <select class="form-select form-select-sm status-select" data-asset-id="{{ asset.id }}">

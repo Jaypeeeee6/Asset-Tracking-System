@@ -160,9 +160,13 @@
         var venue = $('addMgmtEmployeeVenue');
         var employeeId = $('addMgmtEmployeeIdInput');
         var name = $('addMgmtEmployeeName');
+        var mobile = $('addMgmtEmployeeMobile');
+        var email = $('addMgmtEmployeeEmail');
         if (venue) venue.value = '';
         if (employeeId) employeeId.value = '';
         if (name) name.value = '';
+        if (mobile) mobile.value = '';
+        if (email) email.value = '';
         syncAddEmployeeVenue();
     }
 
@@ -173,6 +177,8 @@
         var departmentId = $('addMgmtEmployeeDepartment') ? $('addMgmtEmployeeDepartment').value : '';
         var employeeId = $('addMgmtEmployeeIdInput') ? $('addMgmtEmployeeIdInput').value.trim() : '';
         var name = $('addMgmtEmployeeName') ? $('addMgmtEmployeeName').value.trim() : '';
+        var mobile = $('addMgmtEmployeeMobile') ? $('addMgmtEmployeeMobile').value.trim() : '';
+        var email = $('addMgmtEmployeeEmail') ? $('addMgmtEmployeeEmail').value.trim() : '';
 
         if (!venue) return showError('Please choose Restaurant or Office.');
         if (venue === 'restaurant') {
@@ -189,6 +195,8 @@
             body: JSON.stringify({
                 name: name,
                 employee_id: employeeId,
+                mobile: mobile,
+                email: email,
                 department_id: parseInt(departmentId, 10)
             })
         })

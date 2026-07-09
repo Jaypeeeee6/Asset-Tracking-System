@@ -188,6 +188,24 @@ def dashboard():
     # Get paginated results
     cur.execute(f'SELECT * FROM assets {where_sql} ORDER BY {sort_by} {sort_dir} LIMIT ? OFFSET ?', params + [per_page, offset])
     assets = [dict(zip([desc[0] for desc in cur.description], row)) for row in cur.fetchall()]
+
+    cur.execute('''
+        SELECT u.name, d.name as department, u.mobile, u.email
+        FROM users u
+        JOIN departments d ON u.department_id = d.id
+    ''')
+    owner_contacts = {
+        (row[0], row[1]): {'mobile': row[2] or '', 'email': row[3] or ''}
+        for row in cur.fetchall()
+    }
+    for asset in assets:
+        if asset.get('owner') == 'No Owner':
+            asset['owner_mobile'] = ''
+            asset['owner_email'] = ''
+        else:
+            contact = owner_contacts.get((asset.get('owner'), asset.get('department')), {})
+            asset['owner_mobile'] = contact.get('mobile', '')
+            asset['owner_email'] = contact.get('email', '')
     
     cur.execute('SELECT used_status, branch, department, price, quantity FROM assets')
     chart_data = _compute_chart_data_from_asset_rows(cur.fetchall())

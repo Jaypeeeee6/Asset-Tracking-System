@@ -42,9 +42,17 @@
           {{ form_label('Employee ID', 'addMgmtEmployeeIdInput', true) }}
           <input type="text" class="form-control" id="addMgmtEmployeeIdInput" maxlength="50" required placeholder="e.g. EMP-00142" autocomplete="off">
         </div>
-        <div class="mb-0">
+        <div class="mb-3">
           {{ form_label('Employee name', 'addMgmtEmployeeName', true) }}
           <input type="text" class="form-control" id="addMgmtEmployeeName" maxlength="100" required placeholder="Enter employee name" autocomplete="name">
+        </div>
+        <div class="mb-3">
+          {{ form_label('Mobile number', 'addMgmtEmployeeMobile', false) }}
+          <input type="tel" class="form-control" id="addMgmtEmployeeMobile" maxlength="30" placeholder="e.g. +968 9123 4567" autocomplete="tel">
+        </div>
+        <div class="mb-0">
+          {{ form_label('Email', 'addMgmtEmployeeEmail', false) }}
+          <input type="email" class="form-control" id="addMgmtEmployeeEmail" maxlength="120" placeholder="e.g. name@company.com" autocomplete="email">
         </div>
       </div>
       <div class="modal-footer">
