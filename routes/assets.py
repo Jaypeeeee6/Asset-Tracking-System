@@ -161,6 +161,74 @@ def _save_spec_values_for_single_asset(cur, asset_id, asset_name, asset_type, sp
     _save_spec_values_for_asset(cur, asset_id, asset_name, asset_type, wrapped)
 
 
+def _get_inclusions_for_asset_name(cur, asset_name_id):
+    cur.execute(
+        '''
+        SELECT id, label FROM asset_name_inclusions
+        WHERE asset_name_id = ?
+        ORDER BY sort_order, id
+        ''',
+        (asset_name_id,),
+    )
+    return [{'id': row[0], 'label': row[1]} for row in cur.fetchall()]
+
+
+def _parse_asset_inclusion_values_json(raw):
+    """Parse checked inclusions: {asset_name: [inclusion_id, ...]}."""
+    if not raw:
+        return {}
+    try:
+        data = json.loads(raw)
+    except json.JSONDecodeError:
+        return None
+    if not isinstance(data, dict):
+        return None
+    return data
+
+
+def _parse_inclusion_ids_list_json(raw):
+    """Parse a flat list of checked inclusion ids for a single asset."""
+    if not raw:
+        return []
+    try:
+        data = json.loads(raw)
+    except json.JSONDecodeError:
+        return None
+    if not isinstance(data, list):
+        return None
+    return data
+
+
+def _save_inclusion_values_for_asset(cur, asset_id, asset_name, asset_type, inclusion_values_by_name):
+    asset_name_id = _get_asset_name_id(cur, asset_name, asset_type)
+    if not asset_name_id:
+        return
+    checked = inclusion_values_by_name.get(asset_name, [])
+    checked_ids = set()
+    if isinstance(checked, list):
+        for cid in checked:
+            try:
+                checked_ids.add(int(cid))
+            except (TypeError, ValueError):
+                continue
+    inclusions = _get_inclusions_for_asset_name(cur, asset_name_id)
+    valid_ids = {inc['id'] for inc in inclusions}
+    cur.execute('DELETE FROM asset_inclusion_values WHERE asset_id = ?', (asset_id,))
+    for inc_id in checked_ids:
+        if inc_id in valid_ids:
+            cur.execute(
+                'INSERT INTO asset_inclusion_values (asset_id, inclusion_id) VALUES (?, ?)',
+                (asset_id, inc_id),
+            )
+
+
+def _save_inclusion_values_for_single_asset(cur, asset_id, asset_name, asset_type, checked_ids):
+    if not isinstance(checked_ids, list):
+        checked_ids = []
+    wrapped = {asset_name: checked_ids}
+    _save_inclusion_values_for_asset(cur, asset_id, asset_name, asset_type, wrapped)
+
+
 def _compute_chart_data_from_asset_rows(rows):
     """Aggregate branch/department/value stats from asset rows (tuple or dict)."""
     status_counts = {'Used': 0, 'Not Used': 0, 'Out of Service': 0}
@@ -494,6 +562,11 @@ def add_asset():
     if spec_values_by_name is None:
         flash('Invalid asset specification data.', 'error')
         return redirect(url_for('assets.dashboard'))
+
+    inclusion_values_by_name = _parse_asset_inclusion_values_json(request.form.get('asset_inclusion_values_json', ''))
+    if inclusion_values_by_name is None:
+        flash('Invalid asset inclusion data.', 'error')
+        return redirect(url_for('assets.dashboard'))
     
     conn = get_db_connection()
     cur = conn.cursor()
@@ -549,6 +622,7 @@ def add_asset():
             asset_id = cur.lastrowid
 
         _save_spec_values_for_asset(cur, asset_id, asset_name, asset_type, spec_values_by_name)
+        _save_inclusion_values_for_asset(cur, asset_id, asset_name, asset_type, inclusion_values_by_name)
     
     conn.commit()
     conn.close()
@@ -573,8 +647,13 @@ def get_asset_spec_values(asset_id):
         {'spec_field_id': row[0], 'value': row[1], 'label': row[2]}
         for row in cur.fetchall()
     ]
+    cur.execute(
+        'SELECT inclusion_id FROM asset_inclusion_values WHERE asset_id = ?',
+        (asset_id,),
+    )
+    inclusion_ids = [row[0] for row in cur.fetchall()]
     conn.close()
-    return jsonify({'values': values})
+    return jsonify({'values': values, 'inclusion_ids': inclusion_ids})
 
 @assets_bp.route('/update/<int:asset_id>', methods=['POST'])
 @login_required
@@ -632,6 +711,11 @@ def update_asset(asset_id):
     if spec_err:
         conn.close()
         return jsonify({'error': spec_err}), 400
+
+    inclusion_ids = _parse_inclusion_ids_list_json(request.form.get('asset_inclusion_values_json', ''))
+    if inclusion_ids is None:
+        conn.close()
+        return jsonify({'error': 'Invalid asset inclusion data.'}), 400
     
     try:
         # Get current asset data to check if branch or department changed
@@ -664,6 +748,7 @@ def update_asset(asset_id):
         ''', (name, asset_type, quantity, price, owner, branch, department, used_status, new_asset_code, asset_id))
 
         _save_spec_values_for_single_asset(cur, asset_id, name, asset_type, spec_values)
+        _save_inclusion_values_for_single_asset(cur, asset_id, name, asset_type, inclusion_ids)
         
         conn.commit()
         conn.close()

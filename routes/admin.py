@@ -928,6 +928,129 @@ def _sync_spec_fields_for_asset_name(cur, asset_name_id, updates):
             cur.execute('DELETE FROM asset_name_spec_fields WHERE id = ?', (old_id,))
 
 
+def _fetch_inclusions_for_asset_names(cur, asset_name_ids):
+    """Return {asset_name_id: [{id, label, sort_order}, ...]}."""
+    if not asset_name_ids:
+        return {}
+    placeholders = ','.join('?' * len(asset_name_ids))
+    cur.execute(
+        f'''
+        SELECT id, asset_name_id, label, sort_order
+        FROM asset_name_inclusions
+        WHERE asset_name_id IN ({placeholders})
+        ORDER BY sort_order, id
+        ''',
+        asset_name_ids,
+    )
+    grouped = {}
+    for row in cur.fetchall():
+        grouped.setdefault(row[1], []).append({
+            'id': row[0],
+            'label': row[2],
+            'sort_order': row[3],
+        })
+    return grouped
+
+
+def _parse_inclusion_labels():
+    """Parse inclusion labels from form JSON (inclusions_json)."""
+    labels = []
+    if request.form.get('inclusions_json'):
+        import json
+        try:
+            raw = json.loads(request.form.get('inclusions_json') or '[]')
+            if isinstance(raw, list):
+                labels = [str(item).strip() for item in raw if str(item).strip()]
+        except (json.JSONDecodeError, TypeError):
+            pass
+    # Deduplicate while preserving order
+    seen = set()
+    unique = []
+    for label in labels:
+        key = label.lower()
+        if key in seen:
+            continue
+        seen.add(key)
+        unique.append(label)
+    return unique
+
+
+def _parse_inclusion_updates():
+    """Parse inclusion updates from form JSON: [{id?, label}]."""
+    import json
+    raw = request.form.get('inclusions_json', '').strip()
+    if not raw:
+        return []
+    try:
+        parsed = json.loads(raw)
+    except json.JSONDecodeError:
+        return None
+    if not isinstance(parsed, list):
+        return None
+    updates = []
+    seen_labels = set()
+    for item in parsed:
+        if isinstance(item, str):
+            label = item.strip()
+            inc_id = None
+        elif isinstance(item, dict):
+            label = str(item.get('label', '')).strip()
+            inc_id = item.get('id')
+            if inc_id is not None:
+                try:
+                    inc_id = int(inc_id)
+                except (TypeError, ValueError):
+                    inc_id = None
+        else:
+            continue
+        if not label:
+            continue
+        key = label.lower()
+        if key in seen_labels:
+            continue
+        seen_labels.add(key)
+        updates.append({'id': inc_id, 'label': label})
+    return updates
+
+
+def _save_inclusions_for_asset_name(cur, asset_name_id, labels):
+    """Insert inclusion labels for a new asset name."""
+    for i, label in enumerate(labels):
+        cur.execute(
+            'INSERT INTO asset_name_inclusions (asset_name_id, label, sort_order) VALUES (?, ?, ?)',
+            (asset_name_id, label, i),
+        )
+
+
+def _sync_inclusions_for_asset_name(cur, asset_name_id, updates):
+    """Sync inclusions: update labels, add new, remove missing."""
+    cur.execute(
+        'SELECT id, label FROM asset_name_inclusions WHERE asset_name_id = ? ORDER BY sort_order, id',
+        (asset_name_id,),
+    )
+    existing = {row[0]: row[1] for row in cur.fetchall()}
+    keep_ids = set()
+    for i, item in enumerate(updates):
+        inc_id = item.get('id')
+        label = item['label']
+        if inc_id and inc_id in existing:
+            cur.execute(
+                'UPDATE asset_name_inclusions SET label = ?, sort_order = ? WHERE id = ? AND asset_name_id = ?',
+                (label, i, inc_id, asset_name_id),
+            )
+            keep_ids.add(inc_id)
+        else:
+            cur.execute(
+                'INSERT INTO asset_name_inclusions (asset_name_id, label, sort_order) VALUES (?, ?, ?)',
+                (asset_name_id, label, i),
+            )
+            keep_ids.add(cur.lastrowid)
+    for old_id in existing:
+        if old_id not in keep_ids:
+            cur.execute('DELETE FROM asset_inclusion_values WHERE inclusion_id = ?', (old_id,))
+            cur.execute('DELETE FROM asset_name_inclusions WHERE id = ?', (old_id,))
+
+
 @admin_bp.route('/asset-names', methods=['GET'])
 @login_required
 def get_asset_names():
@@ -938,9 +1061,16 @@ def get_asset_names():
     if asset_type_id:
         cur.execute('SELECT id, name FROM asset_names WHERE asset_type_id = ? ORDER BY name', (asset_type_id,))
         rows = cur.fetchall()
-        spec_map = _fetch_spec_fields_for_asset_names(cur, [row[0] for row in rows])
+        ids = [row[0] for row in rows]
+        spec_map = _fetch_spec_fields_for_asset_names(cur, ids)
+        inclusion_map = _fetch_inclusions_for_asset_names(cur, ids)
         asset_names = [
-            {'id': row[0], 'name': row[1], 'spec_fields': spec_map.get(row[0], [])}
+            {
+                'id': row[0],
+                'name': row[1],
+                'spec_fields': spec_map.get(row[0], []),
+                'inclusions': inclusion_map.get(row[0], []),
+            }
             for row in rows
         ]
     else:
@@ -951,7 +1081,9 @@ def get_asset_names():
             ORDER BY at.name, an.name
         ''')
         rows = cur.fetchall()
-        spec_map = _fetch_spec_fields_for_asset_names(cur, [row[0] for row in rows])
+        ids = [row[0] for row in rows]
+        spec_map = _fetch_spec_fields_for_asset_names(cur, ids)
+        inclusion_map = _fetch_inclusions_for_asset_names(cur, ids)
         asset_names = [
             {
                 'id': row[0],
@@ -959,6 +1091,7 @@ def get_asset_names():
                 'asset_type_id': row[2],
                 'asset_type_name': row[3],
                 'spec_fields': spec_map.get(row[0], []),
+                'inclusions': inclusion_map.get(row[0], []),
             }
             for row in rows
         ]
@@ -990,11 +1123,14 @@ def add_asset_name():
     conn = get_db_connection()
     cur = conn.cursor()
     spec_labels = _parse_specification_labels()
+    inclusion_labels = _parse_inclusion_labels()
     try:
         cur.execute('INSERT INTO asset_names (name, asset_type_id) VALUES (?, ?)', (name, asset_type_id))
         asset_name_id = cur.lastrowid
         if spec_labels:
             _save_spec_fields_for_asset_name(cur, asset_name_id, spec_labels)
+        if inclusion_labels:
+            _save_inclusions_for_asset_name(cur, asset_name_id, inclusion_labels)
         conn.commit()
         conn.close()
         return jsonify({
@@ -1003,6 +1139,7 @@ def add_asset_name():
             'name': name,
             'asset_type_id': asset_type_id,
             'spec_fields': [{'label': label} for label in spec_labels],
+            'inclusions': [{'label': label} for label in inclusion_labels],
         })
     except sqlite3.IntegrityError:
         conn.close()
@@ -1022,6 +1159,10 @@ def update_asset_name(asset_name_id):
     spec_updates = _parse_specification_updates()
     if spec_updates is None:
         return jsonify({'error': 'Invalid specifications data'}), 400
+    
+    inclusion_updates = _parse_inclusion_updates()
+    if inclusion_updates is None:
+        return jsonify({'error': 'Invalid inclusions data'}), 400
     
     conn = get_db_connection()
     cur = conn.cursor()
@@ -1043,8 +1184,12 @@ def update_asset_name(asset_name_id):
 
         if request.form.get('specifications_json') is not None:
             _sync_spec_fields_for_asset_name(cur, asset_name_id, spec_updates)
+
+        if request.form.get('inclusions_json') is not None:
+            _sync_inclusions_for_asset_name(cur, asset_name_id, inclusion_updates)
         
         spec_map = _fetch_spec_fields_for_asset_names(cur, [asset_name_id])
+        inclusion_map = _fetch_inclusions_for_asset_names(cur, [asset_name_id])
         
         conn.commit()
         conn.close()
@@ -1053,6 +1198,7 @@ def update_asset_name(asset_name_id):
             'id': asset_name_id,
             'name': name,
             'spec_fields': spec_map.get(asset_name_id, []),
+            'inclusions': inclusion_map.get(asset_name_id, []),
         })
     except sqlite3.IntegrityError:
         conn.close()
@@ -1086,6 +1232,7 @@ def delete_asset_name(asset_name_id):
         return jsonify({'error': f'Cannot delete asset name. It is being used by {asset_count} asset(s)'}), 400
     
     cur.execute('DELETE FROM asset_name_spec_fields WHERE asset_name_id = ?', (asset_name_id,))
+    cur.execute('DELETE FROM asset_name_inclusions WHERE asset_name_id = ?', (asset_name_id,))
     # Delete the asset name
     cur.execute('DELETE FROM asset_names WHERE id = ?', (asset_name_id,))
     conn.commit()

@@ -430,19 +430,22 @@
         var modalEl = $('editMgmtAssetNameModal');
         if (!modalEl) return;
 
-        function showModal(specFields) {
+        function showModal(specFields, inclusions) {
             $('editMgmtAssetNameId').value = data.id;
             $('editMgmtAssetNameValue').value = data.name || '';
             var typeDisplay = $('editMgmtAssetNameTypeDisplay');
             if (typeDisplay) typeDisplay.textContent = data.assetTypeName || '';
             if (global.MgmtAddAssetModals && global.MgmtAddAssetModals.populateSpecList) {
                 global.MgmtAddAssetModals.populateSpecList('editMgmtAssetNameSpecList', specFields || []);
+                global.MgmtAddAssetModals.populateSpecList('editMgmtAssetNameInclusionList', inclusions || []);
             }
             getBsModal(modalEl).show();
         }
 
-        if (data.specFields && data.specFields.length) {
-            showModal(data.specFields);
+        var hasSpecs = data.specFields && data.specFields.length;
+        var hasInclusions = data.inclusions && data.inclusions.length;
+        if (hasSpecs || hasInclusions) {
+            showModal(data.specFields || [], data.inclusions || []);
             return;
         }
 
@@ -450,9 +453,12 @@
             .then(function (r) { return r.json(); })
             .then(function (names) {
                 var found = names.find(function (n) { return String(n.id) === String(data.id); });
-                showModal(found ? (found.spec_fields || []) : []);
+                showModal(
+                    found ? (found.spec_fields || []) : [],
+                    found ? (found.inclusions || []) : []
+                );
             })
-            .catch(function () { showModal([]); });
+            .catch(function () { showModal([], []); });
     }
 
     function saveEditAssetName() {
@@ -463,10 +469,14 @@
         var updates = (global.MgmtAddAssetModals && global.MgmtAddAssetModals.collectSpecUpdates)
             ? global.MgmtAddAssetModals.collectSpecUpdates('editMgmtAssetNameSpecList')
             : [];
+        var inclusionUpdates = (global.MgmtAddAssetModals && global.MgmtAddAssetModals.collectSpecUpdates)
+            ? global.MgmtAddAssetModals.collectSpecUpdates('editMgmtAssetNameInclusionList')
+            : [];
 
         var formData = new FormData();
         formData.append('name', name);
         formData.append('specifications_json', JSON.stringify(updates));
+        formData.append('inclusions_json', JSON.stringify(inclusionUpdates));
 
         return fetch('/admin/asset-names/' + encodeURIComponent(id), { method: 'PUT', body: formData })
             .then(function (r) { return r.json(); })
@@ -510,6 +520,15 @@
             editSpecBtn.addEventListener('click', function () {
                 if (global.MgmtAddAssetModals && global.MgmtAddAssetModals.addSpecRow) {
                     global.MgmtAddAssetModals.addSpecRow('editMgmtAssetNameSpecList', '', null);
+                }
+            });
+        }
+
+        var editInclusionBtn = $('editMgmtAssetNameInclusionBtn');
+        if (editInclusionBtn) {
+            editInclusionBtn.addEventListener('click', function () {
+                if (global.MgmtAddAssetModals && global.MgmtAddAssetModals.addSpecRow) {
+                    global.MgmtAddAssetModals.addSpecRow('editMgmtAssetNameInclusionList', '', null, 'e.g. Charger');
                 }
             });
         }

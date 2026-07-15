@@ -111,6 +111,7 @@
         var combo = ensureAssetNameTypeCombo();
         if (combo) combo.reset();
         clearSpecList('addMgmtAssetNameSpecList');
+        clearSpecList('addMgmtAssetNameInclusionList');
     }
 
     function clearSpecList(listId) {
@@ -118,14 +119,16 @@
         if (list) list.innerHTML = '';
     }
 
-    function addSpecRow(listId, value, specId) {
+    function addSpecRow(listId, value, specId, placeholder) {
         var list = $(listId);
         if (!list) return;
         var row = document.createElement('div');
         row.className = 'd-flex gap-2 align-items-center mb-2 asset-spec-row';
         if (specId) row.dataset.specId = String(specId);
         row.innerHTML =
-            '<input type="text" class="form-control form-control-sm asset-spec-label-input" maxlength="100" placeholder="e.g. Serial No." value="' +
+            '<input type="text" class="form-control form-control-sm asset-spec-label-input" maxlength="100" placeholder="' +
+            (placeholder || 'e.g. Serial No.') +
+            '" value="' +
             (value || '').replace(/"/g, '&quot;') +
             '">' +
             '<button type="button" class="btn btn-sm btn-app-tab asset-spec-remove-btn" title="Remove specification" aria-label="Remove specification">' +
@@ -226,6 +229,8 @@
         fd.append('asset_type_id', typeId);
         var specLabels = collectSpecLabels('addMgmtAssetNameSpecList');
         fd.append('specifications_json', JSON.stringify(specLabels));
+        var inclusionLabels = collectSpecLabels('addMgmtAssetNameInclusionList');
+        fd.append('inclusions_json', JSON.stringify(inclusionLabels));
 
         return fetch('/admin/asset-names', { method: 'POST', body: fd })
             .then(function (r) { return r.json(); })
@@ -266,6 +271,13 @@
         if (addSpecBtn) {
             addSpecBtn.addEventListener('click', function () {
                 addSpecRow('addMgmtAssetNameSpecList', '', null);
+            });
+        }
+
+        var addInclusionBtn = $('addMgmtAssetNameInclusionBtn');
+        if (addInclusionBtn) {
+            addInclusionBtn.addEventListener('click', function () {
+                addSpecRow('addMgmtAssetNameInclusionList', '', null, 'e.g. Charger');
             });
         }
 

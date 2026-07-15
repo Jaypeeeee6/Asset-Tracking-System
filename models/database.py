@@ -223,6 +223,28 @@ def _migrate_asset_specifications(cur):
             UNIQUE(asset_id, spec_field_id)
         )
     ''')
+    cur.execute('''
+        CREATE TABLE IF NOT EXISTS asset_name_inclusions (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            asset_name_id INTEGER NOT NULL,
+            label TEXT NOT NULL,
+            sort_order INTEGER NOT NULL DEFAULT 0,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (asset_name_id) REFERENCES asset_names (id) ON DELETE CASCADE,
+            UNIQUE(asset_name_id, label)
+        )
+    ''')
+    cur.execute('''
+        CREATE TABLE IF NOT EXISTS asset_inclusion_values (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            asset_id INTEGER NOT NULL,
+            inclusion_id INTEGER NOT NULL,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (asset_id) REFERENCES assets (id) ON DELETE CASCADE,
+            FOREIGN KEY (inclusion_id) REFERENCES asset_name_inclusions (id) ON DELETE CASCADE,
+            UNIQUE(asset_id, inclusion_id)
+        )
+    ''')
 
 
 def _migrate_asset_types_allow_both(cur):

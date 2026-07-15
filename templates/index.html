@@ -996,6 +996,12 @@
                 <div id="addAssetSpecFieldsContainer"></div>
                 <input type="hidden" id="addAssetSpecValuesJson" name="asset_spec_values_json" value="">
             </div>
+            <div class="mb-3" id="addAssetInclusionsSection" style="display: none;">
+                <label class="form-label">Inclusions</label>
+                <div class="form-text mb-2"><i class="bi bi-info-circle" aria-hidden="true"></i> Check the items included with this asset.</div>
+                <div id="addAssetInclusionsContainer"></div>
+                <input type="hidden" id="addAssetInclusionValuesJson" name="asset_inclusion_values_json" value="">
+            </div>
             <div class="mb-3">
                 {{ form_label('Quantity', 'quantity', true) }}
                 <input type="number" class="form-control" id="quantity" name="quantity" min="1" value="1" required>
@@ -1101,6 +1107,12 @@
                 <label for="editAssetSpecFieldsContainer" class="form-label">Asset Specifications <span class="app-required-mark" aria-hidden="true">*</span></label>
                 <div id="editAssetSpecFieldsContainer"></div>
                 <input type="hidden" id="editAssetSpecValuesJson" name="asset_spec_values_json" value="">
+            </div>
+            <div class="mb-3" id="editAssetInclusionsSection" style="display: none;">
+                <label class="form-label">Inclusions</label>
+                <div class="form-text mb-2"><i class="bi bi-info-circle" aria-hidden="true"></i> Check the items included with this asset.</div>
+                <div id="editAssetInclusionsContainer"></div>
+                <input type="hidden" id="editAssetInclusionValuesJson" name="asset_inclusion_values_json" value="">
             </div>
             <div class="mb-3">
                 <label for="edit_quantity" class="form-label">Quantity</label>
