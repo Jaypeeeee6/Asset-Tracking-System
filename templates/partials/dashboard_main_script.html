@@ -232,6 +232,7 @@ function appDeleteConfirm(message, title) {
                 populateAddAssetBrandSelect();
                 populateEditAssetBrandSelect();
                 populateEmployeeBrandSelects();
+                if (typeof populateEmployeeFilterSelects === 'function') populateEmployeeFilterSelects();
             })
             .catch(error => {
                 console.error('Error loading brands:', error);
@@ -374,6 +375,8 @@ function appDeleteConfirm(message, title) {
                 updateBranchDropdown();
                 updateBranchesList();
                 updateDepartmentBranchDropdown();
+                if (typeof populateEmployeeFilterSelects === 'function') populateEmployeeFilterSelects();
+                if (typeof applyEmployeeRosterFilters === 'function' && window.__employeeRosterAll) applyEmployeeRosterFilters();
             })
             .catch(error => {
                 console.error('Error loading branches:', error);
@@ -1881,9 +1884,20 @@ function appDeleteConfirm(message, title) {
             updateBulkUserModalDepartments(this.value);
         });
 
-        document.getElementById('userModalFilterDepartment').addEventListener('change', function() {
-            loadUserModalUsers(this.value);
-        });
+        document.getElementById('userModalFilterDepartment').addEventListener('change', applyEmployeeRosterFilters);
+
+        const employeeFilterBrand = document.getElementById('employeeFilterBrand');
+        if (employeeFilterBrand) {
+            employeeFilterBrand.addEventListener('change', function() {
+                populateEmployeeBranchFilter(this.value);
+                applyEmployeeRosterFilters();
+            });
+        }
+
+        const employeeFilterBranch = document.getElementById('employeeFilterBranch');
+        if (employeeFilterBranch) {
+            employeeFilterBranch.addEventListener('change', applyEmployeeRosterFilters);
+        }
     })();
 
 // ============================================================================
@@ -2370,21 +2384,9 @@ function appDeleteConfirm(message, title) {
 
     // Load users for user modal
     function loadUserModalUsers(filterDepartmentId = '') {
-        const url = filterDepartmentId ? `/admin/users?grouped=1&department_id=${filterDepartmentId}` : '/admin/users?grouped=1';
-        
-        fetch(url)
+        fetch('/admin/users?grouped=1')
             .then(response => response.json())
             .then(users => {
-                const usersList = document.getElementById('userModalList');
-                if (!usersList) return;
-                usersList.innerHTML = '';
-                resetMgmtTableBulkUI('selectAllEmployeesRosterCheckbox', 'bulkDeleteEmployeesRosterBtn', 'userModalList', 'employee-roster-checkbox');
-
-                if (users.length === 0) {
-                    usersList.innerHTML = '<tr><td colspan="9" class="text-center text-muted py-4">No employees found.</td></tr>';
-                    return;
-                }
-
                 const sorted = [...users].sort((a, b) => {
                     const byBranch = (a.branch_name || '').localeCompare(b.branch_name || '');
                     if (byBranch !== 0) return byBranch;
@@ -2392,44 +2394,123 @@ function appDeleteConfirm(message, title) {
                     if (byDept !== 0) return byDept;
                     return (a.name || '').localeCompare(b.name || '');
                 });
-                window.__employeeRosterUsers = sorted;
-
-                sorted.forEach((user, i) => {
-                    const employeeId = user.employee_id || '—';
-                    const mobile = user.mobile || '—';
-                    const email = user.email || '—';
-                    const tr = document.createElement('tr');
-                    tr.innerHTML = `
-                        <td><input type="checkbox" class="employee-roster-checkbox" value="${user.id}" aria-label="Select ${user.name}"></td>
-                        <td>${i + 1}</td>
-                        <td><span class="text-muted">${employeeId}</span></td>
-                        <td><strong>${user.name}</strong></td>
-                        <td>${mobile === '—' ? '<span class="text-muted">—</span>' : mobile}</td>
-                        <td>${email === '—' ? '<span class="text-muted">—</span>' : email}</td>
-                        <td>${user.branch_name}</td>
-                        <td>${user.department_name}</td>
-                        <td>
-                            <div class="d-flex gap-2 flex-wrap align-items-center">
-                                <button type="button" class="btn-app-edit-icon" onclick="handleEditUserModal(event)"
-                                        data-id="${user.id}" data-name="${user.name}" data-department="${user.department_name}"
-                                        title="Edit employee" aria-label="Edit employee">
-                                    <i class="bi bi-pencil-square" aria-hidden="true"></i>
-                                </button>
-                                <button type="button" class="btn-app-edit-icon btn-app-danger-icon" onclick="handleDeleteUserModal(event)"
-                                        data-id="${user.id}" data-name="${user.name}" data-department="${user.department_name}"
-                                        title="Delete employee" aria-label="Delete employee">
-                                    <i class="bi bi-trash" aria-hidden="true"></i>
-                                </button>
-                            </div>
-                        </td>
-                    `;
-                    usersList.appendChild(tr);
-                });
-                resetMgmtTableBulkUI('selectAllEmployeesRosterCheckbox', 'bulkDeleteEmployeesRosterBtn', 'userModalList', 'employee-roster-checkbox');
+                window.__employeeRosterAll = sorted;
+                if (filterDepartmentId) {
+                    const sel = document.getElementById('userModalFilterDepartment');
+                    if (sel) sel.value = String(filterDepartmentId);
+                }
+                applyEmployeeRosterFilters();
             })
             .catch(error => {
                 console.error('Error loading users for modal:', error);
             });
+    }
+
+    function renderEmployeeRosterRows(list) {
+        const usersList = document.getElementById('userModalList');
+        if (!usersList) return;
+        usersList.innerHTML = '';
+        resetMgmtTableBulkUI('selectAllEmployeesRosterCheckbox', 'bulkDeleteEmployeesRosterBtn', 'userModalList', 'employee-roster-checkbox');
+        window.__employeeRosterUsers = list;
+
+        if (!list.length) {
+            usersList.innerHTML = '<tr><td colspan="9" class="text-center text-muted py-4">No employees found.</td></tr>';
+            resetMgmtTableBulkUI('selectAllEmployeesRosterCheckbox', 'bulkDeleteEmployeesRosterBtn', 'userModalList', 'employee-roster-checkbox');
+            return;
+        }
+
+        list.forEach((user, i) => {
+            const employeeId = user.employee_id || '—';
+            const mobile = user.mobile || '—';
+            const email = user.email || '—';
+            const tr = document.createElement('tr');
+            tr.innerHTML = `
+                <td><input type="checkbox" class="employee-roster-checkbox" value="${user.id}" aria-label="Select ${user.name}"></td>
+                <td>${i + 1}</td>
+                <td><span class="text-muted">${employeeId}</span></td>
+                <td><strong>${user.name}</strong></td>
+                <td>${mobile === '—' ? '<span class="text-muted">—</span>' : mobile}</td>
+                <td>${email === '—' ? '<span class="text-muted">—</span>' : email}</td>
+                <td>${user.branch_name}</td>
+                <td>${user.department_name}</td>
+                <td>
+                    <div class="d-flex gap-2 flex-wrap align-items-center">
+                        <button type="button" class="btn-app-edit-icon" onclick="handleEditUserModal(event)"
+                                data-id="${user.id}" data-name="${user.name}" data-department="${user.department_name}"
+                                title="Edit employee" aria-label="Edit employee">
+                            <i class="bi bi-pencil-square" aria-hidden="true"></i>
+                        </button>
+                        <button type="button" class="btn-app-edit-icon btn-app-danger-icon" onclick="handleDeleteUserModal(event)"
+                                data-id="${user.id}" data-name="${user.name}" data-department="${user.department_name}"
+                                title="Delete employee" aria-label="Delete employee">
+                            <i class="bi bi-trash" aria-hidden="true"></i>
+                        </button>
+                    </div>
+                </td>
+            `;
+            usersList.appendChild(tr);
+        });
+        resetMgmtTableBulkUI('selectAllEmployeesRosterCheckbox', 'bulkDeleteEmployeesRosterBtn', 'userModalList', 'employee-roster-checkbox');
+    }
+
+    function applyEmployeeRosterFilters() {
+        const all = window.__employeeRosterAll || [];
+        const brandId = (document.getElementById('employeeFilterBrand') || {}).value || '';
+        const branchId = (document.getElementById('employeeFilterBranch') || {}).value || '';
+        const deptId = (document.getElementById('userModalFilterDepartment') || {}).value || '';
+
+        const branchBrand = {};
+        (branchesData || []).forEach(b => { branchBrand[String(b.id)] = String(b.brand_id); });
+
+        const filtered = all.filter(emp => {
+            if (deptId && (emp.department_ids || []).map(String).indexOf(deptId) === -1) return false;
+            if (branchId && (emp.branch_ids || []).map(String).indexOf(branchId) === -1) return false;
+            if (brandId) {
+                const match = (emp.branch_ids || []).some(bid => branchBrand[String(bid)] === brandId);
+                if (!match) return false;
+            }
+            return true;
+        });
+        renderEmployeeRosterRows(filtered);
+    }
+
+    function populateEmployeeBranchFilter(brandId) {
+        const branchSel = document.getElementById('employeeFilterBranch');
+        if (!branchSel) return;
+        const prev = branchSel.value;
+        branchSel.innerHTML = '<option value="">All branches</option>';
+        let list = [...(branchesData || [])];
+        if (brandId) list = list.filter(b => String(b.brand_id) === String(brandId));
+        const byBrand = {};
+        list.forEach(b => { const k = b.brand_name || 'Unassigned'; (byBrand[k] = byBrand[k] || []).push(b); });
+        Object.keys(byBrand).sort().forEach(brand => {
+            const grp = document.createElement('optgroup');
+            grp.label = brand;
+            byBrand[brand].sort((a, b) => (a.name || '').localeCompare(b.name || '')).forEach(b => {
+                const o = document.createElement('option');
+                o.value = String(b.id);
+                o.textContent = (b.branch_code ? b.branch_code + ' ' : '') + (b.name || '');
+                grp.appendChild(o);
+            });
+            branchSel.appendChild(grp);
+        });
+        if (prev && Array.prototype.some.call(branchSel.options, o => o.value === prev)) branchSel.value = prev;
+    }
+
+    function populateEmployeeFilterSelects() {
+        const brandSel = document.getElementById('employeeFilterBrand');
+        if (brandSel) {
+            const prev = brandSel.value;
+            brandSel.innerHTML = '<option value="">All brands</option>';
+            [...(brandsData || [])].sort((a, b) => (a.name || '').localeCompare(b.name || '')).forEach(br => {
+                const o = document.createElement('option');
+                o.value = String(br.id);
+                o.textContent = br.name;
+                brandSel.appendChild(o);
+            });
+            if (prev) brandSel.value = prev;
+        }
+        populateEmployeeBranchFilter(brandSel ? brandSel.value : '');
     }
 
     // Load filter dropdown for user modal
@@ -2438,33 +2519,34 @@ function appDeleteConfirm(message, title) {
             .then(response => response.json())
             .then(departments => {
                 const filterSelect = document.getElementById('userModalFilterDepartment');
-                if (!filterSelect) return;
-                filterSelect.innerHTML = '<option value="">All Departments</option>';
-                
-                // Group departments by building
-                const departmentsByBuilding = {};
-                departments.forEach(dept => {
-                    const key = dept.branch_name || OFFICE_BRANCH_LABEL_JS;
-                    if (!departmentsByBuilding[key]) {
-                        departmentsByBuilding[key] = [];
-                    }
-                    departmentsByBuilding[key].push(dept);
-                });
-                
-                // Add options grouped by building
-                Object.keys(departmentsByBuilding).sort().forEach(buildingName => {
-                    const group = document.createElement('optgroup');
-                    group.label = buildingName;
-                    
-                    departmentsByBuilding[buildingName].sort((a, b) => a.name.localeCompare(b.name)).forEach(dept => {
-                        const option = document.createElement('option');
-                        option.value = dept.id;
-                        option.textContent = dept.name;
-                        group.appendChild(option);
+                if (filterSelect) {
+                    const prev = filterSelect.value;
+                    filterSelect.innerHTML = '<option value="">All departments</option>';
+
+                    // Group by branch, excluding each branch's default "Restaurant" area
+                    // (restaurant employees are filtered by brand/branch instead).
+                    const departmentsByBuilding = {};
+                    departments.forEach(dept => {
+                        if ((dept.name || '') === 'Restaurant') return;
+                        const key = dept.branch_name || OFFICE_BRANCH_LABEL_JS;
+                        if (!departmentsByBuilding[key]) departmentsByBuilding[key] = [];
+                        departmentsByBuilding[key].push(dept);
                     });
-                    
-                    filterSelect.appendChild(group);
-                });
+
+                    Object.keys(departmentsByBuilding).sort().forEach(buildingName => {
+                        const group = document.createElement('optgroup');
+                        group.label = buildingName;
+                        departmentsByBuilding[buildingName].sort((a, b) => a.name.localeCompare(b.name)).forEach(dept => {
+                            const option = document.createElement('option');
+                            option.value = dept.id;
+                            option.textContent = dept.name;
+                            group.appendChild(option);
+                        });
+                        filterSelect.appendChild(group);
+                    });
+                    if (prev) filterSelect.value = prev;
+                }
+                populateEmployeeFilterSelects();
             })
             .catch(error => {
                 console.error('Error loading departments for filter:', error);
