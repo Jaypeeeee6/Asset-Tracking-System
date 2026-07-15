@@ -1,6 +1,10 @@
 from flask import Blueprint, request, jsonify
 from flask_login import login_required, current_user
-from models.database import get_db_connection, ensure_restaurant_default_department_for_branch
+from models.database import (
+    get_db_connection,
+    ensure_restaurant_default_department_for_branch,
+    RESTAURANT_DEFAULT_DEPARTMENT_NAME,
+)
 from routes.assets import OFFICE_BRANCH_LABEL
 import sqlite3
 
@@ -247,6 +251,122 @@ def delete_branch(branch_id):
     
     return jsonify({'success': True})
 
+@admin_bp.route('/import-branches', methods=['POST'])
+@login_required
+def import_branches():
+    """Bulk import brands, branches, and their branch managers (employees) from a parsed Excel file.
+
+    Expects JSON: { "rows": [ {code, name, brand, manager, email}, ... ] }.
+    Only rows the client identified as restaurant branches are sent. Existing
+    brands/branches/employees are kept (matched by name); missing brand/branch_code
+    on an existing branch is backfilled.
+    """
+    if not current_user.has_it_access():
+        return jsonify({'error': 'Access denied. Only IT users can import branches.'}), 403
+
+    data = request.get_json(silent=True) or {}
+    rows = data.get('rows')
+    if not isinstance(rows, list) or not rows:
+        return jsonify({'error': 'No branch rows found to import. Please check the file.'}), 400
+
+    conn = get_db_connection()
+    cur = conn.cursor()
+
+    summary = {
+        'brands_created': 0,
+        'branches_created': 0,
+        'branches_skipped': 0,
+        'employees_created': 0,
+        'employees_skipped': 0,
+        'errors': [],
+    }
+
+    brand_cache = {}
+
+    def get_or_create_brand(brand_name):
+        key = brand_name.lower()
+        if key in brand_cache:
+            return brand_cache[key]
+        cur.execute('SELECT id FROM brands WHERE name = ?', (brand_name,))
+        found = cur.fetchone()
+        if found:
+            brand_cache[key] = found[0]
+            return found[0]
+        cur.execute('INSERT INTO brands (name) VALUES (?)', (brand_name,))
+        summary['brands_created'] += 1
+        brand_cache[key] = cur.lastrowid
+        return cur.lastrowid
+
+    for idx, row in enumerate(rows):
+        if not isinstance(row, dict):
+            continue
+        name = (row.get('name') or '').strip()
+        if not name:
+            continue
+        code = ((row.get('code') or '').strip().upper()) or None
+        brand_name = (row.get('brand') or '').strip()
+        manager = (row.get('manager') or '').strip()
+        email = (row.get('email') or '').strip()
+
+        try:
+            brand_id = get_or_create_brand(brand_name) if brand_name else None
+
+            cur.execute('SELECT id, brand_id, branch_code FROM branches WHERE name = ?', (name,))
+            existing = cur.fetchone()
+            if existing:
+                branch_id = existing[0]
+                summary['branches_skipped'] += 1
+                backfills, params = [], []
+                if brand_id and not existing[1]:
+                    backfills.append('brand_id = ?')
+                    params.append(brand_id)
+                if code and not existing[2]:
+                    backfills.append('branch_code = ?')
+                    params.append(code)
+                if backfills:
+                    params.append(branch_id)
+                    cur.execute('UPDATE branches SET ' + ', '.join(backfills) + ' WHERE id = ?', params)
+            else:
+                cur.execute(
+                    'INSERT INTO branches (name, brand_id, branch_code) VALUES (?, ?, ?)',
+                    (name, brand_id, code),
+                )
+                branch_id = cur.lastrowid
+                summary['branches_created'] += 1
+
+            ensure_restaurant_default_department_for_branch(cur, branch_id)
+
+            if manager:
+                cur.execute(
+                    'SELECT id FROM departments WHERE branch_id = ? AND name = ?',
+                    (branch_id, RESTAURANT_DEFAULT_DEPARTMENT_NAME),
+                )
+                dep = cur.fetchone()
+                if dep:
+                    dep_id = dep[0]
+                    cur.execute(
+                        'SELECT id, email FROM users WHERE name = ? AND department_id = ?',
+                        (manager, dep_id),
+                    )
+                    existing_emp = cur.fetchone()
+                    if existing_emp:
+                        summary['employees_skipped'] += 1
+                        if email and not existing_emp[1]:
+                            cur.execute('UPDATE users SET email = ? WHERE id = ?', (email, existing_emp[0]))
+                    else:
+                        cur.execute(
+                            'INSERT INTO users (name, employee_id, mobile, email, department_id) VALUES (?, ?, ?, ?, ?)',
+                            (manager, None, None, email or None, dep_id),
+                        )
+                        summary['employees_created'] += 1
+        except sqlite3.Error as e:
+            summary['errors'].append(f'Row {idx + 1} ("{name}"): {str(e)}')
+
+    conn.commit()
+    conn.close()
+    summary['success'] = True
+    return jsonify(summary)
+
 # ===== DEPARTMENT MANAGEMENT API =====
 
 @admin_bp.route('/departments', methods=['GET'])
@@ -421,42 +541,194 @@ def delete_department(department_id):
 
 # ===== USER MANAGEMENT API =====
 
+def _employee_group_key(employee_id, name, is_office):
+    """Stable key that groups the multiple rows of a single logical employee.
+
+    Employees assigned to several branches are stored as one ``users`` row per
+    branch. Rows that share an ``employee_id`` are the same person; rows without
+    an employee_id (e.g. imported branch managers) are grouped by name within the
+    same venue (restaurant vs office) so a manager of several branches collapses
+    into one roster entry.
+    """
+    if employee_id:
+        return 'E:' + str(employee_id)
+    return ('O:' if is_office else 'R:') + (name or '').strip().lower()
+
+
+def _load_employee_group(cur, user_id):
+    """Return every ``users`` row belonging to the same logical employee as ``user_id``."""
+    cur.execute(
+        '''
+        SELECT u.id, u.name, u.employee_id, u.department_id, d.name AS dept_name,
+               d.branch_id, COALESCE(b.name, ?) AS branch_name
+        FROM users u
+        JOIN departments d ON u.department_id = d.id
+        LEFT JOIN branches b ON d.branch_id = b.id
+        WHERE u.id = ?
+        ''',
+        (OFFICE_BRANCH_LABEL, user_id),
+    )
+    base = cur.fetchone()
+    if not base:
+        return None
+    base = dict(base)
+    is_office = base['branch_id'] is None
+    emp = base['employee_id']
+    if emp:
+        cur.execute(
+            '''
+            SELECT u.id, u.name, u.employee_id, u.department_id, d.name AS dept_name,
+                   d.branch_id, COALESCE(b.name, ?) AS branch_name
+            FROM users u
+            JOIN departments d ON u.department_id = d.id
+            LEFT JOIN branches b ON d.branch_id = b.id
+            WHERE u.employee_id = ?
+            ''',
+            (OFFICE_BRANCH_LABEL, emp),
+        )
+    elif is_office:
+        cur.execute(
+            '''
+            SELECT u.id, u.name, u.employee_id, u.department_id, d.name AS dept_name,
+                   d.branch_id, COALESCE(b.name, ?) AS branch_name
+            FROM users u
+            JOIN departments d ON u.department_id = d.id
+            LEFT JOIN branches b ON d.branch_id = b.id
+            WHERE u.employee_id IS NULL AND LOWER(u.name) = LOWER(?) AND d.branch_id IS NULL
+            ''',
+            (OFFICE_BRANCH_LABEL, base['name']),
+        )
+    else:
+        cur.execute(
+            '''
+            SELECT u.id, u.name, u.employee_id, u.department_id, d.name AS dept_name,
+                   d.branch_id, COALESCE(b.name, ?) AS branch_name
+            FROM users u
+            JOIN departments d ON u.department_id = d.id
+            LEFT JOIN branches b ON d.branch_id = b.id
+            WHERE u.employee_id IS NULL AND LOWER(u.name) = LOWER(?) AND d.branch_id IS NOT NULL
+            ''',
+            (OFFICE_BRANCH_LABEL, base['name']),
+        )
+    rows = [dict(r) for r in cur.fetchall()]
+    return {'base': base, 'is_office': is_office, 'rows': rows}
+
+
 @admin_bp.route('/users', methods=['GET'])
 @login_required
 def get_users():
     conn = get_db_connection()
     cur = conn.cursor()
-    
+
     department_id = request.args.get('department_id')
-    if department_id:
-        cur.execute(
-            '''
-            SELECT u.id, u.name, u.employee_id, u.mobile, u.email, u.department_id,
-                   d.name as department_name, COALESCE(b.name, ?) as branch_name
-            FROM users u
-            JOIN departments d ON u.department_id = d.id
-            LEFT JOIN branches b ON d.branch_id = b.id
-            WHERE u.department_id = ?
-            ORDER BY u.name
-            ''',
-            (OFFICE_BRANCH_LABEL, department_id),
-        )
-    else:
-        cur.execute(
-            '''
-            SELECT u.id, u.name, u.employee_id, u.mobile, u.email, u.department_id,
-                   d.name as department_name, COALESCE(b.name, ?) as branch_name
-            FROM users u
-            JOIN departments d ON u.department_id = d.id
-            LEFT JOIN branches b ON d.branch_id = b.id
-            ORDER BY branch_name, d.name, u.name
-            ''',
-            (OFFICE_BRANCH_LABEL,),
-        )
-    
-    users = [dict(row) for row in cur.fetchall()]
+    grouped = (request.args.get('grouped') or '').strip().lower() in ('1', 'true', 'yes')
+
+    if not grouped:
+        if department_id:
+            cur.execute(
+                '''
+                SELECT u.id, u.name, u.employee_id, u.mobile, u.email, u.department_id,
+                       d.name as department_name, COALESCE(b.name, ?) as branch_name
+                FROM users u
+                JOIN departments d ON u.department_id = d.id
+                LEFT JOIN branches b ON d.branch_id = b.id
+                WHERE u.department_id = ?
+                ORDER BY u.name
+                ''',
+                (OFFICE_BRANCH_LABEL, department_id),
+            )
+        else:
+            cur.execute(
+                '''
+                SELECT u.id, u.name, u.employee_id, u.mobile, u.email, u.department_id,
+                       d.name as department_name, COALESCE(b.name, ?) as branch_name
+                FROM users u
+                JOIN departments d ON u.department_id = d.id
+                LEFT JOIN branches b ON d.branch_id = b.id
+                ORDER BY branch_name, d.name, u.name
+                ''',
+                (OFFICE_BRANCH_LABEL,),
+            )
+        users = [dict(row) for row in cur.fetchall()]
+        conn.close()
+        return jsonify(users)
+
+    # Grouped roster: collapse an employee's per-branch rows into one entry.
+    cur.execute(
+        '''
+        SELECT u.id, u.name, u.employee_id, u.mobile, u.email, u.department_id,
+               d.name as department_name, d.branch_id, COALESCE(b.name, ?) as branch_name
+        FROM users u
+        JOIN departments d ON u.department_id = d.id
+        LEFT JOIN branches b ON d.branch_id = b.id
+        ''',
+        (OFFICE_BRANCH_LABEL,),
+    )
+    rows = [dict(r) for r in cur.fetchall()]
     conn.close()
-    return jsonify(users)
+
+    groups = {}
+    order = []
+    for r in rows:
+        is_office = r['branch_id'] is None
+        key = _employee_group_key(r['employee_id'], r['name'], is_office)
+        g = groups.get(key)
+        if not g:
+            g = {
+                'id': r['id'],
+                'name': r['name'],
+                'employee_id': r['employee_id'],
+                'mobile': r['mobile'],
+                'email': r['email'],
+                'is_office': is_office,
+                'row_ids': [],
+                'branch_ids': [],
+                'branch_names': [],
+                'department_ids': [],
+                'department_names': [],
+                'department_id': None,
+            }
+            groups[key] = g
+            order.append(key)
+        g['row_ids'].append(r['id'])
+        if r['id'] < g['id']:
+            g['id'] = r['id']
+        if not g['employee_id'] and r['employee_id']:
+            g['employee_id'] = r['employee_id']
+        if not g['mobile'] and r['mobile']:
+            g['mobile'] = r['mobile']
+        if not g['email'] and r['email']:
+            g['email'] = r['email']
+        if r['branch_id'] is not None and r['branch_id'] not in g['branch_ids']:
+            g['branch_ids'].append(r['branch_id'])
+            g['branch_names'].append(r['branch_name'])
+        if r['department_id'] not in g['department_ids']:
+            g['department_ids'].append(r['department_id'])
+            g['department_names'].append(r['department_name'])
+        if g['department_id'] is None:
+            g['department_id'] = r['department_id']
+
+    dept_filter = None
+    if department_id:
+        try:
+            dept_filter = int(department_id)
+        except (TypeError, ValueError):
+            dept_filter = None
+
+    result = []
+    for key in order:
+        g = groups[key]
+        if dept_filter is not None and dept_filter not in g['department_ids']:
+            continue
+        if g['is_office']:
+            g['branch_name'] = OFFICE_BRANCH_LABEL
+        else:
+            g['branch_name'] = ', '.join(sorted(g['branch_names']))
+        g['department_name'] = ', '.join(sorted(set(g['department_names'])))
+        result.append(g)
+
+    result.sort(key=lambda x: ((x['branch_name'] or '').lower(), (x['name'] or '').lower()))
+    return jsonify(result)
 
 @admin_bp.route('/users', methods=['POST'])
 @login_required
@@ -466,35 +738,93 @@ def add_user():
         return jsonify({'error': 'Access denied. Only IT users can add users.'}), 403
     
     data = request.get_json()
-    name = data.get('name', '').strip()
-    employee_id = data.get('employee_id', '').strip()
-    mobile = data.get('mobile', '').strip()
-    email = data.get('email', '').strip()
+    name = (data.get('name') or '').strip()
+    employee_id = (data.get('employee_id') or '').strip()
+    mobile = (data.get('mobile') or '').strip()
+    email = (data.get('email') or '').strip()
     department_id = data.get('department_id')
-    
-    if not name or not employee_id or not department_id:
-        return jsonify({'error': 'Employee ID, name, and department are required'}), 400
-    
+    branch_ids = data.get('branch_ids')
+
     conn = get_db_connection()
     cur = conn.cursor()
-    
-    # Check if department exists
+
+    # Restaurant employees may be assigned to multiple branches at once. Each branch
+    # uses its default "Restaurant" department, stored as one users row per branch.
+    if isinstance(branch_ids, list) and branch_ids:
+        if not name or not employee_id:
+            conn.close()
+            return jsonify({'error': 'Employee ID and name are required'}), 400
+
+        cur.execute('SELECT id FROM users WHERE employee_id = ?', (employee_id,))
+        if cur.fetchone():
+            conn.close()
+            return jsonify({'error': 'Employee ID already exists'}), 409
+
+        created_ids = []
+        first_id = None
+        for raw_bid in branch_ids:
+            try:
+                bid = int(raw_bid)
+            except (TypeError, ValueError):
+                continue
+            cur.execute('SELECT id FROM branches WHERE id = ?', (bid,))
+            if not cur.fetchone():
+                continue
+            ensure_restaurant_default_department_for_branch(cur, bid)
+            cur.execute(
+                'SELECT id FROM departments WHERE branch_id = ? AND name = ?',
+                (bid, RESTAURANT_DEFAULT_DEPARTMENT_NAME),
+            )
+            dep = cur.fetchone()
+            if not dep:
+                continue
+            dep_id = dep[0]
+            cur.execute('SELECT id FROM users WHERE name = ? AND department_id = ?', (name, dep_id))
+            if cur.fetchone():
+                continue
+            cur.execute(
+                'INSERT INTO users (name, employee_id, mobile, email, department_id) VALUES (?, ?, ?, ?, ?)',
+                (name, employee_id, mobile or None, email or None, dep_id),
+            )
+            rid = cur.lastrowid
+            created_ids.append(rid)
+            if first_id is None:
+                first_id = rid
+
+        if not created_ids:
+            conn.close()
+            return jsonify({'error': 'This employee is already assigned to the selected branch(es).'}), 409
+
+        conn.commit()
+        conn.close()
+        return jsonify({
+            'id': first_id,
+            'success': True,
+            'name': name,
+            'employee_id': employee_id,
+            'created': len(created_ids),
+        })
+
+    # Office (or single-department) employee.
+    if not name or not employee_id or not department_id:
+        conn.close()
+        return jsonify({'error': 'Employee ID, name, and department are required'}), 400
+
     cur.execute('SELECT id FROM departments WHERE id = ?', (department_id,))
     if not cur.fetchone():
         conn.close()
         return jsonify({'error': 'Department not found'}), 404
-    
+
     cur.execute('SELECT id FROM users WHERE employee_id = ?', (employee_id,))
     if cur.fetchone():
         conn.close()
         return jsonify({'error': 'Employee ID already exists'}), 409
-    
-    # Check if user already exists in this department
+
     cur.execute('SELECT id FROM users WHERE name = ? AND department_id = ?', (name, department_id))
     if cur.fetchone():
         conn.close()
         return jsonify({'error': 'User already exists in this department'}), 409
-    
+
     cur.execute(
         'INSERT INTO users (name, employee_id, mobile, email, department_id) VALUES (?, ?, ?, ?, ?)',
         (name, employee_id, mobile or None, email or None, department_id),
@@ -502,7 +832,7 @@ def add_user():
     conn.commit()
     user_id = cur.lastrowid
     conn.close()
-    
+
     return jsonify({
         'id': user_id,
         'name': name,
@@ -575,55 +905,127 @@ def update_user(user_id):
         return jsonify({'error': 'Access denied. Only IT users can update users.'}), 403
     
     data = request.get_json()
-    name = data.get('name', '').strip()
-    employee_id = data.get('employee_id', '').strip()
-    mobile = data.get('mobile', '').strip()
-    email = data.get('email', '').strip()
-    
+    name = (data.get('name') or '').strip()
+    employee_id = (data.get('employee_id') or '').strip()
+    mobile = (data.get('mobile') or '').strip()
+    email = (data.get('email') or '').strip()
+    branch_ids = data.get('branch_ids')
+
     if not name or not employee_id:
         return jsonify({'error': 'Employee ID and name are required'}), 400
-    
+
     conn = get_db_connection()
     cur = conn.cursor()
-    
-    # Check if user exists
-    cur.execute('SELECT name, department_id FROM users WHERE id = ?', (user_id,))
-    user = cur.fetchone()
-    if not user:
+
+    group = _load_employee_group(cur, user_id)
+    if not group:
         conn.close()
         return jsonify({'error': 'User not found'}), 404
-    
-    old_name = user[0]
-    department_id = user[1]
-    
-    cur.execute('SELECT id FROM users WHERE employee_id = ? AND id != ?', (employee_id, user_id))
+
+    old_name = group['base']['name']
+    is_office = group['is_office']
+    group_rows = group['rows']
+    group_ids = [r['id'] for r in group_rows]
+    placeholders = ','.join('?' * len(group_ids))
+
+    # Employee ID must be unique to this person (not used by a different employee).
+    cur.execute(
+        'SELECT id FROM users WHERE employee_id = ? AND id NOT IN (%s)' % placeholders,
+        (employee_id, *group_ids),
+    )
     if cur.fetchone():
         conn.close()
         return jsonify({'error': 'Employee ID already exists'}), 409
-    
-    # Check if new name conflicts with existing user in same department
-    cur.execute('SELECT id FROM users WHERE name = ? AND department_id = ? AND id != ?', (name, department_id, user_id))
-    if cur.fetchone():
-        conn.close()
-        return jsonify({'error': 'User name already exists in this department'}), 409
-    
-    # Update user name, employee ID, and contact info
-    cur.execute(
-        'UPDATE users SET name = ?, employee_id = ?, mobile = ?, email = ? WHERE id = ?',
-        (name, employee_id, mobile or None, email or None, user_id),
-    )
-    
-    # Update assets that reference the old user name
-    cur.execute('SELECT name FROM departments WHERE id = ?', (department_id,))
-    dept_result = cur.fetchone()
-    if dept_result:
-        dept_name = dept_result[0]
-        cur.execute('UPDATE assets SET owner = ? WHERE owner = ? AND department = ?', (name, old_name, dept_name))
-    
+
+    # New name must not collide with another employee in any of this person's departments.
+    for r in group_rows:
+        cur.execute(
+            'SELECT id FROM users WHERE name = ? AND department_id = ? AND id NOT IN (%s)' % placeholders,
+            (name, r['department_id'], *group_ids),
+        )
+        if cur.fetchone():
+            conn.close()
+            return jsonify({'error': 'Employee name already exists in one of the selected branches/departments.'}), 409
+
+    # Update shared fields across every row of this employee.
+    for gid in group_ids:
+        cur.execute(
+            'UPDATE users SET name = ?, employee_id = ?, mobile = ?, email = ? WHERE id = ?',
+            (name, employee_id, mobile or None, email or None, gid),
+        )
+
+    # Cascade the rename to owned assets, scoped per department (and branch for restaurants).
+    for r in group_rows:
+        if r['branch_id'] is None:
+            cur.execute(
+                'UPDATE assets SET owner = ? WHERE owner = ? AND department = ?',
+                (name, old_name, r['dept_name']),
+            )
+        else:
+            cur.execute(
+                'UPDATE assets SET owner = ? WHERE owner = ? AND department = ? AND branch = ?',
+                (name, old_name, r['dept_name'], r['branch_name']),
+            )
+
+    warning = None
+    # Restaurant employees can add/remove branches. Each branch = its Restaurant dept row.
+    if not is_office and isinstance(branch_ids, list):
+        desired = set()
+        for raw_bid in branch_ids:
+            try:
+                desired.add(int(raw_bid))
+            except (TypeError, ValueError):
+                continue
+        if not desired:
+            conn.close()
+            return jsonify({'error': 'Please select at least one branch.'}), 400
+
+        current = {r['branch_id']: r for r in group_rows if r['branch_id'] is not None}
+
+        blocked = []
+        for bid in set(current) - desired:
+            r = current[bid]
+            cur.execute(
+                'SELECT COUNT(*) FROM assets WHERE owner = ? AND department = ? AND branch = ?',
+                (name, r['dept_name'], r['branch_name']),
+            )
+            if cur.fetchone()[0] > 0:
+                blocked.append(r['branch_name'])
+                continue
+            cur.execute('DELETE FROM users WHERE id = ?', (r['id'],))
+
+        for bid in desired - set(current):
+            cur.execute('SELECT id FROM branches WHERE id = ?', (bid,))
+            if not cur.fetchone():
+                continue
+            ensure_restaurant_default_department_for_branch(cur, bid)
+            cur.execute(
+                'SELECT id FROM departments WHERE branch_id = ? AND name = ?',
+                (bid, RESTAURANT_DEFAULT_DEPARTMENT_NAME),
+            )
+            dep = cur.fetchone()
+            if not dep:
+                continue
+            dep_id = dep[0]
+            cur.execute('SELECT id FROM users WHERE name = ? AND department_id = ?', (name, dep_id))
+            if cur.fetchone():
+                continue
+            cur.execute(
+                'INSERT INTO users (name, employee_id, mobile, email, department_id) VALUES (?, ?, ?, ?, ?)',
+                (name, employee_id, mobile or None, email or None, dep_id),
+            )
+
+        if blocked:
+            warning = ('Could not remove these branches because assets are still assigned to '
+                       'this employee there: ' + ', '.join(sorted(blocked)))
+
     conn.commit()
     conn.close()
-    
-    return jsonify({'success': True})
+
+    response = {'success': True}
+    if warning:
+        response['warning'] = warning
+    return jsonify(response)
 
 @admin_bp.route('/users/<int:user_id>', methods=['DELETE'])
 @login_required
@@ -634,34 +1036,39 @@ def delete_user(user_id):
     
     conn = get_db_connection()
     cur = conn.cursor()
-    
-    # Check if user exists and get user info
-    cur.execute('''
-        SELECT u.name, d.name as department_name 
-        FROM users u 
-        JOIN departments d ON u.department_id = d.id 
-        WHERE u.id = ?
-    ''', (user_id,))
-    user = cur.fetchone()
-    if not user:
+
+    group = _load_employee_group(cur, user_id)
+    if not group:
         conn.close()
         return jsonify({'error': 'User not found'}), 404
-    
-    user_name = user[0]
-    department_name = user[1]
-    
-    # Check if user is assigned to any assets
-    cur.execute('SELECT COUNT(*) FROM assets WHERE owner = ? AND department = ?', (user_name, department_name))
-    asset_count = cur.fetchone()[0]
+
+    user_name = group['base']['name']
+    group_rows = group['rows']
+
+    # Block deletion if the employee still owns assets in any of their branches.
+    asset_count = 0
+    for r in group_rows:
+        if r['branch_id'] is None:
+            cur.execute(
+                'SELECT COUNT(*) FROM assets WHERE owner = ? AND department = ?',
+                (user_name, r['dept_name']),
+            )
+        else:
+            cur.execute(
+                'SELECT COUNT(*) FROM assets WHERE owner = ? AND department = ? AND branch = ?',
+                (user_name, r['dept_name'], r['branch_name']),
+            )
+        asset_count += cur.fetchone()[0]
+
     if asset_count > 0:
         conn.close()
         return jsonify({'error': f'Cannot delete user. {asset_count} asset(s) are assigned to this user.'}), 409
-    
-    # Delete the user
-    cur.execute('DELETE FROM users WHERE id = ?', (user_id,))
+
+    for r in group_rows:
+        cur.execute('DELETE FROM users WHERE id = ?', (r['id'],))
     conn.commit()
     conn.close()
-    
+
     return jsonify({'success': True}) 
 
 # ===== ASSET TYPE MANAGEMENT API =====

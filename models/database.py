@@ -353,6 +353,29 @@ def _migrate_users_contact_info(conn):
     conn.commit()
 
 
+def _migrate_users_employee_id_multi_branch(conn):
+    """Allow one employee (same employee_id) to be assigned to multiple branches.
+
+    The original unique index on employee_id alone made a shared employee_id across
+    branches impossible. Replace it with a composite unique index on
+    (employee_id, department_id) so the same person can appear once per branch's
+    department while still preventing accidental duplicate rows in the same department.
+    """
+    cur = conn.cursor()
+    cur.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='users'")
+    if not cur.fetchone():
+        return
+    cur.execute('PRAGMA index_list(users)')
+    index_names = [row[1] for row in cur.fetchall()]
+    if 'idx_users_employee_id' in index_names:
+        cur.execute('DROP INDEX idx_users_employee_id')
+    cur.execute(
+        'CREATE UNIQUE INDEX IF NOT EXISTS idx_users_employee_id_dept '
+        'ON users(employee_id, department_id) WHERE employee_id IS NOT NULL'
+    )
+    conn.commit()
+
+
 def _migrate_users_auth_username_to_email(conn):
     """Rename legacy users_auth.username column to email."""
     cur = conn.cursor()
@@ -504,6 +527,7 @@ def init_db():
     ''')
     _migrate_users_employee_id(conn)
     _migrate_users_contact_info(conn)
+    _migrate_users_employee_id_multi_branch(conn)
     
     # Create users_auth table for login authentication
     cur.execute('''

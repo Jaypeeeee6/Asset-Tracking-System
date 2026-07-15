@@ -397,6 +397,79 @@ function appDeleteConfirm(message, title) {
     }
 
 // ============================================================================
+// EMPLOYEE BRANCH CHECKLIST (multi-branch assignment)
+// ============================================================================
+
+    function empChecklistEscape(str) {
+        return String(str == null ? '' : str)
+            .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+    }
+
+    function empRenderBranchChecklist(containerId, checkedIds) {
+        var container = document.getElementById(containerId);
+        if (!container) return;
+        var checked = {};
+        (checkedIds || []).forEach(function (id) { checked[String(id)] = true; });
+        var list = (branchesData || []).slice();
+        if (!list.length) {
+            container.innerHTML = '<div class="app-branch-checklist-empty">No branches available. Add branches first.</div>';
+            return;
+        }
+        var byBrand = {};
+        list.forEach(function (b) {
+            var brand = b.brand_name || 'Unassigned';
+            (byBrand[brand] = byBrand[brand] || []).push(b);
+        });
+        var html = '';
+        Object.keys(byBrand).sort().forEach(function (brand) {
+            html += '<div class="branch-brand-group">';
+            html += '<div class="branch-brand-title">' + empChecklistEscape(brand) + '</div>';
+            byBrand[brand].sort(function (a, b) { return (a.name || '').localeCompare(b.name || ''); }).forEach(function (b) {
+                var label = (b.branch_code ? b.branch_code + ' ' : '') + (b.name || '');
+                var cid = containerId + '_b' + b.id;
+                html += '<div class="form-check">'
+                    + '<input class="form-check-input emp-branch-check" type="checkbox" value="' + b.id + '" id="' + cid + '"' + (checked[String(b.id)] ? ' checked' : '') + '>'
+                    + '<label class="form-check-label" for="' + cid + '">' + empChecklistEscape(label) + '</label>'
+                    + '</div>';
+            });
+            html += '</div>';
+        });
+        container.innerHTML = html;
+    }
+
+    function empGetCheckedBranchIds(containerId) {
+        var container = document.getElementById(containerId);
+        if (!container) return [];
+        return Array.prototype.slice.call(container.querySelectorAll('.emp-branch-check:checked'))
+            .map(function (cb) { return parseInt(cb.value, 10); })
+            .filter(function (n) { return !isNaN(n); });
+    }
+
+    function empFilterBranchChecklist(containerId, term) {
+        var container = document.getElementById(containerId);
+        if (!container) return;
+        term = (term || '').trim().toLowerCase();
+        Array.prototype.forEach.call(container.querySelectorAll('.branch-brand-group'), function (grp) {
+            var any = false;
+            Array.prototype.forEach.call(grp.querySelectorAll('.form-check'), function (fc) {
+                var label = fc.querySelector('label');
+                var txt = label ? label.textContent.toLowerCase() : '';
+                var show = !term || txt.indexOf(term) !== -1;
+                fc.style.display = show ? '' : 'none';
+                if (show) any = true;
+            });
+            grp.style.display = any ? '' : 'none';
+        });
+    }
+
+    window.EmployeeBranchChecklist = {
+        render: empRenderBranchChecklist,
+        getChecked: empGetCheckedBranchIds,
+        filter: empFilterBranchChecklist
+    };
+
+// ============================================================================
 // BRANCH MANAGEMENT FUNCTIONS
 // ============================================================================
 
@@ -812,6 +885,154 @@ function appDeleteConfirm(message, title) {
             alert('Failed to add branch.');
         });
     });
+    })();
+
+    // Handle importing branches & brands from an Excel file
+    (function bindBranchImport() {
+        const importBtn = document.getElementById('importBranchesBtn');
+        const fileInput = document.getElementById('importBranchesFile');
+        if (!importBtn || !fileInput) return;
+
+        function norm(v) { return (v === null || v === undefined) ? '' : String(v).trim(); }
+
+        function findHeader(aoa) {
+            for (let i = 0; i < aoa.length; i++) {
+                const lowered = (aoa[i] || []).map(function (c) { return norm(c).toLowerCase(); });
+                if (lowered.indexOf('code') !== -1 && (lowered.indexOf('brand') !== -1 || lowered.indexOf('type') !== -1)) {
+                    return { idx: i, header: lowered };
+                }
+            }
+            return null;
+        }
+
+        function colIndex(header, candidates) {
+            for (let i = 0; i < candidates.length; i++) {
+                const idx = header.indexOf(candidates[i]);
+                if (idx !== -1) return idx;
+            }
+            return -1;
+        }
+
+        // Prefer the sheet that includes a Branch Manager column so we can import managers.
+        function parseWorkbook(wb) {
+            let best = null;
+            (wb.SheetNames || []).forEach(function (sn) {
+                const ws = wb.Sheets[sn];
+                if (!ws) return;
+                const aoa = XLSX.utils.sheet_to_json(ws, { header: 1, blankrows: false });
+                const found = findHeader(aoa);
+                if (!found) return;
+                const hasManager = found.header.indexOf('branch manager') !== -1 || found.header.indexOf('manager') !== -1;
+                if (!best || (hasManager && !best.hasManager)) best = { aoa: aoa, found: found, hasManager: hasManager };
+            });
+            if (!best) return [];
+            const h = best.found.header;
+            const ci = {
+                code: colIndex(h, ['code']),
+                name: colIndex(h, ['branch / flat name', 'branch/flat name', 'branch name', 'name']),
+                type: colIndex(h, ['type']),
+                brand: colIndex(h, ['brand']),
+                manager: colIndex(h, ['branch manager', 'manager']),
+                email: colIndex(h, ['email'])
+            };
+            const rows = [];
+            for (let i = best.found.idx + 1; i < best.aoa.length; i++) {
+                const r = best.aoa[i] || [];
+                const type = ci.type !== -1 ? norm(r[ci.type]).toLowerCase() : 'branch';
+                if (type && type !== 'branch') continue; // only restaurant branches
+                const name = ci.name !== -1 ? norm(r[ci.name]) : '';
+                if (!name) continue;
+                rows.push({
+                    code: ci.code !== -1 ? norm(r[ci.code]) : '',
+                    name: name,
+                    brand: ci.brand !== -1 ? norm(r[ci.brand]) : '',
+                    manager: ci.manager !== -1 ? norm(r[ci.manager]) : '',
+                    email: ci.email !== -1 ? norm(r[ci.email]) : ''
+                });
+            }
+            return rows;
+        }
+
+        function sendImport(rows) {
+            importBtn.disabled = true;
+            fetch('/admin/import-branches', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ rows: rows })
+            })
+            .then(function (r) { return r.json(); })
+            .then(function (data) {
+                if (!data || data.error) {
+                    alert((data && data.error) || 'Import failed.');
+                    return;
+                }
+                const parts = [
+                    'Brands added: ' + (data.brands_created || 0),
+                    'Branches added: ' + (data.branches_created || 0) + (data.branches_skipped ? ' (' + data.branches_skipped + ' already existed)' : ''),
+                    'Branch managers added: ' + (data.employees_created || 0) + (data.employees_skipped ? ' (' + data.employees_skipped + ' already existed)' : '')
+                ];
+                const msg = parts.join('\n');
+                const refresh = function () {
+                    if (typeof loadBrands === 'function' && typeof loadBranches === 'function') {
+                        loadBrands().then(function () { return loadBranches(); }).catch(function () {});
+                    } else if (typeof loadBranches === 'function') {
+                        loadBranches();
+                    }
+                };
+                refresh();
+                if (window.AppDialogs && AppDialogs.success) {
+                    AppDialogs.success(msg, 'Import complete');
+                } else {
+                    alert(msg);
+                }
+            })
+            .catch(function (err) {
+                console.error('Import error:', err);
+                alert('Import failed. Please try again.');
+            })
+            .finally(function () { importBtn.disabled = false; });
+        }
+
+        importBtn.addEventListener('click', function () {
+            if (typeof XLSX === 'undefined') {
+                alert('The spreadsheet library did not load. Please refresh the page and try again.');
+                return;
+            }
+            fileInput.value = '';
+            fileInput.click();
+        });
+
+        fileInput.addEventListener('change', function () {
+            const file = fileInput.files && fileInput.files[0];
+            if (!file) return;
+            const reader = new FileReader();
+            reader.onload = function (e) {
+                let rows;
+                try {
+                    const wb = XLSX.read(new Uint8Array(e.target.result), { type: 'array' });
+                    rows = parseWorkbook(wb);
+                } catch (err) {
+                    console.error('Parse error:', err);
+                    alert('Could not read the Excel file. Please check that it matches the expected format.');
+                    return;
+                }
+                if (!rows.length) {
+                    alert('No branch rows were found in the file. Make sure it has "Code", "Type", and "Brand" columns with Type = "Branch".');
+                    return;
+                }
+                const doIt = function () { sendImport(rows); };
+                if (window.AppDialogs && AppDialogs.confirm) {
+                    AppDialogs.confirm({
+                        title: 'Import branches & brands',
+                        message: 'Found ' + rows.length + ' branch row(s) in "' + file.name + '".\n\nThis will create any new brands, branches, and branch managers. Existing entries are kept.',
+                        confirmText: 'Import'
+                    }).then(function (ok) { if (ok) doIt(); });
+                } else if (confirm('Import ' + rows.length + ' branch row(s)?')) {
+                    doIt();
+                }
+            };
+            reader.readAsArrayBuffer(file);
+        });
     })();
 
 // ============================================================================
@@ -2149,7 +2370,7 @@ function appDeleteConfirm(message, title) {
 
     // Load users for user modal
     function loadUserModalUsers(filterDepartmentId = '') {
-        const url = filterDepartmentId ? `/admin/users?department_id=${filterDepartmentId}` : '/admin/users';
+        const url = filterDepartmentId ? `/admin/users?grouped=1&department_id=${filterDepartmentId}` : '/admin/users?grouped=1';
         
         fetch(url)
             .then(response => response.json())
@@ -2284,22 +2505,21 @@ function appDeleteConfirm(message, title) {
         const departmentName = btn.getAttribute('data-department');
 
         if (window.MgmtEditModals && window.MgmtEditModals.openEmployee) {
-            const rowUser = (window.__employeeRosterUsers || []).find(function (u) {
+            const group = (window.__employeeRosterUsers || []).find(function (u) {
                 return String(u.id) === String(userId);
             });
-            const loc = resolveEmployeeEditLocation(rowUser);
+            const isOffice = group ? !!group.is_office : false;
             window.MgmtEditModals.openEmployee({
                 id: userId,
                 name: currentName,
-                employeeId: rowUser ? rowUser.employee_id : '',
-                mobile: rowUser ? rowUser.mobile : '',
-                email: rowUser ? rowUser.email : '',
-                departmentId: loc.departmentId,
+                employeeId: group ? group.employee_id : '',
+                mobile: group ? group.mobile : '',
+                email: group ? group.email : '',
+                departmentId: group ? group.department_id : null,
                 departmentName: departmentName,
-                branchName: rowUser ? rowUser.branch_name : '',
-                brandId: loc.brandId,
-                branchId: loc.branchId,
-                venue: loc.venue,
+                branchName: group ? group.branch_name : '',
+                branchIds: group ? (group.branch_ids || []) : [],
+                venue: isOffice ? 'office' : 'restaurant',
             });
         }
     }
@@ -2309,9 +2529,15 @@ function appDeleteConfirm(message, title) {
         const userId = e.currentTarget.getAttribute('data-id');
         const userName = e.currentTarget.getAttribute('data-name');
         const departmentName = e.currentTarget.getAttribute('data-department');
+        const group = (window.__employeeRosterUsers || []).find(function (u) {
+            return String(u.id) === String(userId);
+        });
+        const scope = (group && !group.is_office && group.branch_ids && group.branch_ids.length > 1)
+            ? `all ${group.branch_ids.length} assigned branches`
+            : `"${(group && group.branch_name) || departmentName}"`;
         
         appDeleteConfirm(
-            `Are you sure you want to delete employee "${userName}" from "${departmentName}"?`,
+            `Are you sure you want to delete employee "${userName}" from ${scope}?`,
             'Delete employee'
         ).then(function (ok) {
             if (!ok) return;

@@ -91,19 +91,13 @@
             <option value="office">Office</option>
           </select>
         </div>
-        <div class="mb-3" id="editMgmtEmployeeBrandWrap">
-          {{ form_label('Brand', 'editMgmtEmployeeBrand', true) }}
-          <select class="form-select app-select-with-chevron" id="editMgmtEmployeeBrand">
-            <option value="">Select brand</option>
-          </select>
+        <div class="mb-3" id="editMgmtEmployeeBranchesWrap">
+          {{ form_label('Branches', 'editMgmtEmployeeBranchList', true) }}
+          <div class="form-text settings-import-hint mb-2"><i class="bi bi-info-circle" aria-hidden="true"></i> Select one or more branches. The employee is assigned to each branch's default Restaurant area.</div>
+          <input type="text" class="form-control mb-2" id="editMgmtEmployeeBranchSearch" placeholder="Search branches…" autocomplete="off">
+          <div id="editMgmtEmployeeBranchList" class="app-branch-checklist"></div>
         </div>
-        <div class="mb-3" id="editMgmtEmployeeBranchWrap">
-          {{ form_label('Branch', 'editMgmtEmployeeBranch', true) }}
-          <select class="form-select" id="editMgmtEmployeeBranch">
-            <option value="">Select branch</option>
-          </select>
-        </div>
-        <div class="mb-0">
+        <div class="mb-0 d-none" id="editMgmtEmployeeDepartmentWrap">
           {{ form_label('Department', 'editMgmtEmployeeDepartment', true) }}
           <select class="form-select" id="editMgmtEmployeeDepartment" required>
             <option value="">Choose location first</option>

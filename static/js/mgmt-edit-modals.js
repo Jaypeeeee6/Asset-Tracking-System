@@ -117,19 +117,23 @@
         }
     }
 
+    function renderEditBranchChecklist(checkedIds) {
+        if (global.EmployeeBranchChecklist && global.EmployeeBranchChecklist.render) {
+            global.EmployeeBranchChecklist.render('editMgmtEmployeeBranchList', checkedIds || []);
+        }
+    }
+
     function syncEditMgmtEmployeeVenue() {
         var val = $('editMgmtEmployeeVenue') ? $('editMgmtEmployeeVenue').value : '';
-        var bwrap = $('editMgmtEmployeeBrandWrap');
-        var wrap = $('editMgmtEmployeeBranchWrap');
-        var dwrap = $('editMgmtEmployeeDepartment');
-        var brand = $('editMgmtEmployeeBrand');
-        var branch = $('editMgmtEmployeeBranch');
+        var brwrap = $('editMgmtEmployeeBranchesWrap');
+        var dwrap = $('editMgmtEmployeeDepartmentWrap');
         var dept = $('editMgmtEmployeeDepartment');
+        var search = $('editMgmtEmployeeBranchSearch');
         if (!dept) return;
 
         if (val === 'office') {
-            if (bwrap) bwrap.classList.add('d-none');
-            if (wrap) wrap.classList.add('d-none');
+            if (brwrap) brwrap.classList.add('d-none');
+            if (dwrap) dwrap.classList.remove('d-none');
             dept.innerHTML = '<option value="">Loading...</option>';
             fetch('/admin/departments?office_only=1')
                 .then(function (r) { return r.json(); })
@@ -147,15 +151,13 @@
                     }
                 });
         } else if (val === 'restaurant') {
-            if (bwrap) bwrap.classList.remove('d-none');
-            if (wrap) wrap.classList.remove('d-none');
-            fillBrandSelect(brand, brand ? brand.value : '');
-            if (branch) branch.innerHTML = '<option value="">Select branch</option>';
-            dept.innerHTML = '<option value="">Select branch first</option>';
+            if (brwrap) brwrap.classList.remove('d-none');
+            if (dwrap) dwrap.classList.add('d-none');
+            if (search) search.value = '';
+            renderEditBranchChecklist([]);
         } else {
-            if (bwrap) bwrap.classList.add('d-none');
-            if (wrap) wrap.classList.add('d-none');
-            dept.innerHTML = '<option value="">Choose location first</option>';
+            if (brwrap) brwrap.classList.add('d-none');
+            if (dwrap) dwrap.classList.add('d-none');
         }
     }
 
@@ -281,15 +283,15 @@
         var venue = data.venue || (data.branchName === OFFICE_BRANCH_LABEL ? 'office' : 'restaurant');
         $('editMgmtEmployeeVenue').value = venue;
 
-        var bwrap = $('editMgmtEmployeeBrandWrap');
-        var wrap = $('editMgmtEmployeeBranchWrap');
-        var brand = $('editMgmtEmployeeBrand');
-        var branch = $('editMgmtEmployeeBranch');
+        var brwrap = $('editMgmtEmployeeBranchesWrap');
+        var dwrap = $('editMgmtEmployeeDepartmentWrap');
         var dept = $('editMgmtEmployeeDepartment');
+        var search = $('editMgmtEmployeeBranchSearch');
+        if (search) search.value = '';
 
         if (venue === 'office') {
-            if (bwrap) bwrap.classList.add('d-none');
-            if (wrap) wrap.classList.add('d-none');
+            if (brwrap) brwrap.classList.add('d-none');
+            if (dwrap) dwrap.classList.remove('d-none');
             if (dept) {
                 dept.innerHTML = '<option value="">Loading...</option>';
                 fetch('/admin/departments?office_only=1')
@@ -309,40 +311,10 @@
                     });
             }
         } else {
-            if (bwrap) bwrap.classList.remove('d-none');
-            if (wrap) wrap.classList.remove('d-none');
-            var brandId = data.brandId || data.brand_id || '';
-            var branchId = data.branchId || data.branch_id || '';
-            fillBrandSelect(brand, brandId);
-            fillBranchSelectByBrand(branch, brandId, branchId);
-            if (branchId) {
-                loadEditMgmtEmployeeDepartments(branchId, departmentId, venue);
-            } else if (departmentId) {
-                fetch('/admin/departments')
-                    .then(function (r) { return r.json(); })
-                    .then(function (depts) {
-                        var match = depts.find(function (d) {
-                            return String(d.id) === String(departmentId);
-                        });
-                        if (!match || match.branch_id == null) {
-                            if (dept) dept.innerHTML = '<option value="">Select branch first</option>';
-                            return;
-                        }
-                        var resolvedBranchId = match.branch_id;
-                        var matchBranch = branchesList().find(function (b) {
-                            return String(b.id) === String(resolvedBranchId);
-                        });
-                        var resolvedBrandId = matchBranch ? matchBranch.brand_id : '';
-                        fillBrandSelect(brand, resolvedBrandId);
-                        fillBranchSelectByBrand(branch, resolvedBrandId, resolvedBranchId);
-                        loadEditMgmtEmployeeDepartments(resolvedBranchId, departmentId, venue);
-                    })
-                    .catch(function () {
-                        if (dept) dept.innerHTML = '<option value="">Error loading departments</option>';
-                    });
-            } else if (dept) {
-                dept.innerHTML = '<option value="">Select branch first</option>';
-            }
+            if (brwrap) brwrap.classList.remove('d-none');
+            if (dwrap) dwrap.classList.add('d-none');
+            var branchIds = data.branchIds || data.branch_ids || [];
+            renderEditBranchChecklist(branchIds);
         }
 
         getBsModal(modalEl).show();
@@ -354,26 +326,32 @@
         var name = ($('editMgmtEmployeeName').value || '').trim();
         var mobile = ($('editMgmtEmployeeMobile') && $('editMgmtEmployeeMobile').value || '').trim();
         var email = ($('editMgmtEmployeeEmail') && $('editMgmtEmployeeEmail').value || '').trim();
-        var departmentId = $('editMgmtEmployeeDepartment').value;
+        var venue = $('editMgmtEmployeeVenue') ? $('editMgmtEmployeeVenue').value : '';
+        var departmentId = $('editMgmtEmployeeDepartment') ? $('editMgmtEmployeeDepartment').value : '';
         if (!employeeId) return showError('Please enter an employee ID.');
         if (!name) return showError('Please enter an employee name.');
-        if (!departmentId) return showError('Please select a department.');
+
+        var payload = { name: name, employee_id: employeeId, mobile: mobile, email: email };
+        if (venue === 'restaurant') {
+            var branchIds = (global.EmployeeBranchChecklist && global.EmployeeBranchChecklist.getChecked)
+                ? global.EmployeeBranchChecklist.getChecked('editMgmtEmployeeBranchList') : [];
+            if (!branchIds.length) return showError('Please select at least one branch.');
+            payload.branch_ids = branchIds;
+        } else {
+            if (!departmentId) return showError('Please select a department.');
+            payload.department_id = departmentId;
+        }
 
         return fetch('/admin/users/' + encodeURIComponent(id), {
             method: 'PUT',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                name: name,
-                employee_id: employeeId,
-                mobile: mobile,
-                email: email,
-                department_id: departmentId
-            })
+            body: JSON.stringify(payload)
         })
             .then(function (r) { return r.json(); })
             .then(function (data) {
                 if (data.success) {
                     getBsModal($('editMgmtEmployeeModal')).hide();
+                    if (data.warning) { showError(data.warning); }
                     if (global.MgmtEditCallbacks && global.MgmtEditCallbacks.onEmployeeSaved) {
                         global.MgmtEditCallbacks.onEmployeeSaved();
                     }
@@ -536,20 +514,12 @@
         var ev = $('editMgmtEmployeeVenue');
         if (ev) ev.addEventListener('change', syncEditMgmtEmployeeVenue);
 
-        var eb = $('editMgmtEmployeeBrand');
-        if (eb) {
-            eb.addEventListener('change', function () {
-                fillBranchSelectByBrand($('editMgmtEmployeeBranch'), this.value, '');
-                var dep = $('editMgmtEmployeeDepartment');
-                if (dep) dep.innerHTML = '<option value="">Select branch first</option>';
-            });
-        }
-
-        var ebr = $('editMgmtEmployeeBranch');
-        if (ebr) {
-            ebr.addEventListener('change', function () {
-                var venue = $('editMgmtEmployeeVenue') ? $('editMgmtEmployeeVenue').value : '';
-                loadEditMgmtEmployeeDepartments(this.value, null, venue);
+        var esearch = $('editMgmtEmployeeBranchSearch');
+        if (esearch) {
+            esearch.addEventListener('input', function () {
+                if (global.EmployeeBranchChecklist && global.EmployeeBranchChecklist.filter) {
+                    global.EmployeeBranchChecklist.filter('editMgmtEmployeeBranchList', esearch.value);
+                }
             });
         }
 

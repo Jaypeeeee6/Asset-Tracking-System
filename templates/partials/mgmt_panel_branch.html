@@ -1,5 +1,14 @@
 {% from "macros/app_components.html" import add_button, settings_search_bar %}
 <div class="settings-panel-stack">
+  <div class="d-flex flex-wrap align-items-center gap-2 mb-3">
+    <button type="button" class="btn-app-add" id="importBranchesBtn">
+      <i class="bi bi-file-earmark-arrow-up" aria-hidden="true"></i>
+      <span class="btn-app-add-label">Import branches &amp; brands</span>
+    </button>
+    <input type="file" id="importBranchesFile" accept=".xlsx,.xls" style="display:none;" aria-hidden="true">
+    <span class="form-text settings-import-hint mb-0"><i class="bi bi-info-circle" aria-hidden="true"></i> Import an Excel file to create brands, branches (Type = "Branch"), and their branch managers at once.</span>
+  </div>
+
   <div class="filter-bar settings-panel-form flex-wrap mb-3 pb-3 border-bottom">
     <div class="filter-group" style="flex: 1; min-width: 160px; max-width: 280px;">
       <label for="newBrandName">New brand</label>
