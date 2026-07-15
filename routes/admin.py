@@ -803,6 +803,131 @@ def delete_asset_type(asset_type_id):
 
 # ===== ASSET NAME MANAGEMENT API =====
 
+def _fetch_spec_fields_for_asset_names(cur, asset_name_ids):
+    """Return {asset_name_id: [{id, label, sort_order}, ...]}."""
+    if not asset_name_ids:
+        return {}
+    placeholders = ','.join('?' * len(asset_name_ids))
+    cur.execute(
+        f'''
+        SELECT id, asset_name_id, label, sort_order
+        FROM asset_name_spec_fields
+        WHERE asset_name_id IN ({placeholders})
+        ORDER BY sort_order, id
+        ''',
+        asset_name_ids,
+    )
+    grouped = {}
+    for row in cur.fetchall():
+        grouped.setdefault(row[1], []).append({
+            'id': row[0],
+            'label': row[2],
+            'sort_order': row[3],
+        })
+    return grouped
+
+
+def _parse_specification_labels():
+    """Parse specification labels from form (specifications[] or JSON)."""
+    labels = []
+    if request.form.get('specifications_json'):
+        import json
+        try:
+            raw = json.loads(request.form.get('specifications_json') or '[]')
+            if isinstance(raw, list):
+                labels = [str(item).strip() for item in raw if str(item).strip()]
+        except (json.JSONDecodeError, TypeError):
+            pass
+    if not labels:
+        labels = [label.strip() for label in request.form.getlist('specifications[]') if label.strip()]
+    # Deduplicate while preserving order
+    seen = set()
+    unique = []
+    for label in labels:
+        key = label.lower()
+        if key in seen:
+            continue
+        seen.add(key)
+        unique.append(label)
+    return unique
+
+
+def _parse_specification_updates():
+    """Parse spec field updates from form JSON: [{id?, label}]."""
+    import json
+    raw = request.form.get('specifications_json', '').strip()
+    if not raw:
+        return []
+    try:
+        parsed = json.loads(raw)
+    except json.JSONDecodeError:
+        return None
+    if not isinstance(parsed, list):
+        return None
+    updates = []
+    seen_labels = set()
+    for item in parsed:
+        if isinstance(item, str):
+            label = item.strip()
+            spec_id = None
+        elif isinstance(item, dict):
+            label = str(item.get('label', '')).strip()
+            spec_id = item.get('id')
+            if spec_id is not None:
+                try:
+                    spec_id = int(spec_id)
+                except (TypeError, ValueError):
+                    spec_id = None
+        else:
+            continue
+        if not label:
+            continue
+        key = label.lower()
+        if key in seen_labels:
+            continue
+        seen_labels.add(key)
+        updates.append({'id': spec_id, 'label': label})
+    return updates
+
+
+def _save_spec_fields_for_asset_name(cur, asset_name_id, labels):
+    """Insert specification field labels for a new asset name."""
+    for i, label in enumerate(labels):
+        cur.execute(
+            'INSERT INTO asset_name_spec_fields (asset_name_id, label, sort_order) VALUES (?, ?, ?)',
+            (asset_name_id, label, i),
+        )
+
+
+def _sync_spec_fields_for_asset_name(cur, asset_name_id, updates):
+    """Sync specification fields: update labels, add new, remove missing."""
+    cur.execute(
+        'SELECT id, label FROM asset_name_spec_fields WHERE asset_name_id = ? ORDER BY sort_order, id',
+        (asset_name_id,),
+    )
+    existing = {row[0]: row[1] for row in cur.fetchall()}
+    keep_ids = set()
+    for i, item in enumerate(updates):
+        spec_id = item.get('id')
+        label = item['label']
+        if spec_id and spec_id in existing:
+            cur.execute(
+                'UPDATE asset_name_spec_fields SET label = ?, sort_order = ? WHERE id = ? AND asset_name_id = ?',
+                (label, i, spec_id, asset_name_id),
+            )
+            keep_ids.add(spec_id)
+        else:
+            cur.execute(
+                'INSERT INTO asset_name_spec_fields (asset_name_id, label, sort_order) VALUES (?, ?, ?)',
+                (asset_name_id, label, i),
+            )
+            keep_ids.add(cur.lastrowid)
+    for old_id in existing:
+        if old_id not in keep_ids:
+            cur.execute('DELETE FROM asset_spec_values WHERE spec_field_id = ?', (old_id,))
+            cur.execute('DELETE FROM asset_name_spec_fields WHERE id = ?', (old_id,))
+
+
 @admin_bp.route('/asset-names', methods=['GET'])
 @login_required
 def get_asset_names():
@@ -812,6 +937,12 @@ def get_asset_names():
     
     if asset_type_id:
         cur.execute('SELECT id, name FROM asset_names WHERE asset_type_id = ? ORDER BY name', (asset_type_id,))
+        rows = cur.fetchall()
+        spec_map = _fetch_spec_fields_for_asset_names(cur, [row[0] for row in rows])
+        asset_names = [
+            {'id': row[0], 'name': row[1], 'spec_fields': spec_map.get(row[0], [])}
+            for row in rows
+        ]
     else:
         cur.execute('''
             SELECT an.id, an.name, an.asset_type_id, at.name as asset_type_name 
@@ -819,11 +950,18 @@ def get_asset_names():
             JOIN asset_types at ON an.asset_type_id = at.id 
             ORDER BY at.name, an.name
         ''')
-    
-    if asset_type_id:
-        asset_names = [{'id': row[0], 'name': row[1]} for row in cur.fetchall()]
-    else:
-        asset_names = [{'id': row[0], 'name': row[1], 'asset_type_id': row[2], 'asset_type_name': row[3]} for row in cur.fetchall()]
+        rows = cur.fetchall()
+        spec_map = _fetch_spec_fields_for_asset_names(cur, [row[0] for row in rows])
+        asset_names = [
+            {
+                'id': row[0],
+                'name': row[1],
+                'asset_type_id': row[2],
+                'asset_type_name': row[3],
+                'spec_fields': spec_map.get(row[0], []),
+            }
+            for row in rows
+        ]
     
     conn.close()
     return jsonify(asset_names)
@@ -851,12 +989,21 @@ def add_asset_name():
     
     conn = get_db_connection()
     cur = conn.cursor()
+    spec_labels = _parse_specification_labels()
     try:
         cur.execute('INSERT INTO asset_names (name, asset_type_id) VALUES (?, ?)', (name, asset_type_id))
         asset_name_id = cur.lastrowid
+        if spec_labels:
+            _save_spec_fields_for_asset_name(cur, asset_name_id, spec_labels)
         conn.commit()
         conn.close()
-        return jsonify({'success': True, 'id': asset_name_id, 'name': name, 'asset_type_id': asset_type_id})
+        return jsonify({
+            'success': True,
+            'id': asset_name_id,
+            'name': name,
+            'asset_type_id': asset_type_id,
+            'spec_fields': [{'label': label} for label in spec_labels],
+        })
     except sqlite3.IntegrityError:
         conn.close()
         return jsonify({'error': 'Asset name already exists for this asset type'}), 400
@@ -871,6 +1018,10 @@ def update_asset_name(asset_name_id):
     name = request.form.get('name', '').strip()
     if not name:
         return jsonify({'error': 'Asset name is required'}), 400
+    
+    spec_updates = _parse_specification_updates()
+    if spec_updates is None:
+        return jsonify({'error': 'Invalid specifications data'}), 400
     
     conn = get_db_connection()
     cur = conn.cursor()
@@ -889,10 +1040,20 @@ def update_asset_name(asset_name_id):
         
         # Update all assets that reference this asset name and asset type
         cur.execute('UPDATE assets SET name = ? WHERE name = ? AND asset_type = ?', (name, old_name, asset_type_name))
+
+        if request.form.get('specifications_json') is not None:
+            _sync_spec_fields_for_asset_name(cur, asset_name_id, spec_updates)
+        
+        spec_map = _fetch_spec_fields_for_asset_names(cur, [asset_name_id])
         
         conn.commit()
         conn.close()
-        return jsonify({'success': True, 'id': asset_name_id, 'name': name})
+        return jsonify({
+            'success': True,
+            'id': asset_name_id,
+            'name': name,
+            'spec_fields': spec_map.get(asset_name_id, []),
+        })
     except sqlite3.IntegrityError:
         conn.close()
         return jsonify({'error': 'Asset name already exists for this asset type'}), 400
@@ -924,6 +1085,7 @@ def delete_asset_name(asset_name_id):
         conn.close()
         return jsonify({'error': f'Cannot delete asset name. It is being used by {asset_count} asset(s)'}), 400
     
+    cur.execute('DELETE FROM asset_name_spec_fields WHERE asset_name_id = ?', (asset_name_id,))
     # Delete the asset name
     cur.execute('DELETE FROM asset_names WHERE id = ?', (asset_name_id,))
     conn.commit()

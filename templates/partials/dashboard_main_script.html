@@ -935,13 +935,19 @@ function appDeleteConfirm(message, title) {
         fetch('/admin/asset-names')
             .then(response => response.json())
             .then(assetNames => {
+                // Store for edit modal lookups
+                window.assetNamesById = {};
+                assetNames.forEach(assetName => {
+                    window.assetNamesById[assetName.id] = assetName;
+                });
+
                 let filteredAssetNames = assetNames;
                 if (selectedAssetType) {
                     filteredAssetNames = assetNames.filter(assetName => String(assetName.asset_type_id) === String(selectedAssetType));
                 }
 
                 if (filteredAssetNames.length === 0) {
-                    assetNamesList.innerHTML = '<tr><td colspan="5" class="text-center text-muted py-4">No asset names found</td></tr>';
+                    assetNamesList.innerHTML = '<tr><td colspan="6" class="text-center text-muted py-4">No asset names found</td></tr>';
                     return;
                 }
 
@@ -952,12 +958,17 @@ function appDeleteConfirm(message, title) {
                 });
 
                 sorted.forEach((assetName, i) => {
+                    const specFields = assetName.spec_fields || [];
+                    const specSummary = specFields.length
+                        ? specFields.map(f => f.label).join(', ')
+                        : '<span class="text-muted">None</span>';
                     const tr = document.createElement('tr');
                     tr.innerHTML = `
                         <td><input type="checkbox" class="asset-name-row-checkbox" value="${assetName.id}" aria-label="Select ${assetName.name}"></td>
                         <td>${i + 1}</td>
                         <td><strong class="asset-name-name" data-id="${assetName.id}">${assetName.name}</strong></td>
                         <td>${assetName.asset_type_name}</td>
+                        <td>${specSummary}</td>
                         <td>
                             <div class="d-flex gap-2 flex-wrap align-items-center">
                                 <button type="button" class="btn-app-edit-icon edit-asset-name-btn"
@@ -1078,7 +1089,9 @@ function appDeleteConfirm(message, title) {
             .then(assetNames => {
                 // Group asset names by asset type
                 const assetNamesByType = {};
+                const assetNamesById = {};
                 assetNames.forEach(assetName => {
+                    assetNamesById[assetName.id] = assetName;
                     if (!assetNamesByType[assetName.asset_type_name]) {
                         assetNamesByType[assetName.asset_type_name] = [];
                     }
@@ -1087,10 +1100,179 @@ function appDeleteConfirm(message, title) {
                 
                 // Store the grouped data for use in change handlers
                 window.assetNamesByType = assetNamesByType;
+                window.assetNamesById = assetNamesById;
             })
             .catch(error => {
                 console.error('Error loading asset names for dropdowns:', error);
             });
+    }
+
+    function getAssetNameRecord(assetTypeName, assetName) {
+        if (!window.assetNamesByType || !window.assetNamesByType[assetTypeName]) return null;
+        return window.assetNamesByType[assetTypeName].find(item => item.name === assetName) || null;
+    }
+
+    function renderAddAssetSpecFields() {
+        const section = document.getElementById('addAssetSpecFieldsSection');
+        const container = document.getElementById('addAssetSpecFieldsContainer');
+        const hidden = document.getElementById('addAssetSpecValuesJson');
+        if (!section || !container) return;
+
+        const assetType = document.getElementById('asset_type')?.value;
+        if (!assetType || !selectedAssetNames.length) {
+            section.style.display = 'none';
+            container.innerHTML = '';
+            if (hidden) hidden.value = '';
+            return;
+        }
+
+        let hasAnySpecs = false;
+        container.innerHTML = '';
+
+        selectedAssetNames.forEach(assetName => {
+            const record = getAssetNameRecord(assetType, assetName);
+            const specFields = record?.spec_fields || [];
+            if (!specFields.length) return;
+            hasAnySpecs = true;
+
+            const group = document.createElement('div');
+            group.className = 'asset-spec-group mb-3';
+            group.innerHTML = `<div class="fw-semibold mb-2">${assetName}</div>`;
+            const fieldsWrap = document.createElement('div');
+
+            specFields.forEach(field => {
+                const fieldId = `add-spec-${assetName.replace(/[^a-zA-Z0-9_-]/g, '_')}-${field.id}`;
+                const div = document.createElement('div');
+                div.className = 'mb-2';
+                div.innerHTML = `
+                    <label for="${fieldId}" class="form-label">${field.label} <span class="app-required-mark" aria-hidden="true">*</span></label>
+                    <input type="text" class="form-control asset-spec-input"
+                           id="${fieldId}"
+                           data-asset-name="${assetName.replace(/"/g, '&quot;')}"
+                           data-spec-field-id="${field.id}"
+                           required maxlength="200">
+                `;
+                fieldsWrap.appendChild(div);
+            });
+            group.appendChild(fieldsWrap);
+            container.appendChild(group);
+        });
+
+        section.style.display = hasAnySpecs ? 'block' : 'none';
+        if (!hasAnySpecs && hidden) hidden.value = '';
+    }
+
+    function collectAddAssetSpecValuesJson() {
+        const result = {};
+        document.querySelectorAll('#addAssetSpecFieldsContainer .asset-spec-input').forEach(input => {
+            const assetName = input.getAttribute('data-asset-name');
+            const specFieldId = input.getAttribute('data-spec-field-id');
+            if (!assetName || !specFieldId) return;
+            if (!result[assetName]) result[assetName] = {};
+            result[assetName][specFieldId] = input.value.trim();
+        });
+        const hidden = document.getElementById('addAssetSpecValuesJson');
+        if (hidden) hidden.value = JSON.stringify(result);
+        return result;
+    }
+
+    function validateAddAssetSpecFields() {
+        const assetType = document.getElementById('asset_type')?.value;
+        if (!assetType) return true;
+        const values = collectAddAssetSpecValuesJson();
+        for (const assetName of selectedAssetNames) {
+            const record = getAssetNameRecord(assetType, assetName);
+            const specFields = record?.spec_fields || [];
+            for (const field of specFields) {
+                const val = (values[assetName] && values[assetName][String(field.id)]) || '';
+                if (!val.trim()) {
+                    alert(`"${field.label}" is required for "${assetName}".`);
+                    return false;
+                }
+            }
+        }
+        return true;
+    }
+
+    function renderEditAssetSpecFields(existingValues = null) {
+        const section = document.getElementById('editAssetSpecFieldsSection');
+        const container = document.getElementById('editAssetSpecFieldsContainer');
+        const hidden = document.getElementById('editAssetSpecValuesJson');
+        if (!section || !container) return;
+
+        const assetType = document.getElementById('edit_asset_type')?.value;
+        const assetName = document.getElementById('edit_name')?.value.trim();
+        if (!assetType || !assetName) {
+            section.style.display = 'none';
+            container.innerHTML = '';
+            if (hidden) hidden.value = '';
+            return;
+        }
+
+        const preservedValues = existingValues || {};
+        if (!existingValues) {
+            document.querySelectorAll('#editAssetSpecFieldsContainer .edit-asset-spec-input').forEach(input => {
+                const specFieldId = input.getAttribute('data-spec-field-id');
+                if (specFieldId) preservedValues[specFieldId] = input.value.trim();
+            });
+        }
+
+        const record = getAssetNameRecord(assetType, assetName);
+        const specFields = record?.spec_fields || [];
+        if (!specFields.length) {
+            section.style.display = 'none';
+            container.innerHTML = '';
+            if (hidden) hidden.value = '';
+            return;
+        }
+
+        container.innerHTML = '';
+        specFields.forEach(field => {
+            const fieldId = `edit-spec-${field.id}`;
+            const existingVal = preservedValues[field.id] || preservedValues[String(field.id)] || '';
+            const div = document.createElement('div');
+            div.className = 'mb-2';
+            div.innerHTML = `
+                <label for="${fieldId}" class="form-label">${field.label} <span class="app-required-mark" aria-hidden="true">*</span></label>
+                <input type="text" class="form-control edit-asset-spec-input"
+                       id="${fieldId}"
+                       data-spec-field-id="${field.id}"
+                       value="${String(existingVal).replace(/"/g, '&quot;')}"
+                       required maxlength="200">
+            `;
+            container.appendChild(div);
+        });
+        section.style.display = 'block';
+        collectEditAssetSpecValuesJson();
+    }
+
+    function collectEditAssetSpecValuesJson() {
+        const result = {};
+        document.querySelectorAll('#editAssetSpecFieldsContainer .edit-asset-spec-input').forEach(input => {
+            const specFieldId = input.getAttribute('data-spec-field-id');
+            if (!specFieldId) return;
+            result[specFieldId] = input.value.trim();
+        });
+        const hidden = document.getElementById('editAssetSpecValuesJson');
+        if (hidden) hidden.value = JSON.stringify(result);
+        return result;
+    }
+
+    function validateEditAssetSpecFields() {
+        const assetType = document.getElementById('edit_asset_type')?.value;
+        const assetName = document.getElementById('edit_name')?.value.trim();
+        if (!assetType || !assetName) return true;
+        const record = getAssetNameRecord(assetType, assetName);
+        const specFields = record?.spec_fields || [];
+        const values = collectEditAssetSpecValuesJson();
+        for (const field of specFields) {
+            const val = values[String(field.id)] || '';
+            if (!val.trim()) {
+                alert(`"${field.label}" is required.`);
+                return false;
+            }
+        }
+        return true;
     }
 
     // Update asset name datalist based on selected asset type
@@ -1217,6 +1399,7 @@ function appDeleteConfirm(message, title) {
             selectedAssetNames.push(assetName);
             updateSelectedAssetNamesDisplay();
             updateHiddenInput();
+            renderAddAssetSpecFields();
         }
     }
 
@@ -1227,6 +1410,7 @@ function appDeleteConfirm(message, title) {
             selectedAssetNames.splice(index, 1);
             updateSelectedAssetNamesDisplay();
             updateHiddenInput();
+            renderAddAssetSpecFields();
         }
     }
 
@@ -1263,6 +1447,7 @@ function appDeleteConfirm(message, title) {
         selectedAssetNames = [];
         updateSelectedAssetNamesDisplay();
         updateHiddenInput();
+        renderAddAssetSpecFields();
     }
 
 
@@ -1645,9 +1830,21 @@ function appDeleteConfirm(message, title) {
 
     // Handle editing asset name
     function handleEditAssetName(e) {
-        const assetNameId = e.currentTarget.getAttribute('data-id');
-        const currentName = e.currentTarget.getAttribute('data-name');
-        const assetTypeName = e.currentTarget.getAttribute('data-asset-type');
+        const btn = e.currentTarget;
+        const assetNameId = btn.getAttribute('data-id');
+        if (window.MgmtEditModals && window.MgmtEditModals.openAssetName) {
+            const cached = window.assetNamesById && window.assetNamesById[assetNameId];
+            window.MgmtEditModals.openAssetName({
+                id: assetNameId,
+                name: btn.getAttribute('data-name'),
+                assetTypeName: btn.getAttribute('data-asset-type'),
+                specFields: cached ? (cached.spec_fields || []) : []
+            });
+            return;
+        }
+
+        const currentName = btn.getAttribute('data-name');
+        const assetTypeName = btn.getAttribute('data-asset-type');
 
         AppDialogs.prompt({
             title: 'Edit asset name',
@@ -1665,8 +1862,8 @@ function appDeleteConfirm(message, title) {
             .then(response => response.json())
             .then(data => {
                 if (data.success) {
-                    loadAssetNames(); // Reload the asset names list
-                    updateAssetNameDropdowns(); // Update dropdown data
+                    loadAssetNames();
+                    updateAssetNameDropdowns();
                 } else {
                     alert(data.error || 'Failed to update asset name.');
                 }
@@ -2375,11 +2572,20 @@ function appDeleteConfirm(message, title) {
             if (assetTypeInput && editAssetTypeInput && addAssetFormEl) {
                 assetTypeInput.addEventListener('change', function() {
                     updateAssetNameDropdown(this.value, 'name');
+                    renderAddAssetSpecFields();
                 });
 
                 editAssetTypeInput.addEventListener('change', function() {
                     updateAssetNameDropdown(this.value, 'edit_name');
+                    renderEditAssetSpecFields();
                 });
+
+                const editNameInput = document.getElementById('edit_name');
+                if (editNameInput) {
+                    editNameInput.addEventListener('change', function() {
+                        renderEditAssetSpecFields();
+                    });
+                }
 
                 addAssetFormEl.addEventListener('submit', function(e) {
                     syncAddAssetVenueField();
@@ -2418,6 +2624,11 @@ function appDeleteConfirm(message, title) {
                             return;
                         }
                     }
+                    if (!validateAddAssetSpecFields()) {
+                        e.preventDefault();
+                        return;
+                    }
+                    collectAddAssetSpecValuesJson();
                     if (venue === 'restaurant') {
                         const bsel = document.getElementById('add_asset_brand');
                         if (!bsel || !bsel.value) {
@@ -2598,6 +2809,16 @@ function appDeleteConfirm(message, title) {
                 updateAssetNameDropdown(assetTypeToSet, 'edit_name');
                 setTimeout(() => {
                     document.getElementById('edit_name').value = assetName;
+                    fetch(`/assets/${assetId}/spec-values`)
+                        .then(response => response.json())
+                        .then(data => {
+                            const existingValues = {};
+                            (data.values || []).forEach(item => {
+                                existingValues[item.spec_field_id] = item.value;
+                            });
+                            renderEditAssetSpecFields(existingValues);
+                        })
+                        .catch(() => renderEditAssetSpecFields());
                 }, 100);
             }, 300);
             
@@ -2768,6 +2989,11 @@ function appDeleteConfirm(message, title) {
                 alert(`Asset name "${assetName}" does not exist. Please select from the available asset names or add it first through the "Manage Assets" button.`);
                 return;
             }
+
+            if (!validateEditAssetSpecFields()) {
+                return;
+            }
+            collectEditAssetSpecValuesJson();
             
             AppDialogs.confirm({
                 title: 'Update asset',
@@ -3865,6 +4091,7 @@ function appDeleteConfirm(message, title) {
             selectedAssetNames.push(assetName);
             updateSelectedAssetNamesDisplay();
             updateHiddenInput();
+            renderAddAssetSpecFields();
         }
     }
     
@@ -3874,12 +4101,14 @@ function appDeleteConfirm(message, title) {
             selectedAssetNames.splice(index, 1);
             updateSelectedAssetNamesDisplay();
             updateHiddenInput();
+            renderAddAssetSpecFields();
         }
     }
 
     // Update dropdown when asset type changes
     document.getElementById('asset_type').addEventListener('change', function() {
         updateAllAssetNames();
+        renderAddAssetSpecFields();
     });
 
 

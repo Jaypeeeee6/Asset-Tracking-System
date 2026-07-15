@@ -426,6 +426,66 @@
             .catch(function () { return showError('Failed to update asset type.'); });
     }
 
+    function openEditAssetName(data) {
+        var modalEl = $('editMgmtAssetNameModal');
+        if (!modalEl) return;
+
+        function showModal(specFields) {
+            $('editMgmtAssetNameId').value = data.id;
+            $('editMgmtAssetNameValue').value = data.name || '';
+            var typeDisplay = $('editMgmtAssetNameTypeDisplay');
+            if (typeDisplay) typeDisplay.textContent = data.assetTypeName || '';
+            if (global.MgmtAddAssetModals && global.MgmtAddAssetModals.populateSpecList) {
+                global.MgmtAddAssetModals.populateSpecList('editMgmtAssetNameSpecList', specFields || []);
+            }
+            getBsModal(modalEl).show();
+        }
+
+        if (data.specFields && data.specFields.length) {
+            showModal(data.specFields);
+            return;
+        }
+
+        fetch('/admin/asset-names')
+            .then(function (r) { return r.json(); })
+            .then(function (names) {
+                var found = names.find(function (n) { return String(n.id) === String(data.id); });
+                showModal(found ? (found.spec_fields || []) : []);
+            })
+            .catch(function () { showModal([]); });
+    }
+
+    function saveEditAssetName() {
+        var id = $('editMgmtAssetNameId').value;
+        var name = ($('editMgmtAssetNameValue').value || '').trim();
+        if (!name) return showError('Please enter an asset name.');
+
+        var updates = (global.MgmtAddAssetModals && global.MgmtAddAssetModals.collectSpecUpdates)
+            ? global.MgmtAddAssetModals.collectSpecUpdates('editMgmtAssetNameSpecList')
+            : [];
+
+        var formData = new FormData();
+        formData.append('name', name);
+        formData.append('specifications_json', JSON.stringify(updates));
+
+        return fetch('/admin/asset-names/' + encodeURIComponent(id), { method: 'PUT', body: formData })
+            .then(function (r) { return r.json(); })
+            .then(function (data) {
+                if (data.success) {
+                    getBsModal($('editMgmtAssetNameModal')).hide();
+                    if (global.MgmtEditCallbacks && global.MgmtEditCallbacks.onAssetNameSaved) {
+                        global.MgmtEditCallbacks.onAssetNameSaved();
+                    } else if (typeof global.loadAssetNames === 'function') {
+                        global.loadAssetNames();
+                        if (typeof global.updateAssetNameDropdowns === 'function') global.updateAssetNameDropdowns();
+                    }
+                } else {
+                    return showError(data.error || 'Failed to update asset name.');
+                }
+            })
+            .catch(function () { return showError('Failed to update asset name.'); });
+    }
+
     function bindOnce() {
         if (document.body.dataset.mgmtEditModalsBound === '1') return;
         document.body.dataset.mgmtEditModalsBound = '1';
@@ -441,6 +501,18 @@
 
         var saveType = $('editMgmtAssetTypeSaveBtn');
         if (saveType) saveType.addEventListener('click', saveEditAssetType);
+
+        var saveAssetName = $('editMgmtAssetNameSaveBtn');
+        if (saveAssetName) saveAssetName.addEventListener('click', saveEditAssetName);
+
+        var editSpecBtn = $('editMgmtAssetNameSpecBtn');
+        if (editSpecBtn) {
+            editSpecBtn.addEventListener('click', function () {
+                if (global.MgmtAddAssetModals && global.MgmtAddAssetModals.addSpecRow) {
+                    global.MgmtAddAssetModals.addSpecRow('editMgmtAssetNameSpecList', '', null);
+                }
+            });
+        }
 
         var ev = $('editMgmtEmployeeVenue');
         if (ev) ev.addEventListener('change', syncEditMgmtEmployeeVenue);
@@ -483,6 +555,7 @@
         openBranch: openEditBranch,
         openDepartment: openEditDepartment,
         openEmployee: openEditEmployee,
-        openAssetType: openEditAssetType
+        openAssetType: openEditAssetType,
+        openAssetName: openEditAssetName
     };
 })(window);

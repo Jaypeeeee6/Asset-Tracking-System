@@ -198,6 +198,33 @@ def _migrate_asset_types_for_venue(cur):
         cur.execute("INSERT INTO sqlite_sequence (name, seq) VALUES ('asset_types', ?)", (mx,))
 
 
+def _migrate_asset_specifications(cur):
+    """Specification field templates per asset name and values per asset instance."""
+    cur.execute('''
+        CREATE TABLE IF NOT EXISTS asset_name_spec_fields (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            asset_name_id INTEGER NOT NULL,
+            label TEXT NOT NULL,
+            sort_order INTEGER NOT NULL DEFAULT 0,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (asset_name_id) REFERENCES asset_names (id) ON DELETE CASCADE,
+            UNIQUE(asset_name_id, label)
+        )
+    ''')
+    cur.execute('''
+        CREATE TABLE IF NOT EXISTS asset_spec_values (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            asset_id INTEGER NOT NULL,
+            spec_field_id INTEGER NOT NULL,
+            value TEXT NOT NULL,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (asset_id) REFERENCES assets (id) ON DELETE CASCADE,
+            FOREIGN KEY (spec_field_id) REFERENCES asset_name_spec_fields (id) ON DELETE CASCADE,
+            UNIQUE(asset_id, spec_field_id)
+        )
+    ''')
+
+
 def _migrate_asset_types_allow_both(cur):
     """Allow for_venue='both' (all restaurants and all office departments in one row)."""
     cur.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='asset_types'")
@@ -520,7 +547,8 @@ def init_db():
             UNIQUE(name, asset_type_id)
         )
     ''')
-    
+    _migrate_asset_specifications(cur)
+
     # Create archived_assets table
     cur.execute('''
         CREATE TABLE IF NOT EXISTS archived_assets (

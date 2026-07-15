@@ -110,6 +110,63 @@
         if (name) name.value = '';
         var combo = ensureAssetNameTypeCombo();
         if (combo) combo.reset();
+        clearSpecList('addMgmtAssetNameSpecList');
+    }
+
+    function clearSpecList(listId) {
+        var list = $(listId);
+        if (list) list.innerHTML = '';
+    }
+
+    function addSpecRow(listId, value, specId) {
+        var list = $(listId);
+        if (!list) return;
+        var row = document.createElement('div');
+        row.className = 'd-flex gap-2 align-items-center mb-2 asset-spec-row';
+        if (specId) row.dataset.specId = String(specId);
+        row.innerHTML =
+            '<input type="text" class="form-control form-control-sm asset-spec-label-input" maxlength="100" placeholder="e.g. Serial No." value="' +
+            (value || '').replace(/"/g, '&quot;') +
+            '">' +
+            '<button type="button" class="btn btn-sm btn-app-tab asset-spec-remove-btn" title="Remove specification" aria-label="Remove specification">' +
+            '<i class="bi bi-x-lg" aria-hidden="true"></i></button>';
+        list.appendChild(row);
+        var removeBtn = row.querySelector('.asset-spec-remove-btn');
+        if (removeBtn) {
+            removeBtn.addEventListener('click', function () {
+                row.remove();
+            });
+        }
+    }
+
+    function collectSpecLabels(listId) {
+        var list = $(listId);
+        if (!list) return [];
+        return Array.prototype.slice.call(list.querySelectorAll('.asset-spec-label-input'))
+            .map(function (input) { return input.value.trim(); })
+            .filter(function (label) { return !!label; });
+    }
+
+    function collectSpecUpdates(listId) {
+        var list = $(listId);
+        if (!list) return [];
+        return Array.prototype.slice.call(list.querySelectorAll('.asset-spec-row'))
+            .map(function (row) {
+                var input = row.querySelector('.asset-spec-label-input');
+                var label = input ? input.value.trim() : '';
+                if (!label) return null;
+                var item = { label: label };
+                if (row.dataset.specId) item.id = parseInt(row.dataset.specId, 10);
+                return item;
+            })
+            .filter(function (item) { return !!item; });
+    }
+
+    function populateSpecList(listId, specFields) {
+        clearSpecList(listId);
+        (specFields || []).forEach(function (field) {
+            addSpecRow(listId, field.label, field.id);
+        });
     }
 
     function saveAddAssetType() {
@@ -167,6 +224,8 @@
         var fd = new FormData();
         fd.append('name', name);
         fd.append('asset_type_id', typeId);
+        var specLabels = collectSpecLabels('addMgmtAssetNameSpecList');
+        fd.append('specifications_json', JSON.stringify(specLabels));
 
         return fetch('/admin/asset-names', { method: 'POST', body: fd })
             .then(function (r) { return r.json(); })
@@ -203,6 +262,13 @@
         var saveName = $('addMgmtAssetNameSaveBtn');
         if (saveName) saveName.addEventListener('click', saveAddAssetName);
 
+        var addSpecBtn = $('addMgmtAssetNameSpecBtn');
+        if (addSpecBtn) {
+            addSpecBtn.addEventListener('click', function () {
+                addSpecRow('addMgmtAssetNameSpecList', '', null);
+            });
+        }
+
         var typeModal = $('addMgmtAssetTypeModal');
         if (typeModal) {
             typeModal.addEventListener('show.bs.modal', resetAddAssetTypeModal);
@@ -230,6 +296,11 @@
     global.MgmtAddAssetModals = {
         resetAddAssetTypeModal: resetAddAssetTypeModal,
         resetAddAssetNameModal: resetAddAssetNameModal,
-        refreshAssetNameTypeCombo: refreshAssetNameTypeCombo
+        refreshAssetNameTypeCombo: refreshAssetNameTypeCombo,
+        addSpecRow: addSpecRow,
+        clearSpecList: clearSpecList,
+        populateSpecList: populateSpecList,
+        collectSpecLabels: collectSpecLabels,
+        collectSpecUpdates: collectSpecUpdates
     };
 })(window);

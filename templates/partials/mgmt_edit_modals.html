@@ -145,3 +145,40 @@
     </div>
   </div>
 </div>
+
+<!-- Edit asset name -->
+<div class="modal fade app-modal" id="editMgmtAssetNameModal" tabindex="-1" aria-labelledby="editMgmtAssetNameModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-lg app-modal-dialog-comfort">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="editMgmtAssetNameModalLabel"><i class="bi bi-pencil-square me-2" style="color:var(--gold);" aria-hidden="true"></i>Edit asset name</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body">
+        <input type="hidden" id="editMgmtAssetNameId" value="">
+        <div class="mb-3">
+          <span class="form-label d-block">Asset type</span>
+          <p class="mb-0 text-muted" id="editMgmtAssetNameTypeDisplay"></p>
+        </div>
+        <div class="mb-3">
+          {{ form_label('Asset name', 'editMgmtAssetNameValue', true) }}
+          <input type="text" class="form-control" id="editMgmtAssetNameValue" maxlength="100" required>
+        </div>
+        <div class="mb-0">
+          <div class="d-flex justify-content-between align-items-center mb-2">
+            <span class="form-label mb-0">Asset Specifications</span>
+            <button type="button" class="btn btn-sm btn-app-tab" id="editMgmtAssetNameSpecBtn">
+              <i class="bi bi-plus-lg" aria-hidden="true"></i> Add Specification
+            </button>
+          </div>
+          <div class="form-text mb-2"><i class="bi bi-info-circle" aria-hidden="true"></i> Define fields such as Serial No. that users must fill when adding this asset.</div>
+          <div id="editMgmtAssetNameSpecList"></div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        {{ modal_cancel_button('Cancel') }}
+        <button type="button" class="btn-app-add" id="editMgmtAssetNameSaveBtn"><i class="bi bi-check-lg" aria-hidden="true"></i><span class="btn-app-add-label">Save changes</span></button>
+      </div>
+    </div>
+  </div>
+</div>

@@ -27,6 +27,7 @@ from models.database import (
 import qrcode
 from io import BytesIO
 import uuid
+import json
 
 assets_bp = Blueprint('assets', __name__)
 
@@ -65,6 +66,99 @@ def _validate_asset_venue_location(cur, venue, branch, department, brand_id=None
         return 'Restaurant location is not fully set up for this branch. Contact IT.'
     return None
 
+
+def _get_asset_name_id(cur, asset_name, asset_type):
+    cur.execute(
+        '''
+        SELECT an.id FROM asset_names an
+        JOIN asset_types at ON an.asset_type_id = at.id
+        WHERE an.name = ? AND at.name = ?
+        ''',
+        (asset_name, asset_type),
+    )
+    row = cur.fetchone()
+    return row[0] if row else None
+
+
+def _get_spec_fields_for_asset_name(cur, asset_name_id):
+    cur.execute(
+        '''
+        SELECT id, label FROM asset_name_spec_fields
+        WHERE asset_name_id = ?
+        ORDER BY sort_order, id
+        ''',
+        (asset_name_id,),
+    )
+    return [{'id': row[0], 'label': row[1]} for row in cur.fetchall()]
+
+
+def _parse_asset_spec_values_json(raw):
+    if not raw:
+        return {}
+    try:
+        data = json.loads(raw)
+    except json.JSONDecodeError:
+        return None
+    if not isinstance(data, dict):
+        return None
+    return data
+
+
+def _validate_spec_values_for_asset_names(cur, asset_type, asset_names, spec_values_by_name):
+    for asset_name in asset_names:
+        asset_name_id = _get_asset_name_id(cur, asset_name, asset_type)
+        if not asset_name_id:
+            continue
+        spec_fields = _get_spec_fields_for_asset_name(cur, asset_name_id)
+        if not spec_fields:
+            continue
+        name_values = spec_values_by_name.get(asset_name, {})
+        if not isinstance(name_values, dict):
+            return f'Missing specification values for "{asset_name}".'
+        for field in spec_fields:
+            val = (name_values.get(str(field['id'])) or name_values.get(field['id']) or '').strip()
+            if not val:
+                return f'"{field["label"]}" is required for "{asset_name}".'
+    return None
+
+
+def _save_spec_values_for_asset(cur, asset_id, asset_name, asset_type, spec_values_by_name):
+    asset_name_id = _get_asset_name_id(cur, asset_name, asset_type)
+    if not asset_name_id:
+        return
+    name_values = spec_values_by_name.get(asset_name, {})
+    if not isinstance(name_values, dict):
+        return
+    spec_fields = _get_spec_fields_for_asset_name(cur, asset_name_id)
+    cur.execute('DELETE FROM asset_spec_values WHERE asset_id = ?', (asset_id,))
+    for field in spec_fields:
+        val = (name_values.get(str(field['id'])) or name_values.get(field['id']) or '').strip()
+        if val:
+            cur.execute(
+                'INSERT INTO asset_spec_values (asset_id, spec_field_id, value) VALUES (?, ?, ?)',
+                (asset_id, field['id'], val),
+            )
+
+
+def _validate_spec_values_for_single_asset(cur, asset_type, asset_name, spec_values):
+    if not isinstance(spec_values, dict):
+        spec_values = {}
+    asset_name_id = _get_asset_name_id(cur, asset_name, asset_type)
+    if not asset_name_id:
+        return None
+    spec_fields = _get_spec_fields_for_asset_name(cur, asset_name_id)
+    for field in spec_fields:
+        val = (spec_values.get(str(field['id'])) or spec_values.get(field['id']) or '').strip()
+        if not val:
+            return f'"{field["label"]}" is required.'
+    return None
+
+
+def _save_spec_values_for_single_asset(cur, asset_id, asset_name, asset_type, spec_values):
+    if not isinstance(spec_values, dict):
+        spec_values = {}
+    wrapped = {asset_name: spec_values}
+    _save_spec_values_for_asset(cur, asset_id, asset_name, asset_type, wrapped)
 
 
 def _compute_chart_data_from_asset_rows(rows):
@@ -395,9 +489,20 @@ def add_asset():
     
     if not asset_names:
         return redirect(url_for('assets.dashboard'))
+
+    spec_values_by_name = _parse_asset_spec_values_json(request.form.get('asset_spec_values_json', ''))
+    if spec_values_by_name is None:
+        flash('Invalid asset specification data.', 'error')
+        return redirect(url_for('assets.dashboard'))
     
     conn = get_db_connection()
     cur = conn.cursor()
+
+    spec_err = _validate_spec_values_for_asset_names(cur, asset_type, asset_names, spec_values_by_name)
+    if spec_err:
+        conn.close()
+        flash(spec_err, 'error')
+        return redirect(url_for('assets.dashboard'))
 
     err = _validate_asset_venue_location(cur, venue, branch, department, brand_id=brand_key)
     if err:
@@ -431,6 +536,7 @@ def add_asset():
         if row:
             new_quantity = row[1] + quantity
             cur.execute('UPDATE assets SET quantity=?, used_status=?, asset_type=?, owner=? WHERE id=?', (new_quantity, used_status, asset_type, owner, row[0]))
+            asset_id = row[0]
         else:
             if new_asset_codes is not None:
                 asset_code = new_asset_codes[i]
@@ -440,10 +546,35 @@ def add_asset():
             qr_random_code = str(uuid.uuid4())
             
             cur.execute('INSERT INTO assets (name, quantity, price, owner, branch, department, asset_code, qr_random_code, used_status, asset_type) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)', (asset_name, quantity, price, owner, branch, department, asset_code, qr_random_code, used_status, asset_type))
+            asset_id = cur.lastrowid
+
+        _save_spec_values_for_asset(cur, asset_id, asset_name, asset_type, spec_values_by_name)
     
     conn.commit()
     conn.close()
     return redirect(url_for('assets.dashboard'))
+
+@assets_bp.route('/<int:asset_id>/spec-values', methods=['GET'])
+@login_required
+def get_asset_spec_values(asset_id):
+    conn = get_db_connection()
+    cur = conn.cursor()
+    cur.execute(
+        '''
+        SELECT asv.spec_field_id, asv.value, sf.label
+        FROM asset_spec_values asv
+        JOIN asset_name_spec_fields sf ON sf.id = asv.spec_field_id
+        WHERE asv.asset_id = ?
+        ORDER BY sf.sort_order, sf.id
+        ''',
+        (asset_id,),
+    )
+    values = [
+        {'spec_field_id': row[0], 'value': row[1], 'label': row[2]}
+        for row in cur.fetchall()
+    ]
+    conn.close()
+    return jsonify({'values': values})
 
 @assets_bp.route('/update/<int:asset_id>', methods=['POST'])
 @login_required
@@ -492,6 +623,15 @@ def update_asset(asset_id):
         if not any(asset_type_for_venue_matches(r[0], venue) for r in vt_rows):
             conn.close()
             return jsonify({'error': 'Asset type does not match Restaurant / Office selection.'}), 400
+
+    spec_values = _parse_asset_spec_values_json(request.form.get('asset_spec_values_json', ''))
+    if spec_values is None:
+        conn.close()
+        return jsonify({'error': 'Invalid asset specification data.'}), 400
+    spec_err = _validate_spec_values_for_single_asset(cur, asset_type, name, spec_values)
+    if spec_err:
+        conn.close()
+        return jsonify({'error': spec_err}), 400
     
     try:
         # Get current asset data to check if branch or department changed
@@ -522,6 +662,8 @@ def update_asset(asset_id):
             SET name=?, asset_type=?, quantity=?, price=?, owner=?, branch=?, department=?, used_status=?, asset_code=?
             WHERE id=?
         ''', (name, asset_type, quantity, price, owner, branch, department, used_status, new_asset_code, asset_id))
+
+        _save_spec_values_for_single_asset(cur, asset_id, name, asset_type, spec_values)
         
         conn.commit()
         conn.close()
