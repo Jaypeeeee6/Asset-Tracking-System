@@ -1,4 +1,4 @@
-﻿<script>
+<script>
 /**
  * ASSET TRACKING SYSTEM - MAIN JAVASCRIPT
  * ========================================
@@ -233,6 +233,7 @@ function appDeleteConfirm(message, title) {
                 populateEditAssetBrandSelect();
                 populateEmployeeBrandSelects();
                 if (typeof populateEmployeeFilterSelects === 'function') populateEmployeeFilterSelects();
+                if (typeof populateBranchFilterSelects === 'function') populateBranchFilterSelects();
             })
             .catch(error => {
                 console.error('Error loading brands:', error);
@@ -377,6 +378,7 @@ function appDeleteConfirm(message, title) {
                 updateDepartmentBranchDropdown();
                 if (typeof populateEmployeeFilterSelects === 'function') populateEmployeeFilterSelects();
                 if (typeof applyEmployeeRosterFilters === 'function' && window.__employeeRosterAll) applyEmployeeRosterFilters();
+                if (typeof populateBranchFilterSelects === 'function') populateBranchFilterSelects();
             })
             .catch(error => {
                 console.error('Error loading branches:', error);
@@ -508,15 +510,42 @@ function appDeleteConfirm(message, title) {
     }
 
     // Update branches list in management modal
+    function populateBranchFilterSelects() {
+        const brandSel = document.getElementById('branchFilterBrand');
+        if (!brandSel) return;
+        const prev = brandSel.value;
+        brandSel.innerHTML = '<option value="">All brands</option>';
+        [...(brandsData || [])].sort((a, b) => (a.name || '').localeCompare(b.name || '')).forEach(br => {
+            const o = document.createElement('option');
+            o.value = String(br.id);
+            o.textContent = br.name;
+            brandSel.appendChild(o);
+        });
+        if (prev && Array.prototype.some.call(brandSel.options, o => o.value === prev)) {
+            brandSel.value = prev;
+        }
+    }
+
+    function applyBranchListFilters() {
+        updateBranchesList();
+    }
+
     function updateBranchesList() {
         const branchesList = document.getElementById('branchesList');
         if (!branchesList) return;
         branchesList.innerHTML = '';
         resetMgmtTableBulkUI('selectAllBranchesCheckbox', 'bulkDeleteBranchesBtn', 'branchesList', 'branch-row-checkbox');
 
-        const sorted = [...branchesData].sort((a, b) => a.name.localeCompare(b.name));
+        const brandId = (document.getElementById('branchFilterBrand') || {}).value || '';
+        let list = [...(branchesData || [])];
+        if (brandId) {
+            list = list.filter(b => String(b.brand_id) === String(brandId));
+        }
+        const sorted = list.sort((a, b) => a.name.localeCompare(b.name));
         if (sorted.length === 0) {
-            branchesList.innerHTML = '<tr><td colspan="6" class="text-center text-muted py-4">No branches yet. Add one above.</td></tr>';
+            branchesList.innerHTML = '<tr><td colspan="6" class="text-center text-muted py-4">'
+                + (brandId ? 'No branches match the selected brand.' : 'No branches yet. Add one above.')
+                + '</td></tr>';
             return;
         }
 
@@ -553,6 +582,9 @@ function appDeleteConfirm(message, title) {
             btn.addEventListener('click', handleDeleteBranch);
         });
         resetMgmtTableBulkUI('selectAllBranchesCheckbox', 'bulkDeleteBranchesBtn', 'branchesList', 'branch-row-checkbox');
+        if (typeof applySettingsTableSearch === 'function') {
+            applySettingsTableSearch('branchesList');
+        }
     }
 
 // ============================================================================
@@ -890,6 +922,14 @@ function appDeleteConfirm(message, title) {
     });
     })();
 
+    (function bindBranchListFilters() {
+        const brandSel = document.getElementById('branchFilterBrand');
+        if (!brandSel) return;
+        brandSel.addEventListener('change', function () {
+            if (typeof applyBranchListFilters === 'function') applyBranchListFilters();
+        });
+    })();
+
     // Handle importing branches & brands from an Excel file
     (function bindBranchImport() {
         const importBtn = document.getElementById('importBranchesBtn');
@@ -1031,6 +1071,194 @@ function appDeleteConfirm(message, title) {
                         confirmText: 'Import'
                     }).then(function (ok) { if (ok) doIt(); });
                 } else if (confirm('Import ' + rows.length + ' branch row(s)?')) {
+                    doIt();
+                }
+            };
+            reader.readAsArrayBuffer(file);
+        });
+    })();
+
+    (function bindOfficeEmployeeImport() {
+        const importBtn = document.getElementById('importOfficeEmployeesBtn');
+        const fileInput = document.getElementById('importOfficeEmployeesFile');
+        if (!importBtn || !fileInput) return;
+
+        function norm(v) {
+            if (v === null || v === undefined) return '';
+            let s = String(v).trim();
+            if (/^\d+\.0$/.test(s)) s = s.slice(0, -2);
+            return s;
+        }
+
+        function findHeader(aoa) {
+            for (let i = 0; i < aoa.length; i++) {
+                const lowered = (aoa[i] || []).map(function (c) { return norm(c).toLowerCase(); });
+                const hasName = colIndex(lowered, ['first name', 'employee name', 'name']) !== -1;
+                const hasDept = colIndex(lowered, ['department', 'dept']) !== -1;
+                if (hasName && hasDept) {
+                    return { idx: i, header: lowered };
+                }
+            }
+            return null;
+        }
+
+        function colIndex(header, candidates) {
+            for (let i = 0; i < candidates.length; i++) {
+                const idx = header.indexOf(candidates[i]);
+                if (idx !== -1) return idx;
+            }
+            return -1;
+        }
+
+        function deriveBranchCode(email) {
+            const value = (email || '').toLowerCase();
+            const direct = value.match(/\b([bckmt]-[a-z]{2}\d{3}|cn-\d{3}|in-\d{3})@/i);
+            if (direct) return direct[1].toUpperCase();
+            return '';
+        }
+
+        function isLocationDepartment(department) {
+            const value = (department || '').trim().toLowerCase();
+            return ['muscat', 'al batinah', 'al dakhilia', 'al sharqiah', 'al dhahira', 'office'].indexOf(value) !== -1;
+        }
+
+        function looksLikeLocationRow(employeeId, name, department) {
+            const eid = (employeeId || '').toLowerCase();
+            const nm = (name || '').toLowerCase();
+            const dep = (department || '').toLowerCase();
+            if (/[a-z]+-[a-z]{2}\d{3}-/i.test(eid) || /^(cn|in)-\d{3}$/i.test(eid)) return true;
+            if (isLocationDepartment(dep) && /\b(flat|villa|gate|city|mall|kucu|boom|thoum|cartoon|mishmisha|staff)\b/i.test(nm)) return true;
+            if (isLocationDepartment(dep) && /\d/.test(nm)) return true;
+            return false;
+        }
+
+        function parseWorkbook(wb) {
+            let best = null;
+            (wb.SheetNames || []).forEach(function (sn) {
+                const ws = wb.Sheets[sn];
+                if (!ws) return;
+                const aoa = XLSX.utils.sheet_to_json(ws, { header: 1, defval: '' });
+                const found = findHeader(aoa);
+                if (!found) return;
+                if (!best || found.idx < best.found.idx) {
+                    best = { aoa: aoa, found: found };
+                }
+            });
+            if (!best) return [];
+            const h = best.found.header;
+            const ci = {
+                employee_id: colIndex(h, ['employee id', 'employee_id', 'emp id', 'emp_id']),
+                name: colIndex(h, ['first name', 'employee name', 'name']),
+                department: colIndex(h, ['department', 'dept']),
+                mobile: colIndex(h, ['mobile no.', 'mobile no', 'mobile number', 'mobile', 'phone', 'phone number']),
+                email: colIndex(h, ['email', 'e-mail', 'email address'])
+            };
+            const rows = [];
+            for (let i = best.found.idx + 1; i < best.aoa.length; i++) {
+                const r = best.aoa[i] || [];
+                const employeeId = ci.employee_id !== -1 ? norm(r[ci.employee_id]) : '';
+                const name = ci.name !== -1 ? norm(r[ci.name]) : '';
+                const department = ci.department !== -1 ? norm(r[ci.department]) : '';
+                const mobile = ci.mobile !== -1 ? norm(r[ci.mobile]) : '';
+                const email = ci.email !== -1 ? norm(r[ci.email]) : '';
+                if (!name && !employeeId && !department && !mobile && !email) continue;
+                if (!name) continue;
+                if (looksLikeLocationRow(employeeId, name, department)) continue;
+
+                const isRestaurant = department.trim().toLowerCase() === 'restaurant';
+                const isOffice = !isRestaurant;
+                rows.push({
+                    employee_id: employeeId,
+                    name: name,
+                    department: department,
+                    mobile: mobile,
+                    email: email,
+                    venue: isRestaurant ? 'restaurant' : 'office',
+                    branch_code: isRestaurant ? deriveBranchCode(email) : ''
+                });
+            }
+            return rows;
+        }
+
+        function sendImport(rows) {
+            importBtn.disabled = true;
+            fetch('/admin/import-office-employees', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ rows: rows })
+            })
+            .then(function (r) { return r.json(); })
+            .then(function (data) {
+                if (!data || data.error) {
+                    alert((data && data.error) || 'Import failed.');
+                    return;
+                }
+                const parts = [
+                    'Employees added: ' + (data.employees_created || 0),
+                    'Existing rows updated: ' + (data.employees_updated || 0),
+                    'Skipped (already in system): ' + (data.employees_skipped || 0)
+                ];
+                if (data.office_employees_created || data.restaurant_employees_created) {
+                    parts.push('Office: ' + (data.office_employees_created || 0) + ', Restaurant: ' + (data.restaurant_employees_created || 0));
+                }
+                if (data.departments_created) {
+                    parts.push('Departments added: ' + data.departments_created);
+                }
+                if (data.errors && data.errors.length) {
+                    parts.push('Skipped with issues: ' + data.errors.length);
+                }
+                const msg = parts.join('\n');
+                if (typeof loadDepartments === 'function') loadDepartments();
+                if (typeof loadUserModalUsers === 'function') loadUserModalUsers();
+                if (typeof loadUserModalFilterDropdown === 'function') loadUserModalFilterDropdown();
+                if (window.AppDialogs && AppDialogs.success) {
+                    AppDialogs.success(msg, 'Import complete');
+                } else {
+                    alert(msg);
+                }
+            })
+            .catch(function (err) {
+                console.error('Import error:', err);
+                alert('Import failed. Please try again.');
+            })
+            .finally(function () { importBtn.disabled = false; });
+        }
+
+        importBtn.addEventListener('click', function () {
+            if (typeof XLSX === 'undefined') {
+                alert('The spreadsheet library did not load. Please refresh the page and try again.');
+                return;
+            }
+            fileInput.value = '';
+            fileInput.click();
+        });
+
+        fileInput.addEventListener('change', function () {
+            const file = fileInput.files && fileInput.files[0];
+            if (!file) return;
+            const reader = new FileReader();
+            reader.onload = function (e) {
+                let rows;
+                try {
+                    const wb = XLSX.read(new Uint8Array(e.target.result), { type: 'array' });
+                    rows = parseWorkbook(wb);
+                } catch (err) {
+                    console.error('Parse error:', err);
+                    alert('Could not read the Excel file. Please check that it matches the expected format.');
+                    return;
+                }
+                if (!rows.length) {
+                    alert('No importable employee rows were found. The importer only uses Employee ID, Name, Department, Email, and Mobile, and ignores extra/location-only rows.');
+                    return;
+                }
+                const doIt = function () { sendImport(rows); };
+                if (window.AppDialogs && AppDialogs.confirm) {
+                    AppDialogs.confirm({
+                        title: 'Import employees',
+                        message: 'Found ' + rows.length + ' importable employee row(s) in "' + file.name + '".\n\nOnly fields used by the system are imported. Extra columns are ignored, existing employees are skipped, and blank cells stay blank.',
+                        confirmText: 'Import'
+                    }).then(function (ok) { if (ok) doIt(); });
+                } else if (confirm('Import ' + rows.length + ' employee row(s)?')) {
                     doIt();
                 }
             };

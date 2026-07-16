@@ -4,7 +4,13 @@ import uuid
 from flask import current_app
 
 from utils.auth import hash_password
-from utils.auth_roles import AUTH_ROLE_IT, AUTH_ROLE_MANAGEMENT
+from utils.auth_roles import (
+    AUTH_ROLE_IT,
+    AUTH_ROLE_MANAGEMENT,
+    AUTH_ROLE_OPERATIONS,
+    AUTH_ROLE_QC,
+    AUTH_ROLES,
+)
 
 def get_db_connection():
     conn = sqlite3.connect(current_app.config['DATABASE'], timeout=10, check_same_thread=False)
@@ -355,6 +361,43 @@ def _migrate_users_contact_info(conn):
     conn.commit()
 
 
+def _migrate_users_nullable_department(conn):
+    """Allow office imports to leave department unset when the spreadsheet has a blank Department cell."""
+    cur = conn.cursor()
+    cur.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='users'")
+    if not cur.fetchone():
+        return
+    cur.execute('PRAGMA table_info(users)')
+    cols = cur.fetchall()
+    dept_row = next((c for c in cols if c[1] == 'department_id'), None)
+    if not dept_row or dept_row[3] == 0:
+        return
+    cur.executescript(
+        '''
+        PRAGMA foreign_keys=OFF;
+        CREATE TABLE users_rebuild (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            name TEXT NOT NULL,
+            employee_id TEXT,
+            mobile TEXT,
+            email TEXT,
+            department_id INTEGER,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (department_id) REFERENCES departments (id),
+            UNIQUE(name, department_id)
+        );
+        INSERT INTO users_rebuild (id, name, employee_id, mobile, email, department_id, created_at)
+            SELECT id, name, employee_id, mobile, email, department_id, created_at FROM users;
+        DROP TABLE users;
+        ALTER TABLE users_rebuild RENAME TO users;
+        CREATE UNIQUE INDEX IF NOT EXISTS idx_users_employee_id_dept
+            ON users(employee_id, department_id) WHERE employee_id IS NOT NULL;
+        PRAGMA foreign_keys=ON;
+        '''
+    )
+    conn.commit()
+
+
 def _migrate_users_employee_id_multi_branch(conn):
     """Allow one employee (same employee_id) to be assigned to multiple branches.
 
@@ -427,7 +470,7 @@ def _ensure_default_super_admin(conn):
 
 
 def _migrate_users_auth_schema(conn):
-    """Add full_name, migrate admin/purchasing roles to IT/Management, and rebuild table when CHECK blocks updates."""
+    """Keep users_auth aligned with the current auth role set and required columns."""
     cur = conn.cursor()
     cur.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='users_auth'")
     if not cur.fetchone():
@@ -437,7 +480,11 @@ def _migrate_users_auth_schema(conn):
     has_full_name = 'full_name' in col_names
     cur.execute("SELECT COUNT(*) FROM users_auth WHERE role IN ('admin', 'purchasing')")
     needs_role_migration = cur.fetchone()[0] > 0
-    if has_full_name and not needs_role_migration:
+    cur.execute("SELECT sql FROM sqlite_master WHERE type='table' AND name='users_auth'")
+    create_sql = (cur.fetchone() or [None])[0] or ''
+    current_roles_sql = ', '.join(f"'{role}'" for role in AUTH_ROLES)
+    needs_constraint_refresh = current_roles_sql not in create_sql
+    if has_full_name and not needs_role_migration and not needs_constraint_refresh:
         return
 
     cur.execute('SELECT * FROM users_auth')
@@ -451,7 +498,7 @@ def _migrate_users_auth_schema(conn):
             password_hash TEXT NOT NULL,
             encrypted_password TEXT NOT NULL,
             full_name TEXT NOT NULL DEFAULT '',
-            role TEXT NOT NULL CHECK (role IN ('IT', 'Management')),
+            role TEXT NOT NULL CHECK (role IN ('IT', 'Management', 'QC', 'Operations')),
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         )
         '''
@@ -460,7 +507,7 @@ def _migrate_users_auth_schema(conn):
         email = r['email'] if 'email' in r.keys() else r['username']
         old_role = r['role']
         new_role = {'admin': AUTH_ROLE_IT, 'purchasing': AUTH_ROLE_MANAGEMENT}.get(old_role, old_role)
-        if new_role not in (AUTH_ROLE_IT, AUTH_ROLE_MANAGEMENT):
+        if new_role not in AUTH_ROLES:
             new_role = AUTH_ROLE_MANAGEMENT
         if has_full_name:
             fn = (r['full_name'] or '').strip()
@@ -565,6 +612,7 @@ def init_db():
     _migrate_users_employee_id(conn)
     _migrate_users_contact_info(conn)
     _migrate_users_employee_id_multi_branch(conn)
+    _migrate_users_nullable_department(conn)
     
     # Create users_auth table for login authentication
     cur.execute('''
@@ -574,7 +622,7 @@ def init_db():
             password_hash TEXT NOT NULL,
             encrypted_password TEXT NOT NULL,
             full_name TEXT NOT NULL DEFAULT '',
-            role TEXT NOT NULL CHECK (role IN ('IT', 'Management')),
+            role TEXT NOT NULL CHECK (role IN ('IT', 'Management', 'QC', 'Operations')),
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         )
     ''')

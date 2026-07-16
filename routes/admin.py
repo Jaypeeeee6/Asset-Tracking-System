@@ -351,14 +351,217 @@ def import_branches():
                     existing_emp = cur.fetchone()
                     if existing_emp:
                         summary['employees_skipped'] += 1
-                        if email and not existing_emp[1]:
-                            cur.execute('UPDATE users SET email = ? WHERE id = ?', (email, existing_emp[0]))
                     else:
                         cur.execute(
                             'INSERT INTO users (name, employee_id, mobile, email, department_id) VALUES (?, ?, ?, ?, ?)',
                             (manager, None, None, email or None, dep_id),
                         )
                         summary['employees_created'] += 1
+        except sqlite3.Error as e:
+            summary['errors'].append(f'Row {idx + 1} ("{name}"): {str(e)}')
+
+    conn.commit()
+    conn.close()
+    summary['success'] = True
+    return jsonify(summary)
+
+
+@admin_bp.route('/import-office-employees', methods=['POST'])
+@login_required
+def import_office_employees():
+    """Bulk import employees from a parsed employee-directory Excel file.
+
+    Expects JSON: { "rows": [ {employee_id, name, department, mobile, email, venue, branch_code}, ... ] }.
+    The Employees tab may import both office employees and restaurant managers.
+    Existing employees are skipped and blank spreadsheet cells stay blank.
+    """
+    if not current_user.has_it_access():
+        return jsonify({'error': 'Access denied. Only IT users can import employees.'}), 403
+
+    data = request.get_json(silent=True) or {}
+    rows = data.get('rows')
+    if not isinstance(rows, list) or not rows:
+        return jsonify({'error': 'No employee rows found to import. Please check the file.'}), 400
+
+    conn = get_db_connection()
+    cur = conn.cursor()
+
+    summary = {
+        'departments_created': 0,
+        'office_employees_created': 0,
+        'restaurant_employees_created': 0,
+        'employees_created': 0,
+        'employees_skipped': 0,
+        'employees_updated': 0,
+        'errors': [],
+    }
+
+    dept_cache = {}
+    branch_dept_cache = {}
+
+    def get_or_create_office_department(dept_name):
+        key = dept_name.lower()
+        if key in dept_cache:
+            return dept_cache[key]
+        cur.execute(
+            'SELECT id FROM departments WHERE name = ? AND branch_id IS NULL',
+            (dept_name,),
+        )
+        found = cur.fetchone()
+        if found:
+            dept_cache[key] = found[0]
+            return found[0]
+        cur.execute(
+            'INSERT INTO departments (name, branch_id) VALUES (?, NULL)',
+            (dept_name,),
+        )
+        summary['departments_created'] += 1
+        dept_cache[key] = cur.lastrowid
+        return cur.lastrowid
+
+    def optional_text(value):
+        text = (value or '').strip()
+        return text or None
+
+    def find_restaurant_department(branch_code):
+        key = (branch_code or '').strip().upper()
+        if not key:
+            return None
+        if key in branch_dept_cache:
+            return branch_dept_cache[key]
+        cur.execute(
+            '''
+            SELECT d.id
+            FROM departments d
+            JOIN branches b ON d.branch_id = b.id
+            WHERE UPPER(COALESCE(b.branch_code, '')) = ? AND d.name = ?
+            ''',
+            (key, RESTAURANT_DEFAULT_DEPARTMENT_NAME),
+        )
+        found = cur.fetchone()
+        branch_dept_cache[key] = found[0] if found else None
+        return branch_dept_cache[key]
+
+    def is_office_department_name(dept_name):
+        value = (dept_name or '').strip().lower()
+        return value not in ('', 'restaurant', 'muscat', 'al batinah', 'al dakhilia', 'al sharqiah', 'al dhahira', 'office')
+
+    def backfill_employee_rows(existing_rows, new_employee_id, new_mobile, new_email, new_department_id):
+        changed = False
+        for existing in existing_rows:
+            existing_row_id, current_employee_id, current_mobile, current_email, current_department_id = existing
+            updates = []
+            params = []
+            if new_employee_id and not current_employee_id:
+                updates.append('employee_id = ?')
+                params.append(new_employee_id)
+            if new_mobile and not current_mobile:
+                updates.append('mobile = ?')
+                params.append(new_mobile)
+            if new_email and not current_email:
+                updates.append('email = ?')
+                params.append(new_email)
+            if new_department_id and not current_department_id:
+                updates.append('department_id = ?')
+                params.append(new_department_id)
+            if not updates:
+                continue
+            params.append(existing_row_id)
+            cur.execute('UPDATE users SET ' + ', '.join(updates) + ' WHERE id = ?', params)
+            changed = True
+        return changed
+
+    for idx, row in enumerate(rows):
+        if not isinstance(row, dict):
+            continue
+        name = (row.get('name') or '').strip()
+        if not name:
+            continue
+        department = (row.get('department') or '').strip()
+        employee_id = optional_text(row.get('employee_id'))
+        mobile = optional_text(row.get('mobile'))
+        email = optional_text(row.get('email'))
+        venue = ((row.get('venue') or 'office').strip().lower()) or 'office'
+        branch_code = optional_text((row.get('branch_code') or '').upper())
+
+        try:
+            dep_id = None
+            if venue == 'restaurant':
+                dep_id = find_restaurant_department(branch_code) if branch_code else None
+            elif is_office_department_name(department):
+                dep_id = get_or_create_office_department(department)
+
+            if employee_id:
+                cur.execute(
+                    'SELECT id, employee_id, mobile, email, department_id FROM users WHERE employee_id = ?',
+                    (employee_id,),
+                )
+                existing_rows = cur.fetchall()
+                if existing_rows:
+                    if backfill_employee_rows(existing_rows, employee_id, mobile, email, dep_id):
+                        summary['employees_updated'] += 1
+                    summary['employees_skipped'] += 1
+                    continue
+
+            if dep_id:
+                cur.execute(
+                    'SELECT id, employee_id, mobile, email, department_id FROM users WHERE LOWER(TRIM(name)) = LOWER(TRIM(?)) AND department_id = ?',
+                    (name, dep_id),
+                )
+                existing_rows = cur.fetchall()
+            else:
+                existing_rows = []
+            if not existing_rows:
+                if venue == 'restaurant':
+                    cur.execute(
+                        '''
+                        SELECT u.id, u.employee_id, u.mobile, u.email, u.department_id
+                        FROM users u
+                        JOIN departments d ON u.department_id = d.id
+                        WHERE LOWER(TRIM(u.name)) = LOWER(TRIM(?)) AND d.branch_id IS NOT NULL
+                        ''',
+                        (name,),
+                    )
+                else:
+                    cur.execute(
+                        '''
+                        SELECT u.id, u.employee_id, u.mobile, u.email, u.department_id
+                        FROM users u
+                        LEFT JOIN departments d ON u.department_id = d.id
+                        WHERE LOWER(TRIM(u.name)) = LOWER(TRIM(?))
+                          AND (u.department_id IS NULL OR d.branch_id IS NULL)
+                        ''',
+                        (name,),
+                    )
+                existing_rows = cur.fetchall()
+            if not existing_rows:
+                cur.execute(
+                    'SELECT id, employee_id, mobile, email, department_id FROM users WHERE LOWER(TRIM(name)) = LOWER(TRIM(?))',
+                    (name,),
+                )
+                existing_rows = cur.fetchall()
+            if existing_rows:
+                if backfill_employee_rows(existing_rows, employee_id, mobile, email, dep_id):
+                    summary['employees_updated'] += 1
+                summary['employees_skipped'] += 1
+                continue
+
+            if venue == 'restaurant' and not dep_id:
+                summary['errors'].append(
+                    f'Row {idx + 1} ("{name}"): could not determine the restaurant branch/location.'
+                )
+                continue
+
+            cur.execute(
+                'INSERT INTO users (name, employee_id, mobile, email, department_id) '
+                'VALUES (?, ?, ?, ?, ?)',
+                (name, employee_id, mobile, email, dep_id),
+            )
+            summary['employees_created'] += 1
+            if venue == 'restaurant':
+                summary['restaurant_employees_created'] += 1
+            else:
+                summary['office_employees_created'] += 1
         except sqlite3.Error as e:
             summary['errors'].append(f'Row {idx + 1} ("{name}"): {str(e)}')
 
@@ -560,19 +763,19 @@ def _load_employee_group(cur, user_id):
     cur.execute(
         '''
         SELECT u.id, u.name, u.employee_id, u.department_id, d.name AS dept_name,
-               d.branch_id, COALESCE(b.name, ?) AS branch_name
+               d.branch_id, CASE WHEN u.department_id IS NULL THEN ? ELSE COALESCE(b.name, ?) END AS branch_name
         FROM users u
-        JOIN departments d ON u.department_id = d.id
+        LEFT JOIN departments d ON u.department_id = d.id
         LEFT JOIN branches b ON d.branch_id = b.id
         WHERE u.id = ?
         ''',
-        (OFFICE_BRANCH_LABEL, user_id),
+        (OFFICE_BRANCH_LABEL, OFFICE_BRANCH_LABEL, user_id),
     )
     base = cur.fetchone()
     if not base:
         return None
     base = dict(base)
-    is_office = base['branch_id'] is None
+    is_office = base['department_id'] is None or base['branch_id'] is None
     emp = base['employee_id']
     if emp:
         cur.execute(
@@ -590,13 +793,14 @@ def _load_employee_group(cur, user_id):
         cur.execute(
             '''
             SELECT u.id, u.name, u.employee_id, u.department_id, d.name AS dept_name,
-                   d.branch_id, COALESCE(b.name, ?) AS branch_name
+                   d.branch_id, CASE WHEN u.department_id IS NULL THEN ? ELSE COALESCE(b.name, ?) END AS branch_name
             FROM users u
-            JOIN departments d ON u.department_id = d.id
+            LEFT JOIN departments d ON u.department_id = d.id
             LEFT JOIN branches b ON d.branch_id = b.id
-            WHERE u.employee_id IS NULL AND LOWER(u.name) = LOWER(?) AND d.branch_id IS NULL
+            WHERE u.employee_id IS NULL AND LOWER(u.name) = LOWER(?)
+              AND (u.department_id IS NULL OR d.branch_id IS NULL)
             ''',
-            (OFFICE_BRANCH_LABEL, base['name']),
+            (OFFICE_BRANCH_LABEL, OFFICE_BRANCH_LABEL, base['name']),
         )
     else:
         cur.execute(
@@ -657,12 +861,13 @@ def get_users():
     cur.execute(
         '''
         SELECT u.id, u.name, u.employee_id, u.mobile, u.email, u.department_id,
-               d.name as department_name, d.branch_id, COALESCE(b.name, ?) as branch_name
+               d.name as department_name, d.branch_id,
+               CASE WHEN u.department_id IS NULL THEN ? ELSE COALESCE(b.name, ?) END as branch_name
         FROM users u
-        JOIN departments d ON u.department_id = d.id
+        LEFT JOIN departments d ON u.department_id = d.id
         LEFT JOIN branches b ON d.branch_id = b.id
         ''',
-        (OFFICE_BRANCH_LABEL,),
+        (OFFICE_BRANCH_LABEL, OFFICE_BRANCH_LABEL),
     )
     rows = [dict(r) for r in cur.fetchall()]
     conn.close()
@@ -670,7 +875,7 @@ def get_users():
     groups = {}
     order = []
     for r in rows:
-        is_office = r['branch_id'] is None
+        is_office = r['department_id'] is None or r['branch_id'] is None
         key = _employee_group_key(r['employee_id'], r['name'], is_office)
         g = groups.get(key)
         if not g:
@@ -702,7 +907,7 @@ def get_users():
         if r['branch_id'] is not None and r['branch_id'] not in g['branch_ids']:
             g['branch_ids'].append(r['branch_id'])
             g['branch_names'].append(r['branch_name'])
-        if r['department_id'] not in g['department_ids']:
+        if r['department_id'] is not None and r['department_id'] not in g['department_ids']:
             g['department_ids'].append(r['department_id'])
             g['department_names'].append(r['department_name'])
         if g['department_id'] is None:
@@ -724,7 +929,7 @@ def get_users():
             g['branch_name'] = OFFICE_BRANCH_LABEL
         else:
             g['branch_name'] = ', '.join(sorted(g['branch_names']))
-        g['department_name'] = ', '.join(sorted(set(g['department_names'])))
+        g['department_name'] = ', '.join(sorted(set(n for n in g['department_names'] if n))) or '—'
         result.append(g)
 
     result.sort(key=lambda x: ((x['branch_name'] or '').lower(), (x['name'] or '').lower()))

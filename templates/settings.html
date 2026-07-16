@@ -106,7 +106,7 @@
                     <div class="app-modal-tip mb-3" role="note">
                         <i class="bi bi-info-circle" aria-hidden="true"></i>
                         Fields marked with <span class="app-required-mark" aria-hidden="true">*</span> are required.
-                        <strong>IT</strong> has full Settings access; <strong>Management</strong> can manage assets on the dashboard.
+                        <strong>IT</strong> has full Settings access; other roles can sign in and use the dashboard according to their assigned responsibilities.
                     </div>
                     <div class="mb-3">
                         {{ form_label('Full name', 'addUserFullName', true) }}
@@ -122,6 +122,8 @@
                             <option value="">Select role</option>
                             <option value="IT">IT</option>
                             <option value="Management">Management</option>
+                            <option value="QC">QC</option>
+                            <option value="Operations">Operations</option>
                         </select>
                     </div>
                     <div class="mb-0">
@@ -167,6 +169,8 @@
                         <select class="form-select" id="editUserRole" name="role" required>
                             <option value="IT">IT</option>
                             <option value="Management">Management</option>
+                            <option value="QC">QC</option>
+                            <option value="Operations">Operations</option>
                         </select>
                     </div>
                     <div class="mb-0">
@@ -218,7 +222,7 @@ function showUserDetails(email, fullName, role) {
                 <ul class="mt-2">
                     ${role === 'IT'
                         ? '<li>Full access to all features</li><li>Settings and user accounts</li><li>Branches, departments, and asset configuration</li>'
-                        : '<li>Asset management on the dashboard</li><li>View, add, edit, and archive assets</li><li>QR codes and asset tracking</li>'}
+                        : '<li>Dashboard access based on assigned role</li><li>Asset management and tracking workflows</li><li>Role-specific operational responsibilities</li>'}
                 </ul>
             </div>
         </div>

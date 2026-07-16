@@ -59,7 +59,20 @@
   </div>
 
   <h6 class="settings-section-title mb-2">Existing branches</h6>
-  {{ settings_search_bar('branchesList', 'Search branches, codes, brands…', 'settingsBranchesSearch') }}
+  <div class="filter-bar settings-panel-search mb-3">
+    <div class="filter-group filter-search-wrap">
+      <i class="bi bi-search filter-search-icon" aria-hidden="true"></i>
+      <input type="text" class="settings-table-search" id="settingsBranchesSearch"
+             data-settings-search-for="branchesList"
+             placeholder="Search branches, codes, brands…"
+             autocomplete="off" aria-label="Search branches, codes, brands…">
+    </div>
+    <div class="filter-group" style="min-width: 160px;">
+      <select class="form-select app-select-with-chevron" id="branchFilterBrand" aria-label="Filter by brand">
+        <option value="">All brands</option>
+      </select>
+    </div>
+  </div>
   <div id="settingsBranchesBulkBar" class="app-bulk-bar mb-3" style="display: none;">
     <div class="d-flex flex-wrap justify-content-between align-items-center gap-2">
       <span><i class="bi bi-info-circle me-1"></i> <strong><span id="settingsBranchesSelectedCount">0</span> items selected</strong> &mdash; use the buttons to act on the selection</span>

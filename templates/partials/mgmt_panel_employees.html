@@ -1,7 +1,13 @@
 {% from "macros/app_components.html" import add_button, settings_search_bar %}
 <div class="settings-panel-stack">
-  <div class="d-flex flex-wrap gap-2 mb-3">
+  <div class="d-flex flex-wrap align-items-center gap-2 mb-3">
     {{ add_button('Register employee', button_id='addEmployeeBtn', modal_target='#addMgmtEmployeeModal', icon='bi bi-person-plus') }}
+    <button type="button" class="btn-app-add" id="importOfficeEmployeesBtn">
+      <i class="bi bi-file-earmark-arrow-up" aria-hidden="true"></i>
+      <span class="btn-app-add-label">Import office employees</span>
+    </button>
+    <input type="file" id="importOfficeEmployeesFile" accept=".xlsx,.xls" style="display:none;" aria-hidden="true">
+    <span class="form-text settings-import-hint mb-0"><i class="bi bi-info-circle" aria-hidden="true"></i> Import an employee directory from Excel. The system uses only Employee ID, Name, Department, Email, and Mobile, and ignores extra columns. Office staff and restaurant managers can both be imported here.</span>
   </div>
 
   <h6 class="settings-section-title">Bulk add employees</h6>

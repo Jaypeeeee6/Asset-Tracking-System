@@ -2,7 +2,14 @@
 
 AUTH_ROLE_IT = 'IT'
 AUTH_ROLE_MANAGEMENT = 'Management'
-AUTH_ROLES = (AUTH_ROLE_IT, AUTH_ROLE_MANAGEMENT)
+AUTH_ROLE_QC = 'QC'
+AUTH_ROLE_OPERATIONS = 'Operations'
+AUTH_ROLES = (
+    AUTH_ROLE_IT,
+    AUTH_ROLE_MANAGEMENT,
+    AUTH_ROLE_QC,
+    AUTH_ROLE_OPERATIONS,
+)
 
 
 def role_has_legacy_admin_access(role):

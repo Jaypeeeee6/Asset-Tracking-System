@@ -6,6 +6,8 @@ from utils.auth import verify_password, hash_password
 from utils.auth_roles import (
     AUTH_ROLE_IT,
     AUTH_ROLE_MANAGEMENT,
+    AUTH_ROLE_OPERATIONS,
+    AUTH_ROLE_QC,
     AUTH_ROLES,
     is_super_admin_account,
     normalize_full_name,
@@ -171,7 +173,7 @@ def edit_auth_user(user_id):
             flash('Email already exists.', 'error')
             return redirect(url_for('assets.settings') + '?tab=users')
 
-    if old_role == AUTH_ROLE_IT and role == AUTH_ROLE_MANAGEMENT:
+    if old_role == AUTH_ROLE_IT and role != AUTH_ROLE_IT:
         cur.execute(
             "SELECT COUNT(*) FROM users_auth WHERE role = ? AND id != ?",
             (AUTH_ROLE_IT, user_id),
