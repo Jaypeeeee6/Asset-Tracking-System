@@ -988,6 +988,19 @@ body.dark-mode .form-text.settings-import-hint i {
     padding: 8px 12px;
 }
 
+.app-brand-checklist {
+    max-height: 160px;
+    overflow-y: auto;
+    border: 1px solid #ced4da;
+    border-radius: 8px;
+    padding: 8px 12px;
+}
+
+.app-brand-checklist .form-check,
+.app-branch-checklist .form-check {
+    margin-bottom: 2px;
+}
+
 .app-branch-checklist .branch-brand-group + .branch-brand-group {
     margin-top: 10px;
     border-top: 1px solid #eee;
@@ -1003,16 +1016,13 @@ body.dark-mode .form-text.settings-import-hint i {
     margin: 2px 0 4px;
 }
 
-.app-branch-checklist .form-check {
-    margin-bottom: 2px;
-}
-
 .app-branch-checklist-empty {
     color: #6c757d;
     font-size: 0.85rem;
     padding: 6px 2px;
 }
 
+body.dark-mode .app-brand-checklist,
 body.dark-mode .app-branch-checklist {
     border-color: #333;
     background: #1c1c1c;

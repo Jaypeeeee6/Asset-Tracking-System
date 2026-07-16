@@ -972,7 +972,7 @@
                         <label class="form-check-label" for="assetVenueOffice">Office</label>
                     </div>
                 </div>
-                <div class="form-text"><i class="bi bi-info-circle" aria-hidden="true"></i> Restaurant: pick a brand, then a branch. Office: pick an office department only.</div>
+                <div class="form-text"><i class="bi bi-info-circle" aria-hidden="true"></i> Restaurant: pick one or more brands, then one or more branches. Office: pick an office department only.</div>
             </div>
             <div class="mb-3">
                 {{ form_label('Asset type', 'asset_type', true) }}
@@ -992,7 +992,7 @@
                 <input type="hidden" id="selectedAssetNamesInput" name="selected_asset_names" value="">
             </div>
             <div class="mb-3" id="addAssetSpecFieldsSection" style="display: none;">
-                {{ form_label('Asset Specifications', 'addAssetSpecFieldsContainer', true) }}
+                {{ form_label('Asset Specifications', 'addAssetSpecFieldsContainer', false) }}
                 <div id="addAssetSpecFieldsContainer"></div>
                 <input type="hidden" id="addAssetSpecValuesJson" name="asset_spec_values_json" value="">
             </div>
@@ -1007,23 +1007,24 @@
                 <input type="number" class="form-control" id="quantity" name="quantity" min="1" value="1" required>
             </div>
             <div class="mb-3">
-                {{ form_label('Price (OMR)', 'price', true) }}
-                <input type="number" class="form-control" id="price" name="price" min="0" step="0.01" placeholder="0.00" required>
+                {{ form_label('Price (OMR)', 'price', false) }}
+                <input type="number" class="form-control" id="price" name="price" min="0" step="0.01" placeholder="0.00">
                 <div class="form-text">
-                    <i class="bi bi-info-circle" aria-hidden="true"></i> Enter the price in Omani Rial (OMR)
+                    <i class="bi bi-info-circle" aria-hidden="true"></i> Optional. Enter the price in Omani Rial (OMR).
                 </div>
             </div>
             <div class="mb-3" id="addAssetBrandField">
-                <label for="add_asset_brand" class="form-label">Brand</label>
-                <select class="form-select app-select-with-chevron" id="add_asset_brand" name="brand_id">
-                    <option value="">Select brand</option>
-                </select>
+                {{ form_label('Brands', 'addAssetBrandList', true) }}
+                <div class="form-text mb-2"><i class="bi bi-info-circle" aria-hidden="true"></i> Select one or more brands to filter the branch list below.</div>
+                <div id="addAssetBrandList" class="app-brand-checklist"></div>
+                <input type="hidden" id="selectedBrandIdsInput" name="selected_brand_ids" value="">
             </div>
             <div class="mb-3" id="addAssetBranchField">
-                {{ form_label('Branch', 'branch', true) }}
-                <select class="form-select" id="branch" name="branch" required>
-                    <option value="">Select Branch</option>
-                </select>
+                {{ form_label('Branches', 'addAssetBranchList', true) }}
+                <div class="form-text mb-2"><i class="bi bi-info-circle" aria-hidden="true"></i> Select one or more branches. An asset is created for each selected branch.</div>
+                <input type="text" class="form-control mb-2" id="addAssetBranchSearch" placeholder="Search branches…" autocomplete="off" aria-label="Search branches">
+                <div id="addAssetBranchList" class="app-branch-checklist"></div>
+                <input type="hidden" id="selectedBranchesInput" name="selected_branches" value="">
             </div>
             <div class="mb-3" id="addAssetDepartmentField">
                 {{ form_label('Department', 'department', true) }}
