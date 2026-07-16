@@ -220,9 +220,6 @@
         <div class="empty-state">
             <i class="bi bi-archive" aria-hidden="true"></i>
             <p>No archived assets found.</p>
-            <a href="{{ url_for('assets.dashboard') }}" class="btn-app-primary mt-3">
-                <i class="bi bi-arrow-left"></i> Back to Dashboard
-            </a>
         </div>
         {% endif %}
     </div>
@@ -439,6 +436,17 @@
         updateArchivedSelectionBar();
     }
 
+    function removeArchivedIdsFromSelection(ids) {
+        const idSet = new Set((ids || []).map(function (id) { return String(id); }));
+        if (!idSet.size) return;
+        selectedArchivedAssets = selectedArchivedAssets.filter(function (a) {
+            return !idSet.has(String(a.id));
+        });
+        persistArchivedBulkSelection();
+        applyArchivedCheckboxDomFromSelection();
+        updateArchivedSelectionBar();
+    }
+
     function handleRestoreAsset(e) {
         const button = e.target.closest('.restore-asset-btn');
         if (!button) return;
@@ -467,6 +475,7 @@
             .then(response => response.json())
             .then(data => {
                 if (data.success) {
+                    removeArchivedIdsFromSelection([archivedId]);
                     AppDialogs.success('Asset restored successfully!').then(function () { location.reload(); });
                 } else {
                     AppDialogs.error('Error restoring asset: ' + (data.error || 'Unknown error'));
@@ -506,6 +515,7 @@
             .then(response => response.json())
             .then(data => {
                 if (data.success) {
+                    removeArchivedIdsFromSelection([archivedId]);
                     AppDialogs.success('Asset permanently deleted successfully!').then(function () { location.reload(); });
                 } else {
                     AppDialogs.error('Error permanently deleting asset: ' + (data.error || 'Unknown error'));
@@ -537,6 +547,7 @@
             .then(response => response.json())
             .then(data => {
                 if (data.success) {
+                    clearArchivedSelection();
                     AppDialogs.success(data.message || 'Assets permanently deleted successfully!').then(function () { location.reload(); });
                 } else {
                     AppDialogs.error('Error permanently deleting assets: ' + (data.error || 'Unknown error'));
@@ -569,6 +580,7 @@
             .then(response => response.json())
             .then(data => {
                 if (data.success) {
+                    clearArchivedSelection();
                     AppDialogs.success(data.message || 'Assets restored successfully!').then(function () { location.reload(); });
                 } else {
                     AppDialogs.error('Error restoring assets: ' + (data.error || 'Unknown error'));
