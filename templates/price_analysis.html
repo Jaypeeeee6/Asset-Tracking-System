@@ -161,9 +161,8 @@
                             <th>Asset</th>
                             <th>Branch</th>
                             <th>Department</th>
-                            <th>QTY</th>
-                            <th>Unit Price (OMR)</th>
-                            <th class="text-end">Total Value</th>
+                            <th>Price (OMR)</th>
+                            <th class="text-end">Value</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -175,13 +174,12 @@
                             </td>
                             <td>{{ asset.branch }}</td>
                             <td>{{ asset.department }}</td>
-                            <td>{{ asset.quantity|fmt_num }}</td>
                             <td>{{ (asset.price or 0.0)|fmt_omr }}</td>
-                            <td class="text-end"><span class="price-analysis-value price-analysis-value--asset">{{ ((asset.price or 0.0) * asset.quantity)|fmt_omr }}</span></td>
+                            <td class="text-end"><span class="price-analysis-value price-analysis-value--asset">{{ (asset.price or 0.0)|fmt_omr }}</span></td>
                         </tr>
                         {% else %}
                         <tr>
-                            <td colspan="6" class="text-center text-muted py-4">No assets in register</td>
+                            <td colspan="5" class="text-center text-muted py-4">No assets in register</td>
                         </tr>
                         {% endfor %}
                     </tbody>

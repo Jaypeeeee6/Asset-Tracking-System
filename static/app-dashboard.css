@@ -602,13 +602,6 @@
     word-break: break-word;
 }
 
-.asset-dashboard .asset-register-card .app-table col.app-table-col-qty,
-.asset-dashboard .asset-register-card .app-table th.app-table-col-qty,
-.asset-dashboard .asset-register-card .app-table td.app-table-col-qty {
-    width: 2.75rem;
-    max-width: 2.75rem;
-}
-
 .asset-dashboard .asset-register-card .app-table col.app-table-col-status,
 .asset-dashboard .asset-register-card .app-table th.app-table-col-status,
 .asset-dashboard .asset-register-card .app-table td.app-table-col-status {

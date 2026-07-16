@@ -924,6 +924,95 @@ def _apply_qr_label_layout_migrations(cur):
     )
 
 
+def _migrate_drop_quantity_columns(cur):
+    """Remove obsolete quantity columns from assets and archived_assets."""
+    for table in ('assets', 'archived_assets'):
+        cur.execute(f"SELECT name FROM sqlite_master WHERE type='table' AND name=?", (table,))
+        if not cur.fetchone():
+            continue
+        cur.execute(f'PRAGMA table_info({table})')
+        cols = [row[1] for row in cur.fetchall()]
+        if 'quantity' not in cols:
+            continue
+        if table == 'assets':
+            cur.executescript(
+                '''
+                PRAGMA foreign_keys=OFF;
+                CREATE TABLE assets_rebuild (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    name TEXT NOT NULL,
+                    price REAL DEFAULT 0.0,
+                    owner TEXT NOT NULL,
+                    branch TEXT NOT NULL,
+                    department TEXT NOT NULL,
+                    asset_code TEXT,
+                    qr_random_code TEXT,
+                    used_status TEXT DEFAULT 'Not Used',
+                    asset_type TEXT
+                );
+                INSERT INTO assets_rebuild (
+                    id, name, price, owner, branch, department,
+                    asset_code, qr_random_code, used_status, asset_type
+                )
+                SELECT
+                    id, name, COALESCE(price, 0.0), owner, branch, department,
+                    asset_code, qr_random_code, used_status, asset_type
+                FROM assets;
+                DROP TABLE assets;
+                ALTER TABLE assets_rebuild RENAME TO assets;
+                PRAGMA foreign_keys=ON;
+                '''
+            )
+            cur.execute('SELECT MAX(id) FROM assets')
+            mx = cur.fetchone()[0]
+            if mx:
+                cur.execute("DELETE FROM sqlite_sequence WHERE name='assets'")
+                cur.execute("INSERT INTO sqlite_sequence (name, seq) VALUES ('assets', ?)", (mx,))
+        else:
+            cur.executescript(
+                '''
+                PRAGMA foreign_keys=OFF;
+                CREATE TABLE archived_assets_rebuild (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    original_id INTEGER,
+                    name TEXT NOT NULL,
+                    price REAL DEFAULT 0.0,
+                    owner TEXT NOT NULL,
+                    branch TEXT NOT NULL,
+                    department TEXT NOT NULL,
+                    asset_code TEXT,
+                    qr_random_code TEXT,
+                    used_status TEXT DEFAULT 'Not Used',
+                    asset_type TEXT,
+                    archived_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    archived_by TEXT,
+                    archive_reason TEXT
+                );
+                INSERT INTO archived_assets_rebuild (
+                    id, original_id, name, price, owner, branch, department,
+                    asset_code, qr_random_code, used_status, asset_type,
+                    archived_at, archived_by, archive_reason
+                )
+                SELECT
+                    id, original_id, name, COALESCE(price, 0.0), owner, branch, department,
+                    asset_code, qr_random_code, used_status, asset_type,
+                    archived_at, archived_by, archive_reason
+                FROM archived_assets;
+                DROP TABLE archived_assets;
+                ALTER TABLE archived_assets_rebuild RENAME TO archived_assets;
+                PRAGMA foreign_keys=ON;
+                '''
+            )
+            cur.execute('SELECT MAX(id) FROM archived_assets')
+            mx = cur.fetchone()[0]
+            if mx:
+                cur.execute("DELETE FROM sqlite_sequence WHERE name='archived_assets'")
+                cur.execute(
+                    "INSERT INTO sqlite_sequence (name, seq) VALUES ('archived_assets', ?)",
+                    (mx,),
+                )
+
+
 def init_db():
     conn = get_db_connection()
     cur = conn.cursor()
@@ -1018,7 +1107,6 @@ def init_db():
         CREATE TABLE IF NOT EXISTS assets (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             name TEXT NOT NULL,
-            quantity INTEGER NOT NULL,
             price REAL DEFAULT 0.0,
             owner TEXT NOT NULL,
             branch TEXT NOT NULL,
@@ -1073,7 +1161,6 @@ def init_db():
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             original_id INTEGER,
             name TEXT NOT NULL,
-            quantity INTEGER NOT NULL,
             price REAL DEFAULT 0.0,
             owner TEXT NOT NULL,
             branch TEXT NOT NULL,
@@ -1087,6 +1174,7 @@ def init_db():
             archive_reason TEXT
         )
     ''')
+    _migrate_drop_quantity_columns(cur)
     
     # No default business data is seeded on startup. Asset types, names, branches, etc.
     # are managed through the UI. Login: only the first Super Admin when users_auth is empty

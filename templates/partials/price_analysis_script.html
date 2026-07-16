@@ -135,8 +135,8 @@ function exportPriceAnalysis() {
     const assetData = [
         ['DETAILED ASSET BREAKDOWN'],
         [''],
-        ['Asset Name', 'Asset Code', 'Branch', 'Department', 'Owner', 'Quantity', 'Unit Price (OMR)', 'Total Value', 'Status', 'Asset Type'],
-        ['', '', '', '', '', '', '', '', '', '']
+        ['Asset Name', 'Asset Code', 'Branch', 'Department', 'Owner', 'Price (OMR)', 'Status', 'Asset Type'],
+        ['', '', '', '', '', '', '', '']
     ];
 
     fetch('/assets/get-all-assets-for-export')
@@ -144,16 +144,13 @@ function exportPriceAnalysis() {
         .then(function (data) {
             if (data.success) {
                 data.assets.forEach(function (asset) {
-                    const totalValue = fmtOmr((parseFloat(asset.price || 0) * parseInt(asset.quantity || 1, 10)));
                     assetData.push([
                         asset.name,
                         asset.asset_code,
                         asset.branch,
                         asset.department,
                         asset.owner,
-                        asset.quantity,
                         fmtOmr(asset.price || 0),
-                        totalValue,
                         asset.used_status,
                         asset.asset_type
                     ]);
@@ -175,8 +172,7 @@ function exportPriceAnalysis() {
                 const assetSheet = XLSX.utils.aoa_to_sheet(assetData);
                 assetSheet['!cols'] = [
                     { width: 30 }, { width: 20 }, { width: 15 }, { width: 20 },
-                    { width: 20 }, { width: 12 }, { width: 18 }, { width: 18 },
-                    { width: 15 }, { width: 20 }
+                    { width: 20 }, { width: 18 }, { width: 15 }, { width: 20 }
                 ];
                 XLSX.utils.book_append_sheet(workbook, assetSheet, 'Asset Details');
                 XLSX.writeFile(workbook, filename);

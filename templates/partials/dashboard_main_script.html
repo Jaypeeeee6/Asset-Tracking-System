@@ -3603,7 +3603,6 @@ function appDeleteConfirm(message, title) {
             const assetId = button.getAttribute('data-asset-id');
             const assetName = button.getAttribute('data-asset-name');
             const assetType = button.getAttribute('data-asset-type');
-            const assetQuantity = button.getAttribute('data-asset-quantity');
             const assetPrice = button.getAttribute('data-asset-price');
             const assetOwner = button.getAttribute('data-asset-owner');
             const assetBuilding = button.getAttribute('data-asset-branch');
@@ -3611,7 +3610,7 @@ function appDeleteConfirm(message, title) {
             const assetStatus = button.getAttribute('data-asset-status');
             
             console.log('Edit modal data:', {
-                assetId, assetName, assetType, assetQuantity, 
+                assetId, assetName, assetType, 
                 assetOwner, assetBuilding, assetDepartment, assetStatus
             });
             
@@ -3623,7 +3622,6 @@ function appDeleteConfirm(message, title) {
             loadEditAssetDocuments(assetId);
             
             // Populate form fields
-            document.getElementById('edit_quantity').value = assetQuantity;
             document.getElementById('edit_price').value = assetPrice;
             document.getElementById('edit_used_status').value = assetStatus;
             

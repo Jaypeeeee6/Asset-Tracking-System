@@ -783,7 +783,6 @@
             <col class="app-table-col-qr">
             <col class="app-table-col-name">
             <col class="app-table-col-type">
-            <col class="app-table-col-qty">
             <col class="app-table-col-value">
             <col class="app-table-col-owner">
             <col class="app-table-col-location">
@@ -798,8 +797,7 @@
                 <th class="app-table-col-qr">QR Code</th>
                 <th class="app-table-col-name"><a href="{{ url_for('assets.dashboard') }}{{ sort_href('name') }}">Name{% if sort_by == 'name' %} {% if sort_dir == 'asc' %}&#9650;{% else %}&#9660;{% endif %}{% endif %}</a></th>
                 <th class="app-table-col-type"><a href="{{ url_for('assets.dashboard') }}{{ sort_href('asset_type') }}">Type{% if sort_by == 'asset_type' %} {% if sort_dir == 'asc' %}&#9650;{% else %}&#9660;{% endif %}{% endif %}</a></th>
-                <th class="app-table-col-qty"><a href="{{ url_for('assets.dashboard') }}{{ sort_href('quantity') }}">QTY{% if sort_by == 'quantity' %} {% if sort_dir == 'asc' %}&#9650;{% else %}&#9660;{% endif %}{% endif %}</a></th>
-                <th class="app-table-col-value"><a href="{{ url_for('assets.dashboard') }}{{ sort_href('price') }}">Total Value{% if sort_by == 'price' %} {% if sort_dir == 'asc' %}&#9650;{% else %}&#9660;{% endif %}{% endif %}</a></th>
+                <th class="app-table-col-value"><a href="{{ url_for('assets.dashboard') }}{{ sort_href('price') }}">Value{% if sort_by == 'price' %} {% if sort_dir == 'asc' %}&#9650;{% else %}&#9660;{% endif %}{% endif %}</a></th>
                 <th class="app-table-col-owner"><a href="{{ url_for('assets.dashboard') }}{{ sort_href('owner') }}">Owner{% if sort_by == 'owner' %} {% if sort_dir == 'asc' %}&#9650;{% else %}&#9660;{% endif %}{% endif %}</a></th>
                 <th class="app-table-col-location"><a href="{{ url_for('assets.dashboard') }}{{ sort_href('branch') }}">Branch/Department{% if sort_by == 'branch' %} {% if sort_dir == 'asc' %}&#9650;{% else %}&#9660;{% endif %}{% endif %}</a></th>
                 <th class="app-table-col-status"><a href="{{ url_for('assets.dashboard') }}{{ sort_href('used_status') }}">Status{% if sort_by == 'used_status' %} {% if sort_dir == 'asc' %}&#9650;{% else %}&#9660;{% endif %}{% endif %}</a></th>
@@ -837,12 +835,8 @@
                         <span class="text-muted">-</span>
                     {% endif %}
                 </td>
-                <td class="app-table-col-qty">{{ asset.quantity|fmt_num }}</td>
                 <td class="app-table-col-value">
-                    <div class="d-flex flex-column">
-                        <span class="fw-bold">OMR {{ ((asset.price or 0.0) * asset.quantity)|fmt_omr }}</span>
-                        <small class="text-muted">({{ (asset.price or 0.0)|fmt_omr }} &times; {{ asset.quantity|fmt_num }})</small>
-                    </div>
+                    <span class="fw-bold">OMR {{ (asset.price or 0.0)|fmt_omr }}</span>
                 </td>
                 <td class="app-table-col-owner">
                     {{ asset.owner }}
@@ -880,7 +874,6 @@
                             data-asset-id="{{ asset.id }}"
                             data-asset-name="{{ asset.name }}"
                             data-asset-type="{{ asset.asset_type or '' }}"
-                            data-asset-quantity="{{ asset.quantity }}"
                             data-asset-price="{{ asset.price or 0.0 }}"
                             data-asset-owner="{{ asset.owner }}"
                             data-asset-branch="{{ asset.branch }}"
@@ -1021,10 +1014,6 @@
                 <input type="hidden" id="addAssetInclusionValuesJson" name="asset_inclusion_values_json" value="">
             </div>
             <div class="mb-3">
-                {{ form_label('Quantity', 'quantity', true) }}
-                <input type="number" class="form-control" id="quantity" name="quantity" min="1" value="1" required>
-            </div>
-            <div class="mb-3">
                 {{ form_label('Price (OMR)', 'price', false) }}
                 <input type="number" class="form-control" id="price" name="price" min="0" step="0.01" placeholder="0.00">
                 <div class="form-text">
@@ -1140,12 +1129,8 @@
                 <input type="hidden" id="editAssetInclusionValuesJson" name="asset_inclusion_values_json" value="">
             </div>
             <div class="mb-3">
-                <label for="edit_quantity" class="form-label">Quantity</label>
-                <input type="number" class="form-control" id="edit_quantity" name="quantity" min="1" value="1" required>
-            </div>
-            <div class="mb-3">
                 <label for="edit_price" class="form-label">Price (OMR)</label>
-                <input type="number" class="form-control" id="edit_price" name="price" min="0" step="0.01" placeholder="0.00" required>
+                <input type="number" class="form-control" id="edit_price" name="price" min="0" step="0.01" placeholder="0.00">
                 <div class="form-text">
                     <i class="bi bi-info-circle" aria-hidden="true"></i> Enter the price in Omani Rial (OMR)
                 </div>

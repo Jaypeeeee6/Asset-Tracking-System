@@ -119,10 +119,6 @@
                     <span class="detail-value">{{ asset.owner }}</span>
                 </div>
                 <div class="item-detail-row">
-                    <span class="detail-label"><i class="fas fa-boxes"></i> Qty:</span>
-                    <span class="detail-value">{{ asset.quantity|fmt_num }}</span>
-                </div>
-                <div class="item-detail-row">
                     <span class="detail-label"><i class="fas fa-info-circle"></i> Status:</span>
                     <span class="detail-value">
                         <span class="status-badge {% if asset.used_status == 'Used' %}status-used{% elif asset.used_status == 'Not Used' %}status-not-used{% elif asset.used_status == 'Out of Service' %}status-out-of-service{% endif %}">
@@ -134,7 +130,7 @@
                     <span class="detail-label"><i class="fas fa-coins"></i> Price:</span>
                     <span class="detail-value">
                         <span class="price-badge">
-                            OMR {{ (asset.price or 0.0)|fmt_omr }} × {{ asset.quantity|fmt_num }} = OMR {{ ((asset.price or 0.0) * asset.quantity)|fmt_omr }}
+                            OMR {{ (asset.price or 0.0)|fmt_omr }}
                         </span>
                     </span>
                 </div>
