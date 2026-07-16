@@ -788,6 +788,7 @@
             <col class="app-table-col-owner">
             <col class="app-table-col-location">
             <col class="app-table-col-status">
+            <col class="app-table-col-docs">
             <col class="app-table-col-actions">
         </colgroup>
         <thead>
@@ -802,6 +803,7 @@
                 <th class="app-table-col-owner"><a href="{{ url_for('assets.dashboard') }}{{ sort_href('owner') }}">Owner{% if sort_by == 'owner' %} {% if sort_dir == 'asc' %}&#9650;{% else %}&#9660;{% endif %}{% endif %}</a></th>
                 <th class="app-table-col-location"><a href="{{ url_for('assets.dashboard') }}{{ sort_href('branch') }}">Branch/Department{% if sort_by == 'branch' %} {% if sort_dir == 'asc' %}&#9650;{% else %}&#9660;{% endif %}{% endif %}</a></th>
                 <th class="app-table-col-status"><a href="{{ url_for('assets.dashboard') }}{{ sort_href('used_status') }}">Status{% if sort_by == 'used_status' %} {% if sort_dir == 'asc' %}&#9650;{% else %}&#9660;{% endif %}{% endif %}</a></th>
+                <th class="app-table-col-docs">Documents</th>
                 <th class="app-table-col-actions">Actions</th>
             </tr>
         </thead>
@@ -856,6 +858,22 @@
                         <option value="Not Used" {% if asset.used_status == 'Not Used' %}selected{% endif %}>Not Used</option>
                         <option value="Out of Service" {% if asset.used_status == 'Out of Service' %}selected{% endif %}>Out of Service</option>
                     </select>
+                </td>
+                <td class="app-table-col-docs">
+                    {% if asset.supporting_documents %}
+                    <ul class="asset-register-docs list-unstyled mb-0">
+                        {% for doc in asset.supporting_documents %}
+                        <li>
+                            <a href="{{ doc.download_url }}" class="asset-register-doc-link" title="{{ doc.original_filename }}">
+                                <i class="bi bi-file-earmark" aria-hidden="true"></i>
+                                <span>{{ doc.original_filename }}</span>
+                            </a>
+                        </li>
+                        {% endfor %}
+                    </ul>
+                    {% else %}
+                    <span class="text-muted">—</span>
+                    {% endif %}
                 </td>
                 <td class="app-table-col-actions">
                     <button type="button" class="btn-app-edit-icon edit-asset-btn"

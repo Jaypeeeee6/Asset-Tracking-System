@@ -26,6 +26,7 @@ from models.database import (
 )
 from utils.asset_documents import (
     list_documents_for_asset,
+    list_documents_grouped_by_asset_ids,
     save_uploaded_files_for_assets,
     delete_document_record,
     delete_all_documents_for_assets,
@@ -387,6 +388,12 @@ def dashboard():
             contact = owner_contacts.get((asset.get('owner'), asset.get('department')), {})
             asset['owner_mobile'] = contact.get('mobile', '')
             asset['owner_email'] = contact.get('email', '')
+
+    docs_by_asset = list_documents_grouped_by_asset_ids(
+        cur, [asset['id'] for asset in assets]
+    )
+    for asset in assets:
+        asset['supporting_documents'] = docs_by_asset.get(asset['id'], [])
     
     cur.execute('SELECT used_status, branch, department, price, quantity FROM assets')
     chart_data = _compute_chart_data_from_asset_rows(cur.fetchall())

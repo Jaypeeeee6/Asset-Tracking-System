@@ -88,6 +88,36 @@ def list_documents_for_asset(cur, asset_id):
     return result
 
 
+def list_documents_grouped_by_asset_ids(cur, asset_ids):
+    """Return {asset_id: [doc_dict, ...]} for the given asset ids."""
+    grouped = {int(aid): [] for aid in asset_ids or []}
+    if not asset_ids:
+        return grouped
+    placeholders = ','.join(['?'] * len(asset_ids))
+    cur.execute(
+        f'''
+        SELECT id, asset_id, original_filename, stored_filename, content_type, file_size, created_at
+        FROM asset_documents
+        WHERE asset_id IN ({placeholders})
+        ORDER BY asset_id, created_at, id
+        ''',
+        list(asset_ids),
+    )
+    for row in cur.fetchall():
+        aid = row[1]
+        grouped.setdefault(aid, []).append({
+            'id': row[0],
+            'asset_id': aid,
+            'original_filename': row[2],
+            'stored_filename': row[3],
+            'content_type': row[4],
+            'file_size': row[5] or 0,
+            'created_at': row[6],
+            'download_url': f'/assets/{aid}/documents/{row[0]}/download',
+        })
+    return grouped
+
+
 def save_uploaded_file_for_asset(cur, asset_id, file_storage):
     """
     Persist one uploaded file for an asset.

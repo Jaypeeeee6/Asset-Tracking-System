@@ -723,6 +723,44 @@
     text-align: center;
 }
 
+.asset-dashboard .asset-register-card .app-table col.app-table-col-docs {
+    width: 12rem;
+}
+
+.asset-dashboard .asset-register-card .app-table th.app-table-col-docs,
+.asset-dashboard .asset-register-card .app-table td.app-table-col-docs {
+    width: 12rem;
+    max-width: 14rem;
+    white-space: normal;
+    vertical-align: middle;
+    text-align: left;
+}
+
+.asset-dashboard .asset-register-docs li + li {
+    margin-top: 0.25rem;
+}
+
+.asset-dashboard .asset-register-doc-link {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    max-width: 100%;
+    color: inherit;
+    text-decoration: none;
+    font-size: 0.85rem;
+}
+
+.asset-dashboard .asset-register-doc-link:hover {
+    color: var(--gold, #c9a227);
+    text-decoration: underline;
+}
+
+.asset-dashboard .asset-register-doc-link span {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
 /* ----- Settings page (same shell as dashboard) ----- */
 .asset-dashboard.settings-page .settings-tab-bar.filter-bar {
     align-items: center;
