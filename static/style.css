@@ -841,11 +841,13 @@ body.modal-open #sidebar-wrapper {
     overscroll-behavior: none;
 }
 
-/* Vertically center all dialogs (same behavior as Bootstrap’s modal-dialog-centered) */
+/* Vertically center all dialogs (same behavior as Bootstrap’s modal-dialog-centered).
+   Keep transform:none so this does not fight Bootstrap fade/translate (see app-modals.css). */
 .modal-dialog:not(.modal-dialog-scrollable) {
     display: flex;
     align-items: center;
     min-height: calc(100% - var(--bs-modal-margin, 1.75rem) * 2);
+    transform: none;
 }
 
 .modal-xl {

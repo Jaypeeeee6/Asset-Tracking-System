@@ -1,5 +1,40 @@
 /* Application modals — aligned with dashboard (.asset-dashboard) tokens; use class `app-modal` on .modal */
 
+/*
+ * Instant open/close like JAE-TCRMS Modal (no fade/slide).
+ * Bootstrap's fade + translate fights our flex centering and feels glitchy/slow.
+ */
+.modal.fade {
+    transition: none !important;
+}
+
+.modal.fade .modal-dialog {
+    transition: none !important;
+    transform: none !important;
+}
+
+.modal.fade.show .modal-dialog {
+    transform: none !important;
+}
+
+.modal-backdrop {
+    background-color: rgba(0, 0, 0, 0.4);
+}
+
+.modal-backdrop.fade {
+    transition: none !important;
+    opacity: 0;
+}
+
+.modal-backdrop.show {
+    opacity: 1;
+}
+
+/* Avoid layout jump from Bootstrap scrollbar compensation (JAE locks overflow only). */
+body.modal-open {
+    padding-right: 0 !important;
+}
+
 .app-modal {
     --app-modal-border: #ede8dc;
     --app-modal-shadow: 0 2px 12px rgba(0, 0, 0, 0.07);

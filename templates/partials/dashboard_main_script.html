@@ -3118,24 +3118,24 @@ function appDeleteConfirm(message, title) {
 
         
         const userManagementModal = document.getElementById('userManagementModal');
-        if (userManagementModal) userManagementModal.addEventListener('show.bs.modal', function() {
+        if (userManagementModal) userManagementModal.addEventListener('shown.bs.modal', function() {
             loadUserModalData();
         });
 
         const branchManagementModal = document.getElementById('branchManagementModal');
-        if (branchManagementModal) branchManagementModal.addEventListener('show.bs.modal', function() {
+        if (branchManagementModal) branchManagementModal.addEventListener('shown.bs.modal', function() {
             loadBrands().then(function () {
                 return loadBranches();
             }).catch(function () {});
         });
 
         const departmentManagementModal = document.getElementById('departmentManagementModal');
-        if (departmentManagementModal) departmentManagementModal.addEventListener('show.bs.modal', function() {
+        if (departmentManagementModal) departmentManagementModal.addEventListener('shown.bs.modal', function() {
             loadDepartments();
         });
 
         const assetManagementModal = document.getElementById('assetManagementModal');
-        if (assetManagementModal) assetManagementModal.addEventListener('show.bs.modal', function() {
+        if (assetManagementModal) assetManagementModal.addEventListener('shown.bs.modal', function() {
             loadAssetTypes();
             loadAssetNames();
             updateAssetNameDropdowns();
@@ -3157,7 +3157,8 @@ function appDeleteConfirm(message, title) {
             const rOff = document.getElementById('assetVenueOffice');
             if (rRest) rRest.checked = true;
             if (rOff) rOff.checked = false;
-
+        });
+        if (addAssetModal) addAssetModal.addEventListener('shown.bs.modal', function() {
             loadAssetTypes().then(function () {
                 loadAssetNames();
                 updateAssetNameDropdowns();
