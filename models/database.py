@@ -301,6 +301,25 @@ def asset_type_for_venue_matches(for_venue, asset_venue):
     return fv == v
 
 
+def _ensure_schema_migrations_table(cur):
+    """Track one-time schema/data migrations so startup does not re-apply them."""
+    cur.execute('''
+        CREATE TABLE IF NOT EXISTS _schema_migrations (
+            name TEXT PRIMARY KEY,
+            applied_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+    ''')
+
+
+def _migration_applied(cur, name):
+    cur.execute('SELECT 1 FROM _schema_migrations WHERE name = ?', (name,))
+    return cur.fetchone() is not None
+
+
+def _mark_migration_applied(cur, name):
+    cur.execute('INSERT OR IGNORE INTO _schema_migrations (name) VALUES (?)', (name,))
+
+
 def _migrate_legacy_building_schema(cur):
     """Rename legacy building* tables/columns to branch* for existing SQLite databases."""
     cur.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='buildings'")
@@ -541,222 +560,8 @@ def _migrate_users_auth_schema(conn):
     conn.commit()
 
 
-def init_db():
-    conn = get_db_connection()
-    cur = conn.cursor()
-
-    _migrate_legacy_building_schema(cur)
-    conn.commit()
-
-    cur.execute('''
-        CREATE TABLE IF NOT EXISTS brands (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            name TEXT NOT NULL UNIQUE,
-            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-        )
-    ''')
-    
-    # Create branches table (replaces legacy "buildings")
-    cur.execute('''
-        CREATE TABLE IF NOT EXISTS branches (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            name TEXT NOT NULL UNIQUE,
-            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-        )
-    ''')
-    cur.execute('PRAGMA table_info(branches)')
-    _branch_col_names = [row[1] for row in cur.fetchall()]
-    if 'brand_id' not in _branch_col_names:
-        cur.execute('ALTER TABLE branches ADD COLUMN brand_id INTEGER REFERENCES brands(id)')
-    if 'branch_code' not in _branch_col_names:
-        cur.execute('ALTER TABLE branches ADD COLUMN branch_code TEXT')
-    cur.execute('SELECT COUNT(*) FROM branches WHERE brand_id IS NULL')
-    if cur.fetchone()[0] > 0:
-        cur.execute("INSERT OR IGNORE INTO brands (name) VALUES ('Default')")
-        cur.execute("SELECT id FROM brands WHERE name = 'Default' LIMIT 1")
-        _default_brand = cur.fetchone()
-        if _default_brand:
-            cur.execute(
-                'UPDATE branches SET brand_id = ? WHERE brand_id IS NULL',
-                (_default_brand[0],),
-            )
-    
-    # Create departments table (branch_id NULL = office department)
-    cur.execute('''
-        CREATE TABLE IF NOT EXISTS departments (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            name TEXT NOT NULL,
-            branch_id INTEGER,
-            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-            FOREIGN KEY (branch_id) REFERENCES branches (id)
-        )
-    ''')
-    _migrate_departments_nullable_branch_id(cur)
-    _ensure_department_venue_indexes(cur)
-    cur.execute('SELECT id FROM branches')
-    for _br in cur.fetchall():
-        ensure_restaurant_default_department_for_branch(cur, _br[0])
-    
-    # Create users table
-    cur.execute('''
-        CREATE TABLE IF NOT EXISTS users (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            name TEXT NOT NULL,
-            employee_id TEXT,
-            department_id INTEGER NOT NULL,
-            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-            FOREIGN KEY (department_id) REFERENCES departments (id),
-            UNIQUE(name, department_id)
-        )
-    ''')
-    _migrate_users_employee_id(conn)
-    _migrate_users_contact_info(conn)
-    _migrate_users_employee_id_multi_branch(conn)
-    _migrate_users_nullable_department(conn)
-    
-    # Create users_auth table for login authentication
-    cur.execute('''
-        CREATE TABLE IF NOT EXISTS users_auth (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            email TEXT NOT NULL UNIQUE,
-            password_hash TEXT NOT NULL,
-            encrypted_password TEXT NOT NULL,
-            full_name TEXT NOT NULL DEFAULT '',
-            role TEXT NOT NULL CHECK (role IN ('IT', 'Management', 'QC', 'Operations')),
-            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-        )
-    ''')
-    _migrate_users_auth_schema(conn)
-    _migrate_users_auth_username_to_email(conn)
-    _ensure_default_super_admin(conn)
-    
-    # Create assets table
-    cur.execute('''
-        CREATE TABLE IF NOT EXISTS assets (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            name TEXT NOT NULL,
-            quantity INTEGER NOT NULL,
-            price REAL DEFAULT 0.0,
-            owner TEXT NOT NULL,
-            branch TEXT NOT NULL,
-            department TEXT NOT NULL,
-            asset_code TEXT,
-            qr_random_code TEXT,
-            used_status TEXT DEFAULT 'Not Used',
-            asset_type TEXT
-        )
-    ''')
-    cur.execute("PRAGMA table_info(assets)")
-    columns = [row[1] for row in cur.fetchall()]
-    if 'qr_random_code' not in columns:
-        cur.execute('ALTER TABLE assets ADD COLUMN qr_random_code TEXT')
-    if 'used_status' not in columns:
-        cur.execute('ALTER TABLE assets ADD COLUMN used_status TEXT DEFAULT "Not Used"')
-    if 'asset_type' not in columns:
-        cur.execute('ALTER TABLE assets ADD COLUMN asset_type TEXT')
-    if 'price' not in columns:
-        cur.execute('ALTER TABLE assets ADD COLUMN price REAL DEFAULT 0.0')
-    
-    # Create asset_types table (for_venue added via migration on legacy DBs)
-    cur.execute('''
-        CREATE TABLE IF NOT EXISTS asset_types (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            name TEXT NOT NULL UNIQUE,
-            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-        )
-    ''')
-    _migrate_asset_types_for_venue(cur)
-    _migrate_asset_types_allow_both(cur)
-    
-    # Create asset_names table
-    cur.execute('''
-        CREATE TABLE IF NOT EXISTS asset_names (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            name TEXT NOT NULL,
-            asset_type_id INTEGER NOT NULL,
-            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-            FOREIGN KEY (asset_type_id) REFERENCES asset_types (id),
-            UNIQUE(name, asset_type_id)
-        )
-    ''')
-    _migrate_asset_specifications(cur)
-
-    # Create archived_assets table
-    cur.execute('''
-        CREATE TABLE IF NOT EXISTS archived_assets (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            original_id INTEGER,
-            name TEXT NOT NULL,
-            quantity INTEGER NOT NULL,
-            price REAL DEFAULT 0.0,
-            owner TEXT NOT NULL,
-            branch TEXT NOT NULL,
-            department TEXT NOT NULL,
-            asset_code TEXT,
-            qr_random_code TEXT,
-            used_status TEXT DEFAULT 'Not Used',
-            asset_type TEXT,
-            archived_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-            archived_by TEXT,
-            archive_reason TEXT
-        )
-    ''')
-    
-    # Insert default asset types if they don't exist (restaurant venue)
-    default_asset_types = ['Electronics', 'Furniture', 'Equipment', 'Vehicles', 'Others']
-    for asset_type in default_asset_types:
-        cur.execute(
-            "INSERT OR IGNORE INTO asset_types (name, for_venue) VALUES (?, 'restaurant')",
-            (asset_type,),
-        )
-    
-    # Note: Default branches, departments, and employee roster seeding has been removed.
-    # Login accounts: only the first Super Admin is seeded when users_auth is empty
-    # (see _ensure_default_super_admin). Further accounts are managed from Settings.
-    
-    conn.commit()
-    cur.execute("SELECT id FROM assets WHERE qr_random_code IS NULL OR qr_random_code = ''")
-    rows = cur.fetchall()
-    for row in rows:
-        random_code = str(uuid.uuid4())
-        cur.execute('UPDATE assets SET qr_random_code=? WHERE id=?', (random_code, row[0]))
-    conn.commit()
-
-    # QR label layouts: authoritative mm geometry for the application.
-    #
-    # The software owns label dimensions and every anchor (QR top-left & size; text anchors & tops; optional
-    # print_offset_*). The print pipeline renders those as CSS mm + @page of the same outer size—not the printer
-    # deciding where the QR sits. Multiple presets supported; production uses preset_key label_2x2 (2"×2" stock).
-    cur.execute(
-        '''
-        CREATE TABLE IF NOT EXISTS qr_label_layouts (
-            preset_key TEXT PRIMARY KEY,
-            label_width_mm REAL NOT NULL,
-            label_height_mm REAL NOT NULL,
-            qr_x_mm REAL NOT NULL,
-            qr_y_mm REAL NOT NULL,
-            qr_size_mm REAL NOT NULL,
-            qr_reference_px INTEGER NOT NULL DEFAULT 80,
-            primary_text_x_mm REAL NOT NULL,
-            primary_text_y_mm REAL NOT NULL,
-            secondary_text_x_mm REAL NOT NULL,
-            secondary_text_y_mm REAL NOT NULL,
-            primary_font_pt REAL NOT NULL DEFAULT 10,
-            secondary_font_pt REAL NOT NULL DEFAULT 9,
-            primary_text_align TEXT NOT NULL DEFAULT 'center',
-            secondary_text_align TEXT NOT NULL DEFAULT 'center',
-            primary_text_max_width_mm REAL,
-            secondary_text_max_width_mm REAL,
-            print_offset_qr_x_mm REAL DEFAULT 0,
-            print_offset_qr_y_mm REAL DEFAULT 0,
-            print_offset_primary_x_mm REAL DEFAULT 0,
-            print_offset_primary_y_mm REAL DEFAULT 0,
-            print_offset_secondary_x_mm REAL DEFAULT 0,
-            print_offset_secondary_y_mm REAL DEFAULT 0
-        )
-        '''
-    )
-
+def _apply_qr_label_layout_migrations(cur):
+    """One-time QR label preset seed and legacy geometry updates."""
     # label_2x2: asset code (primary) above QR, item name (secondary) below; tight gaps; group left.
     # Routes pass (asset_code, name) as (primary, secondary).
     _lbl2_qr_x = 3.38
@@ -1117,6 +922,224 @@ def init_db():
             _prev_lbl2_qr_x_ship,
         ),
     )
+
+
+def init_db():
+    conn = get_db_connection()
+    cur = conn.cursor()
+
+    _migrate_legacy_building_schema(cur)
+    _ensure_schema_migrations_table(cur)
+    conn.commit()
+
+    cur.execute('''
+        CREATE TABLE IF NOT EXISTS brands (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            name TEXT NOT NULL UNIQUE,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+    ''')
+    
+    # Create branches table (replaces legacy "buildings")
+    cur.execute('''
+        CREATE TABLE IF NOT EXISTS branches (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            name TEXT NOT NULL UNIQUE,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+    ''')
+    cur.execute('PRAGMA table_info(branches)')
+    _branch_col_names = [row[1] for row in cur.fetchall()]
+    if 'brand_id' not in _branch_col_names:
+        cur.execute('ALTER TABLE branches ADD COLUMN brand_id INTEGER REFERENCES brands(id)')
+    if 'branch_code' not in _branch_col_names:
+        cur.execute('ALTER TABLE branches ADD COLUMN branch_code TEXT')
+    if not _migration_applied(cur, 'backfill_null_branch_brands_v1'):
+        cur.execute('SELECT COUNT(*) FROM branches WHERE brand_id IS NULL')
+        if cur.fetchone()[0] > 0:
+            cur.execute("INSERT OR IGNORE INTO brands (name) VALUES ('Default')")
+            cur.execute("SELECT id FROM brands WHERE name = 'Default' LIMIT 1")
+            _default_brand = cur.fetchone()
+            if _default_brand:
+                cur.execute(
+                    'UPDATE branches SET brand_id = ? WHERE brand_id IS NULL',
+                    (_default_brand[0],),
+                )
+        _mark_migration_applied(cur, 'backfill_null_branch_brands_v1')
+    
+    # Create departments table (branch_id NULL = office department)
+    cur.execute('''
+        CREATE TABLE IF NOT EXISTS departments (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            name TEXT NOT NULL,
+            branch_id INTEGER,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (branch_id) REFERENCES branches (id)
+        )
+    ''')
+    _migrate_departments_nullable_branch_id(cur)
+    _ensure_department_venue_indexes(cur)
+    
+    # Create users table
+    cur.execute('''
+        CREATE TABLE IF NOT EXISTS users (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            name TEXT NOT NULL,
+            employee_id TEXT,
+            department_id INTEGER NOT NULL,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (department_id) REFERENCES departments (id),
+            UNIQUE(name, department_id)
+        )
+    ''')
+    _migrate_users_employee_id(conn)
+    _migrate_users_contact_info(conn)
+    _migrate_users_employee_id_multi_branch(conn)
+    _migrate_users_nullable_department(conn)
+    
+    # Create users_auth table for login authentication
+    cur.execute('''
+        CREATE TABLE IF NOT EXISTS users_auth (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            email TEXT NOT NULL UNIQUE,
+            password_hash TEXT NOT NULL,
+            encrypted_password TEXT NOT NULL,
+            full_name TEXT NOT NULL DEFAULT '',
+            role TEXT NOT NULL CHECK (role IN ('IT', 'Management', 'QC', 'Operations')),
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+    ''')
+    _migrate_users_auth_schema(conn)
+    _migrate_users_auth_username_to_email(conn)
+    _ensure_default_super_admin(conn)
+    
+    # Create assets table
+    cur.execute('''
+        CREATE TABLE IF NOT EXISTS assets (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            name TEXT NOT NULL,
+            quantity INTEGER NOT NULL,
+            price REAL DEFAULT 0.0,
+            owner TEXT NOT NULL,
+            branch TEXT NOT NULL,
+            department TEXT NOT NULL,
+            asset_code TEXT,
+            qr_random_code TEXT,
+            used_status TEXT DEFAULT 'Not Used',
+            asset_type TEXT
+        )
+    ''')
+    cur.execute("PRAGMA table_info(assets)")
+    columns = [row[1] for row in cur.fetchall()]
+    if 'qr_random_code' not in columns:
+        cur.execute('ALTER TABLE assets ADD COLUMN qr_random_code TEXT')
+    if 'used_status' not in columns:
+        cur.execute('ALTER TABLE assets ADD COLUMN used_status TEXT DEFAULT "Not Used"')
+    if 'asset_type' not in columns:
+        cur.execute('ALTER TABLE assets ADD COLUMN asset_type TEXT')
+    if 'price' not in columns:
+        cur.execute('ALTER TABLE assets ADD COLUMN price REAL DEFAULT 0.0')
+    
+    # Create asset_types table (for_venue added via migration on legacy DBs)
+    cur.execute('''
+        CREATE TABLE IF NOT EXISTS asset_types (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            name TEXT NOT NULL UNIQUE,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+    ''')
+    _migrate_asset_types_for_venue(cur)
+    _migrate_asset_types_allow_both(cur)
+    
+    # Create asset_names table
+    cur.execute('''
+        CREATE TABLE IF NOT EXISTS asset_names (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            name TEXT NOT NULL,
+            asset_type_id INTEGER NOT NULL,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (asset_type_id) REFERENCES asset_types (id),
+            UNIQUE(name, asset_type_id)
+        )
+    ''')
+    _migrate_asset_specifications(cur)
+
+    # Create archived_assets table
+    cur.execute('''
+        CREATE TABLE IF NOT EXISTS archived_assets (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            original_id INTEGER,
+            name TEXT NOT NULL,
+            quantity INTEGER NOT NULL,
+            price REAL DEFAULT 0.0,
+            owner TEXT NOT NULL,
+            branch TEXT NOT NULL,
+            department TEXT NOT NULL,
+            asset_code TEXT,
+            qr_random_code TEXT,
+            used_status TEXT DEFAULT 'Not Used',
+            asset_type TEXT,
+            archived_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            archived_by TEXT,
+            archive_reason TEXT
+        )
+    ''')
+    
+    # No default business data is seeded on startup. Asset types, names, branches, etc.
+    # are managed through the UI. Login: only the first Super Admin when users_auth is empty
+    # (see _ensure_default_super_admin).
+    
+    conn.commit()
+    cur.execute("SELECT id FROM assets WHERE qr_random_code IS NULL OR qr_random_code = ''")
+    rows = cur.fetchall()
+    for row in rows:
+        random_code = str(uuid.uuid4())
+        cur.execute('UPDATE assets SET qr_random_code=? WHERE id=?', (random_code, row[0]))
+    conn.commit()
+
+    # QR label layouts: authoritative mm geometry for the application.
+    #
+    # The software owns label dimensions and every anchor (QR top-left & size; text anchors & tops; optional
+    # print_offset_*). The print pipeline renders those as CSS mm + @page of the same outer size—not the printer
+    # deciding where the QR sits. Multiple presets supported; production uses preset_key label_2x2 (2"×2" stock).
+    cur.execute(
+        '''
+        CREATE TABLE IF NOT EXISTS qr_label_layouts (
+            preset_key TEXT PRIMARY KEY,
+            label_width_mm REAL NOT NULL,
+            label_height_mm REAL NOT NULL,
+            qr_x_mm REAL NOT NULL,
+            qr_y_mm REAL NOT NULL,
+            qr_size_mm REAL NOT NULL,
+            qr_reference_px INTEGER NOT NULL DEFAULT 80,
+            primary_text_x_mm REAL NOT NULL,
+            primary_text_y_mm REAL NOT NULL,
+            secondary_text_x_mm REAL NOT NULL,
+            secondary_text_y_mm REAL NOT NULL,
+            primary_font_pt REAL NOT NULL DEFAULT 10,
+            secondary_font_pt REAL NOT NULL DEFAULT 9,
+            primary_text_align TEXT NOT NULL DEFAULT 'center',
+            secondary_text_align TEXT NOT NULL DEFAULT 'center',
+            primary_text_max_width_mm REAL,
+            secondary_text_max_width_mm REAL,
+            print_offset_qr_x_mm REAL DEFAULT 0,
+            print_offset_qr_y_mm REAL DEFAULT 0,
+            print_offset_primary_x_mm REAL DEFAULT 0,
+            print_offset_primary_y_mm REAL DEFAULT 0,
+            print_offset_secondary_x_mm REAL DEFAULT 0,
+            print_offset_secondary_y_mm REAL DEFAULT 0
+        )
+        '''
+    )
+
+    if not _migration_applied(cur, 'qr_label_layout_setup_v1'):
+        cur.execute("SELECT 1 FROM qr_label_layouts WHERE preset_key = 'label_2x2' LIMIT 1")
+        if cur.fetchone():
+            _mark_migration_applied(cur, 'qr_label_layout_setup_v1')
+        else:
+            _apply_qr_label_layout_migrations(cur)
+            _mark_migration_applied(cur, 'qr_label_layout_setup_v1')
+
     conn.commit()
     conn.close()
 
