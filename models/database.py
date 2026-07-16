@@ -1,7 +1,9 @@
+import os
 import sqlite3
 import uuid
 from flask import current_app
 
+from utils.auth import hash_password
 from utils.auth_roles import AUTH_ROLE_IT, AUTH_ROLE_MANAGEMENT
 
 def get_db_connection():
@@ -389,6 +391,41 @@ def _migrate_users_auth_username_to_email(conn):
         conn.commit()
 
 
+def _ensure_default_super_admin(conn):
+    """
+    Bootstrap a Super Admin login when users_auth has no rows (fresh DB).
+
+    Existing databases with any login account are left unchanged.
+    Override credentials via BOOTSTRAP_ADMIN_EMAIL / BOOTSTRAP_ADMIN_PASSWORD.
+    Change the password after first login.
+    """
+    cur = conn.cursor()
+    cur.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='users_auth'")
+    if not cur.fetchone():
+        return
+    cur.execute('SELECT COUNT(*) FROM users_auth')
+    if cur.fetchone()[0] > 0:
+        return
+
+    email = (os.environ.get('BOOTSTRAP_ADMIN_EMAIL') or 'admin@local').strip().lower()
+    password = os.environ.get('BOOTSTRAP_ADMIN_PASSWORD') or 'ChangeMe123!'
+    full_name = 'Super Admin'
+    password_hash = hash_password(password)
+
+    cur.execute(
+        '''
+        INSERT INTO users_auth (email, password_hash, encrypted_password, full_name, role)
+        VALUES (?, ?, ?, ?, ?)
+        ''',
+        (email, password_hash, 'DEPRECATED', full_name, AUTH_ROLE_IT),
+    )
+    conn.commit()
+    print(
+        f'Default Super Admin created ({email}). '
+        'Change the password after first login.'
+    )
+
+
 def _migrate_users_auth_schema(conn):
     """Add full_name, migrate admin/purchasing roles to IT/Management, and rebuild table when CHECK blocks updates."""
     cur = conn.cursor()
@@ -543,6 +580,7 @@ def init_db():
     ''')
     _migrate_users_auth_schema(conn)
     _migrate_users_auth_username_to_email(conn)
+    _ensure_default_super_admin(conn)
     
     # Create assets table
     cur.execute('''
@@ -624,11 +662,9 @@ def init_db():
             (asset_type,),
         )
     
-    # Note: Default branches, departments, and users seeding has been removed
-    # Users can now add their own branches, departments, and users as needed
-    
-    # Note: Default auth users seeding has been removed
-    # IT users manage login accounts from Settings
+    # Note: Default branches, departments, and employee roster seeding has been removed.
+    # Login accounts: only the first Super Admin is seeded when users_auth is empty
+    # (see _ensure_default_super_admin). Further accounts are managed from Settings.
     
     conn.commit()
     cur.execute("SELECT id FROM assets WHERE qr_random_code IS NULL OR qr_random_code = ''")
