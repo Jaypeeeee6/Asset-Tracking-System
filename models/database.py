@@ -407,8 +407,8 @@ def _ensure_default_super_admin(conn):
     if cur.fetchone()[0] > 0:
         return
 
-    email = (os.environ.get('BOOTSTRAP_ADMIN_EMAIL') or 'admin@local').strip().lower()
-    password = os.environ.get('BOOTSTRAP_ADMIN_PASSWORD') or 'ChangeMe123!'
+    email = (os.environ.get('BOOTSTRAP_ADMIN_EMAIL') or 'admin@gmail.com').strip().lower()
+    password = os.environ.get('BOOTSTRAP_ADMIN_PASSWORD') or 'admin123'
     full_name = 'Super Admin'
     password_hash = hash_password(password)
 
