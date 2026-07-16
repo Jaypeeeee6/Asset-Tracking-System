@@ -24,6 +24,13 @@ from models.database import (
     OFFICE_BRANCH_LABEL,
     asset_type_for_venue_matches,
 )
+from utils.asset_documents import (
+    list_documents_for_asset,
+    save_uploaded_files_for_assets,
+    delete_document_record,
+    delete_all_documents_for_assets,
+    document_path,
+)
 import qrcode
 from io import BytesIO
 import uuid
@@ -602,6 +609,7 @@ def add_asset():
             flash('Asset type does not match Restaurant / Office selection.', 'error')
             return redirect(url_for('assets.dashboard'))
 
+    created_asset_ids = []
     for branch in branch_names:
         err = _validate_asset_venue_location(
             cur, venue, branch, department, brand_ids=brand_ids
@@ -637,8 +645,20 @@ def add_asset():
                 cur.execute('INSERT INTO assets (name, quantity, price, owner, branch, department, asset_code, qr_random_code, used_status, asset_type) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)', (asset_name, quantity, price, owner, branch, department, asset_code, qr_random_code, used_status, asset_type))
                 asset_id = cur.lastrowid
 
+            created_asset_ids.append(asset_id)
             _save_spec_values_for_asset(cur, asset_id, asset_name, asset_type, spec_values_by_name)
             _save_inclusion_values_for_asset(cur, asset_id, asset_name, asset_type, inclusion_values_by_name)
+
+    uploaded_files = request.files.getlist('supporting_documents')
+    if uploaded_files and created_asset_ids:
+        # Unique asset ids in case quantity merge reused the same row
+        unique_ids = list(dict.fromkeys(created_asset_ids))
+        _, doc_err = save_uploaded_files_for_assets(cur, unique_ids, uploaded_files)
+        if doc_err:
+            conn.rollback()
+            conn.close()
+            flash(doc_err, 'error')
+            return redirect(url_for('assets.dashboard'))
     
     conn.commit()
     conn.close()
@@ -765,6 +785,14 @@ def update_asset(asset_id):
 
         _save_spec_values_for_single_asset(cur, asset_id, name, asset_type, spec_values)
         _save_inclusion_values_for_single_asset(cur, asset_id, name, asset_type, inclusion_ids)
+
+        uploaded_files = request.files.getlist('supporting_documents')
+        if uploaded_files:
+            _, doc_err = save_uploaded_files_for_assets(cur, [asset_id], uploaded_files)
+            if doc_err:
+                conn.rollback()
+                conn.close()
+                return jsonify({'error': doc_err}), 400
         
         conn.commit()
         conn.close()
@@ -779,6 +807,90 @@ def update_asset(asset_id):
         conn.rollback()
         conn.close()
         return jsonify({'error': str(e)}), 500
+
+
+@assets_bp.route('/<int:asset_id>/documents', methods=['GET'])
+@login_required
+def get_asset_documents(asset_id):
+    conn = get_db_connection()
+    cur = conn.cursor()
+    cur.execute('SELECT id FROM assets WHERE id = ?', (asset_id,))
+    if not cur.fetchone():
+        conn.close()
+        return jsonify({'error': 'Asset not found'}), 404
+    docs = list_documents_for_asset(cur, asset_id)
+    conn.close()
+    return jsonify({'documents': docs})
+
+
+@assets_bp.route('/<int:asset_id>/documents', methods=['POST'])
+@login_required
+def upload_asset_documents(asset_id):
+    conn = get_db_connection()
+    cur = conn.cursor()
+    cur.execute('SELECT id FROM assets WHERE id = ?', (asset_id,))
+    if not cur.fetchone():
+        conn.close()
+        return jsonify({'error': 'Asset not found'}), 404
+    uploaded_files = request.files.getlist('supporting_documents')
+    if not uploaded_files:
+        conn.close()
+        return jsonify({'error': 'No files selected.'}), 400
+    _, doc_err = save_uploaded_files_for_assets(cur, [asset_id], uploaded_files)
+    if doc_err:
+        conn.rollback()
+        conn.close()
+        return jsonify({'error': doc_err}), 400
+    docs = list_documents_for_asset(cur, asset_id)
+    conn.commit()
+    conn.close()
+    return jsonify({'success': True, 'documents': docs})
+
+
+@assets_bp.route('/<int:asset_id>/documents/<int:document_id>', methods=['DELETE', 'POST'])
+@login_required
+def delete_asset_document(asset_id, document_id):
+    # Allow POST with _method=DELETE for broader client support
+    if request.method == 'POST' and (request.form.get('_method') or '').upper() != 'DELETE':
+        # Still allow plain POST delete for simplicity from fetch
+        pass
+    conn = get_db_connection()
+    cur = conn.cursor()
+    if not delete_document_record(cur, asset_id, document_id):
+        conn.close()
+        return jsonify({'error': 'Document not found'}), 404
+    conn.commit()
+    conn.close()
+    return jsonify({'success': True})
+
+
+@assets_bp.route('/<int:asset_id>/documents/<int:document_id>/download', methods=['GET'])
+@login_required
+def download_asset_document(asset_id, document_id):
+    conn = get_db_connection()
+    cur = conn.cursor()
+    cur.execute(
+        '''
+        SELECT original_filename, stored_filename, content_type
+        FROM asset_documents
+        WHERE id = ? AND asset_id = ?
+        ''',
+        (document_id, asset_id),
+    )
+    row = cur.fetchone()
+    conn.close()
+    if not row:
+        abort(404)
+    path = document_path(row[1])
+    if not path.is_file():
+        abort(404)
+    return send_file(
+        path,
+        as_attachment=True,
+        download_name=row[0],
+        mimetype=row[2] or 'application/octet-stream',
+    )
+
 
 @assets_bp.route('/delete/<int:asset_id>', methods=['POST'])
 @login_required
@@ -807,6 +919,8 @@ def delete_asset(asset_id):
         asset['qr_random_code'], asset['used_status'], asset['asset_type'],
         current_user.display_name, archive_reason
     ))
+
+    delete_all_documents_for_assets(cur, [asset_id])
     
     # Delete from assets table
     cur.execute('DELETE FROM assets WHERE id=?', (asset_id,))
@@ -886,6 +1000,8 @@ def bulk_delete():
                 asset['qr_random_code'], asset['used_status'], asset['asset_type'],
                 current_user.display_name, archive_reason
             ))
+
+        delete_all_documents_for_assets(cur, [a['id'] for a in assets])
         
         # Delete from assets table
         cur.execute(f'DELETE FROM assets WHERE id IN ({placeholders})', asset_ids)

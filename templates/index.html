@@ -957,7 +957,7 @@
         <h5 class="modal-title" id="addAssetModalLabel"><i class="bi bi-plus-square me-2" style="color:var(--gold);" aria-hidden="true"></i>Add New Asset</h5>
         <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
       </div>
-                            <form id="addAssetForm" method="post" action="{{ url_for('assets.add_asset') }}">
+                            <form id="addAssetForm" method="post" action="{{ url_for('assets.add_asset') }}" enctype="multipart/form-data">
         <div class="modal-body" style="overflow-y: auto; max-height: 70vh;">
             <input type="hidden" name="asset_venue" id="assetVenueField" value="restaurant">
             <div class="mb-3">
@@ -1055,6 +1055,13 @@
                     <option value="Out of Service">Out of Service</option>
                 </select>
             </div>
+            <div class="mb-0">
+                {{ form_label('Supporting documents', 'addAssetDocuments', false) }}
+                <input type="file" class="form-control" id="addAssetDocuments" name="supporting_documents" multiple
+                       accept=".pdf,.doc,.docx,.xls,.xlsx,.csv,.txt,.png,.jpg,.jpeg,.gif,.webp,.zip,application/pdf,image/*">
+                <div class="form-text"><i class="bi bi-info-circle" aria-hidden="true"></i> Optional. Upload one or more files (PDF, Office, images, ZIP; max 10 MB each). Selecting again adds more files; use the remove button on a file to drop it before saving.</div>
+                <ul id="addAssetDocumentsPreview" class="asset-doc-list mt-2 mb-0" hidden></ul>
+            </div>
         </div>
         <div class="modal-footer">{{ modal_cancel_button('Cancel') }}{{ add_button('Add Asset', button_type='submit') }}</div>
       </form>
@@ -1070,7 +1077,7 @@
         <h5 class="modal-title" id="editAssetModalLabel"><i class="bi bi-pencil-square me-2" style="color:var(--gold);" aria-hidden="true"></i>Edit Asset</h5>
         <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
       </div>
-      <form id="editAssetForm" method="post">
+      <form id="editAssetForm" method="post" enctype="multipart/form-data">
         <div class="modal-body" style="overflow-y: auto; max-height: 70vh;">
           <input type="hidden" name="asset_venue" id="editAssetVenueField" value="restaurant">
           <div class="mb-3">
@@ -1166,6 +1173,14 @@
                     <option value="Not Used">Not Used</option>
                     <option value="Out of Service">Out of Service</option>
                 </select>
+            </div>
+            <div class="mb-0">
+                <label class="form-label" for="editAssetDocuments">Supporting documents</label>
+                <div id="editAssetDocumentsExisting" class="asset-doc-list mb-2"></div>
+                <input type="file" class="form-control" id="editAssetDocuments" name="supporting_documents" multiple
+                       accept=".pdf,.doc,.docx,.xls,.xlsx,.csv,.txt,.png,.jpg,.jpeg,.gif,.webp,.zip,application/pdf,image/*">
+                <div class="form-text"><i class="bi bi-info-circle" aria-hidden="true"></i> Add more files (selecting again appends), or remove existing ones above / pending ones below. Max 10 MB each.</div>
+                <ul id="editAssetDocumentsPreview" class="asset-doc-list mt-2 mb-0" hidden></ul>
             </div>
         </div>
         <div class="modal-footer">{{ modal_cancel_button('Cancel') }}{{ add_button('Update Asset', button_type='submit', icon='bi bi-check-lg') }}</div>

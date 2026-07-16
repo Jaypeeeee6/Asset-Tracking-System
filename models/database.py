@@ -1064,6 +1064,9 @@ def init_db():
     ''')
     _migrate_asset_specifications(cur)
 
+    from utils.asset_documents import _migrate_asset_documents
+    _migrate_asset_documents(cur)
+
     # Create archived_assets table
     cur.execute('''
         CREATE TABLE IF NOT EXISTS archived_assets (

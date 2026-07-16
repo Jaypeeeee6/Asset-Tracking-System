@@ -38,4 +38,7 @@ Thumbs.db
 
 # Temporary files
 *.tmp
-*.temp 
+*.temp
+
+# Uploaded supporting documents
+uploads/ 

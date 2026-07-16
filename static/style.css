@@ -1032,6 +1032,43 @@ body.dark-mode .app-branch-checklist .branch-brand-group + .branch-brand-group {
     border-top-color: #2a2a2a;
 }
 
+.asset-doc-list {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+}
+
+.asset-doc-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 8px;
+    border: 1px solid #e5e5e5;
+    border-radius: 6px;
+    margin-bottom: 6px;
+    background: #fafafa;
+}
+
+.asset-doc-item .asset-doc-name {
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-size: 0.9rem;
+}
+
+.asset-doc-item .asset-doc-meta {
+    color: #6c757d;
+    font-size: 0.78rem;
+    white-space: nowrap;
+}
+
+body.dark-mode .asset-doc-item {
+    background: #1c1c1c;
+    border-color: #333;
+}
+
 /* ===== DARK MODE STYLES ===== */
 body.dark-mode {
     background: #111;

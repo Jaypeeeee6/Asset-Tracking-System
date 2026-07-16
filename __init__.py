@@ -15,6 +15,8 @@ def create_app():
     app.config['DATABASE'] = 'production_assets.db'
     # SECURITY: Use environment variable for secret key with fallback
     app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY') or secrets.token_hex(32)
+    # Supporting documents (multiple files per asset); keep under ~50 MB per request
+    app.config['MAX_CONTENT_LENGTH'] = 50 * 1024 * 1024
     
     # Enable debug mode for development
     app.config['DEBUG'] = True

@@ -696,6 +696,223 @@ function appDeleteConfirm(message, title) {
     }
 
 // ============================================================================
+// ASSET SUPPORTING DOCUMENTS
+// ============================================================================
+
+    var addAssetPendingDocs = [];
+    var editAssetPendingDocs = [];
+
+    function formatFileSize(bytes) {
+        var n = Number(bytes) || 0;
+        if (n < 1024) return n + ' B';
+        if (n < 1024 * 1024) return (n / 1024).toFixed(1) + ' KB';
+        return (n / (1024 * 1024)).toFixed(1) + ' MB';
+    }
+
+    function escapeHtmlDoc(str) {
+        return String(str == null ? '' : str)
+            .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+    }
+
+    function fileIdentityKey(file) {
+        return [file.name || '', file.size || 0, file.lastModified || 0].join('::');
+    }
+
+    function syncFilesToInput(inputEl, files) {
+        if (!inputEl) return;
+        if (typeof DataTransfer === 'undefined') {
+            // Fallback: cannot rebuild FileList without DataTransfer
+            return;
+        }
+        var dt = new DataTransfer();
+        (files || []).forEach(function (file) {
+            try { dt.items.add(file); } catch (e) { /* ignore */ }
+        });
+        inputEl.files = dt.files;
+    }
+
+    function mergePendingDocuments(pendingFiles, incomingFiles) {
+        var next = (pendingFiles || []).slice();
+        var seen = {};
+        next.forEach(function (f) { seen[fileIdentityKey(f)] = true; });
+        Array.from(incomingFiles || []).forEach(function (file) {
+            var key = fileIdentityKey(file);
+            if (seen[key]) return;
+            seen[key] = true;
+            next.push(file);
+        });
+        return next;
+    }
+
+    function renderPendingDocumentsList(listEl, files, onRemoveAt) {
+        if (!listEl) return;
+        listEl.innerHTML = '';
+        if (!files || !files.length) {
+            listEl.hidden = true;
+            return;
+        }
+        listEl.hidden = false;
+        files.forEach(function (file, index) {
+            var li = document.createElement('li');
+            li.className = 'asset-doc-item';
+            li.innerHTML = '<i class="bi bi-file-earmark" aria-hidden="true"></i>'
+                + '<span class="asset-doc-name" title="' + escapeHtmlDoc(file.name) + '">' + escapeHtmlDoc(file.name) + '</span>'
+                + '<span class="asset-doc-meta">' + escapeHtmlDoc(formatFileSize(file.size)) + '</span>'
+                + '<button type="button" class="btn btn-sm btn-outline-danger asset-doc-remove-pending-btn" title="Remove file" aria-label="Remove file">'
+                + '<i class="bi bi-x-lg" aria-hidden="true"></i></button>';
+            var btn = li.querySelector('.asset-doc-remove-pending-btn');
+            if (btn) {
+                btn.addEventListener('click', function () {
+                    if (typeof onRemoveAt === 'function') onRemoveAt(index);
+                });
+            }
+            listEl.appendChild(li);
+        });
+    }
+
+    function refreshAddAssetDocumentsUI() {
+        var input = document.getElementById('addAssetDocuments');
+        var list = document.getElementById('addAssetDocumentsPreview');
+        syncFilesToInput(input, addAssetPendingDocs);
+        renderPendingDocumentsList(list, addAssetPendingDocs, function (index) {
+            addAssetPendingDocs.splice(index, 1);
+            refreshAddAssetDocumentsUI();
+        });
+    }
+
+    function refreshEditAssetPendingDocumentsUI() {
+        var input = document.getElementById('editAssetDocuments');
+        var list = document.getElementById('editAssetDocumentsPreview');
+        syncFilesToInput(input, editAssetPendingDocs);
+        renderPendingDocumentsList(list, editAssetPendingDocs, function (index) {
+            editAssetPendingDocs.splice(index, 1);
+            refreshEditAssetPendingDocumentsUI();
+        });
+    }
+
+    function resetAddAssetDocuments() {
+        addAssetPendingDocs = [];
+        var input = document.getElementById('addAssetDocuments');
+        if (input) input.value = '';
+        refreshAddAssetDocumentsUI();
+    }
+
+    function resetEditAssetDocuments() {
+        editAssetPendingDocs = [];
+        var input = document.getElementById('editAssetDocuments');
+        var existing = document.getElementById('editAssetDocumentsExisting');
+        if (input) input.value = '';
+        refreshEditAssetPendingDocumentsUI();
+        if (existing) {
+            existing.innerHTML = '<div class="text-muted small">Loading documents…</div>';
+        }
+    }
+
+    function renderEditAssetDocumentsList(documents, assetId) {
+        var existing = document.getElementById('editAssetDocumentsExisting');
+        if (!existing) return;
+        existing.innerHTML = '';
+        if (!documents || !documents.length) {
+            existing.innerHTML = '<div class="text-muted small">No supporting documents yet.</div>';
+            return;
+        }
+        documents.forEach(function (doc) {
+            var row = document.createElement('div');
+            row.className = 'asset-doc-item';
+            row.dataset.documentId = String(doc.id);
+            row.innerHTML = '<i class="bi bi-file-earmark" aria-hidden="true"></i>'
+                + '<a class="asset-doc-name" href="' + escapeHtmlDoc(doc.download_url) + '" target="_blank" rel="noopener">'
+                + escapeHtmlDoc(doc.original_filename) + '</a>'
+                + '<span class="asset-doc-meta">' + escapeHtmlDoc(formatFileSize(doc.file_size)) + '</span>'
+                + '<button type="button" class="btn btn-sm btn-outline-danger asset-doc-delete-btn" title="Remove document" aria-label="Remove document">'
+                + '<i class="bi bi-trash" aria-hidden="true"></i></button>';
+            var delBtn = row.querySelector('.asset-doc-delete-btn');
+            if (delBtn) {
+                delBtn.addEventListener('click', function () {
+                    deleteEditAssetDocument(assetId, doc.id, doc.original_filename, row);
+                });
+            }
+            existing.appendChild(row);
+        });
+    }
+
+    function loadEditAssetDocuments(assetId) {
+        var existing = document.getElementById('editAssetDocumentsExisting');
+        if (!existing || !assetId) return;
+        existing.innerHTML = '<div class="text-muted small">Loading documents…</div>';
+        fetch('/assets/' + encodeURIComponent(assetId) + '/documents')
+            .then(function (r) { return r.json(); })
+            .then(function (data) {
+                renderEditAssetDocumentsList((data && data.documents) || [], assetId);
+            })
+            .catch(function () {
+                existing.innerHTML = '<div class="text-danger small">Failed to load documents.</div>';
+            });
+    }
+
+    function deleteEditAssetDocument(assetId, documentId, filename, rowEl) {
+        var doDelete = function () {
+            fetch('/assets/' + encodeURIComponent(assetId) + '/documents/' + encodeURIComponent(documentId), {
+                method: 'DELETE'
+            })
+            .then(function (r) { return r.json().then(function (data) { return { ok: r.ok, data: data }; }); })
+            .then(function (res) {
+                if (!res.ok || !res.data.success) {
+                    alert((res.data && res.data.error) || 'Failed to delete document.');
+                    return;
+                }
+                if (rowEl && rowEl.parentNode) rowEl.parentNode.removeChild(rowEl);
+                var existing = document.getElementById('editAssetDocumentsExisting');
+                if (existing && !existing.querySelector('.asset-doc-item')) {
+                    existing.innerHTML = '<div class="text-muted small">No supporting documents yet.</div>';
+                }
+            })
+            .catch(function () {
+                alert('Failed to delete document.');
+            });
+        };
+
+        if (window.AppDialogs && AppDialogs.confirm) {
+            AppDialogs.confirm({
+                title: 'Remove document',
+                message: 'Remove "' + (filename || 'this file') + '" from this asset?',
+                confirmText: 'Remove'
+            }).then(function (ok) {
+                if (ok) doDelete();
+            });
+        } else if (window.confirm('Remove "' + (filename || 'this file') + '" from this asset?')) {
+            doDelete();
+        }
+    }
+
+    function bindAssetDocumentInputs() {
+        var addInput = document.getElementById('addAssetDocuments');
+        if (addInput && addInput.dataset.bound !== '1') {
+            addInput.dataset.bound = '1';
+            addInput.addEventListener('change', function () {
+                var picked = Array.from(addInput.files || []);
+                if (!picked.length) return;
+                addAssetPendingDocs = mergePendingDocuments(addAssetPendingDocs, picked);
+                // Clear native picker so choosing the same file again still fires change
+                addInput.value = '';
+                refreshAddAssetDocumentsUI();
+            });
+        }
+        var editInput = document.getElementById('editAssetDocuments');
+        if (editInput && editInput.dataset.bound !== '1') {
+            editInput.dataset.bound = '1';
+            editInput.addEventListener('change', function () {
+                var picked = Array.from(editInput.files || []);
+                if (!picked.length) return;
+                editAssetPendingDocs = mergePendingDocuments(editAssetPendingDocs, picked);
+                editInput.value = '';
+                refreshEditAssetPendingDocumentsUI();
+            });
+        }
+    }
+
+// ============================================================================
 // BRANCH MANAGEMENT FUNCTIONS
 // ============================================================================
 
@@ -3577,6 +3794,8 @@ function appDeleteConfirm(message, title) {
             const rOff = document.getElementById('assetVenueOffice');
             if (rRest) rRest.checked = true;
             if (rOff) rOff.checked = false;
+
+            resetAddAssetDocuments();
         });
         if (addAssetModal) addAssetModal.addEventListener('shown.bs.modal', function() {
             loadAssetTypes().then(function () {
@@ -3608,6 +3827,9 @@ function appDeleteConfirm(message, title) {
             // Update modal title and form action
             document.getElementById('editAssetName').textContent = assetName;
             document.getElementById('editAssetForm').action = `/assets/update/${assetId}`;
+            document.getElementById('editAssetForm').dataset.assetId = String(assetId);
+            resetEditAssetDocuments();
+            loadEditAssetDocuments(assetId);
             
             // Populate form fields
             document.getElementById('edit_quantity').value = assetQuantity;
@@ -3954,6 +4176,7 @@ function appDeleteConfirm(message, title) {
         }
 
         bindAddAssetLocationChecklists();
+        bindAssetDocumentInputs();
 
         const editAssetBrandSel = document.getElementById('edit_asset_brand');
         if (editAssetBrandSel) {
