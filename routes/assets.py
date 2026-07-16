@@ -547,15 +547,18 @@ def add_asset():
     selected_asset_names = request.form.get('selected_asset_names', '')
     asset_type = request.form.get('asset_type', '')
     owner = request.form.get('owner', '')
+    branch = request.form.get('branch') or request.form.get('building')
     venue = (request.form.get('asset_venue') or 'restaurant').strip().lower()
+    brand_raw = (request.form.get('brand_id') or '').strip()
     if venue == 'office':
         department = request.form.get('department', '')
-        brand_ids = []
-        branch_names = [OFFICE_BRANCH_LABEL]
+        brand_key = None
     else:
         department = RESTAURANT_DEFAULT_DEPARTMENT_NAME
-        brand_ids = _parse_int_csv(request.form.get('selected_brand_ids') or request.form.get('brand_id', ''))
-        branch_names = _parse_csv_list(request.form.get('selected_branches') or request.form.get('branch', ''))
+        try:
+            brand_key = int(brand_raw)
+        except ValueError:
+            brand_key = None
     quantity = int(request.form['quantity'])
     price_raw = (request.form.get('price') or '').strip()
     try:
@@ -569,20 +572,15 @@ def add_asset():
     # Handle no owner case
     if no_owner:
         owner = 'No Owner'
+
+    if venue == 'office':
+        branch = OFFICE_BRANCH_LABEL
     
     # Parse selected asset names
     asset_names = [name.strip() for name in selected_asset_names.split(',') if name.strip()]
     
     if not asset_names:
         return redirect(url_for('assets.dashboard'))
-
-    if venue == 'restaurant':
-        if not brand_ids:
-            flash('Select at least one brand.', 'error')
-            return redirect(url_for('assets.dashboard'))
-        if not branch_names:
-            flash('Select at least one branch.', 'error')
-            return redirect(url_for('assets.dashboard'))
 
     spec_values_by_name = _parse_asset_spec_values_json(request.form.get('asset_spec_values_json', ''))
     if spec_values_by_name is None:
@@ -609,49 +607,45 @@ def add_asset():
             flash('Asset type does not match Restaurant / Office selection.', 'error')
             return redirect(url_for('assets.dashboard'))
 
+    err = _validate_asset_venue_location(cur, venue, branch, department, brand_id=brand_key)
+    if err:
+        conn.close()
+        flash(err, 'error')
+        return redirect(url_for('assets.dashboard'))
+
     created_asset_ids = []
-    for branch in branch_names:
-        err = _validate_asset_venue_location(
-            cur, venue, branch, department, brand_ids=brand_ids
-        )
-        if err:
-            conn.close()
-            flash(err, 'error')
-            return redirect(url_for('assets.dashboard'))
+    new_asset_codes = (
+        allocate_asset_codes(cur, branch, department, len(asset_names))
+        if len(asset_names) > 1
+        else None
+    )
 
-        new_asset_codes = (
-            allocate_asset_codes(cur, branch, department, len(asset_names))
-            if len(asset_names) > 1
-            else None
-        )
-
-        # Create individual assets for each selected asset name
-        for i, asset_name in enumerate(asset_names):
-            # Check for existing asset with same name, branch, and department
-            cur.execute('SELECT id, quantity, asset_code, qr_random_code FROM assets WHERE name=? AND branch=? AND department=?', (asset_name, branch, department))
-            row = cur.fetchone()
-            if row:
-                new_quantity = row[1] + quantity
-                cur.execute('UPDATE assets SET quantity=?, used_status=?, asset_type=?, owner=? WHERE id=?', (new_quantity, used_status, asset_type, owner, row[0]))
-                asset_id = row[0]
+    # Create individual assets for each selected asset name
+    for i, asset_name in enumerate(asset_names):
+        # Check for existing asset with same name, branch, and department
+        cur.execute('SELECT id, quantity, asset_code, qr_random_code FROM assets WHERE name=? AND branch=? AND department=?', (asset_name, branch, department))
+        row = cur.fetchone()
+        if row:
+            new_quantity = row[1] + quantity
+            cur.execute('UPDATE assets SET quantity=?, used_status=?, asset_type=?, owner=? WHERE id=?', (new_quantity, used_status, asset_type, owner, row[0]))
+            asset_id = row[0]
+        else:
+            if new_asset_codes is not None:
+                asset_code = new_asset_codes[i]
             else:
-                if new_asset_codes is not None:
-                    asset_code = new_asset_codes[i]
-                else:
-                    asset_code = generate_asset_code(branch, department, cur=cur)
-                
-                qr_random_code = str(uuid.uuid4())
-                
-                cur.execute('INSERT INTO assets (name, quantity, price, owner, branch, department, asset_code, qr_random_code, used_status, asset_type) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)', (asset_name, quantity, price, owner, branch, department, asset_code, qr_random_code, used_status, asset_type))
-                asset_id = cur.lastrowid
+                asset_code = generate_asset_code(branch, department, cur=cur)
+            
+            qr_random_code = str(uuid.uuid4())
+            
+            cur.execute('INSERT INTO assets (name, quantity, price, owner, branch, department, asset_code, qr_random_code, used_status, asset_type) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)', (asset_name, quantity, price, owner, branch, department, asset_code, qr_random_code, used_status, asset_type))
+            asset_id = cur.lastrowid
 
-            created_asset_ids.append(asset_id)
-            _save_spec_values_for_asset(cur, asset_id, asset_name, asset_type, spec_values_by_name)
-            _save_inclusion_values_for_asset(cur, asset_id, asset_name, asset_type, inclusion_values_by_name)
+        created_asset_ids.append(asset_id)
+        _save_spec_values_for_asset(cur, asset_id, asset_name, asset_type, spec_values_by_name)
+        _save_inclusion_values_for_asset(cur, asset_id, asset_name, asset_type, inclusion_values_by_name)
 
     uploaded_files = request.files.getlist('supporting_documents')
     if uploaded_files and created_asset_ids:
-        # Unique asset ids in case quantity merge reused the same row
         unique_ids = list(dict.fromkeys(created_asset_ids))
         _, doc_err = save_uploaded_files_for_assets(cur, unique_ids, uploaded_files)
         if doc_err:

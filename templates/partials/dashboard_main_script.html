@@ -109,7 +109,9 @@ function appDeleteConfirm(message, title) {
     function applyAddAssetVenueToAddAssetModal() {
         syncAddAssetVenueField();
         const brandWrap = document.getElementById('addAssetBrandField');
+        const brandSel = document.getElementById('add_asset_brand');
         const branchWrap = document.getElementById('addAssetBranchField');
+        const branchSelect = document.getElementById('branch');
         const deptWrap = document.getElementById('addAssetDepartmentField');
         const departmentSelect = document.getElementById('department');
         const ownerSelect = document.getElementById('owner');
@@ -118,8 +120,12 @@ function appDeleteConfirm(message, title) {
         updateAssetTypeDropdowns();
         if (v === 'office') {
             if (brandWrap) brandWrap.classList.add('d-none');
+            if (brandSel) brandSel.value = '';
             if (deptWrap) deptWrap.classList.remove('d-none');
             if (branchWrap) branchWrap.classList.add('d-none');
+            if (branchSelect) {
+                branchSelect.innerHTML = '<option value="' + OFFICE_BRANCH_LABEL_JS + '" selected>' + OFFICE_BRANCH_LABEL_JS + '</option>';
+            }
             departmentSelect.innerHTML = '<option value="">Select department</option>';
             fillOfficeDepartmentsSelect(departmentSelect, 'Select department').then(function () {
                 if (ownerSelect) {
@@ -130,11 +136,10 @@ function appDeleteConfirm(message, title) {
             if (brandWrap) brandWrap.classList.remove('d-none');
             if (deptWrap) deptWrap.classList.add('d-none');
             if (branchWrap) branchWrap.classList.remove('d-none');
-            renderAddAssetBrandChecklist([]);
-            var branchSearch = document.getElementById('addAssetBranchSearch');
-            if (branchSearch) branchSearch.value = '';
-            renderAddAssetBranchChecklist([]);
-            bindAddAssetLocationChecklists();
+            populateAddAssetBrandSelect();
+            if (brandSel) brandSel.value = '';
+            updateAddAssetRestaurantBranchDropdown('');
+            if (branchSelect) branchSelect.value = '';
             departmentSelect.innerHTML = '';
             var o = document.createElement('option');
             o.value = RESTAURANT_DEFAULT_DEPT_JS;
@@ -271,11 +276,6 @@ function appDeleteConfirm(message, title) {
     }
 
     function populateAddAssetBrandSelect() {
-        if (document.getElementById('addAssetBrandList')) {
-            renderAddAssetBrandChecklist(getAddAssetCheckedBrandIds());
-            renderAddAssetBranchChecklist(getAddAssetCheckedBranchNames());
-            return;
-        }
         _fillBrandSelect(document.getElementById('add_asset_brand'));
     }
 
@@ -301,17 +301,37 @@ function appDeleteConfirm(message, title) {
         return name || code;
     }
 
-    function updateAddAssetRestaurantBranchDropdown() {
-        if (document.getElementById('addAssetBranchList')) {
-            renderAddAssetBranchChecklist(getAddAssetCheckedBranchNames());
-        }
+    function updateAddAssetRestaurantBranchDropdown(brandId) {
+        var buildingSelect = document.getElementById('branch');
+        if (!buildingSelect) return;
+        buildingSelect.innerHTML = '<option value="">Select Branch</option>';
+        if (!brandId) return;
+        var sorted = branchesData.filter(function (b) { return String(b.brand_id) === String(brandId); })
+            .sort(function (a, b) { return a.name.localeCompare(b.name); });
+        sorted.forEach(function (building) {
+            var option = document.createElement('option');
+            option.value = building.name;
+            option.textContent = formatBranchOptionLabel(building);
+            buildingSelect.appendChild(option);
+        });
     }
 
     // Update branch dropdown options (add-asset modal; restaurant uses brand filter)
     function updateBranchDropdown() {
-        if (document.getElementById('addAssetBranchList') && getAddAssetVenue() === 'restaurant') {
-            renderAddAssetBranchChecklist(getAddAssetCheckedBranchNames());
+        const buildingSelect = document.getElementById('branch');
+        if (!buildingSelect) return;
+        if (getAddAssetVenue() === 'restaurant') {
+            const bsel = document.getElementById('add_asset_brand');
+            updateAddAssetRestaurantBranchDropdown(bsel && bsel.value ? bsel.value : '');
+            return;
         }
+        buildingSelect.innerHTML = '<option value="">Select Branch</option>';
+        branchesData.forEach(building => {
+            const option = document.createElement('option');
+            option.value = building.name;
+            option.textContent = building.name;
+            buildingSelect.appendChild(option);
+        });
     }
 
     function updateUserModalBranchesFromBrand(brandId, branchSelectId) {
@@ -471,229 +491,6 @@ function appDeleteConfirm(message, title) {
         getChecked: empGetCheckedBranchIds,
         filter: empFilterBranchChecklist
     };
-
-// ============================================================================
-// ADD ASSET LOCATION CHECKLISTS (multi-brand / multi-branch)
-// ============================================================================
-
-    function addAssetLocationEscape(str) {
-        return String(str == null ? '' : str)
-            .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
-            .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
-    }
-
-    function getAddAssetCheckedBrandIds() {
-        var container = document.getElementById('addAssetBrandList');
-        if (!container) return [];
-        return Array.prototype.slice.call(container.querySelectorAll('.add-asset-brand-check:checked'))
-            .map(function (cb) { return cb.value; })
-            .filter(function (v) { return v; });
-    }
-
-    function getAddAssetCheckedBranchNames() {
-        var container = document.getElementById('addAssetBranchList');
-        if (!container) return [];
-        return Array.prototype.slice.call(container.querySelectorAll('.add-asset-branch-check:checked'))
-            .map(function (cb) { return cb.value; })
-            .filter(function (v) { return v; });
-    }
-
-    function syncAddAssetLocationHiddenInputs() {
-        var brandInput = document.getElementById('selectedBrandIdsInput');
-        var branchInput = document.getElementById('selectedBranchesInput');
-        if (brandInput) brandInput.value = getAddAssetCheckedBrandIds().join(',');
-        if (branchInput) branchInput.value = getAddAssetCheckedBranchNames().join(',');
-    }
-
-    function renderAddAssetBrandChecklist(checkedIds) {
-        var container = document.getElementById('addAssetBrandList');
-        if (!container) return;
-        var checked = {};
-        (checkedIds || []).forEach(function (id) { checked[String(id)] = true; });
-        var brands = (brandsData || []).slice().sort(function (a, b) {
-            return (a.name || '').localeCompare(b.name || '');
-        });
-        if (!brands.length) {
-            container.innerHTML = '<div class="app-branch-checklist-empty">No brands available. Add brands first.</div>';
-            return;
-        }
-        var html = '';
-        brands.forEach(function (brand) {
-            var cid = 'addAssetBrand_' + brand.id;
-            html += '<div class="form-check">'
-                + '<input class="form-check-input add-asset-brand-check" type="checkbox" value="' + brand.id + '" id="' + cid + '"' + (checked[String(brand.id)] ? ' checked' : '') + '>'
-                + '<label class="form-check-label" for="' + cid + '">' + addAssetLocationEscape(brand.name) + '</label>'
-                + '</div>';
-        });
-        container.innerHTML = html;
-    }
-
-    function renderAddAssetBranchChecklist(checkedBranchNames) {
-        var container = document.getElementById('addAssetBranchList');
-        if (!container) return;
-        var checked = {};
-        (checkedBranchNames || []).forEach(function (name) { checked[String(name)] = true; });
-        var brandIds = getAddAssetCheckedBrandIds();
-        var list = (branchesData || []).filter(function (b) {
-            return !brandIds.length || brandIds.indexOf(String(b.brand_id)) !== -1;
-        });
-        if (!brandIds.length) {
-            container.innerHTML = '<div class="app-branch-checklist-empty">Select at least one brand to see branches.</div>';
-            syncAddAssetLocationHiddenInputs();
-            return;
-        }
-        if (!list.length) {
-            container.innerHTML = '<div class="app-branch-checklist-empty">No branches match the selected brands.</div>';
-            syncAddAssetLocationHiddenInputs();
-            return;
-        }
-        var byBrand = {};
-        list.forEach(function (b) {
-            var brand = b.brand_name || 'Unassigned';
-            (byBrand[brand] = byBrand[brand] || []).push(b);
-        });
-        var html = '';
-        Object.keys(byBrand).sort().forEach(function (brand) {
-            html += '<div class="branch-brand-group">';
-            html += '<div class="branch-brand-title">' + addAssetLocationEscape(brand) + '</div>';
-            byBrand[brand].sort(function (a, b) { return (a.name || '').localeCompare(b.name || ''); }).forEach(function (b) {
-                var label = formatBranchOptionLabel(b);
-                var cid = 'addAssetBranch_' + b.id;
-                html += '<div class="form-check">'
-                    + '<input class="form-check-input add-asset-branch-check" type="checkbox" value="' + addAssetLocationEscape(b.name) + '" id="' + cid + '"' + (checked[String(b.name)] ? ' checked' : '') + '>'
-                    + '<label class="form-check-label" for="' + cid + '">' + addAssetLocationEscape(label) + '</label>'
-                    + '</div>';
-            });
-            html += '</div>';
-        });
-        container.innerHTML = html;
-        syncAddAssetLocationHiddenInputs();
-    }
-
-    function filterAddAssetBranchChecklist(term) {
-        var container = document.getElementById('addAssetBranchList');
-        if (!container) return;
-        term = (term || '').trim().toLowerCase();
-        Array.prototype.forEach.call(container.querySelectorAll('.branch-brand-group'), function (grp) {
-            var any = false;
-            Array.prototype.forEach.call(grp.querySelectorAll('.form-check'), function (fc) {
-                var label = fc.querySelector('label');
-                var txt = label ? label.textContent.toLowerCase() : '';
-                var show = !term || txt.indexOf(term) !== -1;
-                fc.style.display = show ? '' : 'none';
-                if (show) any = true;
-            });
-            grp.style.display = any ? '' : 'none';
-        });
-    }
-
-    function onAddAssetBrandChecklistChange() {
-        var checkedBranches = getAddAssetCheckedBranchNames().filter(function (branchName) {
-            var branch = (branchesData || []).find(function (b) { return b.name === branchName; });
-            if (!branch) return false;
-            return getAddAssetCheckedBrandIds().indexOf(String(branch.brand_id)) !== -1;
-        });
-        renderAddAssetBranchChecklist(checkedBranches);
-        loadOwnersForAddAssetSelection();
-        checkNoOwnerOption();
-    }
-
-    function onAddAssetBranchChecklistChange() {
-        syncAddAssetLocationHiddenInputs();
-        loadOwnersForAddAssetSelection();
-        checkNoOwnerOption();
-    }
-
-    function loadOwnersForAddAssetSelection() {
-        var branchNames = getAddAssetCheckedBranchNames();
-        var ownerSelect = document.getElementById('owner');
-        if (!ownerSelect) return;
-        if (!branchNames.length) {
-            ownerSelect.innerHTML = '<option value="">Select branch first</option>';
-            return;
-        }
-        if (branchNames.length === 1) {
-            loadOwnersForDepartment(RESTAURANT_DEFAULT_DEPT_JS, branchNames[0]);
-            return;
-        }
-        loadOwnersForMultipleBranches(RESTAURANT_DEFAULT_DEPT_JS, branchNames);
-    }
-
-    function loadOwnersForMultipleBranches(departmentName, branchNames) {
-        var ownerSelect = document.getElementById('owner');
-        if (!ownerSelect) return;
-        ownerSelect.innerHTML = '<option value="">Loading...</option>';
-
-        var deptPromises = branchNames.map(function (branchName) {
-            var deptId = resolveDepartmentIdForOwnerLookup(departmentName, branchName);
-            if (!deptId) return Promise.resolve([]);
-            return fetch('/admin/users?department_id=' + encodeURIComponent(deptId))
-                .then(function (r) { return r.json(); })
-                .catch(function () { return []; });
-        });
-
-        Promise.all(deptPromises).then(function (results) {
-            var seen = {};
-            var users = [];
-            results.forEach(function (userList) {
-                (userList || []).forEach(function (user) {
-                    var key = (user.name || '').trim();
-                    if (!key || seen[key]) return;
-                    seen[key] = true;
-                    users.push(user);
-                });
-            });
-            ownerSelect.innerHTML = '<option value="">Select Owner</option>';
-            if (!users.length) {
-                var option = document.createElement('option');
-                option.value = '';
-                option.textContent = 'No users in selected branches';
-                option.disabled = true;
-                ownerSelect.appendChild(option);
-                return;
-            }
-            users.sort(function (a, b) {
-                var byId = (a.employee_id || '').localeCompare(b.employee_id || '');
-                if (byId !== 0) return byId;
-                return (a.name || '').localeCompare(b.name || '');
-            }).forEach(function (user) {
-                var option = document.createElement('option');
-                option.value = user.name;
-                option.textContent = formatEmployeeOwnerLabel(user);
-                ownerSelect.appendChild(option);
-            });
-        }).catch(function () {
-            ownerSelect.innerHTML = '<option value="">Error loading owners</option>';
-        });
-    }
-
-    function bindAddAssetLocationChecklists() {
-        var brandList = document.getElementById('addAssetBrandList');
-        if (brandList && brandList.dataset.bound !== '1') {
-            brandList.dataset.bound = '1';
-            brandList.addEventListener('change', function (e) {
-                if (e.target && e.target.classList.contains('add-asset-brand-check')) {
-                    onAddAssetBrandChecklistChange();
-                }
-            });
-        }
-        var branchList = document.getElementById('addAssetBranchList');
-        if (branchList && branchList.dataset.bound !== '1') {
-            branchList.dataset.bound = '1';
-            branchList.addEventListener('change', function (e) {
-                if (e.target && e.target.classList.contains('add-asset-branch-check')) {
-                    onAddAssetBranchChecklistChange();
-                }
-            });
-        }
-        var branchSearch = document.getElementById('addAssetBranchSearch');
-        if (branchSearch && branchSearch.dataset.bound !== '1') {
-            branchSearch.dataset.bound = '1';
-            branchSearch.addEventListener('input', function () {
-                filterAddAssetBranchChecklist(this.value);
-            });
-        }
-    }
 
 // ============================================================================
 // ASSET SUPPORTING DOCUMENTS
@@ -2581,11 +2378,8 @@ function appDeleteConfirm(message, title) {
         if (!departmentSelect || !noOwnerCheck || !ownerSelect) return;
         
         const selectedDepartment = departmentSelect.value;
-        const hasLocation = getAddAssetVenue() === 'restaurant'
-            ? getAddAssetCheckedBranchNames().length > 0
-            : !!selectedDepartment;
         
-        if (hasLocation) {
+        if (selectedDepartment) {
             // Show the checkbox and enable it for all departments
             noOwnerCheck.parentElement.style.display = 'block';
             noOwnerCheck.disabled = false;
@@ -2622,7 +2416,7 @@ function appDeleteConfirm(message, title) {
      * Updates the owner dropdown based on department selection
      * @param {string} departmentName - The selected department name
      */
-    function loadOwnersForDepartment(departmentName, branchNameOverride) {
+    function loadOwnersForDepartment(departmentName) {
         const ownerSelect = document.getElementById('owner');
         if (!ownerSelect) return;
 
@@ -2635,9 +2429,7 @@ function appDeleteConfirm(message, title) {
         }
         
         // Resolve department id (restaurant vs office) then load users
-        const branchName = branchNameOverride !== undefined
-            ? branchNameOverride
-            : (getAddAssetCheckedBranchNames()[0] || '');
+        const branchName = (document.getElementById('branch') && document.getElementById('branch').value) || '';
         const deptId = resolveDepartmentIdForOwnerLookup(departmentName, branchName);
         if (!deptId) {
             ownerSelect.innerHTML = '<option value="">Department not found</option>';
@@ -3718,19 +3510,18 @@ function appDeleteConfirm(message, title) {
                     collectAddAssetSpecValuesJson();
                     collectAddAssetInclusionValuesJson();
                     if (venue === 'restaurant') {
-                        const brandIds = getAddAssetCheckedBrandIds();
-                        if (!brandIds.length) {
+                        const bsel = document.getElementById('add_asset_brand');
+                        if (!bsel || !bsel.value) {
                             e.preventDefault();
-                            alert('Please select at least one brand.');
+                            alert('Please select a brand.');
                             return;
                         }
-                        const branchNames = getAddAssetCheckedBranchNames();
-                        if (!branchNames.length) {
+                        const brsel = document.getElementById('branch');
+                        if (!brsel || !brsel.value) {
                             e.preventDefault();
-                            alert('Please select at least one branch.');
+                            alert('Please select a branch.');
                             return;
                         }
-                        syncAddAssetLocationHiddenInputs();
                     } else {
                         const dsel = document.getElementById('department');
                         if (!dsel || !dsel.value) {
@@ -4175,8 +3966,30 @@ function appDeleteConfirm(message, title) {
             });
         }
 
-        bindAddAssetLocationChecklists();
         bindAssetDocumentInputs();
+
+        const addAssetBrandSel = document.getElementById('add_asset_brand');
+        if (addAssetBrandSel) {
+            addAssetBrandSel.addEventListener('change', function() {
+                if (getAddAssetVenue() !== 'restaurant') return;
+                const bid = this.value;
+                const branchSel = document.getElementById('branch');
+                if (branchSel) branchSel.value = '';
+                const ownerSel = document.getElementById('owner');
+                if (ownerSel) ownerSel.innerHTML = '<option value="">Select branch first</option>';
+                updateAddAssetRestaurantBranchDropdown(bid);
+                const ds = document.getElementById('department');
+                if (ds) {
+                    ds.innerHTML = '';
+                    const op = document.createElement('option');
+                    op.value = RESTAURANT_DEFAULT_DEPT_JS;
+                    op.textContent = RESTAURANT_DEFAULT_DEPT_JS;
+                    ds.appendChild(op);
+                    ds.value = RESTAURANT_DEFAULT_DEPT_JS;
+                }
+                checkNoOwnerOption();
+            });
+        }
 
         const editAssetBrandSel = document.getElementById('edit_asset_brand');
         if (editAssetBrandSel) {
@@ -4188,6 +4001,30 @@ function appDeleteConfirm(message, title) {
                 const own = document.getElementById('edit_owner');
                 if (own) own.innerHTML = '<option value="">Select branch first</option>';
                 loadEditBranches('', bid || '').catch(function () {});
+            });
+        }
+
+        const branchSelect = document.getElementById('branch');
+        if (branchSelect) {
+            branchSelect.addEventListener('change', function() {
+                if (getAddAssetVenue() !== 'restaurant') return;
+                const selectedBuilding = this.value;
+                const departmentSelect = document.getElementById('department');
+                const ownerSelect = document.getElementById('owner');
+                if (!departmentSelect) return;
+                departmentSelect.innerHTML = '';
+                const op = document.createElement('option');
+                op.value = RESTAURANT_DEFAULT_DEPT_JS;
+                op.textContent = RESTAURANT_DEFAULT_DEPT_JS;
+                departmentSelect.appendChild(op);
+                departmentSelect.value = RESTAURANT_DEFAULT_DEPT_JS;
+                if (!selectedBuilding) {
+                    if (ownerSelect) ownerSelect.innerHTML = '<option value="">Select branch first</option>';
+                    checkNoOwnerOption();
+                    return;
+                }
+                loadOwnersForDepartment(RESTAURANT_DEFAULT_DEPT_JS);
+                checkNoOwnerOption();
             });
         }
     })();
