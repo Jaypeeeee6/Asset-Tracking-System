@@ -351,3 +351,63 @@ a.btn-app-add:focus-visible {
         max-width: 100vw;
     }
 }
+
+/* Password show / hide toggle */
+.app-password-field {
+    position: relative;
+    display: block;
+    width: 100%;
+}
+
+.app-password-field .app-password-input,
+.app-password-field input[type="password"],
+.app-password-field input[type="text"].app-password-input {
+    width: 100%;
+    padding-right: 2.75rem;
+}
+
+.app-password-toggle {
+    position: absolute;
+    top: 50%;
+    right: 0.35rem;
+    transform: translateY(-50%);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 2.25rem;
+    height: 2.25rem;
+    padding: 0;
+    border: none;
+    border-radius: 6px;
+    background: transparent;
+    color: #8a7d62;
+    cursor: pointer;
+    line-height: 1;
+    transition: color 0.15s, background 0.15s;
+}
+
+.app-password-toggle:hover {
+    color: var(--gold-deeper, #A8833A);
+    background: rgba(217, 189, 125, 0.15);
+}
+
+.app-password-toggle:focus-visible {
+    outline: 2px solid var(--gold-deeper, #A8833A);
+    outline-offset: 1px;
+}
+
+.app-password-toggle i {
+    font-size: 1.15rem;
+    line-height: 1;
+}
+
+.dark-mode .app-password-toggle,
+.login-page.dark-mode .app-password-toggle {
+    color: rgba(255, 255, 255, 0.55);
+}
+
+.dark-mode .app-password-toggle:hover,
+.login-page.dark-mode .app-password-toggle:hover {
+    color: var(--gold, #D9BD7D);
+    background: rgba(217, 189, 125, 0.12);
+}
