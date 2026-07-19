@@ -1205,6 +1205,8 @@ def init_db():
         )
     if 'shared_group_id' not in columns:
         cur.execute('ALTER TABLE assets ADD COLUMN shared_group_id TEXT')
+    if 'asset_date' not in columns:
+        cur.execute('ALTER TABLE assets ADD COLUMN asset_date TEXT')
     
     # Create asset_types table (for_venue added via migration on legacy DBs)
     cur.execute('''
@@ -1254,6 +1256,10 @@ def init_db():
             archive_reason TEXT
         )
     ''')
+    cur.execute("PRAGMA table_info(archived_assets)")
+    archived_columns = [row[1] for row in cur.fetchall()]
+    if 'asset_date' not in archived_columns:
+        cur.execute('ALTER TABLE archived_assets ADD COLUMN asset_date TEXT')
     _migrate_drop_quantity_columns(cur)
     _migrate_asset_kind_column(cur)
     

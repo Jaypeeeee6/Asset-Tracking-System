@@ -43,8 +43,20 @@ import qrcode
 from io import BytesIO
 import uuid
 import json
+import datetime
 
 assets_bp = Blueprint('assets', __name__)
+
+
+def _parse_asset_date(raw_value):
+    """Return YYYY-MM-DD or today's date if missing/invalid."""
+    value = (raw_value or '').strip()
+    if value:
+        try:
+            return datetime.date.fromisoformat(value).isoformat()
+        except ValueError:
+            pass
+    return datetime.date.today().isoformat()
 
 
 def _parse_csv_list(raw):
@@ -198,7 +210,7 @@ def _validate_asset_venue_location(cur, venue, branch, department, brand_id=None
     return None
 
 
-def _upsert_asset_row(cur, asset_name, price, owner, branch, department, used_status, asset_type, asset_kind, shared_group_id=None):
+def _upsert_asset_row(cur, asset_name, price, owner, branch, department, used_status, asset_type, asset_kind, shared_group_id=None, asset_date=None):
     """Insert or update one asset row; return asset id."""
     cur.execute(
         'SELECT id, asset_code, qr_random_code FROM assets WHERE name=? AND branch=? AND department=?',
@@ -213,15 +225,16 @@ def _upsert_asset_row(cur, asset_name, price, owner, branch, department, used_st
         return row[0]
     asset_code = generate_asset_code(branch, department, cur=cur)
     qr_random_code = str(uuid.uuid4())
+    date_value = (asset_date or '').strip() or datetime.date.today().isoformat()
     cur.execute(
         '''
         INSERT INTO assets
-        (name, price, owner, branch, department, asset_code, qr_random_code, used_status, asset_type, asset_kind, shared_group_id)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        (name, price, owner, branch, department, asset_code, qr_random_code, used_status, asset_type, asset_kind, shared_group_id, asset_date)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         ''',
         (
             asset_name, price, owner, branch, department, asset_code, qr_random_code,
-            used_status, asset_type, asset_kind, shared_group_id,
+            used_status, asset_type, asset_kind, shared_group_id, date_value,
         ),
     )
     return cur.lastrowid
@@ -690,6 +703,7 @@ def add_asset():
         return redirect(url_for('assets.dashboard'))
     used_status = request.form.get('used_status', 'Not Used')
     no_owner = request.form.get('no_owner') == 'on'
+    asset_date = _parse_asset_date(request.form.get('asset_date'))
 
     if no_owner:
         owner = 'No Owner'
@@ -776,6 +790,7 @@ def add_asset():
             asset_id = _upsert_asset_row(
                 cur, asset_name, price, owner, branch, department, used_status, asset_type, asset_kind,
                 shared_group_id=shared_group_id,
+                asset_date=asset_date,
             )
             created_asset_ids.append(asset_id)
             _save_spec_values_for_asset(cur, asset_id, asset_name, asset_type, spec_values_by_name)
@@ -1040,14 +1055,15 @@ def delete_asset(asset_id):
     # Insert into archived_assets table
     cur.execute('''
         INSERT INTO archived_assets 
-        (original_id, name, price, owner, branch, department, asset_code, qr_random_code, used_status, asset_type, asset_kind, shared_group_id, archived_by, archive_reason)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        (original_id, name, price, owner, branch, department, asset_code, qr_random_code, used_status, asset_type, asset_kind, shared_group_id, asset_date, archived_by, archive_reason)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     ''', (
         asset['id'], asset['name'], asset['price'] if asset['price'] is not None else 0.0, asset['owner'], 
         asset['branch'], asset['department'], asset['asset_code'], 
         asset['qr_random_code'], asset['used_status'], asset['asset_type'],
         asset['asset_kind'] if asset['asset_kind'] else ASSET_KIND_BRANCH,
         asset['shared_group_id'] if 'shared_group_id' in asset.keys() else None,
+        asset['asset_date'] if 'asset_date' in asset.keys() else None,
         current_user.display_name, archive_reason
     ))
 
@@ -1123,14 +1139,15 @@ def bulk_delete():
         for asset in assets:
             cur.execute('''
                 INSERT INTO archived_assets 
-                (original_id, name, price, owner, branch, department, asset_code, qr_random_code, used_status, asset_type, asset_kind, shared_group_id, archived_by, archive_reason)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                (original_id, name, price, owner, branch, department, asset_code, qr_random_code, used_status, asset_type, asset_kind, shared_group_id, asset_date, archived_by, archive_reason)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             ''', (
                 asset['id'], asset['name'], asset['price'] if asset['price'] is not None else 0.0, asset['owner'], 
                 asset['branch'], asset['department'], asset['asset_code'], 
                 asset['qr_random_code'], asset['used_status'], asset['asset_type'],
                 asset['asset_kind'] if asset['asset_kind'] else ASSET_KIND_BRANCH,
                 asset['shared_group_id'] if 'shared_group_id' in asset.keys() else None,
+                asset['asset_date'] if 'asset_date' in asset.keys() else None,
                 current_user.display_name, archive_reason
             ))
 
@@ -1512,14 +1529,15 @@ def restore_asset(archived_id):
             asset_code = archived_asset['asset_code']  # Use the original asset code
             qr_random_code = archived_asset['qr_random_code'] if archived_asset['qr_random_code'] else str(uuid.uuid4())
             cur.execute('''
-                INSERT INTO assets (name, price, owner, branch, department, asset_code, qr_random_code, used_status, asset_type, asset_kind, shared_group_id)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                INSERT INTO assets (name, price, owner, branch, department, asset_code, qr_random_code, used_status, asset_type, asset_kind, shared_group_id, asset_date)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                             ''', (
                     archived_asset['name'], archived_asset['price'] if archived_asset['price'] is not None else 0.0, archived_asset['owner'],
                     archived_asset['branch'], archived_asset['department'], asset_code, qr_random_code,
                     archived_asset['used_status'], archived_asset['asset_type'],
                     archived_asset['asset_kind'] if archived_asset['asset_kind'] else ASSET_KIND_BRANCH,
                     archived_asset['shared_group_id'] if 'shared_group_id' in archived_asset.keys() else None,
+                    archived_asset['asset_date'] if 'asset_date' in archived_asset.keys() else None,
                 ))
         
         # Delete from archived_assets table
@@ -1583,14 +1601,15 @@ def bulk_restore_assets():
                 asset_code = archived_asset['asset_code']  # Use the original asset code
                 qr_random_code = archived_asset['qr_random_code'] if archived_asset['qr_random_code'] else str(uuid.uuid4())
                 cur.execute('''
-                    INSERT INTO assets (name, price, owner, branch, department, asset_code, qr_random_code, used_status, asset_type, asset_kind, shared_group_id)
-                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    INSERT INTO assets (name, price, owner, branch, department, asset_code, qr_random_code, used_status, asset_type, asset_kind, shared_group_id, asset_date)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                                 ''', (
                         archived_asset['name'], archived_asset['price'] if archived_asset['price'] is not None else 0.0, archived_asset['owner'],
                         archived_asset['branch'], archived_asset['department'], asset_code, qr_random_code,
                         archived_asset['used_status'], archived_asset['asset_type'],
                         archived_asset['asset_kind'] if archived_asset['asset_kind'] else ASSET_KIND_BRANCH,
                         archived_asset['shared_group_id'] if 'shared_group_id' in archived_asset.keys() else None,
+                        archived_asset['asset_date'] if 'asset_date' in archived_asset.keys() else None,
                     ))
             
             # Delete from archived_assets table

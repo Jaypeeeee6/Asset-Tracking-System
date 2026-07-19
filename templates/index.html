@@ -896,6 +896,7 @@
                             data-asset-branch="{{ asset.branch }}"
                             data-asset-department="{{ asset.department }}"
                             data-asset-status="{{ asset.used_status }}"
+                            data-asset-date="{{ asset.asset_date or '' }}"
                             data-bs-toggle="modal"
                             data-bs-target="#editAssetModal"
                             title="Edit asset"
@@ -1121,6 +1122,11 @@
                     <option value="Out of Service">Out of Service</option>
                 </select>
             </div>
+            <div class="mb-3">
+                {{ form_label('Date', 'asset_date', true) }}
+                <input type="date" class="form-control" id="asset_date" name="asset_date" required readonly>
+                <div class="form-text"><i class="bi bi-info-circle" aria-hidden="true"></i> Automatically set to today&apos;s date.</div>
+            </div>
             <div class="mb-0">
                 {{ form_label('Supporting documents', 'addAssetDocuments', false) }}
                 <input type="file" class="form-control" id="addAssetDocuments" name="supporting_documents" multiple
@@ -1251,6 +1257,11 @@
                     <option value="Not Used">Not Used</option>
                     <option value="Out of Service">Out of Service</option>
                 </select>
+            </div>
+            <div class="mb-3">
+                <label for="edit_asset_date" class="form-label">Date</label>
+                <input type="date" class="form-control" id="edit_asset_date" name="asset_date" readonly>
+                <div class="form-text"><i class="bi bi-info-circle" aria-hidden="true"></i> Date this asset was added.</div>
             </div>
             <div class="mb-0">
                 <label class="form-label" for="editAssetDocuments">Supporting documents</label>

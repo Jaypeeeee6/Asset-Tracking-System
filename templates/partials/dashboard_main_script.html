@@ -44,6 +44,14 @@ const RESTAURANT_AREA_OPTIONS_JS = [
     'Outdoor'
 ];
 
+function todayIsoDate() {
+    var now = new Date();
+    var y = now.getFullYear();
+    var m = String(now.getMonth() + 1).padStart(2, '0');
+    var d = String(now.getDate()).padStart(2, '0');
+    return y + '-' + m + '-' + d;
+}
+
 /** Department QR label code (restaurant: branch code; office: MAA-{department name}). */
 function formatDepartmentDisplayCode(deptOrBranch, departmentName) {
     if (deptOrBranch && typeof deptOrBranch === 'object') {
@@ -3958,6 +3966,9 @@ function appDeleteConfirm(message, title) {
             refreshAddAssetBrandChips(false);
             refreshAddAssetBranchChips(false);
 
+            var dateInput = document.getElementById('asset_date');
+            if (dateInput) dateInput.value = todayIsoDate();
+
             resetAddAssetDocuments();
         });
         if (addAssetModal) addAssetModal.addEventListener('shown.bs.modal', function() {
@@ -3981,10 +3992,11 @@ function appDeleteConfirm(message, title) {
             const assetBuilding = button.getAttribute('data-asset-branch');
             const assetDepartment = button.getAttribute('data-asset-department');
             const assetStatus = button.getAttribute('data-asset-status');
+            const assetDate = button.getAttribute('data-asset-date') || '';
             
             console.log('Edit modal data:', {
                 assetId, assetName, assetType, 
-                assetOwner, assetBuilding, assetDepartment, assetStatus
+                assetOwner, assetBuilding, assetDepartment, assetStatus, assetDate
             });
             
             // Update modal title and form action
@@ -3997,6 +4009,8 @@ function appDeleteConfirm(message, title) {
             // Populate form fields
             document.getElementById('edit_price').value = assetPrice;
             document.getElementById('edit_used_status').value = assetStatus;
+            var editDateInput = document.getElementById('edit_asset_date');
+            if (editDateInput) editDateInput.value = assetDate || todayIsoDate();
             
             // Handle old asset type values that might not match new options
             let assetTypeToSet = assetType;
