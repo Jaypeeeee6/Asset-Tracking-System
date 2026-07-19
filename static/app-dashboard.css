@@ -595,8 +595,14 @@
     max-width: 2rem;
 }
 
+.asset-dashboard .asset-register-card .app-table col.app-table-col-name {
+    width: 10.5rem;
+}
+
 .asset-dashboard .asset-register-card .app-table th.app-table-col-name,
 .asset-dashboard .asset-register-card .app-table td.app-table-col-name {
+    width: 10.5rem;
+    max-width: 11rem;
     min-width: 0;
     overflow-wrap: anywhere;
     word-break: break-word;
@@ -623,6 +629,7 @@
     max-width: 6.25rem;
     white-space: normal;
     overflow-wrap: anywhere;
+    text-align: center;
 }
 
 .asset-dashboard .asset-register-card .app-table .asset-register-qr-img {
@@ -673,32 +680,33 @@
 
 /* Owner column — slightly narrower */
 .asset-dashboard .asset-register-card .app-table col.app-table-col-owner {
-    width: 10rem;
+    width: 13rem;
 }
 
 .asset-dashboard .asset-register-card .app-table th.app-table-col-owner,
 .asset-dashboard .asset-register-card .app-table td.app-table-col-owner {
-    width: 10rem;
-    max-width: 10rem;
+    width: 13rem;
+    max-width: 13rem;
     white-space: normal;
     overflow-wrap: anywhere;
     box-sizing: border-box;
     text-align: center;
 }
 
-/* Branch/Department column — chips for locations */
+/* Branch/Department column — chips for locations; absorbs leftover table width */
 .asset-dashboard .asset-register-card .app-table col.app-table-col-location {
-    width: 14rem;
+    width: auto;
 }
 
 .asset-dashboard .asset-register-card .app-table th.app-table-col-location,
 .asset-dashboard .asset-register-card .app-table td.app-table-col-location {
-    width: 14rem;
-    max-width: 18rem;
+    width: auto;
+    min-width: 10rem;
+    max-width: none;
     white-space: normal;
     overflow-wrap: anywhere;
     box-sizing: border-box;
-    text-align: left;
+    text-align: center;
     vertical-align: middle;
 }
 
@@ -706,7 +714,7 @@
     display: flex;
     flex-wrap: wrap;
     gap: 0.35rem;
-    justify-content: flex-start;
+    justify-content: center;
     align-items: center;
 }
 
@@ -725,21 +733,6 @@
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
-}
-
-/* Total Value column — col width; max-width alone is ignored on table cells */
-.asset-dashboard .asset-register-card .app-table col.app-table-col-value {
-    width: 11.5rem;
-}
-
-.asset-dashboard .asset-register-card .app-table th.app-table-col-value,
-.asset-dashboard .asset-register-card .app-table td.app-table-col-value {
-    width: 11.5rem;
-    max-width: 11.5rem;
-    white-space: normal;
-    overflow-wrap: anywhere;
-    box-sizing: border-box;
-    text-align: center;
 }
 
 .asset-dashboard .asset-register-card .app-table col.app-table-col-date {
@@ -766,7 +759,7 @@
     max-width: 14rem;
     white-space: normal;
     vertical-align: middle;
-    text-align: left;
+    text-align: center;
 }
 
 .asset-dashboard .asset-register-docs li + li {

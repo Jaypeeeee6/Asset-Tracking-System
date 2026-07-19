@@ -784,7 +784,6 @@
             <col class="app-table-col-qr">
             <col class="app-table-col-name">
             <col class="app-table-col-type">
-            <col class="app-table-col-value">
             <col class="app-table-col-owner">
             <col class="app-table-col-location">
             <col class="app-table-col-status">
@@ -799,7 +798,6 @@
                 <th class="app-table-col-qr">QR Code</th>
                 <th class="app-table-col-name"><a href="{{ url_for('assets.dashboard') }}{{ sort_href('name') }}">Name{% if sort_by == 'name' %} {% if sort_dir == 'asc' %}&#9650;{% else %}&#9660;{% endif %}{% endif %}</a></th>
                 <th class="app-table-col-type"><a href="{{ url_for('assets.dashboard') }}{{ sort_href('asset_type') }}">Category{% if sort_by == 'asset_type' %} {% if sort_dir == 'asc' %}&#9650;{% else %}&#9660;{% endif %}{% endif %}</a></th>
-                <th class="app-table-col-value"><a href="{{ url_for('assets.dashboard') }}{{ sort_href('price') }}">Value{% if sort_by == 'price' %} {% if sort_dir == 'asc' %}&#9650;{% else %}&#9660;{% endif %}{% endif %}</a></th>
                 <th class="app-table-col-owner"><a href="{{ url_for('assets.dashboard') }}{{ sort_href('owner') }}">Owner{% if sort_by == 'owner' %} {% if sort_dir == 'asc' %}&#9650;{% else %}&#9660;{% endif %}{% endif %}</a></th>
                 <th class="app-table-col-location"><a href="{{ url_for('assets.dashboard') }}{{ sort_href('branch') }}">Branch/Department{% if sort_by == 'branch' %} {% if sort_dir == 'asc' %}&#9650;{% else %}&#9660;{% endif %}{% endif %}</a></th>
                 <th class="app-table-col-status"><a href="{{ url_for('assets.dashboard') }}{{ sort_href('used_status') }}">Status{% if sort_by == 'used_status' %} {% if sort_dir == 'asc' %}&#9650;{% else %}&#9660;{% endif %}{% endif %}</a></th>
@@ -840,9 +838,6 @@
                     {% else %}
                         <span class="text-muted">—</span>
                     {% endif %}
-                </td>
-                <td class="app-table-col-value">
-                    <span class="fw-bold">OMR {{ (asset.price or 0.0)|fmt_omr }}</span>
                 </td>
                 <td class="app-table-col-owner">
                     {{ asset.owner }}
