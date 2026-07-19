@@ -494,7 +494,7 @@ def dashboard():
         params.extend([search_param] * 6)
     
     where_sql = ('WHERE ' + ' AND '.join(where_clauses)) if where_clauses else ''
-    valid_sort_fields = ['id', 'name', 'price', 'owner', 'branch', 'department', 'used_status', 'asset_type']
+    valid_sort_fields = ['id', 'name', 'price', 'owner', 'branch', 'department', 'used_status', 'asset_type', 'asset_date']
     if sort_by not in valid_sort_fields:
         sort_by = 'id'
     sort_dir = 'desc' if sort_dir == 'desc' else 'asc'

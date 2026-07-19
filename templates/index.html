@@ -788,6 +788,7 @@
             <col class="app-table-col-owner">
             <col class="app-table-col-location">
             <col class="app-table-col-status">
+            <col class="app-table-col-date">
             <col class="app-table-col-docs">
             <col class="app-table-col-actions">
         </colgroup>
@@ -802,6 +803,7 @@
                 <th class="app-table-col-owner"><a href="{{ url_for('assets.dashboard') }}{{ sort_href('owner') }}">Owner{% if sort_by == 'owner' %} {% if sort_dir == 'asc' %}&#9650;{% else %}&#9660;{% endif %}{% endif %}</a></th>
                 <th class="app-table-col-location"><a href="{{ url_for('assets.dashboard') }}{{ sort_href('branch') }}">Branch/Department{% if sort_by == 'branch' %} {% if sort_dir == 'asc' %}&#9650;{% else %}&#9660;{% endif %}{% endif %}</a></th>
                 <th class="app-table-col-status"><a href="{{ url_for('assets.dashboard') }}{{ sort_href('used_status') }}">Status{% if sort_by == 'used_status' %} {% if sort_dir == 'asc' %}&#9650;{% else %}&#9660;{% endif %}{% endif %}</a></th>
+                <th class="app-table-col-date"><a href="{{ url_for('assets.dashboard') }}{{ sort_href('asset_date') }}">Date{% if sort_by == 'asset_date' %} {% if sort_dir == 'asc' %}&#9650;{% else %}&#9660;{% endif %}{% endif %}</a></th>
                 <th class="app-table-col-docs">Documents</th>
                 <th class="app-table-col-actions">Actions</th>
             </tr>
@@ -868,6 +870,13 @@
                         <option value="Not Used" {% if asset.used_status == 'Not Used' %}selected{% endif %}>Not Used</option>
                         <option value="Out of Service" {% if asset.used_status == 'Out of Service' %}selected{% endif %}>Out of Service</option>
                     </select>
+                </td>
+                <td class="app-table-col-date">
+                    {% if asset.asset_date %}
+                        {{ asset.asset_date }}
+                    {% else %}
+                        <span class="text-muted">—</span>
+                    {% endif %}
                 </td>
                 <td class="app-table-col-docs">
                     {% if asset.supporting_documents %}
