@@ -1,0 +1,222 @@
+.chip-multi-select {
+  position: relative;
+  width: 100%;
+}
+
+.chip-multi-select-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 0;
+  min-height: 0;
+}
+
+.chip-multi-select-chips:not(:empty) {
+  margin-bottom: 8px;
+}
+
+.chip-multi-select-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 12px;
+  background: var(--gold, var(--focus, #D9BD7D));
+  color: #1f2937;
+  border-radius: 20px;
+  font-size: 13px;
+  font-weight: 500;
+  width: fit-content;
+  max-width: 100%;
+}
+
+.chip-multi-select-chip span {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.chip-multi-select-chip .remove-chip {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  flex-shrink: 0;
+  background: rgba(0, 0, 0, 0.12);
+  border: none;
+  border-radius: 50%;
+  color: #1f2937;
+  cursor: pointer;
+  font-size: 14px;
+  line-height: 1;
+  padding: 0;
+  transition: background 0.2s;
+}
+
+.chip-multi-select-chip .remove-chip:hover {
+  background: rgba(0, 0, 0, 0.2);
+}
+
+.chip-multi-select-input-wrap {
+  position: relative;
+}
+
+.chip-multi-select-search {
+  width: 100%;
+  padding: 10px 36px 10px 12px;
+  border: 1px solid var(--border, #e6e6e6);
+  border-radius: 8px;
+  font-family: var(--font-stack, inherit);
+  font-size: 14px;
+  background: var(--card-bg, #fff);
+  color: var(--text, #111827);
+  box-sizing: border-box;
+}
+
+.chip-multi-select-search:hover {
+  border-color: #d1d5db;
+}
+
+.chip-multi-select-search:focus {
+  outline: none;
+  border-color: var(--gold, var(--focus, #D9BD7D));
+  box-shadow: 0 0 0 3px rgba(217, 189, 125, 0.25);
+}
+
+.chip-multi-select.is-open .chip-multi-select-search {
+  border-bottom-left-radius: 0;
+  border-bottom-right-radius: 0;
+  border-bottom-color: transparent;
+}
+
+.chip-multi-select-chevron {
+  position: absolute;
+  right: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  pointer-events: none;
+  width: 16px;
+  height: 16px;
+  opacity: 0.55;
+}
+
+.chip-multi-select-dropdown {
+  display: none;
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  background: var(--card-bg, #fff);
+  border: 1px solid var(--border, #e6e6e6);
+  border-top: none;
+  border-radius: 0 0 8px 8px;
+  max-height: 200px;
+  overflow-y: auto;
+  z-index: 1000;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+}
+
+.chip-multi-select.is-open .chip-multi-select-dropdown {
+  display: block;
+}
+
+.chip-multi-select-option {
+  padding: 10px 14px;
+  cursor: pointer;
+  border-bottom: 1px solid #f3f4f6;
+  font-size: 14px;
+  color: var(--text, #111827);
+  transition: background-color 0.15s;
+  user-select: none;
+}
+
+.chip-multi-select-option:last-child {
+  border-bottom: none;
+}
+
+.chip-multi-select-option:hover {
+  background: rgba(217, 189, 125, 0.12);
+}
+
+.chip-multi-select-option.is-selected {
+  background: rgba(217, 189, 125, 0.22);
+  font-weight: 600;
+}
+
+.chip-multi-select-option.is-hidden {
+  display: none;
+}
+
+.chip-multi-select-empty {
+  padding: 12px 14px;
+  color: #6b7280;
+  font-size: 13px;
+  font-style: italic;
+}
+
+.chip-multi-select-native {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+.chip-multi-select-source {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+  pointer-events: none;
+}
+
+.chip-multi-select--compact .chip-multi-select-search {
+  padding: 6px 32px 6px 10px;
+  font-size: 13px;
+  min-height: 34px;
+}
+
+.chip-multi-select--compact .chip-multi-select-chip {
+  padding: 4px 10px;
+  font-size: 12px;
+}
+
+.chip-multi-select--compact .chip-multi-select-chips:not(:empty) {
+  margin-bottom: 6px;
+}
+
+.chip-multi-select.is-readonly .chip-multi-select-search {
+  display: none;
+}
+
+.chip-multi-select.is-readonly .chip-multi-select-chevron {
+  display: none;
+}
+
+.chip-multi-select.is-readonly .chip-multi-select-chip .remove-chip {
+  display: none;
+}
+
+.chip-multi-select.is-readonly .chip-multi-select-dropdown {
+  display: none !important;
+}
+
+/* Read-only category chips in suppliers table */
+.supplier-category-chips-readonly {
+  gap: 6px;
+}
+
+.supplier-category-chip-readonly {
+  padding: 4px 10px;
+  font-size: 12px;
+  cursor: default;
+}

@@ -1,10 +1,10 @@
 {% from "macros/app_components.html" import add_button %}
 <div class="settings-panel-stack">
-  <h6 class="settings-section-title">Asset types</h6>
+  <h6 class="settings-section-title">Asset categories</h6>
   <div class="d-flex flex-wrap gap-2 mb-3">
-    {{ add_button('Add asset type', button_id='addAssetTypeBtn', modal_target='#addMgmtAssetTypeModal') }}
+    {{ add_button('Add asset category', button_id='addAssetTypeBtn', modal_target='#addMgmtAssetTypeModal') }}
   </div>
-  <h6 class="settings-section-title mb-2">Existing asset types</h6>
+  <h6 class="settings-section-title mb-2">Existing asset categories</h6>
   <div id="settingsAssetTypesBulkBar" class="app-bulk-bar mb-3" style="display: none;">
     <div class="d-flex flex-wrap justify-content-between align-items-center gap-2">
       <span><i class="bi bi-info-circle me-1"></i> <strong><span id="settingsAssetTypesSelectedCount">0</span> items selected</strong> &mdash; use the buttons to act on the selection</span>
@@ -23,10 +23,10 @@
       <table class="app-table" style="width: 100%; min-width: 520px;">
         <thead>
           <tr>
-            <th><input type="checkbox" id="selectAllAssetTypesCheckbox" title="Select all" aria-label="Select all asset types"></th>
+            <th><input type="checkbox" id="selectAllAssetTypesCheckbox" title="Select all" aria-label="Select all asset categories"></th>
             <th>#</th>
             <th>Location</th>
-            <th>Type name</th>
+            <th>Category name</th>
             <th>Actions</th>
           </tr>
         </thead>
@@ -46,12 +46,12 @@
       <i class="bi bi-search filter-search-icon" aria-hidden="true"></i>
       <input type="text" class="settings-table-search" id="settingsAssetNamesSearch"
              data-settings-search-for="assetNamesList"
-             placeholder="Search asset names, types…"
+             placeholder="Search asset names, categories…"
              autocomplete="off" aria-label="Search asset names">
     </div>
     <div class="filter-group" style="min-width: 220px;">
-      <select class="form-select app-select-with-chevron" id="assetNameFilterType" aria-label="Filter by asset type">
-        <option value="">All asset types</option>
+      <select class="form-select app-select-with-chevron" id="assetNameFilterType" aria-label="Filter by asset category">
+        <option value="">All asset categories</option>
       </select>
     </div>
   </div>
@@ -76,7 +76,7 @@
             <th><input type="checkbox" id="selectAllAssetNamesCheckbox" title="Select all" aria-label="Select all asset names"></th>
             <th>#</th>
             <th>Asset name</th>
-            <th>Asset type</th>
+            <th>Asset category</th>
             <th>Specifications</th>
             <th>Inclusions</th>
             <th>Actions</th>

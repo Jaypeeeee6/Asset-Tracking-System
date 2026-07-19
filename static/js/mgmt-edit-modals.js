@@ -384,7 +384,7 @@
     function saveEditAssetType() {
         var id = $('editMgmtAssetTypeId').value;
         var name = ($('editMgmtAssetTypeName').value || '').trim();
-        if (!name) return showError('Please enter an asset type name.');
+        if (!name) return showError('Please enter an asset category name.');
 
         var formData = new FormData();
         formData.append('name', name);
@@ -398,10 +398,10 @@
                         global.MgmtEditCallbacks.onAssetTypeSaved();
                     }
                 } else {
-                    return showError(data.error || 'Failed to update asset type.');
+                    return showError(data.error || 'Failed to update asset category.');
                 }
             })
-            .catch(function () { return showError('Failed to update asset type.'); });
+            .catch(function () { return showError('Failed to update asset category.'); });
     }
 
     function openEditAssetName(data) {

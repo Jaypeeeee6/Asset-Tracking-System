@@ -5,7 +5,7 @@
   <div class="modal-dialog modal-lg app-modal-dialog-comfort">
     <div class="modal-content">
       <div class="modal-header">
-        <h5 class="modal-title" id="addMgmtAssetTypeModalLabel"><i class="bi bi-plus-lg me-2" style="color:var(--gold);" aria-hidden="true"></i>Add asset type</h5>
+        <h5 class="modal-title" id="addMgmtAssetTypeModalLabel"><i class="bi bi-plus-lg me-2" style="color:var(--gold);" aria-hidden="true"></i>Add asset category</h5>
         <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
       </div>
       <div class="modal-body">
@@ -14,7 +14,7 @@
           Fields marked with <span class="app-required-mark" aria-hidden="true">*</span> are required. Applies everywhere in the location you select (all restaurants and/or all office departments).
         </div>
         <div class="mb-3">
-          {{ form_label('Asset type name', 'addMgmtAssetTypeName', true) }}
+          {{ form_label('Asset category name', 'addMgmtAssetTypeName', true) }}
           <input type="text" class="form-control" id="addMgmtAssetTypeName" maxlength="100" required placeholder="e.g. Electronics">
         </div>
         <fieldset class="mb-0">
@@ -31,7 +31,7 @@
       </div>
       <div class="modal-footer">
         {{ modal_cancel_button('Cancel') }}
-        <button type="button" class="btn-app-add" id="addMgmtAssetTypeSaveBtn"><i class="bi bi-check-lg" aria-hidden="true"></i><span class="btn-app-add-label">Add asset type</span></button>
+        <button type="button" class="btn-app-add" id="addMgmtAssetTypeSaveBtn"><i class="bi bi-check-lg" aria-hidden="true"></i><span class="btn-app-add-label">Add asset category</span></button>
       </div>
     </div>
   </div>
@@ -48,17 +48,17 @@
       <div class="modal-body">
         <div class="app-modal-tip mb-3" role="note">
           <i class="bi bi-info-circle" aria-hidden="true"></i>
-          Fields marked with <span class="app-required-mark" aria-hidden="true">*</span> are required. Choose the asset type (including its location). Create the type first if it is not listed.
+          Fields marked with <span class="app-required-mark" aria-hidden="true">*</span> are required. Choose the asset category (including its location). Create the category first if it is not listed.
         </div>
         <div class="mb-3">
           {{ form_label('Asset name', 'addMgmtAssetNameValue', true) }}
           <input type="text" class="form-control" id="addMgmtAssetNameValue" maxlength="100" required placeholder="e.g. Laptop">
         </div>
         <div class="mb-0 app-searchable-combobox" id="addMgmtAssetNameTypeCombo">
-          {{ form_label('Asset type', 'addMgmtAssetNameTypeSearch', true) }}
+          {{ form_label('Asset category', 'addMgmtAssetNameTypeSearch', true) }}
           <input type="hidden" id="addMgmtAssetNameTypeId" value="">
           <input type="text" class="form-control app-searchable-combobox-input" id="addMgmtAssetNameTypeSearch"
-                 placeholder="Search or select asset type…" autocomplete="off" role="combobox"
+                 placeholder="Search or select asset category…" autocomplete="off" role="combobox"
                  aria-expanded="false" aria-controls="addMgmtAssetNameTypeOptions" aria-autocomplete="list">
           <div class="app-searchable-combobox-panel" id="addMgmtAssetNameTypeOptions" role="listbox" hidden></div>
         </div>

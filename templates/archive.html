@@ -116,7 +116,7 @@
                         <td>
                             <strong>{{ asset.name }}</strong>
                             <br><small class="text-muted" style="font-family:monospace;">{{ asset.asset_code or 'N/A' }}</small>
-                            <br><small class="text-muted">{{ asset.asset_type or 'N/A' }}</small>
+                            <br><small class="text-muted">{{ asset.asset_type or 'N/A' }}{% if asset.asset_kind == 'shared' %} · Shared{% endif %}</small>
                         </td>
                         <td>
                             {% if asset.asset_code %}

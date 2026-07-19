@@ -20,6 +20,11 @@ def get_db_connection():
 # Canonical branch label stored on assets for office-venue rows (must match admin/JS).
 OFFICE_BRANCH_LABEL = 'Office'
 
+# Asset kind: Shared Asset (multi brand/branch) vs Branch Asset (single branch).
+ASSET_KIND_SHARED = 'shared'
+ASSET_KIND_BRANCH = 'branch'
+ASSET_KINDS = (ASSET_KIND_SHARED, ASSET_KIND_BRANCH)
+
 
 def _asset_code_prefix(cur, branch, department):
     """Restaurant: branch_code from DB. Office: department name."""
@@ -924,6 +929,25 @@ def _apply_qr_label_layout_migrations(cur):
     )
 
 
+def _migrate_asset_kind_column(cur):
+    """Add asset_kind (shared|branch) to assets and archived_assets."""
+    for table in ('assets', 'archived_assets'):
+        cur.execute(f'PRAGMA table_info({table})')
+        columns = [row[1] for row in cur.fetchall()]
+        if 'asset_kind' not in columns:
+            cur.execute(
+                f'ALTER TABLE {table} ADD COLUMN asset_kind TEXT DEFAULT \"{ASSET_KIND_BRANCH}\"'
+            )
+        cur.execute(
+            f'''
+            UPDATE {table}
+            SET asset_kind = ?
+            WHERE asset_kind IS NULL OR TRIM(asset_kind) = ''
+            ''',
+            (ASSET_KIND_BRANCH,),
+        )
+
+
 def _migrate_drop_quantity_columns(cur):
     """Remove obsolete quantity columns from assets and archived_assets."""
     for table in ('assets', 'archived_assets'):
@@ -934,9 +958,13 @@ def _migrate_drop_quantity_columns(cur):
         cols = [row[1] for row in cur.fetchall()]
         if 'quantity' not in cols:
             continue
+        has_kind = 'asset_kind' in cols
         if table == 'assets':
+            kind_col_def = ",\n                    asset_kind TEXT DEFAULT 'branch'" if has_kind else ''
+            kind_insert = ', asset_kind' if has_kind else ''
+            kind_select = ",\n                    COALESCE(NULLIF(TRIM(asset_kind), ''), 'branch')" if has_kind else ''
             cur.executescript(
-                '''
+                f'''
                 PRAGMA foreign_keys=OFF;
                 CREATE TABLE assets_rebuild (
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -948,15 +976,15 @@ def _migrate_drop_quantity_columns(cur):
                     asset_code TEXT,
                     qr_random_code TEXT,
                     used_status TEXT DEFAULT 'Not Used',
-                    asset_type TEXT
+                    asset_type TEXT{kind_col_def}
                 );
                 INSERT INTO assets_rebuild (
                     id, name, price, owner, branch, department,
-                    asset_code, qr_random_code, used_status, asset_type
+                    asset_code, qr_random_code, used_status, asset_type{kind_insert}
                 )
                 SELECT
                     id, name, COALESCE(price, 0.0), owner, branch, department,
-                    asset_code, qr_random_code, used_status, asset_type
+                    asset_code, qr_random_code, used_status, asset_type{kind_select}
                 FROM assets;
                 DROP TABLE assets;
                 ALTER TABLE assets_rebuild RENAME TO assets;
@@ -969,8 +997,11 @@ def _migrate_drop_quantity_columns(cur):
                 cur.execute("DELETE FROM sqlite_sequence WHERE name='assets'")
                 cur.execute("INSERT INTO sqlite_sequence (name, seq) VALUES ('assets', ?)", (mx,))
         else:
+            kind_col_def = ",\n                    asset_kind TEXT DEFAULT 'branch'" if has_kind else ''
+            kind_insert = ', asset_kind' if has_kind else ''
+            kind_select = ",\n                    COALESCE(NULLIF(TRIM(asset_kind), ''), 'branch')" if has_kind else ''
             cur.executescript(
-                '''
+                f'''
                 PRAGMA foreign_keys=OFF;
                 CREATE TABLE archived_assets_rebuild (
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -983,19 +1014,19 @@ def _migrate_drop_quantity_columns(cur):
                     asset_code TEXT,
                     qr_random_code TEXT,
                     used_status TEXT DEFAULT 'Not Used',
-                    asset_type TEXT,
+                    asset_type TEXT{kind_col_def},
                     archived_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                     archived_by TEXT,
                     archive_reason TEXT
                 );
                 INSERT INTO archived_assets_rebuild (
                     id, original_id, name, price, owner, branch, department,
-                    asset_code, qr_random_code, used_status, asset_type,
+                    asset_code, qr_random_code, used_status, asset_type{kind_insert},
                     archived_at, archived_by, archive_reason
                 )
                 SELECT
                     id, original_id, name, COALESCE(price, 0.0), owner, branch, department,
-                    asset_code, qr_random_code, used_status, asset_type,
+                    asset_code, qr_random_code, used_status, asset_type{kind_select},
                     archived_at, archived_by, archive_reason
                 FROM archived_assets;
                 DROP TABLE archived_assets;
@@ -1127,6 +1158,10 @@ def init_db():
         cur.execute('ALTER TABLE assets ADD COLUMN asset_type TEXT')
     if 'price' not in columns:
         cur.execute('ALTER TABLE assets ADD COLUMN price REAL DEFAULT 0.0')
+    if 'asset_kind' not in columns:
+        cur.execute(
+            f'ALTER TABLE assets ADD COLUMN asset_kind TEXT DEFAULT \"{ASSET_KIND_BRANCH}\"'
+        )
     
     # Create asset_types table (for_venue added via migration on legacy DBs)
     cur.execute('''
@@ -1169,12 +1204,14 @@ def init_db():
             qr_random_code TEXT,
             used_status TEXT DEFAULT 'Not Used',
             asset_type TEXT,
+            asset_kind TEXT DEFAULT 'branch',
             archived_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
             archived_by TEXT,
             archive_reason TEXT
         )
     ''')
     _migrate_drop_quantity_columns(cur)
+    _migrate_asset_kind_column(cur)
     
     # No default business data is seeded on startup. Asset types, names, branches, etc.
     # are managed through the UI. Login: only the first Super Admin when users_auth is empty

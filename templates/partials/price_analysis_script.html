@@ -135,7 +135,7 @@ function exportPriceAnalysis() {
     const assetData = [
         ['DETAILED ASSET BREAKDOWN'],
         [''],
-        ['Asset Name', 'Asset Code', 'Branch', 'Department', 'Owner', 'Price (OMR)', 'Status', 'Asset Type'],
+        ['Asset Name', 'Asset Code', 'Branch', 'Department', 'Owner', 'Price (OMR)', 'Status', 'Asset Category', 'Asset Type'],
         ['', '', '', '', '', '', '', '']
     ];
 
@@ -152,7 +152,8 @@ function exportPriceAnalysis() {
                         asset.owner,
                         fmtOmr(asset.price || 0),
                         asset.used_status,
-                        asset.asset_type
+                        asset.asset_type,
+                        asset.asset_kind === 'shared' ? 'Shared Asset' : 'Branch Asset'
                     ]);
                 });
 

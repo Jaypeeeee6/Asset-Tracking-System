@@ -35,7 +35,7 @@
                 {% elif active_tab == 'employees' %}
                     People by branch and department
                 {% else %}
-                    Asset types and reusable asset names
+                    Asset categories and reusable asset names
                 {% endif %}
             </p>
         </div>
@@ -51,7 +51,7 @@
         <a href="{{ url_for('assets.settings') }}?tab=branches" class="settings-tab-link {{ 'active' if active_tab == 'branches' }}" role="tab" aria-selected="{{ 'true' if active_tab == 'branches' else 'false' }}">Branches</a>
         <a href="{{ url_for('assets.settings') }}?tab=departments" class="settings-tab-link {{ 'active' if active_tab == 'departments' }}" role="tab" aria-selected="{{ 'true' if active_tab == 'departments' else 'false' }}">Departments</a>
         <a href="{{ url_for('assets.settings') }}?tab=employees" class="settings-tab-link {{ 'active' if active_tab == 'employees' }}" role="tab" aria-selected="{{ 'true' if active_tab == 'employees' else 'false' }}">Employees</a>
-        <a href="{{ url_for('assets.settings') }}?tab=assets" class="settings-tab-link {{ 'active' if active_tab == 'assets' }}" role="tab" aria-selected="{{ 'true' if active_tab == 'assets' else 'false' }}">Asset Types</a>
+        <a href="{{ url_for('assets.settings') }}?tab=assets" class="settings-tab-link {{ 'active' if active_tab == 'assets' }}" role="tab" aria-selected="{{ 'true' if active_tab == 'assets' else 'false' }}">Asset Categories</a>
     </div>
 
     <div class="app-card mb-4 settings-main-card">

@@ -1293,11 +1293,11 @@ def get_asset_types():
 def add_asset_type():
     # Only IT users can add asset types
     if not current_user.has_it_access():
-        return jsonify({'error': 'Access denied. Only IT users can add asset types.'}), 403
+        return jsonify({'error': 'Access denied. Only IT users can add asset categories.'}), 403
 
     name = request.form.get('name', '').strip()
     if not name:
-        return jsonify({'error': 'Asset type name is required'}), 400
+        return jsonify({'error': 'Asset category name is required'}), 400
 
     all_restaurants = request.form.get('all_restaurants') in ('1', 'true', 'on', 'yes')
     all_office = request.form.get('all_office_departments') in ('1', 'true', 'on', 'yes')
@@ -1342,22 +1342,22 @@ def add_asset_type():
     except sqlite3.IntegrityError:
         conn.close()
         return jsonify({
-            'error': 'An asset type with this name already exists for the selected location(s).'
+            'error': 'An asset category with this name already exists for the selected location(s).'
         }), 400
     except Exception:
         conn.close()
-        return jsonify({'error': 'Failed to add asset type.'}), 500
+        return jsonify({'error': 'Failed to add asset category.'}), 500
 
 @admin_bp.route('/asset-types/<int:asset_type_id>', methods=['PUT'])
 @login_required
 def update_asset_type(asset_type_id):
     # Only IT users can update asset types
     if not current_user.has_it_access():
-        return jsonify({'error': 'Access denied. Only IT users can update asset types.'}), 403
+        return jsonify({'error': 'Access denied. Only IT users can update asset categories.'}), 403
     
     name = request.form.get('name', '').strip()
     if not name:
-        return jsonify({'error': 'Asset type name is required'}), 400
+        return jsonify({'error': 'Asset category name is required'}), 400
     
     conn = get_db_connection()
     cur = conn.cursor()
@@ -1366,7 +1366,7 @@ def update_asset_type(asset_type_id):
         old_row = cur.fetchone()
         if not old_row:
             conn.close()
-            return jsonify({'error': 'Asset type not found'}), 404
+            return jsonify({'error': 'Asset category not found'}), 404
 
         old_name, old_venue = old_row[0], old_row[1]
 
@@ -1379,14 +1379,14 @@ def update_asset_type(asset_type_id):
         return jsonify({'success': True, 'id': asset_type_id, 'name': name, 'for_venue': old_venue})
     except sqlite3.IntegrityError:
         conn.close()
-        return jsonify({'error': 'An asset type with this name already exists for that location'}), 400
+        return jsonify({'error': 'An asset category with this name already exists for that location'}), 400
 
 @admin_bp.route('/asset-types/<int:asset_type_id>', methods=['DELETE'])
 @login_required
 def delete_asset_type(asset_type_id):
     # Only IT users can delete asset types
     if not current_user.has_it_access():
-        return jsonify({'error': 'Access denied. Only IT users can delete asset types.'}), 403
+        return jsonify({'error': 'Access denied. Only IT users can delete asset categories.'}), 403
     
     conn = get_db_connection()
     cur = conn.cursor()
@@ -1395,7 +1395,7 @@ def delete_asset_type(asset_type_id):
     asset_type = cur.fetchone()
     if not asset_type:
         conn.close()
-        return jsonify({'error': 'Asset type not found'}), 404
+        return jsonify({'error': 'Asset category not found'}), 404
     
     asset_type_name = asset_type[0]
     
@@ -1404,7 +1404,7 @@ def delete_asset_type(asset_type_id):
     
     if asset_count > 0:
         conn.close()
-        return jsonify({'error': f'Cannot delete asset type. It is being used by {asset_count} asset(s)'}), 400
+        return jsonify({'error': f'Cannot delete asset category. It is being used by {asset_count} asset(s)'}), 400
     
     cur.execute('DELETE FROM asset_names WHERE asset_type_id = ?', (asset_type_id,))
     cur.execute('DELETE FROM asset_types WHERE id = ?', (asset_type_id,))
@@ -1725,12 +1725,12 @@ def add_asset_name():
         return jsonify({'error': 'Asset name is required'}), 400
     
     if not asset_type_id:
-        return jsonify({'error': 'Asset type is required'}), 400
+        return jsonify({'error': 'Asset category is required'}), 400
     
     try:
         asset_type_id = int(asset_type_id)
     except ValueError:
-        return jsonify({'error': 'Invalid asset type ID'}), 400
+        return jsonify({'error': 'Invalid asset category ID'}), 400
     
     conn = get_db_connection()
     cur = conn.cursor()
@@ -1755,7 +1755,7 @@ def add_asset_name():
         })
     except sqlite3.IntegrityError:
         conn.close()
-        return jsonify({'error': 'Asset name already exists for this asset type'}), 400
+        return jsonify({'error': 'Asset name already exists for this asset category'}), 400
 
 @admin_bp.route('/asset-names/<int:asset_name_id>', methods=['PUT'])
 @login_required
@@ -1814,7 +1814,7 @@ def update_asset_name(asset_name_id):
         })
     except sqlite3.IntegrityError:
         conn.close()
-        return jsonify({'error': 'Asset name already exists for this asset type'}), 400
+        return jsonify({'error': 'Asset name already exists for this asset category'}), 400
 
 @admin_bp.route('/asset-names/<int:asset_name_id>', methods=['DELETE'])
 @login_required

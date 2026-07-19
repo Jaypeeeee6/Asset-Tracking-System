@@ -25,7 +25,8 @@
                 <li class="list-group-item"><b>Branch:</b> {{ asset.branch }}</li>
                 <li class="list-group-item"><b>Department:</b> {{ asset.department }}</li>
                 <li class="list-group-item"><b>Price:</b> OMR {{ (asset.price or 0.0)|fmt_omr }}</li>
-                <li class="list-group-item"><b>Asset Type:</b> {{ asset.asset_type or 'N/A' }}</li>
+                <li class="list-group-item"><b>Asset Category:</b> {{ asset.asset_type or 'N/A' }}</li>
+                <li class="list-group-item"><b>Asset Type:</b> {% if asset.asset_kind == 'shared' %}Shared Asset{% else %}Branch Asset{% endif %}</li>
                 <li class="list-group-item">
                     <b>Status:</b>
                     <span class="badge {% if asset.used_status == 'Used' %}bg-success{% elif asset.used_status == 'Not Used' %}bg-warning{% elif asset.used_status == 'Out of Service' %}bg-danger{% else %}bg-secondary{% endif %}" style="margin-left: 10px;">

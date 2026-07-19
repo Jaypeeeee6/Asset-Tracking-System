@@ -74,7 +74,7 @@
             inputId: 'addMgmtAssetNameTypeSearch',
             hiddenId: 'addMgmtAssetNameTypeId',
             panelId: 'addMgmtAssetNameTypeOptions',
-            emptyText: 'No asset types found. Add a type first.',
+            emptyText: 'No asset categories found. Add a category first.',
             getOptions: buildAssetTypeComboOptions
         });
         return assetNameTypeCombo;
@@ -175,7 +175,7 @@
     function saveAddAssetType() {
         var nameEl = $('addMgmtAssetTypeName');
         var name = nameEl ? nameEl.value.trim() : '';
-        if (!name) return showError('Please enter an asset type name.');
+        if (!name) return showError('Please enter an asset category name.');
 
         var locErr = validateLocation('addMgmtAssetType');
         if (locErr) return showError(locErr);
@@ -193,15 +193,15 @@
                         global.bootstrap.Modal.getInstance(modalEl).hide();
                     }
                     resetAddAssetTypeModal();
-                    var msg = 'Added ' + (data.created_count || 1) + ' asset type(s).';
+                    var msg = 'Added ' + (data.created_count || 1) + ' asset categor' + ((data.created_count || 1) === 1 ? 'y.' : 'ies.');
                     if (data.skipped_count) msg += ' ' + data.skipped_count + ' already existed.';
                     showSuccess(msg);
                     reloadAfterAssetTypeChange();
                 } else {
-                    return showError(data.error || 'Failed to add asset type.');
+                    return showError(data.error || 'Failed to add asset category.');
                 }
             })
-            .catch(function () { return showError('Failed to add asset type.'); });
+            .catch(function () { return showError('Failed to add asset category.'); });
     }
 
     function reloadAfterAssetTypeChange() {
@@ -222,7 +222,7 @@
         var typeId = combo ? combo.getValue() : ($('addMgmtAssetNameTypeId') && $('addMgmtAssetNameTypeId').value);
 
         if (!name) return showError('Please enter an asset name.');
-        if (!typeId) return showError('Please select an asset type from the list.');
+        if (!typeId) return showError('Please select an asset category from the list.');
 
         var fd = new FormData();
         fd.append('name', name);

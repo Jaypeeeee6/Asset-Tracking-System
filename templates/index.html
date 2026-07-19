@@ -627,6 +627,7 @@
         }
     </style>
     <link rel="stylesheet" href="{{ url_for('static', filename='app-dashboard.css') }}?v=10">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/chip-multi-select.css') }}">
 {% endblock %}
 {% block app_content %}
 {% macro page_href(p) -%}
@@ -706,7 +707,7 @@
                 <i class="bi bi-search filter-search-icon" aria-hidden="true"></i>
                 <input type="text" name="search" id="globalSearch"
                        value="{{ request.args.get('search', '') }}"
-                       placeholder="Search names, owners, codes, asset types&hellip;"
+                       placeholder="Search names, owners, codes, categories&hellip;"
                        autocomplete="off">
             </div>
             <div class="filter-group">
@@ -734,8 +735,8 @@
                 </select>
             </div>
             <div class="filter-group">
-                <select id="assetTypeFilter" name="asset_type" aria-label="Asset type">
-                    <option value="">All Types</option>
+                <select id="assetTypeFilter" name="asset_type" aria-label="Asset category">
+                    <option value="">All Categories</option>
                 </select>
             </div>
             <div class="filter-group">
@@ -796,7 +797,7 @@
                 <th class="app-table-col-num">#</th>
                 <th class="app-table-col-qr">QR Code</th>
                 <th class="app-table-col-name"><a href="{{ url_for('assets.dashboard') }}{{ sort_href('name') }}">Name{% if sort_by == 'name' %} {% if sort_dir == 'asc' %}&#9650;{% else %}&#9660;{% endif %}{% endif %}</a></th>
-                <th class="app-table-col-type"><a href="{{ url_for('assets.dashboard') }}{{ sort_href('asset_type') }}">Type{% if sort_by == 'asset_type' %} {% if sort_dir == 'asc' %}&#9650;{% else %}&#9660;{% endif %}{% endif %}</a></th>
+                <th class="app-table-col-type"><a href="{{ url_for('assets.dashboard') }}{{ sort_href('asset_type') }}">Category{% if sort_by == 'asset_type' %} {% if sort_dir == 'asc' %}&#9650;{% else %}&#9660;{% endif %}{% endif %}</a></th>
                 <th class="app-table-col-value"><a href="{{ url_for('assets.dashboard') }}{{ sort_href('price') }}">Value{% if sort_by == 'price' %} {% if sort_dir == 'asc' %}&#9650;{% else %}&#9660;{% endif %}{% endif %}</a></th>
                 <th class="app-table-col-owner"><a href="{{ url_for('assets.dashboard') }}{{ sort_href('owner') }}">Owner{% if sort_by == 'owner' %} {% if sort_dir == 'asc' %}&#9650;{% else %}&#9660;{% endif %}{% endif %}</a></th>
                 <th class="app-table-col-location"><a href="{{ url_for('assets.dashboard') }}{{ sort_href('branch') }}">Branch/Department{% if sort_by == 'branch' %} {% if sort_dir == 'asc' %}&#9650;{% else %}&#9660;{% endif %}{% endif %}</a></th>
@@ -831,8 +832,11 @@
                 <td class="app-table-col-type">
                     {% if asset.asset_type %}
                         <span class="badge-type">{{ asset.asset_type }}</span>
+                        {% if asset.asset_kind == 'shared' %}
+                            <div class="small text-muted mt-1">Shared Asset</div>
+                        {% endif %}
                     {% else %}
-                        <span class="text-muted">-</span>
+                        <span class="text-muted">—</span>
                     {% endif %}
                 </td>
                 <td class="app-table-col-value">
@@ -874,6 +878,7 @@
                             data-asset-id="{{ asset.id }}"
                             data-asset-name="{{ asset.name }}"
                             data-asset-type="{{ asset.asset_type or '' }}"
+                            data-asset-kind="{{ asset.asset_kind or 'branch' }}"
                             data-asset-price="{{ asset.price or 0.0 }}"
                             data-asset-owner="{{ asset.owner }}"
                             data-asset-branch="{{ asset.branch }}"
@@ -983,12 +988,28 @@
                         <label class="form-check-label" for="assetVenueOffice">Office</label>
                     </div>
                 </div>
-                <div class="form-text"><i class="bi bi-info-circle" aria-hidden="true"></i> Restaurant: pick a brand, then a branch. Office: pick an office department only.</div>
+                <div class="form-text"><i class="bi bi-info-circle" aria-hidden="true"></i> Restaurant: pick brand(s) and branch(es). Office: pick an office department only.</div>
+            </div>
+            <div class="mb-3" id="addAssetKindField">
+                {{ form_label('Asset Type', 'assetKindBranch', true) }}
+                <div class="d-flex flex-wrap gap-3">
+                    <div class="form-check">
+                        <input class="form-check-input" type="radio" name="asset_kind" id="assetKindBranch" value="branch" checked>
+                        <label class="form-check-label" for="assetKindBranch">Branch Asset</label>
+                    </div>
+                    <div class="form-check">
+                        <input class="form-check-input" type="radio" name="asset_kind" id="assetKindShared" value="shared">
+                        <label class="form-check-label" for="assetKindShared">Shared Asset</label>
+                    </div>
+                </div>
+                <div class="form-text" id="addAssetKindHelp">
+                    <i class="bi bi-info-circle" aria-hidden="true"></i> Branch Asset is for one branch. Shared Asset can span multiple brands and branches.
+                </div>
             </div>
             <div class="mb-3">
-                {{ form_label('Asset type', 'asset_type', true) }}
+                {{ form_label('Asset Category', 'asset_type', true) }}
                 <select class="form-select" id="asset_type" name="asset_type" required>
-                    <option value="">Select Asset Type</option>
+                    <option value="">Select Asset Category</option>
                 </select>
             </div>
             <div class="mb-3">
@@ -1021,16 +1042,40 @@
                 </div>
             </div>
             <div class="mb-3" id="addAssetBrandField">
-                <label for="add_asset_brand" class="form-label">Brand</label>
+                <label for="add_asset_brand" class="form-label" id="addAssetBrandLabel">Brand</label>
                 <select class="form-select app-select-with-chevron" id="add_asset_brand" name="brand_id">
                     <option value="">Select brand</option>
                 </select>
+                <div id="addAssetBrandChipWrap" class="chip-multi-select d-none" data-chip-multi-select data-placeholder="Search brands…">
+                    <div class="chip-multi-select-chips" aria-live="polite"></div>
+                    <div class="chip-multi-select-input-wrap">
+                        <input type="text" class="chip-multi-select-search form-control" placeholder="Search brands…" autocomplete="off" aria-label="Search brands">
+                        <svg class="chip-multi-select-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>
+                        <div class="chip-multi-select-dropdown" role="listbox"></div>
+                    </div>
+                    <select multiple class="chip-multi-select-source" id="add_asset_brand_multi" name="brand_id" disabled></select>
+                </div>
+                <div class="form-text d-none" id="addAssetBrandMultiHelp">
+                    <i class="bi bi-info-circle" aria-hidden="true"></i> Search and select one or more brands.
+                </div>
             </div>
             <div class="mb-3" id="addAssetBranchField">
-                {{ form_label('Branch', 'branch', true) }}
+                <label for="branch" class="form-label" id="addAssetBranchLabel">Branch <span class="app-required-mark" aria-hidden="true">*</span></label>
                 <select class="form-select" id="branch" name="branch" required>
                     <option value="">Select Branch</option>
                 </select>
+                <div id="addAssetBranchChipWrap" class="chip-multi-select d-none" data-chip-multi-select data-placeholder="Search branches…">
+                    <div class="chip-multi-select-chips" aria-live="polite"></div>
+                    <div class="chip-multi-select-input-wrap">
+                        <input type="text" class="chip-multi-select-search form-control" placeholder="Search branches…" autocomplete="off" aria-label="Search branches">
+                        <svg class="chip-multi-select-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>
+                        <div class="chip-multi-select-dropdown" role="listbox"></div>
+                    </div>
+                    <select multiple class="chip-multi-select-source" id="branch_multi" name="branch" disabled></select>
+                </div>
+                <div class="form-text d-none" id="addAssetBranchMultiHelp">
+                    <i class="bi bi-info-circle" aria-hidden="true"></i> Search and select one or more branches. One asset record is created per branch.
+                </div>
             </div>
             <div class="mb-3" id="addAssetDepartmentField">
                 {{ form_label('Department', 'department', true) }}
@@ -1050,7 +1095,7 @@
                     <option value="">Select branch or department first</option>
                 </select>
                 <div class="form-text" id="ownerHelp">
-                    <i class="bi bi-info-circle" aria-hidden="true"></i> Select &quot;No Owner Required&quot; for shared assets or when no specific owner is needed
+                    <i class="bi bi-info-circle" aria-hidden="true"></i> For shared assets, choose a branch manager from the selected branches, or select &quot;No Owner Required&quot;.
                 </div>
             </div>
             <div class="mb-3">
@@ -1104,17 +1149,33 @@
             <strong>Editing Asset:</strong>
             <span id="editAssetName"></span>
           </div>
+          <div class="mb-3" id="editAssetKindField">
+            <label class="form-label">Asset Type</label>
+            <div class="d-flex flex-wrap gap-3">
+              <div class="form-check">
+                <input class="form-check-input" type="radio" name="asset_kind" id="editAssetKindBranch" value="branch" checked>
+                <label class="form-check-label" for="editAssetKindBranch">Branch Asset</label>
+              </div>
+              <div class="form-check">
+                <input class="form-check-input" type="radio" name="asset_kind" id="editAssetKindShared" value="shared">
+                <label class="form-check-label" for="editAssetKindShared">Shared Asset</label>
+              </div>
+            </div>
+            <div class="form-text">
+              <i class="bi bi-info-circle" aria-hidden="true"></i> Editing updates this asset&apos;s branch only. To add more branches, create a new Shared Asset.
+            </div>
+          </div>
             <div class="mb-3">
-                <label for="edit_asset_type" class="form-label">Asset Type</label>
+                <label for="edit_asset_type" class="form-label">Asset Category</label>
                 <select class="form-select" id="edit_asset_type" name="asset_type" required>
-                    <option value="">Select Asset Type</option>
+                    <option value="">Select Asset Category</option>
                 </select>
             </div>
             <div class="mb-3">
                 <label for="edit_name" class="form-label">Asset Name</label>
-                <input type="text" class="form-control" id="edit_name" name="name" list="editAssetNameList" placeholder="Select Asset Type First" required autocomplete="off">
+                <input type="text" class="form-control" id="edit_name" name="name" list="editAssetNameList" placeholder="Select Asset Category First" required autocomplete="off">
                 <datalist id="editAssetNameList">
-                    <option value="">Select Asset Type First</option>
+                    <option value="">Select Asset Category First</option>
                 </datalist>
             </div>
             <div class="mb-3" id="editAssetSpecFieldsSection" style="display: none;">
@@ -1165,7 +1226,7 @@
                     <option value="">Select branch or department first</option>
                 </select>
                 <div class="form-text" id="edit_ownerHelp">
-                    <i class="bi bi-info-circle" aria-hidden="true"></i> Select &quot;No Owner Required&quot; for shared assets or when no specific owner is needed
+                    <i class="bi bi-info-circle" aria-hidden="true"></i> Select &quot;No Owner Required&quot; when no specific owner is needed.
                 </div>
             </div>
             <div class="mb-3">
@@ -1324,7 +1385,7 @@
     <div class="modal-content" style="height: 90vh;">
       <div class="modal-header">
         <h5 class="modal-title" id="assetManagementModalLabel">
-          <i class="fas fa-boxes"></i> Manage Asset Types & Names
+          <i class="fas fa-boxes"></i> Manage Asset Categories & Names
         </h5>
         <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
       </div>
@@ -1551,5 +1612,6 @@
 {% endblock %}
 {% block extra_scripts %}
 <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+<script src="{{ url_for('static', filename='js/chip-multi-select.js') }}"></script>
 {% include 'partials/dashboard_main_script.html' %}
 {% endblock %}

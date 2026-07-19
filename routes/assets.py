@@ -22,6 +22,9 @@ from models.database import (
     upsert_qr_label_layout_updates,
     RESTAURANT_DEFAULT_DEPARTMENT_NAME,
     OFFICE_BRANCH_LABEL,
+    ASSET_KIND_SHARED,
+    ASSET_KIND_BRANCH,
+    ASSET_KINDS,
     asset_type_for_venue_matches,
 )
 from utils.asset_documents import (
@@ -56,6 +59,21 @@ def _parse_int_csv(raw):
     return ids
 
 
+def _parse_asset_kind(raw):
+    kind = (raw or ASSET_KIND_BRANCH).strip().lower()
+    return kind if kind in ASSET_KINDS else ASSET_KIND_BRANCH
+
+
+def _parse_brand_ids(raw_values):
+    brand_ids = []
+    for raw_id in raw_values or []:
+        try:
+            brand_ids.append(int(raw_id))
+        except (TypeError, ValueError):
+            continue
+    return brand_ids
+
+
 def _validate_asset_venue_location(cur, venue, branch, department, brand_id=None, brand_ids=None):
     """Ensure branch/department match restaurant vs office rules."""
     v = (venue or 'restaurant').strip().lower()
@@ -73,15 +91,10 @@ def _validate_asset_venue_location(cur, venue, branch, department, brand_id=None
         return None
     allowed_brand_ids = []
     if brand_ids is not None:
-        for raw_id in brand_ids:
-            try:
-                allowed_brand_ids.append(int(raw_id))
-            except (TypeError, ValueError):
-                continue
+        allowed_brand_ids = _parse_brand_ids(brand_ids)
     elif brand_id is not None:
-        try:
-            allowed_brand_ids = [int(brand_id)]
-        except (TypeError, ValueError):
+        allowed_brand_ids = _parse_brand_ids([brand_id])
+        if brand_id and not allowed_brand_ids:
             return 'Select a brand.'
     if not allowed_brand_ids:
         return 'Select a brand.'
@@ -99,6 +112,32 @@ def _validate_asset_venue_location(cur, venue, branch, department, brand_id=None
     if not cur.fetchone():
         return 'Restaurant location is not fully set up for this branch. Contact IT.'
     return None
+
+
+def _upsert_asset_row(cur, asset_name, price, owner, branch, department, used_status, asset_type, asset_kind):
+    """Insert or update one asset row; return asset id."""
+    cur.execute(
+        'SELECT id, asset_code, qr_random_code FROM assets WHERE name=? AND branch=? AND department=?',
+        (asset_name, branch, department),
+    )
+    row = cur.fetchone()
+    if row:
+        cur.execute(
+            'UPDATE assets SET used_status=?, asset_type=?, asset_kind=?, owner=?, price=? WHERE id=?',
+            (used_status, asset_type, asset_kind, owner, price, row[0]),
+        )
+        return row[0]
+    asset_code = generate_asset_code(branch, department, cur=cur)
+    qr_random_code = str(uuid.uuid4())
+    cur.execute(
+        '''
+        INSERT INTO assets
+        (name, price, owner, branch, department, asset_code, qr_random_code, used_status, asset_type, asset_kind)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        ''',
+        (asset_name, price, owner, branch, department, asset_code, qr_random_code, used_status, asset_type, asset_kind),
+    )
+    return cur.lastrowid
 
 
 def _get_asset_name_id(cur, asset_name, asset_type):
@@ -551,19 +590,9 @@ def settings():
 def add_asset():
     selected_asset_names = request.form.get('selected_asset_names', '')
     asset_type = request.form.get('asset_type', '')
+    asset_kind = _parse_asset_kind(request.form.get('asset_kind'))
     owner = request.form.get('owner', '')
-    branch = request.form.get('branch') or request.form.get('building')
     venue = (request.form.get('asset_venue') or 'restaurant').strip().lower()
-    brand_raw = (request.form.get('brand_id') or '').strip()
-    if venue == 'office':
-        department = request.form.get('department', '')
-        brand_key = None
-    else:
-        department = RESTAURANT_DEFAULT_DEPARTMENT_NAME
-        try:
-            brand_key = int(brand_raw)
-        except ValueError:
-            brand_key = None
     price_raw = (request.form.get('price') or '').strip()
     try:
         price = float(price_raw) if price_raw else 0.0
@@ -572,18 +601,50 @@ def add_asset():
         return redirect(url_for('assets.dashboard'))
     used_status = request.form.get('used_status', 'Not Used')
     no_owner = request.form.get('no_owner') == 'on'
-    
-    # Handle no owner case
+
     if no_owner:
         owner = 'No Owner'
 
     if venue == 'office':
-        branch = OFFICE_BRANCH_LABEL
-    
-    # Parse selected asset names
+        department = request.form.get('department', '')
+        branch_names = [OFFICE_BRANCH_LABEL]
+        brand_ids = None
+        # Office has no multi-branch concept; treat as branch asset.
+        asset_kind = ASSET_KIND_BRANCH
+    else:
+        department = RESTAURANT_DEFAULT_DEPARTMENT_NAME
+        if asset_kind == ASSET_KIND_SHARED:
+            brand_ids = _parse_brand_ids(request.form.getlist('brand_id'))
+            branch_names = [
+                (b or '').strip()
+                for b in request.form.getlist('branch')
+                if (b or '').strip()
+            ]
+            # Deduplicate while preserving order
+            seen = set()
+            unique_branches = []
+            for b in branch_names:
+                if b not in seen:
+                    seen.add(b)
+                    unique_branches.append(b)
+            branch_names = unique_branches
+        else:
+            brand_raw = (request.form.get('brand_id') or '').strip()
+            brand_ids = _parse_brand_ids([brand_raw]) if brand_raw else []
+            single_branch = (request.form.get('branch') or request.form.get('building') or '').strip()
+            branch_names = [single_branch] if single_branch else []
+
     asset_names = [name.strip() for name in selected_asset_names.split(',') if name.strip()]
-    
+
     if not asset_names:
+        return redirect(url_for('assets.dashboard'))
+
+    if venue == 'restaurant' and not branch_names:
+        flash('Please select at least one branch.', 'error')
+        return redirect(url_for('assets.dashboard'))
+
+    if venue == 'restaurant' and asset_kind == ASSET_KIND_SHARED and len(branch_names) < 1:
+        flash('Shared assets require at least one branch.', 'error')
         return redirect(url_for('assets.dashboard'))
 
     spec_values_by_name = _parse_asset_spec_values_json(request.form.get('asset_spec_values_json', ''))
@@ -595,7 +656,7 @@ def add_asset():
     if inclusion_values_by_name is None:
         flash('Invalid asset inclusion data.', 'error')
         return redirect(url_for('assets.dashboard'))
-    
+
     conn = get_db_connection()
     cur = conn.cursor()
 
@@ -604,54 +665,32 @@ def add_asset():
         vt_rows = cur.fetchall()
         if not vt_rows:
             conn.close()
-            flash('Invalid asset type.', 'error')
+            flash('Invalid asset category.', 'error')
             return redirect(url_for('assets.dashboard'))
         if not any(asset_type_for_venue_matches(r[0], venue) for r in vt_rows):
             conn.close()
-            flash('Asset type does not match Restaurant / Office selection.', 'error')
+            flash('Asset category does not match Restaurant / Office selection.', 'error')
             return redirect(url_for('assets.dashboard'))
 
-    err = _validate_asset_venue_location(cur, venue, branch, department, brand_id=brand_key)
-    if err:
-        conn.close()
-        flash(err, 'error')
-        return redirect(url_for('assets.dashboard'))
+    for branch in branch_names:
+        err = _validate_asset_venue_location(
+            cur, venue, branch, department, brand_ids=brand_ids if venue == 'restaurant' else None
+        )
+        if err:
+            conn.close()
+            flash(err, 'error')
+            return redirect(url_for('assets.dashboard'))
 
     created_asset_ids = []
-    new_asset_codes = (
-        allocate_asset_codes(cur, branch, department, len(asset_names))
-        if len(asset_names) > 1
-        else None
-    )
 
-    # Create individual assets for each selected asset name
-    for i, asset_name in enumerate(asset_names):
-        # Check for existing asset with same name, branch, and department
-        cur.execute('SELECT id, asset_code, qr_random_code FROM assets WHERE name=? AND branch=? AND department=?', (asset_name, branch, department))
-        row = cur.fetchone()
-        if row:
-            cur.execute(
-                'UPDATE assets SET used_status=?, asset_type=?, owner=?, price=? WHERE id=?',
-                (used_status, asset_type, owner, price, row[0]),
+    for branch in branch_names:
+        for asset_name in asset_names:
+            asset_id = _upsert_asset_row(
+                cur, asset_name, price, owner, branch, department, used_status, asset_type, asset_kind
             )
-            asset_id = row[0]
-        else:
-            if new_asset_codes is not None:
-                asset_code = new_asset_codes[i]
-            else:
-                asset_code = generate_asset_code(branch, department, cur=cur)
-            
-            qr_random_code = str(uuid.uuid4())
-            
-            cur.execute(
-                'INSERT INTO assets (name, price, owner, branch, department, asset_code, qr_random_code, used_status, asset_type) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
-                (asset_name, price, owner, branch, department, asset_code, qr_random_code, used_status, asset_type),
-            )
-            asset_id = cur.lastrowid
-
-        created_asset_ids.append(asset_id)
-        _save_spec_values_for_asset(cur, asset_id, asset_name, asset_type, spec_values_by_name)
-        _save_inclusion_values_for_asset(cur, asset_id, asset_name, asset_type, inclusion_values_by_name)
+            created_asset_ids.append(asset_id)
+            _save_spec_values_for_asset(cur, asset_id, asset_name, asset_type, spec_values_by_name)
+            _save_inclusion_values_for_asset(cur, asset_id, asset_name, asset_type, inclusion_values_by_name)
 
     uploaded_files = request.files.getlist('supporting_documents')
     if uploaded_files and created_asset_ids:
@@ -662,7 +701,7 @@ def add_asset():
             conn.close()
             flash(doc_err, 'error')
             return redirect(url_for('assets.dashboard'))
-    
+
     conn.commit()
     conn.close()
     return redirect(url_for('assets.dashboard'))
@@ -699,6 +738,7 @@ def get_asset_spec_values(asset_id):
 def update_asset(asset_id):
     name = request.form['name']
     asset_type = request.form.get('asset_type', '')
+    asset_kind = _parse_asset_kind(request.form.get('asset_kind'))
     owner = request.form.get('owner', '')
     branch = request.form.get('branch') or request.form.get('building')
     venue = (request.form.get('asset_venue') or 'restaurant').strip().lower()
@@ -706,6 +746,7 @@ def update_asset(asset_id):
     if venue == 'office':
         department = request.form.get('department', '')
         brand_key = None
+        asset_kind = ASSET_KIND_BRANCH
     else:
         department = request.form.get('department') or RESTAURANT_DEFAULT_DEPARTMENT_NAME
         try:
@@ -719,8 +760,7 @@ def update_asset(asset_id):
         return jsonify({'error': 'Invalid price.'}), 400
     used_status = request.form.get('used_status', 'Not Used')
     no_owner = request.form.get('no_owner') == 'on'
-    
-    # Handle no owner case
+
     if no_owner:
         owner = 'No Owner'
 
@@ -740,10 +780,10 @@ def update_asset(asset_id):
         vt_rows = cur.fetchall()
         if not vt_rows:
             conn.close()
-            return jsonify({'error': 'Invalid asset type.'}), 400
+            return jsonify({'error': 'Invalid asset category.'}), 400
         if not any(asset_type_for_venue_matches(r[0], venue) for r in vt_rows):
             conn.close()
-            return jsonify({'error': 'Asset type does not match Restaurant / Office selection.'}), 400
+            return jsonify({'error': 'Asset category does not match Restaurant / Office selection.'}), 400
 
     spec_values = _parse_asset_spec_values_json(request.form.get('asset_spec_values_json', ''))
     if spec_values is None:
@@ -785,9 +825,9 @@ def update_asset(asset_id):
         # Update the asset with new asset code if needed
         cur.execute('''
             UPDATE assets 
-            SET name=?, asset_type=?, price=?, owner=?, branch=?, department=?, used_status=?, asset_code=?
+            SET name=?, asset_type=?, asset_kind=?, price=?, owner=?, branch=?, department=?, used_status=?, asset_code=?
             WHERE id=?
-        ''', (name, asset_type, price, owner, branch, department, used_status, new_asset_code, asset_id))
+        ''', (name, asset_type, asset_kind, price, owner, branch, department, used_status, new_asset_code, asset_id))
 
         _save_spec_values_for_single_asset(cur, asset_id, name, asset_type, spec_values)
         _save_inclusion_values_for_single_asset(cur, asset_id, name, asset_type, inclusion_ids)
@@ -917,12 +957,13 @@ def delete_asset(asset_id):
     # Insert into archived_assets table
     cur.execute('''
         INSERT INTO archived_assets 
-        (original_id, name, price, owner, branch, department, asset_code, qr_random_code, used_status, asset_type, archived_by, archive_reason)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        (original_id, name, price, owner, branch, department, asset_code, qr_random_code, used_status, asset_type, asset_kind, archived_by, archive_reason)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     ''', (
         asset['id'], asset['name'], asset['price'] if asset['price'] is not None else 0.0, asset['owner'], 
         asset['branch'], asset['department'], asset['asset_code'], 
         asset['qr_random_code'], asset['used_status'], asset['asset_type'],
+        asset['asset_kind'] if asset['asset_kind'] else ASSET_KIND_BRANCH,
         current_user.display_name, archive_reason
     ))
 
@@ -998,12 +1039,13 @@ def bulk_delete():
         for asset in assets:
             cur.execute('''
                 INSERT INTO archived_assets 
-                (original_id, name, price, owner, branch, department, asset_code, qr_random_code, used_status, asset_type, archived_by, archive_reason)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                (original_id, name, price, owner, branch, department, asset_code, qr_random_code, used_status, asset_type, asset_kind, archived_by, archive_reason)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             ''', (
                 asset['id'], asset['name'], asset['price'] if asset['price'] is not None else 0.0, asset['owner'], 
                 asset['branch'], asset['department'], asset['asset_code'], 
                 asset['qr_random_code'], asset['used_status'], asset['asset_type'],
+                asset['asset_kind'] if asset['asset_kind'] else ASSET_KIND_BRANCH,
                 current_user.display_name, archive_reason
             ))
 
@@ -1370,10 +1412,11 @@ def restore_asset(archived_id):
         if existing_asset_by_code:
             # Asset code already exists, update the existing asset
             cur.execute(
-                'UPDATE assets SET used_status=?, asset_type=?, price=? WHERE id=?',
+                'UPDATE assets SET used_status=?, asset_type=?, asset_kind=?, price=? WHERE id=?',
                 (
                     archived_asset['used_status'],
                     archived_asset['asset_type'],
+                    archived_asset['asset_kind'] if archived_asset['asset_kind'] else ASSET_KIND_BRANCH,
                     archived_asset['price'] if archived_asset['price'] is not None else 0.0,
                     existing_asset_by_code[0],
                 ),
@@ -1383,12 +1426,13 @@ def restore_asset(archived_id):
             asset_code = archived_asset['asset_code']  # Use the original asset code
             qr_random_code = archived_asset['qr_random_code'] if archived_asset['qr_random_code'] else str(uuid.uuid4())
             cur.execute('''
-                INSERT INTO assets (name, price, owner, branch, department, asset_code, qr_random_code, used_status, asset_type)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                INSERT INTO assets (name, price, owner, branch, department, asset_code, qr_random_code, used_status, asset_type, asset_kind)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                             ''', (
                     archived_asset['name'], archived_asset['price'] if archived_asset['price'] is not None else 0.0, archived_asset['owner'],
                     archived_asset['branch'], archived_asset['department'], asset_code, qr_random_code,
-                    archived_asset['used_status'], archived_asset['asset_type']
+                    archived_asset['used_status'], archived_asset['asset_type'],
+                    archived_asset['asset_kind'] if archived_asset['asset_kind'] else ASSET_KIND_BRANCH,
                 ))
         
         # Delete from archived_assets table
@@ -1437,10 +1481,11 @@ def bulk_restore_assets():
             if existing_asset_by_code:
                 # Asset code already exists, update the existing asset
                 cur.execute(
-                    'UPDATE assets SET used_status=?, asset_type=?, price=? WHERE id=?',
+                    'UPDATE assets SET used_status=?, asset_type=?, asset_kind=?, price=? WHERE id=?',
                     (
                         archived_asset['used_status'],
                         archived_asset['asset_type'],
+                        archived_asset['asset_kind'] if archived_asset['asset_kind'] else ASSET_KIND_BRANCH,
                         archived_asset['price'] if archived_asset['price'] is not None else 0.0,
                         existing_asset_by_code[0],
                     ),
@@ -1450,13 +1495,14 @@ def bulk_restore_assets():
                 asset_code = archived_asset['asset_code']  # Use the original asset code
                 qr_random_code = archived_asset['qr_random_code'] if archived_asset['qr_random_code'] else str(uuid.uuid4())
                 cur.execute('''
-                    INSERT INTO assets (name, price, owner, branch, department, asset_code, qr_random_code, used_status, asset_type)
-                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-                ''', (
-                    archived_asset['name'], archived_asset['price'] if archived_asset['price'] is not None else 0.0, archived_asset['owner'],
-                    archived_asset['branch'], archived_asset['department'], asset_code, qr_random_code,
-                    archived_asset['used_status'], archived_asset['asset_type']
-                ))
+                    INSERT INTO assets (name, price, owner, branch, department, asset_code, qr_random_code, used_status, asset_type, asset_kind)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                                ''', (
+                        archived_asset['name'], archived_asset['price'] if archived_asset['price'] is not None else 0.0, archived_asset['owner'],
+                        archived_asset['branch'], archived_asset['department'], asset_code, qr_random_code,
+                        archived_asset['used_status'], archived_asset['asset_type'],
+                        archived_asset['asset_kind'] if archived_asset['asset_kind'] else ASSET_KIND_BRANCH,
+                    ))
             
             # Delete from archived_assets table
             cur.execute('DELETE FROM archived_assets WHERE id=?', (archived_id,))
@@ -1576,7 +1622,7 @@ def get_all_assets_for_export():
         
         # Get all assets with their details
         cur.execute('''
-            SELECT name, asset_code, branch, department, price, used_status, asset_type, owner
+            SELECT name, asset_code, branch, department, price, used_status, asset_type, asset_kind, owner
             FROM assets 
             ORDER BY branch, department, name
         ''')
@@ -1585,7 +1631,7 @@ def get_all_assets_for_export():
         # Convert to list of dictionaries
         assets_list = []
         for asset in all_assets:
-            name, asset_code, branch, department, price, status, asset_type, owner = asset
+            name, asset_code, branch, department, price, status, asset_type, asset_kind, owner = asset
             assets_list.append({
                 'name': name,
                 'asset_code': asset_code,
@@ -1594,6 +1640,7 @@ def get_all_assets_for_export():
                 'price': price or 0.0,
                 'used_status': status or 'Not Specified',
                 'asset_type': asset_type or 'Not Specified',
+                'asset_kind': asset_kind or ASSET_KIND_BRANCH,
                 'owner': owner or 'Not Specified'
             })
         
