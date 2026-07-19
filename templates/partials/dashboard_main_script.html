@@ -153,7 +153,13 @@ function appDeleteConfirm(message, title) {
 
     function setEditAssetDepartmentLabel(venue) {
         var label = document.getElementById('editAssetDepartmentLabel');
-        if (label) label.textContent = venue === 'office' ? 'Department' : 'Area';
+        var help = document.getElementById('editAssetAreaHelp');
+        if (label) {
+            label.innerHTML = venue === 'office'
+                ? 'Department <span class="app-required-mark" aria-hidden="true">*</span>'
+                : 'Area <span class="app-required-mark" aria-hidden="true">*</span>';
+        }
+        if (help) help.classList.toggle('d-none', venue === 'office');
     }
 
     function getAddAssetKind() {
@@ -920,9 +926,9 @@ function appDeleteConfirm(message, title) {
 
     function loadEditAssetDocuments(assetId) {
         var existing = document.getElementById('editAssetDocumentsExisting');
-        if (!existing || !assetId) return;
+        if (!existing || !assetId) return Promise.resolve();
         existing.innerHTML = '<div class="text-muted small">Loading documents…</div>';
-        fetch('/assets/' + encodeURIComponent(assetId) + '/documents')
+        return fetch('/assets/' + encodeURIComponent(assetId) + '/documents')
             .then(function (r) { return r.json(); })
             .then(function (data) {
                 renderEditAssetDocumentsList((data && data.documents) || [], assetId);
@@ -2042,7 +2048,7 @@ function appDeleteConfirm(message, title) {
 
     // Update asset name dropdowns for add/edit asset forms
     function updateAssetNameDropdowns() {
-        fetch('/admin/asset-names')
+        return fetch('/admin/asset-names')
             .then(response => response.json())
             .then(assetNames => {
                 // Group asset names by asset type
@@ -2063,6 +2069,42 @@ function appDeleteConfirm(message, title) {
             .catch(error => {
                 console.error('Error loading asset names for dropdowns:', error);
             });
+    }
+
+    function fillEditAssetNameSelect(assetTypeName, selectedName) {
+        const select = document.getElementById('edit_name');
+        if (!select) return;
+        const prev = selectedName || select.value || '';
+        select.innerHTML = '<option value="">Select Asset Name</option>';
+        if (!assetTypeName || !window.assetNamesByType || !window.assetNamesByType[assetTypeName]) {
+            if (prev) {
+                const fallback = document.createElement('option');
+                fallback.value = prev;
+                fallback.textContent = prev;
+                fallback.selected = true;
+                select.appendChild(fallback);
+            }
+            return;
+        }
+        window.assetNamesByType[assetTypeName]
+            .slice()
+            .sort(function (a, b) { return (a.name || '').localeCompare(b.name || ''); })
+            .forEach(function (assetName) {
+                const option = document.createElement('option');
+                option.value = assetName.name;
+                option.textContent = assetName.name;
+                if (prev && prev === assetName.name) option.selected = true;
+                select.appendChild(option);
+            });
+        if (prev && !Array.prototype.some.call(select.options, function (o) { return o.value === prev; })) {
+            const fallback = document.createElement('option');
+            fallback.value = prev;
+            fallback.textContent = prev;
+            fallback.selected = true;
+            select.appendChild(fallback);
+        } else if (prev) {
+            select.value = prev;
+        }
     }
 
     function getAssetNameRecord(assetTypeName, assetName) {
@@ -2357,6 +2399,10 @@ function appDeleteConfirm(message, title) {
 
     // Update asset name datalist based on selected asset type
     function updateAssetNameDropdown(assetTypeName, inputId) {
+        if (inputId === 'edit_name') {
+            fillEditAssetNameSelect(assetTypeName, document.getElementById('edit_name')?.value || '');
+            return;
+        }
         const input = document.getElementById(inputId);
         const datalistId = inputId === 'name' ? 'assetNameList' : 'editAssetNameList';
         const datalist = document.getElementById(datalistId);
@@ -3806,7 +3852,7 @@ function appDeleteConfirm(message, title) {
                 });
 
                 editAssetTypeInput.addEventListener('change', function() {
-                    updateAssetNameDropdown(this.value, 'edit_name');
+                    fillEditAssetNameSelect(this.value, '');
                     renderEditAssetSpecFields();
                     renderEditAssetInclusions();
                 });
@@ -3979,132 +4025,22 @@ function appDeleteConfirm(message, title) {
             });
         });
         
-        // Initialize edit asset modal
-        const editAssetModalEl = document.getElementById('editAssetModal');
-        if (editAssetModalEl) editAssetModalEl.addEventListener('show.bs.modal', function(event) {
-            const button = event.relatedTarget;
-            const assetId = button.getAttribute('data-asset-id');
-            const assetName = button.getAttribute('data-asset-name');
-            const assetType = button.getAttribute('data-asset-type');
-            const assetKind = button.getAttribute('data-asset-kind') || 'branch';
-            const assetPrice = button.getAttribute('data-asset-price');
-            const assetOwner = button.getAttribute('data-asset-owner');
-            const assetBuilding = button.getAttribute('data-asset-branch');
-            const assetDepartment = button.getAttribute('data-asset-department');
-            const assetStatus = button.getAttribute('data-asset-status');
-            const assetDate = button.getAttribute('data-asset-date') || '';
-            
-            console.log('Edit modal data:', {
-                assetId, assetName, assetType, 
-                assetOwner, assetBuilding, assetDepartment, assetStatus, assetDate
-            });
-            
-            // Update modal title and form action
-            document.getElementById('editAssetName').textContent = assetName;
-            document.getElementById('editAssetForm').action = `/assets/update/${assetId}`;
-            document.getElementById('editAssetForm').dataset.assetId = String(assetId);
-            resetEditAssetDocuments();
-            loadEditAssetDocuments(assetId);
-            
-            // Populate form fields
-            document.getElementById('edit_price').value = assetPrice;
-            document.getElementById('edit_used_status').value = assetStatus;
-            var editDateInput = document.getElementById('edit_asset_date');
-            if (editDateInput) editDateInput.value = assetDate || todayIsoDate();
-            
-            // Handle old asset type values that might not match new options
-            let assetTypeToSet = assetType;
-            if (assetType === 'Technical Device') {
-                assetTypeToSet = 'Electronics';
-            } else if (assetType === 'Office Supplies') {
-                assetTypeToSet = 'Others';
-            }
-            
-            // Handle no owner case
-            const editNoOwnerCheck = document.getElementById('edit_noOwnerCheck');
-            const editOwnerSelect = document.getElementById('edit_owner');
-            
-            if (assetOwner === 'No Owner') {
-                editNoOwnerCheck.checked = true;
-                editOwnerSelect.disabled = true;
-                editOwnerSelect.style.opacity = '0.5';
-                editOwnerSelect.style.backgroundColor = '#f8f9fa';
-            } else {
-                editNoOwnerCheck.checked = false;
-                editOwnerSelect.disabled = false;
-                editOwnerSelect.style.opacity = '1';
-                editOwnerSelect.style.backgroundColor = '';
-            }
-
-            const isOfficeAsset = assetBuilding === OFFICE_BRANCH_LABEL_JS;
-            const er = document.getElementById('editAssetVenueRestaurant');
-            const eo = document.getElementById('editAssetVenueOffice');
-            if (eo && er) {
-                if (isOfficeAsset) {
-                    eo.checked = true;
-                    er.checked = false;
-                } else {
-                    er.checked = true;
-                    eo.checked = false;
-                }
-            }
-            syncEditAssetVenueField();
-            const ebf = document.getElementById('editAssetBranchField');
-            const editBrandField = document.getElementById('editAssetBrandField');
-            const editDeptField = document.getElementById('editAssetDepartmentField');
-            if (isOfficeAsset && ebf) ebf.classList.add('d-none');
-            else if (ebf) ebf.classList.remove('d-none');
-            if (editBrandField) editBrandField.classList.add('d-none');
-            if (editDeptField) editDeptField.classList.remove('d-none');
-            setEditAssetDepartmentLabel(isOfficeAsset ? 'office' : 'restaurant');
-
-            setEditAssetKind(isOfficeAsset ? 'branch' : assetKind);
-            applyEditAssetKindUI();
-            
-            // Load asset types and asset names for the dropdowns, then set the asset type
-            loadAssetTypes();
-            loadAssetNames();
-            updateAssetNameDropdowns();
-            
-            // Set asset type after dropdowns are loaded
-            setTimeout(() => {
-                console.log('Setting asset type to:', assetTypeToSet);
-                console.log('Available asset type options:', Array.from(document.getElementById('edit_asset_type').options).map(opt => opt.value));
-                
-                document.getElementById('edit_asset_type').value = assetTypeToSet;
-                console.log('Asset type dropdown value after setting:', document.getElementById('edit_asset_type').value);
-                console.log('Asset type dropdown selected option:', document.getElementById('edit_asset_type').selectedOptions[0]?.text);
-                
-                // Set asset name after asset type is set
-                updateAssetNameDropdown(assetTypeToSet, 'edit_name');
-                setTimeout(() => {
-                    document.getElementById('edit_name').value = assetName;
-                    fetch(`/assets/${assetId}/spec-values`)
-                        .then(response => response.json())
-                        .then(data => {
-                            const existingValues = {};
-                            (data.values || []).forEach(item => {
-                                existingValues[item.spec_field_id] = item.value;
-                            });
-                            renderEditAssetSpecFields(existingValues);
-                            renderEditAssetInclusions(data.inclusion_ids || []);
-                        })
-                        .catch(() => {
-                            renderEditAssetSpecFields();
-                            renderEditAssetInclusions([]);
-                        });
-                }, 100);
-            }, 300);
-            
-            loadEditBranches(assetBuilding, null)
-                .then(function () {
-                    return loadEditDepartments(assetBuilding, assetDepartment);
-                })
-                .then(function () {
-                    return loadEditOwners(assetBuilding, assetDepartment, assetOwner);
-                })
-                .catch(error => {
-                    console.error('Error loading edit data:', error);
+        // Open edit asset modal only after fields are fully populated (avoids loading flash)
+        document.addEventListener('click', function (event) {
+            const button = event.target.closest('.edit-asset-btn');
+            if (!button) return;
+            event.preventDefault();
+            if (button.disabled) return;
+            button.disabled = true;
+            const prevOpacity = button.style.opacity;
+            button.style.opacity = '0.55';
+            populateEditAssetModal(button)
+                .finally(function () {
+                    button.disabled = false;
+                    button.style.opacity = prevOpacity || '';
+                    const modalEl = document.getElementById('editAssetModal');
+                    if (!modalEl || typeof bootstrap === 'undefined') return;
+                    bootstrap.Modal.getOrCreateInstance(modalEl).show();
                 });
         });
         
@@ -4168,36 +4104,7 @@ function appDeleteConfirm(message, title) {
             ownerSelect.innerHTML = '<option value="">Select Owner</option>';
             
             if (selectedDepartment && selectedBuilding) {
-                // Restaurant owners are on the default Restaurant department; office uses the selected dept.
-                const ownerDeptName = (selectedBuilding === OFFICE_BRANCH_LABEL_JS || getEditAssetVenue() === 'office')
-                    ? selectedDepartment
-                    : RESTAURANT_DEFAULT_DEPT_JS;
-                fetch('/admin/departments')
-                    .then(response => response.json())
-                    .then(departments => {
-                        const department = departments.find(d =>
-                            d.name === ownerDeptName &&
-                            ((selectedBuilding === OFFICE_BRANCH_LABEL_JS &&
-                                (d.branch_id == null || d.branch_name === OFFICE_BRANCH_LABEL_JS)) ||
-                                (d.branch_name === selectedBuilding))
-                        );
-                        
-                        if (department) {
-                            // Load users for this department
-                            return fetch(`/admin/users?department_id=${department.id}`);
-                        }
-                        return Promise.reject('Department not found');
-                    })
-                    .then(response => response.json())
-                    .then(users => {
-                        users.forEach(user => {
-                            const option = document.createElement('option');
-                            option.value = user.name;
-                            option.textContent = user.name;
-                            ownerSelect.appendChild(option);
-                        });
-                    })
-                    .catch(error => console.error('Error loading users:', error));
+                loadEditOwners(selectedBuilding, selectedDepartment, ownerSelect.value || '');
             }
         });
         
@@ -5028,12 +4935,12 @@ function appDeleteConfirm(message, title) {
                     officeOpt.textContent = OFFICE_BRANCH_LABEL_JS;
                     buildingSelect.appendChild(officeOpt);
                 } else {
-                    // Show all restaurant branches (brand filter no longer used).
+                    // Show all restaurant branches with same labels as add-asset modal.
                     const sorted = [...buildings].sort((a, b) => a.name.localeCompare(b.name));
                     sorted.forEach(building => {
                         const option = document.createElement('option');
                         option.value = building.name;
-                        option.textContent = building.name;
+                        option.textContent = formatBranchOptionLabel(building);
                         buildingSelect.appendChild(option);
                     });
                 }
@@ -5082,7 +4989,6 @@ function appDeleteConfirm(message, title) {
     }
     
     function loadEditOwners(selectedBuilding, selectedDepartment, selectedOwner) {
-        console.log('Loading owners for edit, building:', selectedBuilding, 'department:', selectedDepartment, 'owner:', selectedOwner);
         if (!selectedBuilding || !selectedDepartment) return Promise.resolve();
         
         const ownerDeptName = (selectedBuilding === OFFICE_BRANCH_LABEL_JS)
@@ -5110,14 +5016,24 @@ function appDeleteConfirm(message, title) {
                 const ownerSelect = document.getElementById('edit_owner');
                 ownerSelect.innerHTML = '<option value="">Select Owner</option>';
                 
-                users.forEach(user => {
+                (users || []).slice().sort(function (a, b) {
+                    const byId = (a.employee_id || '').localeCompare(b.employee_id || '');
+                    if (byId !== 0) return byId;
+                    return (a.name || '').localeCompare(b.name || '');
+                }).forEach(user => {
                     const option = document.createElement('option');
                     option.value = user.name;
-                    option.textContent = user.name;
+                    option.textContent = formatEmployeeOwnerLabel(user);
                     ownerSelect.appendChild(option);
                 });
                 
                 if (selectedOwner && selectedOwner !== 'No Owner') {
+                    if (!Array.prototype.some.call(ownerSelect.options, function (o) { return o.value === selectedOwner; })) {
+                        const fallback = document.createElement('option');
+                        fallback.value = selectedOwner;
+                        fallback.textContent = selectedOwner;
+                        ownerSelect.appendChild(fallback);
+                    }
                     ownerSelect.value = selectedOwner;
                 }
             })
@@ -5125,6 +5041,118 @@ function appDeleteConfirm(message, title) {
                 console.error('Error loading owners for edit:', error);
                 throw error;
             });
+    }
+
+    function setEditAssetModalReady() {
+        const body = document.getElementById('editAssetModalBody');
+        if (body) body.classList.remove('is-loading');
+    }
+
+    function populateEditAssetModal(button) {
+        const assetId = button.getAttribute('data-asset-id');
+        const assetName = button.getAttribute('data-asset-name');
+        const assetType = button.getAttribute('data-asset-type');
+        const assetKind = button.getAttribute('data-asset-kind') || 'branch';
+        const assetPrice = button.getAttribute('data-asset-price');
+        const assetOwner = button.getAttribute('data-asset-owner');
+        const assetBuilding = button.getAttribute('data-asset-branch');
+        const assetDepartment = button.getAttribute('data-asset-department');
+        const assetStatus = button.getAttribute('data-asset-status');
+        const assetDate = button.getAttribute('data-asset-date') || '';
+
+        document.getElementById('editAssetName').textContent = assetName;
+        document.getElementById('editAssetForm').action = `/assets/update/${assetId}`;
+        document.getElementById('editAssetForm').dataset.assetId = String(assetId);
+        resetEditAssetDocuments();
+
+        document.getElementById('edit_price').value = assetPrice || '';
+        document.getElementById('edit_used_status').value = assetStatus || 'Not Used';
+        var editDateInput = document.getElementById('edit_asset_date');
+        if (editDateInput) editDateInput.value = assetDate || todayIsoDate();
+
+        let assetTypeToSet = assetType;
+        if (assetType === 'Technical Device') {
+            assetTypeToSet = 'Electronics';
+        } else if (assetType === 'Office Supplies') {
+            assetTypeToSet = 'Others';
+        }
+
+        const editNoOwnerCheck = document.getElementById('edit_noOwnerCheck');
+        const editOwnerSelect = document.getElementById('edit_owner');
+        if (assetOwner === 'No Owner') {
+            editNoOwnerCheck.checked = true;
+            editOwnerSelect.disabled = true;
+            editOwnerSelect.style.opacity = '0.5';
+            editOwnerSelect.style.backgroundColor = '#f8f9fa';
+        } else {
+            editNoOwnerCheck.checked = false;
+            editOwnerSelect.disabled = false;
+            editOwnerSelect.style.opacity = '1';
+            editOwnerSelect.style.backgroundColor = '';
+        }
+
+        const isOfficeAsset = assetBuilding === OFFICE_BRANCH_LABEL_JS;
+        const er = document.getElementById('editAssetVenueRestaurant');
+        const eo = document.getElementById('editAssetVenueOffice');
+        if (eo && er) {
+            if (isOfficeAsset) {
+                eo.checked = true;
+                er.checked = false;
+            } else {
+                er.checked = true;
+                eo.checked = false;
+            }
+        }
+        syncEditAssetVenueField();
+        const ebf = document.getElementById('editAssetBranchField');
+        const editBrandField = document.getElementById('editAssetBrandField');
+        const editDeptField = document.getElementById('editAssetDepartmentField');
+        if (isOfficeAsset && ebf) ebf.classList.add('d-none');
+        else if (ebf) ebf.classList.remove('d-none');
+        if (editBrandField) editBrandField.classList.add('d-none');
+        if (editDeptField) editDeptField.classList.remove('d-none');
+        setEditAssetDepartmentLabel(isOfficeAsset ? 'office' : 'restaurant');
+        setEditAssetKind(isOfficeAsset ? 'branch' : assetKind);
+        applyEditAssetKindUI();
+
+        return Promise.all([
+            loadAssetTypes(),
+            updateAssetNameDropdowns(),
+            loadEditBranches(assetBuilding, null),
+            loadEditAssetDocuments(assetId),
+            fetch(`/assets/${assetId}/spec-values`).then(function (r) { return r.json(); }).catch(function () {
+                return { values: [], inclusion_ids: [] };
+            }),
+        ]).then(function (results) {
+            const specPayload = results[4] || { values: [], inclusion_ids: [] };
+            updateAssetTypeDropdowns();
+            document.getElementById('edit_asset_type').value = assetTypeToSet || '';
+            fillEditAssetNameSelect(assetTypeToSet, assetName);
+            return loadEditDepartments(assetBuilding, assetDepartment).then(function () {
+                return loadEditOwners(assetBuilding, assetDepartment, assetOwner).catch(function () {
+                    const ownerSelect = document.getElementById('edit_owner');
+                    if (ownerSelect && assetOwner && assetOwner !== 'No Owner') {
+                        ownerSelect.innerHTML = '<option value="">Select Owner</option>';
+                        const fallback = document.createElement('option');
+                        fallback.value = assetOwner;
+                        fallback.textContent = assetOwner;
+                        fallback.selected = true;
+                        ownerSelect.appendChild(fallback);
+                    }
+                });
+            }).then(function () {
+                const existingValues = {};
+                (specPayload.values || []).forEach(function (item) {
+                    existingValues[item.spec_field_id] = item.value;
+                });
+                renderEditAssetSpecFields(existingValues);
+                renderEditAssetInclusions(specPayload.inclusion_ids || []);
+            });
+        }).catch(function (error) {
+            console.error('Error loading edit data:', error);
+        }).finally(function () {
+            setEditAssetModalReady();
+        });
     }
 
     // --- Improved Asset Name Multi-Select ---

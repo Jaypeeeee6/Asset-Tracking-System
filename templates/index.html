@@ -901,8 +901,6 @@
                             data-asset-department="{{ asset.department }}"
                             data-asset-status="{{ asset.used_status }}"
                             data-asset-date="{{ asset.asset_date or '' }}"
-                            data-bs-toggle="modal"
-                            data-bs-target="#editAssetModal"
                             title="Edit asset"
                             aria-label="Edit asset">
                         <i class="bi bi-pencil-square" aria-hidden="true"></i>
@@ -1154,10 +1152,11 @@
         <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
       </div>
       <form id="editAssetForm" method="post" enctype="multipart/form-data">
-        <div class="modal-body" style="overflow-y: auto; max-height: 70vh;">
+        <div class="modal-body" style="overflow-y: auto; max-height: 70vh;" id="editAssetModalBody">
+          <div id="editAssetModalFields">
           <input type="hidden" name="asset_venue" id="editAssetVenueField" value="restaurant">
           <div class="mb-3">
-            <label class="form-label">Location</label>
+            {{ form_label('Location', 'editAssetVenueRestaurant', true) }}
             <div class="d-flex flex-wrap gap-3">
               <div class="form-check">
                 <input class="form-check-input" type="radio" name="edit_asset_venue_ui" id="editAssetVenueRestaurant" value="restaurant" checked>
@@ -1168,6 +1167,7 @@
                 <label class="form-check-label" for="editAssetVenueOffice">Office</label>
               </div>
             </div>
+            <div class="form-text"><i class="bi bi-info-circle" aria-hidden="true"></i> Restaurant: pick branch and area. Office: pick an office department only.</div>
           </div>
           <div class="app-modal-tip mb-3" role="note">
             <i class="bi bi-info-circle" aria-hidden="true"></i>
@@ -1175,7 +1175,7 @@
             <span id="editAssetName"></span>
           </div>
           <div class="mb-3" id="editAssetKindField">
-            <label class="form-label">Asset Type</label>
+            {{ form_label('Asset Type', 'editAssetKindBranch', true) }}
             <div class="d-flex flex-wrap gap-3">
               <div class="form-check">
                 <input class="form-check-input" type="radio" name="asset_kind" id="editAssetKindBranch" value="branch" checked>
@@ -1191,20 +1191,19 @@
             </div>
           </div>
             <div class="mb-3">
-                <label for="edit_asset_type" class="form-label">Asset Category</label>
+                {{ form_label('Asset Category', 'edit_asset_type', true) }}
                 <select class="form-select" id="edit_asset_type" name="asset_type" required>
                     <option value="">Select Asset Category</option>
                 </select>
             </div>
             <div class="mb-3">
-                <label for="edit_name" class="form-label">Asset Name</label>
-                <input type="text" class="form-control" id="edit_name" name="name" list="editAssetNameList" placeholder="Select Asset Category First" required autocomplete="off">
-                <datalist id="editAssetNameList">
+                {{ form_label('Asset Name', 'edit_name', true) }}
+                <select class="form-select" id="edit_name" name="name" required>
                     <option value="">Select Asset Category First</option>
-                </datalist>
+                </select>
             </div>
             <div class="mb-3" id="editAssetSpecFieldsSection" style="display: none;">
-                <label for="editAssetSpecFieldsContainer" class="form-label">Asset Specifications <span class="app-required-mark" aria-hidden="true">*</span></label>
+                {{ form_label('Asset Specifications', 'editAssetSpecFieldsContainer', false) }}
                 <div id="editAssetSpecFieldsContainer"></div>
                 <input type="hidden" id="editAssetSpecValuesJson" name="asset_spec_values_json" value="">
             </div>
@@ -1215,10 +1214,10 @@
                 <input type="hidden" id="editAssetInclusionValuesJson" name="asset_inclusion_values_json" value="">
             </div>
             <div class="mb-3">
-                <label for="edit_price" class="form-label">Price (OMR)</label>
+                {{ form_label('Price (OMR)', 'edit_price', false) }}
                 <input type="number" class="form-control" id="edit_price" name="price" min="0" step="0.01" placeholder="0.00">
                 <div class="form-text">
-                    <i class="bi bi-info-circle" aria-hidden="true"></i> Enter the price in Omani Rial (OMR)
+                    <i class="bi bi-info-circle" aria-hidden="true"></i> Optional. Enter the price in Omani Rial (OMR).
                 </div>
             </div>
             <div class="mb-3 d-none" id="editAssetBrandField" aria-hidden="true">
@@ -1228,16 +1227,19 @@
                 </select>
             </div>
             <div class="mb-3" id="editAssetBranchField">
-                <label for="edit_branch" class="form-label">Branch</label>
+                <label for="edit_branch" class="form-label" id="editAssetBranchLabel">Branch <span class="app-required-mark" aria-hidden="true">*</span></label>
                 <select class="form-select" id="edit_branch" name="branch" required>
                     <option value="">Select Branch</option>
                 </select>
             </div>
             <div class="mb-3" id="editAssetDepartmentField">
-                <label for="edit_department" class="form-label" id="editAssetDepartmentLabel">Area</label>
+                <label for="edit_department" class="form-label" id="editAssetDepartmentLabel">Area <span class="app-required-mark" aria-hidden="true">*</span></label>
                 <select class="form-select" id="edit_department" name="department" required>
                     <option value="">Select area</option>
                 </select>
+                <div class="form-text d-none" id="editAssetAreaHelp">
+                    <i class="bi bi-info-circle" aria-hidden="true"></i> Where in the restaurant this asset belongs (Kitchen, Dining, Cashier, etc.).
+                </div>
             </div>
             <div class="mb-3">
                 <div class="form-check mb-2">
@@ -1246,7 +1248,7 @@
                         <i class="bi bi-person-x" aria-hidden="true"></i> No Owner Required
                     </label>
                 </div>
-                <label for="edit_owner" class="form-label">Owner</label>
+                {{ form_label('Owner', 'edit_owner', true) }}
                 <select class="form-select" id="edit_owner" name="owner" required>
                     <option value="">Select branch or department first</option>
                 </select>
@@ -1255,7 +1257,7 @@
                 </div>
             </div>
             <div class="mb-3">
-                <label for="edit_used_status" class="form-label">Status</label>
+                {{ form_label('Status', 'edit_used_status', true) }}
                 <select class="form-select" id="edit_used_status" name="used_status" required>
                     <option value="Used">Used</option>
                     <option value="Not Used">Not Used</option>
@@ -1263,18 +1265,19 @@
                 </select>
             </div>
             <div class="mb-3">
-                <label for="edit_asset_date" class="form-label">Date</label>
+                {{ form_label('Date', 'edit_asset_date', true) }}
                 <input type="date" class="form-control" id="edit_asset_date" name="asset_date" readonly>
                 <div class="form-text"><i class="bi bi-info-circle" aria-hidden="true"></i> Date this asset was added.</div>
             </div>
             <div class="mb-0">
-                <label class="form-label" for="editAssetDocuments">Supporting documents</label>
+                {{ form_label('Supporting documents', 'editAssetDocuments', false) }}
                 <div id="editAssetDocumentsExisting" class="asset-doc-list mb-2"></div>
                 <input type="file" class="form-control" id="editAssetDocuments" name="supporting_documents" multiple
                        accept=".pdf,.doc,.docx,.xls,.xlsx,.csv,.txt,.png,.jpg,.jpeg,.gif,.webp,.zip,application/pdf,image/*">
-                <div class="form-text"><i class="bi bi-info-circle" aria-hidden="true"></i> Add more files (selecting again appends), or remove existing ones above / pending ones below. Max 10 MB each.</div>
+                <div class="form-text"><i class="bi bi-info-circle" aria-hidden="true"></i> Optional. Add more files (selecting again appends), or remove existing ones above / pending ones below. Max 10 MB each.</div>
                 <ul id="editAssetDocumentsPreview" class="asset-doc-list mt-2 mb-0" hidden></ul>
             </div>
+          </div>
         </div>
         <div class="modal-footer">{{ modal_cancel_button('Cancel') }}{{ add_button('Update Asset', button_type='submit', icon='bi bi-check-lg') }}</div>
       </form>
