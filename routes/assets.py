@@ -26,6 +26,8 @@ from models.database import (
     ASSET_KIND_BRANCH,
     ASSET_KINDS,
     asset_type_for_venue_matches,
+    format_branch_with_code,
+    format_asset_location_display,
 )
 from utils.asset_documents import (
     list_documents_for_asset,
@@ -62,6 +64,87 @@ def _parse_int_csv(raw):
 def _parse_asset_kind(raw):
     kind = (raw or ASSET_KIND_BRANCH).strip().lower()
     return kind if kind in ASSET_KINDS else ASSET_KIND_BRANCH
+
+
+def _branch_code_map(cur):
+    cur.execute('SELECT name, branch_code FROM branches')
+    return {
+        row[0]: (str(row[1]).strip() if row[1] else '')
+        for row in cur.fetchall()
+    }
+
+
+def _attach_asset_location_displays(cur, assets):
+    """Set location_lines on each asset (branch code + name; all branches for shared)."""
+    if not assets:
+        return
+    codes = _branch_code_map(cur)
+
+    group_ids = sorted({
+        (a.get('shared_group_id') or '').strip()
+        for a in assets
+        if (a.get('asset_kind') or ASSET_KIND_BRANCH) == ASSET_KIND_SHARED
+        and (a.get('shared_group_id') or '').strip()
+    })
+    branches_by_group = {}
+    if group_ids:
+        placeholders = ','.join('?' * len(group_ids))
+        cur.execute(
+            f'''
+            SELECT shared_group_id, branch
+            FROM assets
+            WHERE shared_group_id IN ({placeholders})
+            ORDER BY branch
+            ''',
+            group_ids,
+        )
+        for gid, branch in cur.fetchall():
+            branches_by_group.setdefault(gid, [])
+            if branch not in branches_by_group[gid]:
+                branches_by_group[gid].append(branch)
+
+    # Fallback for legacy shared rows without shared_group_id
+    legacy_keys = []
+    for a in assets:
+        if (a.get('asset_kind') or ASSET_KIND_BRANCH) != ASSET_KIND_SHARED:
+            continue
+        if (a.get('shared_group_id') or '').strip():
+            continue
+        legacy_keys.append((a.get('name'), a.get('asset_type'), a.get('owner')))
+    branches_by_legacy = {}
+    for name, asset_type, owner in set(legacy_keys):
+        cur.execute(
+            '''
+            SELECT DISTINCT branch FROM assets
+            WHERE asset_kind = ? AND name = ? AND IFNULL(asset_type, '') = IFNULL(?, '')
+              AND IFNULL(owner, '') = IFNULL(?, '')
+            ORDER BY branch
+            ''',
+            (ASSET_KIND_SHARED, name, asset_type, owner),
+        )
+        branches_by_legacy[(name, asset_type, owner)] = [row[0] for row in cur.fetchall()]
+
+    for asset in assets:
+        branch = asset.get('branch') or ''
+        department = asset.get('department') or ''
+        kind = asset.get('asset_kind') or ASSET_KIND_BRANCH
+        if kind == ASSET_KIND_SHARED and branch != OFFICE_BRANCH_LABEL:
+            gid = (asset.get('shared_group_id') or '').strip()
+            if gid and gid in branches_by_group:
+                branch_names = branches_by_group[gid]
+            else:
+                branch_names = branches_by_legacy.get(
+                    (asset.get('name'), asset.get('asset_type'), asset.get('owner')),
+                    [branch],
+                )
+            asset['location_lines'] = [
+                format_branch_with_code(b, codes.get(b))
+                for b in branch_names
+            ]
+        else:
+            asset['location_lines'] = [
+                format_asset_location_display(branch, department, codes.get(branch))
+            ]
 
 
 def _parse_brand_ids(raw_values):
@@ -114,7 +197,7 @@ def _validate_asset_venue_location(cur, venue, branch, department, brand_id=None
     return None
 
 
-def _upsert_asset_row(cur, asset_name, price, owner, branch, department, used_status, asset_type, asset_kind):
+def _upsert_asset_row(cur, asset_name, price, owner, branch, department, used_status, asset_type, asset_kind, shared_group_id=None):
     """Insert or update one asset row; return asset id."""
     cur.execute(
         'SELECT id, asset_code, qr_random_code FROM assets WHERE name=? AND branch=? AND department=?',
@@ -123,8 +206,8 @@ def _upsert_asset_row(cur, asset_name, price, owner, branch, department, used_st
     row = cur.fetchone()
     if row:
         cur.execute(
-            'UPDATE assets SET used_status=?, asset_type=?, asset_kind=?, owner=?, price=? WHERE id=?',
-            (used_status, asset_type, asset_kind, owner, price, row[0]),
+            'UPDATE assets SET used_status=?, asset_type=?, asset_kind=?, shared_group_id=?, owner=?, price=? WHERE id=?',
+            (used_status, asset_type, asset_kind, shared_group_id, owner, price, row[0]),
         )
         return row[0]
     asset_code = generate_asset_code(branch, department, cur=cur)
@@ -132,10 +215,13 @@ def _upsert_asset_row(cur, asset_name, price, owner, branch, department, used_st
     cur.execute(
         '''
         INSERT INTO assets
-        (name, price, owner, branch, department, asset_code, qr_random_code, used_status, asset_type, asset_kind)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        (name, price, owner, branch, department, asset_code, qr_random_code, used_status, asset_type, asset_kind, shared_group_id)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         ''',
-        (asset_name, price, owner, branch, department, asset_code, qr_random_code, used_status, asset_type, asset_kind),
+        (
+            asset_name, price, owner, branch, department, asset_code, qr_random_code,
+            used_status, asset_type, asset_kind, shared_group_id,
+        ),
     )
     return cur.lastrowid
 
@@ -431,6 +517,8 @@ def dashboard():
     )
     for asset in assets:
         asset['supporting_documents'] = docs_by_asset.get(asset['id'], [])
+
+    _attach_asset_location_displays(cur, assets)
     
     cur.execute('SELECT used_status, branch, department, price FROM assets')
     chart_data = _compute_chart_data_from_asset_rows(cur.fetchall())
@@ -682,11 +770,13 @@ def add_asset():
             return redirect(url_for('assets.dashboard'))
 
     created_asset_ids = []
+    shared_group_id = str(uuid.uuid4()) if asset_kind == ASSET_KIND_SHARED and venue == 'restaurant' else None
 
     for branch in branch_names:
         for asset_name in asset_names:
             asset_id = _upsert_asset_row(
-                cur, asset_name, price, owner, branch, department, used_status, asset_type, asset_kind
+                cur, asset_name, price, owner, branch, department, used_status, asset_type, asset_kind,
+                shared_group_id=shared_group_id,
             )
             created_asset_ids.append(asset_id)
             _save_spec_values_for_asset(cur, asset_id, asset_name, asset_type, spec_values_by_name)
@@ -957,13 +1047,14 @@ def delete_asset(asset_id):
     # Insert into archived_assets table
     cur.execute('''
         INSERT INTO archived_assets 
-        (original_id, name, price, owner, branch, department, asset_code, qr_random_code, used_status, asset_type, asset_kind, archived_by, archive_reason)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        (original_id, name, price, owner, branch, department, asset_code, qr_random_code, used_status, asset_type, asset_kind, shared_group_id, archived_by, archive_reason)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     ''', (
         asset['id'], asset['name'], asset['price'] if asset['price'] is not None else 0.0, asset['owner'], 
         asset['branch'], asset['department'], asset['asset_code'], 
         asset['qr_random_code'], asset['used_status'], asset['asset_type'],
         asset['asset_kind'] if asset['asset_kind'] else ASSET_KIND_BRANCH,
+        asset['shared_group_id'] if 'shared_group_id' in asset.keys() else None,
         current_user.display_name, archive_reason
     ))
 
@@ -1039,13 +1130,14 @@ def bulk_delete():
         for asset in assets:
             cur.execute('''
                 INSERT INTO archived_assets 
-                (original_id, name, price, owner, branch, department, asset_code, qr_random_code, used_status, asset_type, asset_kind, archived_by, archive_reason)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                (original_id, name, price, owner, branch, department, asset_code, qr_random_code, used_status, asset_type, asset_kind, shared_group_id, archived_by, archive_reason)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             ''', (
                 asset['id'], asset['name'], asset['price'] if asset['price'] is not None else 0.0, asset['owner'], 
                 asset['branch'], asset['department'], asset['asset_code'], 
                 asset['qr_random_code'], asset['used_status'], asset['asset_type'],
                 asset['asset_kind'] if asset['asset_kind'] else ASSET_KIND_BRANCH,
+                asset['shared_group_id'] if 'shared_group_id' in asset.keys() else None,
                 current_user.display_name, archive_reason
             ))
 
@@ -1412,11 +1504,12 @@ def restore_asset(archived_id):
         if existing_asset_by_code:
             # Asset code already exists, update the existing asset
             cur.execute(
-                'UPDATE assets SET used_status=?, asset_type=?, asset_kind=?, price=? WHERE id=?',
+                'UPDATE assets SET used_status=?, asset_type=?, asset_kind=?, shared_group_id=?, price=? WHERE id=?',
                 (
                     archived_asset['used_status'],
                     archived_asset['asset_type'],
                     archived_asset['asset_kind'] if archived_asset['asset_kind'] else ASSET_KIND_BRANCH,
+                    archived_asset['shared_group_id'] if 'shared_group_id' in archived_asset.keys() else None,
                     archived_asset['price'] if archived_asset['price'] is not None else 0.0,
                     existing_asset_by_code[0],
                 ),
@@ -1426,13 +1519,14 @@ def restore_asset(archived_id):
             asset_code = archived_asset['asset_code']  # Use the original asset code
             qr_random_code = archived_asset['qr_random_code'] if archived_asset['qr_random_code'] else str(uuid.uuid4())
             cur.execute('''
-                INSERT INTO assets (name, price, owner, branch, department, asset_code, qr_random_code, used_status, asset_type, asset_kind)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                INSERT INTO assets (name, price, owner, branch, department, asset_code, qr_random_code, used_status, asset_type, asset_kind, shared_group_id)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                             ''', (
                     archived_asset['name'], archived_asset['price'] if archived_asset['price'] is not None else 0.0, archived_asset['owner'],
                     archived_asset['branch'], archived_asset['department'], asset_code, qr_random_code,
                     archived_asset['used_status'], archived_asset['asset_type'],
                     archived_asset['asset_kind'] if archived_asset['asset_kind'] else ASSET_KIND_BRANCH,
+                    archived_asset['shared_group_id'] if 'shared_group_id' in archived_asset.keys() else None,
                 ))
         
         # Delete from archived_assets table
@@ -1481,11 +1575,12 @@ def bulk_restore_assets():
             if existing_asset_by_code:
                 # Asset code already exists, update the existing asset
                 cur.execute(
-                    'UPDATE assets SET used_status=?, asset_type=?, asset_kind=?, price=? WHERE id=?',
+                    'UPDATE assets SET used_status=?, asset_type=?, asset_kind=?, shared_group_id=?, price=? WHERE id=?',
                     (
                         archived_asset['used_status'],
                         archived_asset['asset_type'],
                         archived_asset['asset_kind'] if archived_asset['asset_kind'] else ASSET_KIND_BRANCH,
+                        archived_asset['shared_group_id'] if 'shared_group_id' in archived_asset.keys() else None,
                         archived_asset['price'] if archived_asset['price'] is not None else 0.0,
                         existing_asset_by_code[0],
                     ),
@@ -1495,13 +1590,14 @@ def bulk_restore_assets():
                 asset_code = archived_asset['asset_code']  # Use the original asset code
                 qr_random_code = archived_asset['qr_random_code'] if archived_asset['qr_random_code'] else str(uuid.uuid4())
                 cur.execute('''
-                    INSERT INTO assets (name, price, owner, branch, department, asset_code, qr_random_code, used_status, asset_type, asset_kind)
-                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    INSERT INTO assets (name, price, owner, branch, department, asset_code, qr_random_code, used_status, asset_type, asset_kind, shared_group_id)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                                 ''', (
                         archived_asset['name'], archived_asset['price'] if archived_asset['price'] is not None else 0.0, archived_asset['owner'],
                         archived_asset['branch'], archived_asset['department'], asset_code, qr_random_code,
                         archived_asset['used_status'], archived_asset['asset_type'],
                         archived_asset['asset_kind'] if archived_asset['asset_kind'] else ASSET_KIND_BRANCH,
+                        archived_asset['shared_group_id'] if 'shared_group_id' in archived_asset.keys() else None,
                     ))
             
             # Delete from archived_assets table

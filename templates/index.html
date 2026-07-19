@@ -626,7 +626,7 @@
             }
         }
     </style>
-    <link rel="stylesheet" href="{{ url_for('static', filename='app-dashboard.css') }}?v=10">
+    <link rel="stylesheet" href="{{ url_for('static', filename='app-dashboard.css') }}?v=11">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/chip-multi-select.css') }}">
 {% endblock %}
 {% block app_content %}
@@ -849,7 +849,19 @@
                     {% if asset.owner_email %}<br><small class="text-muted">{{ asset.owner_email }}</small>{% endif %}
                     {% endif %}
                 </td>
-                <td class="app-table-col-location">{{ asset.branch|fmt_location(asset.department) }}</td>
+                <td class="app-table-col-location">
+                    {% if asset.location_lines %}
+                    <div class="asset-location-chips">
+                        {% for line in asset.location_lines %}
+                        <span class="asset-location-chip" title="{{ line }}">{{ line }}</span>
+                        {% endfor %}
+                    </div>
+                    {% else %}
+                    <div class="asset-location-chips">
+                        <span class="asset-location-chip">{{ asset.branch|fmt_location(asset.department) }}</span>
+                    </div>
+                    {% endif %}
+                </td>
                 <td class="app-table-col-status">
                     <select class="form-select form-select-sm status-select" data-asset-id="{{ asset.id }}">
                         <option value="Used" {% if asset.used_status == 'Used' %}selected{% endif %}>Used</option>

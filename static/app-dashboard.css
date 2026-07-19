@@ -686,19 +686,45 @@
     text-align: center;
 }
 
-/* Branch/Department column — slightly narrower */
+/* Branch/Department column — chips for locations */
 .asset-dashboard .asset-register-card .app-table col.app-table-col-location {
-    width: 10rem;
+    width: 14rem;
 }
 
 .asset-dashboard .asset-register-card .app-table th.app-table-col-location,
 .asset-dashboard .asset-register-card .app-table td.app-table-col-location {
-    width: 10rem;
-    max-width: 10rem;
+    width: 14rem;
+    max-width: 18rem;
     white-space: normal;
     overflow-wrap: anywhere;
     box-sizing: border-box;
-    text-align: center;
+    text-align: left;
+    vertical-align: middle;
+}
+
+.asset-dashboard .asset-location-chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.35rem;
+    justify-content: flex-start;
+    align-items: center;
+}
+
+.asset-dashboard .asset-location-chip {
+    display: inline-flex;
+    align-items: center;
+    max-width: 100%;
+    padding: 0.2rem 0.55rem;
+    border-radius: 999px;
+    background: var(--gold-light, rgba(217, 189, 125, 0.28));
+    border: 1px solid var(--gold-pale, rgba(217, 189, 125, 0.55));
+    color: var(--gold-deeper, #5c4a28);
+    font-size: 0.75rem;
+    font-weight: 600;
+    line-height: 1.3;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
 }
 
 /* Total Value column — col width; max-width alone is ignored on table cells */

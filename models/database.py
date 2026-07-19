@@ -154,15 +154,25 @@ def _ensure_department_venue_indexes(cur):
 RESTAURANT_DEFAULT_DEPARTMENT_NAME = 'Restaurant'
 
 
-def format_asset_location_display(branch, department):
+def format_branch_with_code(branch_name, branch_code=None):
+    """Display label like ``ABC Branch Name`` when a branch code exists."""
+    name = (branch_name or '').strip()
+    code = (branch_code or '').strip()
+    if code and name:
+        return f'{code} {name}'
+    return name or code or '—'
+
+
+def format_asset_location_display(branch, department, branch_code=None):
     """Single location label for lists: hide Office/Restaurant venue placeholders."""
     branch = (branch or '').strip()
     department = (department or '').strip()
     if branch == OFFICE_BRANCH_LABEL:
         return department or '—'
+    label = format_branch_with_code(branch, branch_code)
     if not department or department == RESTAURANT_DEFAULT_DEPARTMENT_NAME:
-        return branch or '—'
-    return f'{branch} / {department}'
+        return label
+    return f'{label} / {department}'
 
 
 def ensure_restaurant_default_department_for_branch(cur, branch_id):
@@ -946,6 +956,8 @@ def _migrate_asset_kind_column(cur):
             ''',
             (ASSET_KIND_BRANCH,),
         )
+        if 'shared_group_id' not in columns:
+            cur.execute(f'ALTER TABLE {table} ADD COLUMN shared_group_id TEXT')
 
 
 def _migrate_drop_quantity_columns(cur):
@@ -1162,6 +1174,8 @@ def init_db():
         cur.execute(
             f'ALTER TABLE assets ADD COLUMN asset_kind TEXT DEFAULT \"{ASSET_KIND_BRANCH}\"'
         )
+    if 'shared_group_id' not in columns:
+        cur.execute('ALTER TABLE assets ADD COLUMN shared_group_id TEXT')
     
     # Create asset_types table (for_venue added via migration on legacy DBs)
     cur.execute('''
@@ -1205,6 +1219,7 @@ def init_db():
             used_status TEXT DEFAULT 'Not Used',
             asset_type TEXT,
             asset_kind TEXT DEFAULT 'branch',
+            shared_group_id TEXT,
             archived_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
             archived_by TEXT,
             archive_reason TEXT
