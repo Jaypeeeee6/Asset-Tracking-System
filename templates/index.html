@@ -1000,7 +1000,7 @@
                         <label class="form-check-label" for="assetVenueOffice">Office</label>
                     </div>
                 </div>
-                <div class="form-text"><i class="bi bi-info-circle" aria-hidden="true"></i> Restaurant: pick brand(s) and branch(es). Office: pick an office department only.</div>
+                <div class="form-text"><i class="bi bi-info-circle" aria-hidden="true"></i> Restaurant: pick branch(es) and area. Office: pick an office department only.</div>
             </div>
             <div class="mb-3" id="addAssetKindField">
                 {{ form_label('Asset Type', 'assetKindBranch', true) }}
@@ -1015,7 +1015,7 @@
                     </div>
                 </div>
                 <div class="form-text" id="addAssetKindHelp">
-                    <i class="bi bi-info-circle" aria-hidden="true"></i> Branch Asset is for one branch. Shared Asset can span multiple brands and branches.
+                    <i class="bi bi-info-circle" aria-hidden="true"></i> Branch Asset is for one branch. Shared Asset can span multiple branches.
                 </div>
             </div>
             <div class="mb-3">
@@ -1053,9 +1053,9 @@
                     <i class="bi bi-info-circle" aria-hidden="true"></i> Optional. Enter the price in Omani Rial (OMR).
                 </div>
             </div>
-            <div class="mb-3" id="addAssetBrandField">
+            <div class="mb-3 d-none" id="addAssetBrandField" aria-hidden="true">
                 <label for="add_asset_brand" class="form-label" id="addAssetBrandLabel">Brand</label>
-                <select class="form-select app-select-with-chevron" id="add_asset_brand" name="brand_id">
+                <select class="form-select app-select-with-chevron" id="add_asset_brand" name="brand_id" disabled>
                     <option value="">Select brand</option>
                 </select>
                 <div id="addAssetBrandChipWrap" class="chip-multi-select d-none" data-chip-multi-select data-placeholder="Search brands…">
@@ -1090,10 +1090,13 @@
                 </div>
             </div>
             <div class="mb-3" id="addAssetDepartmentField">
-                {{ form_label('Department', 'department', true) }}
-                <select class="form-select" id="department" name="department">
-                    <option value="">Select location first</option>
+                <label for="department" class="form-label" id="addAssetDepartmentLabel">Area <span class="app-required-mark" aria-hidden="true">*</span></label>
+                <select class="form-select" id="department" name="department" required>
+                    <option value="">Select area</option>
                 </select>
+                <div class="form-text d-none" id="addAssetAreaHelp">
+                    <i class="bi bi-info-circle" aria-hidden="true"></i> Where in the restaurant this asset belongs (Kitchen, Dining, Cashier, etc.).
+                </div>
             </div>
             <div class="mb-3">
                 <div class="form-check mb-2">
@@ -1208,9 +1211,9 @@
                     <i class="bi bi-info-circle" aria-hidden="true"></i> Enter the price in Omani Rial (OMR)
                 </div>
             </div>
-            <div class="mb-3" id="editAssetBrandField">
+            <div class="mb-3 d-none" id="editAssetBrandField" aria-hidden="true">
                 <label for="edit_asset_brand" class="form-label">Brand</label>
-                <select class="form-select app-select-with-chevron" id="edit_asset_brand" name="brand_id">
+                <select class="form-select app-select-with-chevron" id="edit_asset_brand" name="brand_id" disabled>
                     <option value="">Select brand</option>
                 </select>
             </div>
@@ -1221,9 +1224,9 @@
                 </select>
             </div>
             <div class="mb-3" id="editAssetDepartmentField">
-                <label for="edit_department" class="form-label">Department</label>
-                <select class="form-select" id="edit_department" name="department">
-                    <option value="">Select location first</option>
+                <label for="edit_department" class="form-label" id="editAssetDepartmentLabel">Area</label>
+                <select class="form-select" id="edit_department" name="department" required>
+                    <option value="">Select area</option>
                 </select>
             </div>
             <div class="mb-3">

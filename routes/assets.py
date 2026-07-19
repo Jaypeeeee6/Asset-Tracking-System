@@ -21,6 +21,8 @@ from models.database import (
     qr_layout_to_api_dict,
     upsert_qr_label_layout_updates,
     RESTAURANT_DEFAULT_DEPARTMENT_NAME,
+    RESTAURANT_AREA_OPTIONS,
+    ensure_restaurant_area_department_for_branch,
     OFFICE_BRANCH_LABEL,
     ASSET_KIND_SHARED,
     ASSET_KIND_BRANCH,
@@ -157,6 +159,18 @@ def _parse_brand_ids(raw_values):
     return brand_ids
 
 
+def _normalize_restaurant_area(raw_area):
+    """Return a valid restaurant area name, or None if missing/invalid."""
+    area = (raw_area or '').strip()
+    if not area:
+        return None
+    if area == RESTAURANT_DEFAULT_DEPARTMENT_NAME:
+        return area
+    allowed = {opt.casefold(): opt for opt in RESTAURANT_AREA_OPTIONS}
+    canonical = allowed.get(area.casefold())
+    return canonical
+
+
 def _validate_asset_venue_location(cur, venue, branch, department, brand_id=None, brand_ids=None):
     """Ensure branch/department match restaurant vs office rules."""
     v = (venue or 'restaurant').strip().lower()
@@ -172,28 +186,15 @@ def _validate_asset_venue_location(cur, venue, branch, department, brand_id=None
         if not cur.fetchone():
             return 'Select a valid office department.'
         return None
-    allowed_brand_ids = []
-    if brand_ids is not None:
-        allowed_brand_ids = _parse_brand_ids(brand_ids)
-    elif brand_id is not None:
-        allowed_brand_ids = _parse_brand_ids([brand_id])
-        if brand_id and not allowed_brand_ids:
-            return 'Select a brand.'
-    if not allowed_brand_ids:
-        return 'Select a brand.'
-    cur.execute('SELECT id, brand_id FROM branches WHERE name = ?', (branch,))
+    area = _normalize_restaurant_area(department)
+    if not area:
+        return 'Select a restaurant area (Kitchen, Dining, Cashier, etc.).'
+    cur.execute('SELECT id FROM branches WHERE name = ?', (branch,))
     row = cur.fetchone()
     if not row:
         return 'Select a valid restaurant branch.'
-    bid, b_brand = row[0], row[1]
-    if b_brand not in allowed_brand_ids:
-        return 'Branch does not match the selected brand(s).'
-    cur.execute(
-        'SELECT 1 FROM departments WHERE branch_id = ? AND name = ?',
-        (bid, department),
-    )
-    if not cur.fetchone():
-        return 'Restaurant location is not fully set up for this branch. Contact IT.'
+    bid = row[0]
+    ensure_restaurant_area_department_for_branch(cur, bid, area)
     return None
 
 
@@ -696,13 +697,11 @@ def add_asset():
     if venue == 'office':
         department = request.form.get('department', '')
         branch_names = [OFFICE_BRANCH_LABEL]
-        brand_ids = None
         # Office has no multi-branch concept; treat as branch asset.
         asset_kind = ASSET_KIND_BRANCH
     else:
-        department = RESTAURANT_DEFAULT_DEPARTMENT_NAME
+        department = _normalize_restaurant_area(request.form.get('department', '')) or ''
         if asset_kind == ASSET_KIND_SHARED:
-            brand_ids = _parse_brand_ids(request.form.getlist('brand_id'))
             branch_names = [
                 (b or '').strip()
                 for b in request.form.getlist('branch')
@@ -717,14 +716,16 @@ def add_asset():
                     unique_branches.append(b)
             branch_names = unique_branches
         else:
-            brand_raw = (request.form.get('brand_id') or '').strip()
-            brand_ids = _parse_brand_ids([brand_raw]) if brand_raw else []
             single_branch = (request.form.get('branch') or request.form.get('building') or '').strip()
             branch_names = [single_branch] if single_branch else []
 
     asset_names = [name.strip() for name in selected_asset_names.split(',') if name.strip()]
 
     if not asset_names:
+        return redirect(url_for('assets.dashboard'))
+
+    if venue == 'restaurant' and not department:
+        flash('Please select a restaurant area (Kitchen, Dining, Cashier, etc.).', 'error')
         return redirect(url_for('assets.dashboard'))
 
     if venue == 'restaurant' and not branch_names:
@@ -761,9 +762,7 @@ def add_asset():
             return redirect(url_for('assets.dashboard'))
 
     for branch in branch_names:
-        err = _validate_asset_venue_location(
-            cur, venue, branch, department, brand_ids=brand_ids if venue == 'restaurant' else None
-        )
+        err = _validate_asset_venue_location(cur, venue, branch, department)
         if err:
             conn.close()
             flash(err, 'error')
@@ -832,17 +831,11 @@ def update_asset(asset_id):
     owner = request.form.get('owner', '')
     branch = request.form.get('branch') or request.form.get('building')
     venue = (request.form.get('asset_venue') or 'restaurant').strip().lower()
-    brand_raw = (request.form.get('brand_id') or '').strip()
     if venue == 'office':
         department = request.form.get('department', '')
-        brand_key = None
         asset_kind = ASSET_KIND_BRANCH
     else:
-        department = request.form.get('department') or RESTAURANT_DEFAULT_DEPARTMENT_NAME
-        try:
-            brand_key = int(brand_raw)
-        except ValueError:
-            brand_key = None
+        department = _normalize_restaurant_area(request.form.get('department', '')) or ''
     price_raw = (request.form.get('price') or '').strip()
     try:
         price = float(price_raw) if price_raw else 0.0
@@ -860,7 +853,7 @@ def update_asset(asset_id):
     conn = get_db_connection()
     cur = conn.cursor()
 
-    err = _validate_asset_venue_location(cur, venue, branch, department, brand_id=brand_key)
+    err = _validate_asset_venue_location(cur, venue, branch, department)
     if err:
         conn.close()
         return jsonify({'error': err}), 400

@@ -150,8 +150,17 @@ def _ensure_department_venue_indexes(cur):
             pass
 
 
-# Canonical placeholder department for every restaurant branch (assets / owners without section splits).
+# Canonical placeholder department for every restaurant branch (owners / employees).
 RESTAURANT_DEFAULT_DEPARTMENT_NAME = 'Restaurant'
+
+# Within-restaurant areas selectable when adding/editing restaurant assets (stored as department name).
+RESTAURANT_AREA_OPTIONS = (
+    'Kitchen',
+    'Dining',
+    'Cashier',
+    'Storage',
+    'Outdoor',
+)
 
 
 def format_branch_with_code(branch_name, branch_code=None):
@@ -176,7 +185,7 @@ def format_asset_location_display(branch, department, branch_code=None):
 
 
 def ensure_restaurant_default_department_for_branch(cur, branch_id):
-    """Ensure branch has a default 'Restaurant' department row (used when users only pick brand + branch)."""
+    """Ensure branch has a default 'Restaurant' department row (used for employee/owner assignment)."""
     cur.execute(
         'SELECT 1 FROM departments WHERE branch_id = ? AND name = ?',
         (branch_id, RESTAURANT_DEFAULT_DEPARTMENT_NAME),
@@ -186,6 +195,26 @@ def ensure_restaurant_default_department_for_branch(cur, branch_id):
     cur.execute(
         'INSERT INTO departments (name, branch_id) VALUES (?, ?)',
         (RESTAURANT_DEFAULT_DEPARTMENT_NAME, branch_id),
+    )
+
+
+def ensure_restaurant_area_department_for_branch(cur, branch_id, area_name):
+    """Ensure branch has a department row for the given restaurant area (Kitchen, Dining, …)."""
+    area = (area_name or '').strip()
+    if not area:
+        return
+    ensure_restaurant_default_department_for_branch(cur, branch_id)
+    if area == RESTAURANT_DEFAULT_DEPARTMENT_NAME:
+        return
+    cur.execute(
+        'SELECT 1 FROM departments WHERE branch_id = ? AND name = ?',
+        (branch_id, area),
+    )
+    if cur.fetchone():
+        return
+    cur.execute(
+        'INSERT INTO departments (name, branch_id) VALUES (?, ?)',
+        (area, branch_id),
     )
 
 
