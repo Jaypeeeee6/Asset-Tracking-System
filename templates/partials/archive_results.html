@@ -1,0 +1,137 @@
+{% macro archive_page_href(p) -%}
+{{ url_for('assets.archive', page=p, search=search_query, sort_by=sort_by, sort_dir=sort_dir, per_page=per_page) }}
+{%- endmacro %}
+    <span id="archivedMatchingTotal" class="d-none" data-total="{{ total_archived }}"></span>
+
+    <div class="app-card mb-4 asset-register-card">
+        {% if archived_assets %}
+        <div style="overflow-x:auto;">
+            <table class="app-table" style="width:100%;min-width:1100px;">
+                <thead>
+                    <tr>
+                        <th><input type="checkbox" id="selectAllArchivedCheckbox" title="Select all"></th>
+                        <th>Asset details</th>
+                        <th>QR code</th>
+                        <th>Location</th>
+                        <th>Status</th>
+                        <th>Archive info</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for asset in archived_assets %}
+                    <tr class="archived-row">
+                        <td>
+                            <input type="checkbox" class="archived-asset-checkbox"
+                                   data-archived-id="{{ asset.id }}" data-archived-name="{{ asset.name }}">
+                        </td>
+                        <td>
+                            <strong>{{ asset.name }}</strong>
+                            <br><small class="text-muted" style="font-family:monospace;">{{ asset.asset_code or 'N/A' }}</small>
+                            <br><small class="text-muted">{{ asset.asset_type or 'N/A' }}{% if asset.asset_kind == 'shared' %} · Shared{% endif %}</small>
+                        </td>
+                        <td>
+                            {% if asset.asset_code %}
+                            <div class="qr-code-container">
+                                <img src="/assets/archived_qrcode/{{ asset.id }}"
+                                     alt="QR Code for {{ asset.name }}"
+                                     class="qr-code-img"
+                                     style="width:60px;height:60px;cursor:pointer;"
+                                     onclick="showQRModal('{{ asset.id }}', '{{ asset.asset_code }}', '{{ asset.name }}')"
+                                     title="Click to view larger QR code">
+                                <div class="qr-code-text">{{ asset.asset_code }}</div>
+                            </div>
+                            {% else %}
+                            <span class="text-muted">N/A</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <div class="archive-meta">
+                                <div><i class="bi bi-building me-1"></i>{{ asset.branch }}</div>
+                                <div><i class="bi bi-diagram-3 me-1"></i>{{ asset.department }}</div>
+                                <div><i class="bi bi-person me-1"></i>{{ asset.owner }}</div>
+                            </div>
+                        </td>
+                        <td>
+                            {% if asset.used_status == 'Used' %}
+                                <span class="badge bg-success">Used</span>
+                            {% elif asset.used_status == 'Not Used' %}
+                                <span class="badge bg-warning text-dark">Not Used</span>
+                            {% elif asset.used_status == 'Out of Service' %}
+                                <span class="badge bg-danger">Out of Service</span>
+                            {% else %}
+                                <span class="badge bg-secondary">{{ asset.used_status }}</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <div class="archive-meta">
+                                <div><i class="bi bi-person-badge me-1"></i>{{ asset.archived_by }}</div>
+                                <div><i class="bi bi-calendar3 me-1"></i>{{ asset.archived_at.split(' ')[0] if asset.archived_at else 'N/A' }}</div>
+                                <div class="archive-reason">{{ asset.archive_reason or 'No reason provided' }}</div>
+                            </div>
+                        </td>
+                        <td>
+                            <div class="archive-actions">
+                                <button type="button" class="btn btn-sm btn-app-tab restore-asset-btn"
+                                        data-archived-id="{{ asset.id }}"
+                                        data-archived-name="{{ asset.name }}"
+                                        title="Restore to dashboard">
+                                    <i class="bi bi-arrow-counterclockwise"></i> Restore
+                                </button>
+                                <button type="button" class="btn btn-danger btn-sm permanent-delete-btn"
+                                        data-archived-id="{{ asset.id }}"
+                                        data-archived-name="{{ asset.name }}"
+                                        title="Permanently delete">
+                                    <i class="bi bi-trash"></i> Delete
+                                </button>
+                            </div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        <div class="d-flex flex-wrap justify-content-between align-items-end gap-3 p-3 asset-register-pagination"
+             style="border-top:1px solid var(--card-border);">
+            <div class="d-flex flex-column gap-2 asset-register-pageinfo">
+                <span class="asset-register-showing" style="font-size:0.875rem;color:#7a869a;">
+                    Showing <strong style="color:#344054;font-weight:600;">{{ ((page-1)*per_page + 1 if total_archived else 0)|fmt_num }}</strong> to
+                    <strong style="color:#344054;font-weight:600;">{{ ([page*per_page, total_archived]|min)|fmt_num }}</strong> of
+                    <strong style="color:#344054;font-weight:600;">{{ total_archived|fmt_num }}</strong> archived
+                </span>
+            </div>
+            {% if total_pages > 1 %}
+            <nav class="app-page-nav" aria-label="Archive pagination">
+                {% if page > 1 %}
+                <a href="{{ archive_page_href(page - 1) }}" class="app-page-btn app-page-prev" title="Previous page"><i class="bi bi-chevron-left"></i></a>
+                {% endif %}
+                {% set start_page = [1, page - 2]|max %}
+                {% set end_page = [total_pages, page + 2]|min %}
+                {% if start_page > 1 %}
+                <a href="{{ archive_page_href(1) }}" class="app-page-btn{% if page == 1 %} is-active{% endif %}">1</a>
+                {% if start_page > 2 %}
+                <span class="app-page-ellipsis" aria-hidden="true">...</span>
+                {% endif %}
+                {% endif %}
+                {% for p in range(start_page, end_page + 1) %}
+                <a href="{{ archive_page_href(p) }}" class="app-page-btn{% if p == page %} is-active{% endif %}">{{ p }}</a>
+                {% endfor %}
+                {% if end_page < total_pages %}
+                {% if end_page < total_pages - 1 %}
+                <span class="app-page-ellipsis" aria-hidden="true">...</span>
+                {% endif %}
+                <a href="{{ archive_page_href(total_pages) }}" class="app-page-btn{% if page == total_pages %} is-active{% endif %}">{{ total_pages }}</a>
+                {% endif %}
+                {% if page < total_pages %}
+                <a href="{{ archive_page_href(page + 1) }}" class="app-page-btn app-page-next">Next <i class="bi bi-chevron-right"></i></a>
+                {% endif %}
+            </nav>
+            {% endif %}
+        </div>
+        {% else %}
+        <div class="empty-state">
+            <i class="bi bi-archive" aria-hidden="true"></i>
+            <p>No archived assets found.</p>
+        </div>
+        {% endif %}
+    </div>

@@ -212,6 +212,12 @@
     min-width: 200px;
 }
 
+.live-search-results.is-loading {
+    opacity: 0.55;
+    pointer-events: none;
+    transition: opacity 0.15s ease;
+}
+
 /* ----- Asset register card (app-card + horizontal scroll + footer bar) ----- */
 .asset-dashboard .asset-register-per-page {
     width: auto;

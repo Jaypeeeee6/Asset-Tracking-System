@@ -534,26 +534,34 @@ def dashboard():
 
     _attach_asset_location_displays(cur, assets)
     
+    partial_ctx = dict(
+        assets=assets,
+        page=page,
+        total_pages=total_pages,
+        total_assets=total_assets,
+        per_page=per_page,
+        sort_by=sort_by,
+        sort_dir=sort_dir,
+        branch_filter=branch_filter,
+        department_filter=department_filter,
+        search_query=search_query,
+        status_filter=status_filter,
+        asset_type_filter=asset_type_filter,
+    )
+
+    if request.args.get('partial') == '1':
+        conn.close()
+        return render_template('partials/asset_register_results.html', **partial_ctx)
+
     cur.execute('SELECT used_status, branch, department, price FROM assets')
     chart_data = _compute_chart_data_from_asset_rows(cur.fetchall())
     conn.close()
     
     return render_template('index.html', 
-                         assets=assets, 
-                         page=page, 
-                         total_pages=total_pages, 
-                         total_assets=total_assets,
-                         per_page=per_page,
-                         sort_by=sort_by, 
-                         sort_dir=sort_dir, 
                          branches=branches, 
                          departments=departments, 
-                         branch_filter=branch_filter, 
-                         department_filter=department_filter,
-                         search_query=search_query,
-                         status_filter=status_filter,
-                         asset_type_filter=asset_type_filter,
-                         chart_data=chart_data)
+                         chart_data=chart_data,
+                         **partial_ctx)
 
 
 def _register_filter_where_from_request():
@@ -1275,17 +1283,23 @@ def department_items(branch, department):
         assets = [dict(zip(columns, row)) for row in rows]
     else:
         assets = []
-    
-    return render_template('department_items.html', 
-                         assets=assets, 
-                         branch=branch, 
-                         department=department,
-                         page=page,
-                         total_pages=total_pages,
-                         total_assets=total_assets,
-                         per_page=per_page,
-                         search_query=search_query,
-                         total_department_value=total_department_value)
+
+    ctx = dict(
+        assets=assets,
+        branch=branch,
+        department=department,
+        page=page,
+        total_pages=total_pages,
+        total_assets=total_assets,
+        per_page=per_page,
+        search_query=search_query,
+        total_department_value=total_department_value,
+    )
+
+    if request.args.get('partial') == '1':
+        return render_template('partials/department_items_results.html', **ctx)
+
+    return render_template('department_items.html', **ctx)
 
 @assets_bp.route('/qrdata/<int:asset_id>')
 def qrdata(asset_id):
@@ -1478,16 +1492,22 @@ def archive():
     cur.execute(f'SELECT * FROM archived_assets {where_sql} ORDER BY {sort_by} {sort_dir} LIMIT ? OFFSET ?', params + [per_page, offset])
     archived_assets = [dict(zip([desc[0] for desc in cur.description], row)) for row in cur.fetchall()]
     conn.close()
-    
-    return render_template('archive.html', 
-                         archived_assets=archived_assets, 
-                         page=page, 
-                         total_pages=total_pages, 
-                         total_archived=total_archived,
-                         per_page=per_page,
-                         sort_by=sort_by, 
-                         sort_dir=sort_dir, 
-                         search_query=search_query)
+
+    ctx = dict(
+        archived_assets=archived_assets,
+        page=page,
+        total_pages=total_pages,
+        total_archived=total_archived,
+        per_page=per_page,
+        sort_by=sort_by,
+        sort_dir=sort_dir,
+        search_query=search_query,
+    )
+
+    if request.args.get('partial') == '1':
+        return render_template('partials/archive_results.html', **ctx)
+
+    return render_template('archive.html', **ctx)
 
 @assets_bp.route('/restore/<int:archived_id>', methods=['POST'])
 @login_required

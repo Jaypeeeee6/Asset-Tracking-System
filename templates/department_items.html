@@ -48,6 +48,12 @@
             font-size: 0.9em;
             display: inline-block;
         }
+
+        .live-search-results.is-loading {
+            opacity: 0.55;
+            pointer-events: none;
+            transition: opacity 0.15s ease;
+        }
     </style>
 {% endblock %}
 {% block app_content %}
@@ -56,173 +62,82 @@
     <h1 class="department-title">{{ department }}</h1>
     <div class="branch-subtitle">{{ branch }}</div>
     <div class="gold-divider"></div>
-    <div class="stats-info">
-        {% if total_assets > 0 %}
-            Showing {{ ((page-1)*per_page + 1)|fmt_num }} to {{ ([page*per_page, total_assets]|min)|fmt_num }} of {{ total_assets|fmt_num }} item{{ 's' if total_assets != 1 else '' }}
-        {% else %}
-            No items found
-        {% endif %}
-    </div>
-    {% if total_department_value > 0 %}
-    <div class="department-value-info">
-        <div class="value-badge">
-            <i class="fas fa-coins"></i>
-            <span class="value-text">Total Department Value: OMR {{ total_department_value|fmt_omr }}</span>
-        </div>
-    </div>
-    {% endif %}
 </div>
 
 <div class="search-section">
-    <form method="get" class="row g-2">
-        <div class="col-md-6">
+    <form method="get" id="departmentSearchForm" class="row g-2 align-items-center">
+        <div class="col-md-8 position-relative">
+            <i class="fas fa-search position-absolute" style="left: 1.1rem; top: 50%; transform: translateY(-50%); color: #888; pointer-events: none; z-index: 2;" aria-hidden="true"></i>
             <input type="text" class="form-control" name="search"
                    value="{{ search_query }}"
                    placeholder="Search items, owners, codes..."
-                   id="searchInput">
+                   id="searchInput"
+                   autocomplete="off"
+                   style="padding-left: 2.25rem;">
         </div>
-        <div class="col-md-3">
-            <select class="form-select" name="per_page" onchange="this.form.submit()">
+        <div class="col-md-4">
+            <select class="form-select" name="per_page" id="departmentPerPage">
                 <option value="5" {% if per_page == 5 %}selected{% endif %}>5 per page</option>
                 <option value="10" {% if per_page == 10 %}selected{% endif %}>10 per page</option>
                 <option value="20" {% if per_page == 20 %}selected{% endif %}>20 per page</option>
                 <option value="50" {% if per_page == 50 %}selected{% endif %}>All</option>
             </select>
         </div>
-        <div class="col-md-3">
-            <div class="d-grid gap-2">
-                <button type="submit" class="btn btn-primary">
-                    <i class="fas fa-search"></i> Search
-                </button>
-            </div>
-        </div>
         <input type="hidden" name="page" value="1">
     </form>
-    {% if search_query %}
-        <div class="mt-2">
-            <a href="?page=1" class="btn btn-secondary btn-sm">
-                <i class="fas fa-times"></i> Clear Search
-            </a>
-        </div>
-    {% endif %}
+    <div class="mt-2" id="departmentClearSearch" {% if not search_query %}style="display:none"{% endif %}>
+        <button type="button" class="btn btn-secondary btn-sm" id="departmentClearSearchBtn">
+            <i class="fas fa-times"></i> Clear Search
+        </button>
+    </div>
 </div>
 
-<div class="items-container">
-    {% if assets %}
-        {% for asset in assets %}
-        <div class="item-card">
-            <div class="item-name">{{ asset.name }}</div>
-            <div class="item-code">{{ asset.asset_code }}</div>
-            <div class="item-details">
-                <div class="item-detail-row">
-                    <span class="detail-label"><i class="fas fa-user"></i> Owner:</span>
-                    <span class="detail-value">{{ asset.owner }}</span>
-                </div>
-                <div class="item-detail-row">
-                    <span class="detail-label"><i class="fas fa-info-circle"></i> Status:</span>
-                    <span class="detail-value">
-                        <span class="status-badge {% if asset.used_status == 'Used' %}status-used{% elif asset.used_status == 'Not Used' %}status-not-used{% elif asset.used_status == 'Out of Service' %}status-out-of-service{% endif %}">
-                            {{ asset.used_status or 'Not Used' }}
-                        </span>
-                    </span>
-                </div>
-                <div class="item-detail-row">
-                    <span class="detail-label"><i class="fas fa-coins"></i> Price:</span>
-                    <span class="detail-value">
-                        <span class="price-badge">
-                            OMR {{ (asset.price or 0.0)|fmt_omr }}
-                        </span>
-                    </span>
-                </div>
-            </div>
-        </div>
-        {% endfor %}
-    {% else %}
-        <div class="no-items">
-            <i class="fas fa-inbox fa-3x mb-3" style="color: #555;"></i>
-            <div>
-                {% if search_query %}
-                    No items found matching "{{ search_query }}"
-                {% else %}
-                    No items found in this department
-                {% endif %}
-            </div>
-        </div>
-    {% endif %}
+<div id="departmentResults" class="live-search-results">
+{% include "partials/department_items_results.html" %}
 </div>
-
-{% if total_pages > 1 %}
-<div class="pagination-section">
-    <nav aria-label="Page navigation">
-        <ul class="pagination pagination-sm justify-content-center mb-3">
-            <li class="page-item {% if page == 1 %}disabled{% endif %}">
-                <a class="page-link" href="?page=1&search={{ search_query }}&per_page={{ per_page }}">
-                    <i class="fas fa-angle-double-left"></i>
-                </a>
-            </li>
-            <li class="page-item {% if page == 1 %}disabled{% endif %}">
-                <a class="page-link" href="?page={{ page - 1 if page > 1 else 1 }}&search={{ search_query }}&per_page={{ per_page }}">
-                    <i class="fas fa-angle-left"></i>
-                </a>
-            </li>
-
-            {% set start_page = [1, page - 1]|max %}
-            {% set end_page = [total_pages, page + 1]|min %}
-
-            {% for p in range(start_page, end_page + 1) %}
-                <li class="page-item {% if p == page %}active{% endif %}">
-                    <a class="page-link" href="?page={{ p }}&search={{ search_query }}&per_page={{ per_page }}">{{ p }}</a>
-                </li>
-            {% endfor %}
-
-            <li class="page-item {% if page == total_pages %}disabled{% endif %}">
-                <a class="page-link" href="?page={{ page + 1 if page < total_pages else total_pages }}&search={{ search_query }}&per_page={{ per_page }}">
-                    <i class="fas fa-angle-right"></i>
-                </a>
-            </li>
-            <li class="page-item {% if page == total_pages %}disabled{% endif %}">
-                <a class="page-link" href="?page={{ total_pages }}&search={{ search_query }}&per_page={{ per_page }}">
-                    <i class="fas fa-angle-double-right"></i>
-                </a>
-            </li>
-        </ul>
-
-        <div class="d-flex justify-content-center align-items-center">
-            <span class="me-2 text-muted small">Page:</span>
-            <input type="number" id="jumpToPage" class="form-control me-2" style="width: 60px; font-size: 0.9em;"
-                   min="1" max="{{ total_pages }}" value="{{ page }}"
-                   onkeypress="if(event.key==='Enter') jumpToPageMobile()">
-            <span class="text-muted small">of {{ total_pages }}</span>
-        </div>
-    </nav>
-</div>
-{% endif %}
 </div>
 {% endblock %}
 {% block extra_scripts %}
+    <script src="{{ url_for('static', filename='js/live-search.js') }}"></script>
     <script>
-        let searchTimeout;
-        document.getElementById('searchInput').addEventListener('input', function() {
-            clearTimeout(searchTimeout);
-            searchTimeout = setTimeout(() => {
-                if (this.value.length >= 2 || this.value.length === 0) {
-                    this.form.submit();
+        if (typeof bindLiveSearchForm === 'function') {
+            bindLiveSearchForm({
+                form: 'departmentSearchForm',
+                input: 'searchInput',
+                results: 'departmentResults',
+                selectIds: ['departmentPerPage'],
+                onUpdated: function () {
+                    var clearWrap = document.getElementById('departmentClearSearch');
+                    var input = document.getElementById('searchInput');
+                    if (clearWrap && input) {
+                        clearWrap.style.display = input.value.trim() ? '' : 'none';
+                    }
                 }
-            }, 600);
-        });
+            });
+        }
+
+        var clearBtn = document.getElementById('departmentClearSearchBtn');
+        if (clearBtn) {
+            clearBtn.addEventListener('click', function () {
+                var input = document.getElementById('searchInput');
+                if (input) {
+                    input.value = '';
+                    input.dispatchEvent(new Event('input', { bubbles: true }));
+                }
+            });
+        }
 
         function jumpToPageMobile() {
-            const pageInput = document.getElementById('jumpToPage');
-            const pageNumber = parseInt(pageInput.value);
-            const maxPages = parseInt(pageInput.getAttribute('max'));
-
+            var pageInput = document.getElementById('jumpToPage');
+            if (!pageInput || typeof window.liveSearchFetch !== 'function') return;
+            var pageNumber = parseInt(pageInput.value, 10);
+            var maxPages = parseInt(pageInput.getAttribute('max'), 10);
             if (pageNumber >= 1 && pageNumber <= maxPages) {
-                const currentUrl = new URL(window.location);
-                currentUrl.searchParams.set('page', pageNumber);
-                window.location.href = currentUrl.toString();
+                var url = new URL(window.location.href);
+                url.searchParams.set('page', pageNumber);
+                window.liveSearchFetch(url.toString());
             } else {
-                alert(`Please enter a page number between 1 and ${maxPages}`);
-                pageInput.value = parseInt('{{ page }}');
+                alert('Please enter a page number between 1 and ' + maxPages);
             }
         }
 

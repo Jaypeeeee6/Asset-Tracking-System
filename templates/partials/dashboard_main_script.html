@@ -646,6 +646,9 @@ function appDeleteConfirm(message, title) {
         const sorted = [...brandsData].sort((a, b) => a.name.localeCompare(b.name));
         if (sorted.length === 0) {
             tbody.innerHTML = '<tr><td colspan="3" class="text-center text-muted py-4">No brands yet. Add one above.</td></tr>';
+            if (typeof applySettingsTableSearch === 'function') {
+                applySettingsTableSearch('brandsList');
+            }
             return;
         }
         sorted.forEach((brand, i) => {
@@ -672,6 +675,9 @@ function appDeleteConfirm(message, title) {
         document.querySelectorAll('.delete-brand-btn').forEach(btn => {
             btn.addEventListener('click', handleDeleteBrand);
         });
+        if (typeof applySettingsTableSearch === 'function') {
+            applySettingsTableSearch('brandsList');
+        }
     }
 
     function loadBranches() {
@@ -1114,6 +1120,9 @@ function appDeleteConfirm(message, title) {
 
         if (filteredDepartments.length === 0) {
             departmentsList.innerHTML = '<tr><td colspan="4" class="text-center text-muted py-4">No departments found</td></tr>';
+            if (typeof applySettingsTableSearch === 'function') {
+                applySettingsTableSearch('departmentsList');
+            }
             return;
         }
 
@@ -1154,6 +1163,9 @@ function appDeleteConfirm(message, title) {
             btn.addEventListener('click', handleDeleteDepartment);
         });
         resetMgmtTableBulkUI('selectAllDepartmentsCheckbox', 'bulkDeleteDepartmentsBtn', 'departmentsList', 'department-row-checkbox');
+        if (typeof applySettingsTableSearch === 'function') {
+            applySettingsTableSearch('departmentsList');
+        }
     }
 
     // Update department QR codes list
@@ -1907,6 +1919,9 @@ function appDeleteConfirm(message, title) {
 
                 if (filteredAssetNames.length === 0) {
                     assetNamesList.innerHTML = '<tr><td colspan="7" class="text-center text-muted py-4">No asset names found</td></tr>';
+                    if (typeof applySettingsTableSearch === 'function') {
+                        applySettingsTableSearch('assetNamesList');
+                    }
                     return;
                 }
 
@@ -1962,6 +1977,9 @@ function appDeleteConfirm(message, title) {
                     btn.addEventListener('click', handleDeleteAssetName);
                 });
                 resetMgmtTableBulkUI('selectAllAssetNamesCheckbox', 'bulkDeleteAssetNamesBtn', 'assetNamesList', 'asset-name-row-checkbox');
+                if (typeof applySettingsTableSearch === 'function') {
+                    applySettingsTableSearch('assetNamesList');
+                }
             })
             .catch(error => {
                 console.error('Error loading asset names:', error);
@@ -3243,6 +3261,9 @@ function appDeleteConfirm(message, title) {
         if (!list.length) {
             usersList.innerHTML = '<tr><td colspan="9" class="text-center text-muted py-4">No employees found.</td></tr>';
             resetMgmtTableBulkUI('selectAllEmployeesRosterCheckbox', 'bulkDeleteEmployeesRosterBtn', 'userModalList', 'employee-roster-checkbox');
+            if (typeof applySettingsTableSearch === 'function') {
+                applySettingsTableSearch('userModalList');
+            }
             return;
         }
 
@@ -3278,6 +3299,9 @@ function appDeleteConfirm(message, title) {
             usersList.appendChild(tr);
         });
         resetMgmtTableBulkUI('selectAllEmployeesRosterCheckbox', 'bulkDeleteEmployeesRosterBtn', 'userModalList', 'employee-roster-checkbox');
+        if (typeof applySettingsTableSearch === 'function') {
+            applySettingsTableSearch('userModalList');
+        }
     }
 
     function applyEmployeeRosterFilters() {
@@ -4425,32 +4449,31 @@ function appDeleteConfirm(message, title) {
 // EVENT LISTENERS - STATUS UPDATES
 // ============================================================================
 
-    // Status change functionality
-    document.querySelectorAll('.status-select').forEach(function(select) {
-        select.addEventListener('change', function(e) {
-            const assetId = this.getAttribute('data-asset-id');
-            const newStatus = this.value;
-            
-            const formData = new FormData();
-            formData.append('used_status', newStatus);
-            
-            fetch(`/assets/update_status/${assetId}`, {
-                method: 'POST',
-                body: formData
-            })
-            .then(response => response.json())
-            .then(data => {
-                if (!data.success) {
-                    alert('Failed to update status.');
-                    // Revert the select value
-                    location.reload();
-                }
-            })
-            .catch(error => {
-                console.error('Error:', error);
+    // Status change (delegated so it survives live-search table refresh)
+    document.addEventListener('change', function(e) {
+        var select = e.target && e.target.closest ? e.target.closest('.status-select') : null;
+        if (!select) return;
+        const assetId = select.getAttribute('data-asset-id');
+        const newStatus = select.value;
+
+        const formData = new FormData();
+        formData.append('used_status', newStatus);
+
+        fetch(`/assets/update_status/${assetId}`, {
+            method: 'POST',
+            body: formData
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (!data.success) {
                 alert('Failed to update status.');
                 location.reload();
-            });
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('Failed to update status.');
+            location.reload();
         });
     });
 
@@ -4569,10 +4592,13 @@ function appDeleteConfirm(message, title) {
     updateBulkActionsBar();
     syncRegisterSelectAllVisual();
 
-    var selectAllCb = document.getElementById('selectAllCheckbox');
-    if (selectAllCb) {
-        selectAllCb.addEventListener('change', function () {
-            const isChecked = this.checked;
+    // Bulk selection (delegated so it survives live-search table refresh)
+    document.addEventListener('change', function (e) {
+        var target = e.target;
+        if (!target) return;
+
+        if (target.id === 'selectAllCheckbox') {
+            const isChecked = target.checked;
             if (!isChecked) {
                 selectedAssets = [];
                 persistAssetBulkSelection();
@@ -4581,7 +4607,7 @@ function appDeleteConfirm(message, title) {
                 syncRegisterSelectAllVisual();
                 return;
             }
-            const sac = this;
+            const sac = target;
             sac.disabled = true;
             fetchAllMatchingRegisterIds()
                 .then(function (assets) {
@@ -4599,28 +4625,27 @@ function appDeleteConfirm(message, title) {
                 .finally(function () {
                     sac.disabled = false;
                 });
-        });
+            return;
+        }
 
-        document.querySelectorAll('.asset-checkbox').forEach(function (checkbox) {
-            checkbox.addEventListener('change', function () {
-                const assetId = this.getAttribute('data-asset-id');
-                const assetName = this.getAttribute('data-asset-name');
-                const assetCode = this.getAttribute('data-asset-code') || '';
+        if (target.classList && target.classList.contains('asset-checkbox')) {
+            const assetId = target.getAttribute('data-asset-id');
+            const assetName = target.getAttribute('data-asset-name');
+            const assetCode = target.getAttribute('data-asset-code') || '';
 
-                if (this.checked) {
-                    if (!selectedAssets.some(function (a) { return String(a.id) === String(assetId); })) {
-                        selectedAssets.push({ id: assetId, name: assetName, code: assetCode });
-                    }
-                } else {
-                    selectedAssets = selectedAssets.filter(function (asset) { return String(asset.id) !== String(assetId); });
+            if (target.checked) {
+                if (!selectedAssets.some(function (a) { return String(a.id) === String(assetId); })) {
+                    selectedAssets.push({ id: assetId, name: assetName, code: assetCode });
                 }
+            } else {
+                selectedAssets = selectedAssets.filter(function (asset) { return String(asset.id) !== String(assetId); });
+            }
 
-                persistAssetBulkSelection();
-                syncRegisterSelectAllVisual();
-                updateBulkActionsBar();
-            });
-        });
-    }
+            persistAssetBulkSelection();
+            syncRegisterSelectAllVisual();
+            updateBulkActionsBar();
+        }
+    });
 
 // ============================================================================
 // EVENT LISTENERS - BULK ACTIONS
@@ -4860,32 +4885,24 @@ function appDeleteConfirm(message, title) {
 // EVENT LISTENERS - SEARCH & NAVIGATION
 // ============================================================================
 
-    // Search field: submit on Enter (no separate Search button)
-    document.getElementById('globalSearch').addEventListener('keydown', function(e) {
-        if (e.key === 'Enter') {
-            e.preventDefault();
-            document.getElementById('searchForm').submit();
-        }
-    });
-
-    // Dropdown filters: full page submit on change
-    ['branchFilter', 'departmentFilter', 'statusFilter', 'assetTypeFilter'].forEach(function(selectId) {
-        var sel = document.getElementById(selectId);
-        if (sel) {
-            sel.addEventListener('change', function() {
-                document.getElementById('searchForm').submit();
-            });
-        }
-    });
-
-    // Rows per page: updates URL query string
-    var perPageSel = document.getElementById('itemsPerPage');
-    if (perPageSel) {
-        perPageSel.addEventListener('change', function() {
-            var u = new URL(window.location.href);
-            u.searchParams.set('per_page', this.value);
-            u.searchParams.set('page', '1');
-            window.location.href = u.toString();
+    // Live search: refresh table only (no full page reload)
+    if (typeof bindLiveSearchForm === 'function') {
+        bindLiveSearchForm({
+            form: 'searchForm',
+            input: 'globalSearch',
+            results: 'assetRegisterResults',
+            selectIds: ['branchFilter', 'departmentFilter', 'statusFilter', 'assetTypeFilter'],
+            onUpdated: function () {
+                if (typeof applyAssetCheckboxDomFromSelection === 'function') {
+                    applyAssetCheckboxDomFromSelection();
+                }
+                if (typeof syncRegisterSelectAllVisual === 'function') {
+                    syncRegisterSelectAllVisual();
+                }
+                if (typeof updateBulkActionsBar === 'function') {
+                    updateBulkActionsBar();
+                }
+            }
         });
     }
 
