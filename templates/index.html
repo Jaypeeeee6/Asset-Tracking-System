@@ -894,8 +894,8 @@
                 </div>
             </div>
             <div class="mb-3" id="addAssetDepartmentField">
-                <label for="department" class="form-label" id="addAssetDepartmentLabel">Area <span class="app-required-mark" aria-hidden="true">*</span></label>
-                <select class="form-select" id="department" name="department" required>
+                <label for="department" class="form-label" id="addAssetDepartmentLabel">Area</label>
+                <select class="form-select" id="department" name="department">
                     <option value="">Select area</option>
                 </select>
                 <div class="form-text d-none" id="addAssetAreaHelp">
@@ -1032,10 +1032,22 @@
                 <select class="form-select" id="edit_branch" name="branch" required>
                     <option value="">Select Branch</option>
                 </select>
+            <div id="editAssetBranchChipWrap" class="chip-multi-select d-none" data-chip-multi-select data-placeholder="Search branches…">
+                <div class="chip-multi-select-chips" aria-live="polite"></div>
+                <div class="chip-multi-select-input-wrap">
+                    <input type="text" class="chip-multi-select-search form-control" placeholder="Search branches…" autocomplete="off" aria-label="Search branches">
+                    <svg class="chip-multi-select-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>
+                    <div class="chip-multi-select-dropdown" role="listbox"></div>
+                </div>
+                <select multiple class="chip-multi-select-source" id="edit_branch_multi" name="branch" disabled></select>
+            </div>
+            <div class="form-text d-none" id="editAssetBranchMultiHelp">
+                <i class="bi bi-info-circle" aria-hidden="true"></i> Search and select one or more branches covered by this shared asset.
+            </div>
             </div>
             <div class="mb-3" id="editAssetDepartmentField">
-                <label for="edit_department" class="form-label" id="editAssetDepartmentLabel">Area <span class="app-required-mark" aria-hidden="true">*</span></label>
-                <select class="form-select" id="edit_department" name="department" required>
+                <label for="edit_department" class="form-label" id="editAssetDepartmentLabel">Area</label>
+                <select class="form-select" id="edit_department" name="department">
                     <option value="">Select area</option>
                 </select>
                 <div class="form-text d-none" id="editAssetAreaHelp">
@@ -1081,6 +1093,143 @@
           </div>
         </div>
         <div class="modal-footer">{{ modal_cancel_button('Cancel') }}{{ add_button('Update Asset', button_type='submit', icon='bi bi-check-lg') }}</div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<!-- Hand-Over Asset Modal -->
+<div class="modal fade app-modal" id="handoverAssetModal" tabindex="-1" aria-labelledby="handoverAssetModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-lg app-modal-dialog-comfort">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="handoverAssetModalLabel"><i class="bi bi-arrow-left-right me-2" style="color:var(--gold);" aria-hidden="true"></i>Hand Over Asset</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <form id="handoverAssetForm" method="post">
+        <div class="modal-body" style="overflow-y: auto; max-height: 70vh;" id="handoverAssetModalBody">
+          <input type="hidden" name="asset_venue" id="handoverAssetVenueField" value="restaurant">
+          <div class="app-modal-tip mb-3" role="note">
+            <i class="bi bi-info-circle" aria-hidden="true"></i>
+            <strong>Handing over:</strong>
+            <span id="handoverAssetName"></span>
+            <span class="text-muted" id="handoverAssetCodeWrap"> · <code id="handoverAssetCode"></code></span>
+          </div>
+
+          <div class="handover-current-card mb-3" id="handoverCurrentOwnership" aria-live="polite">
+            <div class="handover-current-card-title">Current ownership</div>
+            <div class="handover-current-grid">
+              <div>
+                <span class="handover-current-label">Owner</span>
+                <span class="handover-current-value" id="handoverCurrentOwner">—</span>
+              </div>
+              <div>
+                <span class="handover-current-label">Branch</span>
+                <span class="handover-current-value" id="handoverCurrentBranch">—</span>
+              </div>
+              <div>
+                <span class="handover-current-label" id="handoverCurrentDepartmentLabel">Area</span>
+                <span class="handover-current-value" id="handoverCurrentDepartment">—</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="app-modal-tip mb-3 d-none" id="handoverSharedSplitTip" role="note">
+            <i class="bi bi-diagram-3" aria-hidden="true"></i>
+            <strong>Shared Asset split:</strong>
+            This record is part of a shared group covering
+            <span id="handoverSharedBranchesList"></span>.
+            Hand-over will peel <strong id="handoverSharedThisBranch"></strong> out as a
+            <strong>Branch Asset</strong> for the new owner. The other branches stay shared under the current owner.
+            If only one branch would remain, it is also converted to a Branch Asset automatically.
+          </div>
+
+          <div class="mb-3">
+            {{ form_label('Transfer to location', 'handoverAssetVenueRestaurant', true) }}
+            <div class="d-flex flex-wrap gap-3">
+              <div class="form-check">
+                <input class="form-check-input" type="radio" name="handover_asset_venue_ui" id="handoverAssetVenueRestaurant" value="restaurant" checked>
+                <label class="form-check-label" for="handoverAssetVenueRestaurant">Restaurant</label>
+              </div>
+              <div class="form-check">
+                <input class="form-check-input" type="radio" name="handover_asset_venue_ui" id="handoverAssetVenueOffice" value="office">
+                <label class="form-check-label" for="handoverAssetVenueOffice">Office</label>
+              </div>
+            </div>
+          </div>
+
+          <div class="mb-3 d-none" id="handoverSourceBranchField">
+            <label for="handover_source_branch" class="form-label" id="handoverSourceBranchLabel">Branch to hand over from <span class="app-required-mark" aria-hidden="true">*</span></label>
+            <input type="hidden" id="handover_source_branch" name="source_branch" value="">
+            <div id="handoverSourceBranchChipWrap" class="chip-multi-select" data-chip-multi-select data-placeholder="Select branch…">
+              <div class="chip-multi-select-chips" aria-live="polite"></div>
+              <div class="chip-multi-select-input-wrap">
+                <input type="text" class="chip-multi-select-search form-control" placeholder="Select branch…" autocomplete="off" aria-label="Select shared branch to hand over">
+                <svg class="chip-multi-select-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>
+                <div class="chip-multi-select-dropdown" role="listbox"></div>
+              </div>
+              <select multiple class="chip-multi-select-source" id="handover_source_branch_multi" disabled></select>
+            </div>
+            <div class="form-text">
+              <i class="bi bi-info-circle" aria-hidden="true"></i> Which branch in this shared group is being transferred out.
+            </div>
+          </div>
+
+          <div class="mb-3" id="handoverAssetBranchField">
+            <label for="handover_branch" class="form-label" id="handoverAssetBranchLabel">New branch <span class="app-required-mark" aria-hidden="true">*</span></label>
+            <select class="form-select d-none" id="handover_branch" name="branch" required disabled>
+              <option value="">Select Branch</option>
+            </select>
+            <div id="handoverAssetBranchChipWrap" class="chip-multi-select" data-chip-multi-select data-placeholder="Search branches…">
+              <div class="chip-multi-select-chips" aria-live="polite"></div>
+              <div class="chip-multi-select-input-wrap">
+                <input type="text" class="chip-multi-select-search form-control" placeholder="Search branches…" autocomplete="off" aria-label="Search destination branch">
+                <svg class="chip-multi-select-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>
+                <div class="chip-multi-select-dropdown" role="listbox"></div>
+              </div>
+              <select multiple class="chip-multi-select-source" id="handover_branch_multi" name="branch" disabled></select>
+            </div>
+            <div class="form-text" id="handoverAssetBranchMultiHelp">
+              <i class="bi bi-info-circle" aria-hidden="true"></i> Search and select the branch this asset will be handed over to.
+            </div>
+          </div>
+
+          <div class="mb-3" id="handoverAssetDepartmentField">
+            <label for="handover_department" class="form-label" id="handoverAssetDepartmentLabel">New area <span class="app-required-mark" aria-hidden="true">*</span></label>
+            <select class="form-select" id="handover_department" name="department" required>
+              <option value="">Select area</option>
+            </select>
+          </div>
+
+          <div class="mb-3">
+            <div class="form-check mb-2">
+              <input class="form-check-input" type="checkbox" id="handover_noOwnerCheck" name="no_owner">
+              <label class="form-check-label" for="handover_noOwnerCheck">
+                <i class="bi bi-person-x" aria-hidden="true"></i> No Owner Required
+              </label>
+            </div>
+            {{ form_label('New owner', 'handover_owner', true) }}
+            <select class="form-select" id="handover_owner" name="owner" required>
+              <option value="">Select branch or department first</option>
+            </select>
+          </div>
+
+          <div class="mb-3">
+            {{ form_label('Notes', 'handover_notes', false) }}
+            <textarea class="form-control" id="handover_notes" name="notes" rows="2" maxlength="500" placeholder="Optional reason or reference for this hand-over"></textarea>
+          </div>
+
+          <div class="handover-history-section">
+            <div class="handover-history-header">
+              <i class="bi bi-clock-history" aria-hidden="true"></i>
+              <strong>Hand-over history</strong>
+            </div>
+            <div id="handoverHistoryList" class="handover-history-list">
+              <div class="text-muted small py-2">Loading history…</div>
+            </div>
+          </div>
+        </div>
+        <div class="modal-footer">{{ modal_cancel_button('Cancel') }}{{ add_button('Confirm Hand-Over', button_type='submit', icon='bi bi-check-lg') }}</div>
       </form>
     </div>
   </div>

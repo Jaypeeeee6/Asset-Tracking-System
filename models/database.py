@@ -102,6 +102,119 @@ def generate_asset_code(branch, department, cur=None):
     return codes[0]
 
 
+# Shared assets use a branch-independent code (e.g. SHR-0001).
+SHARED_ASSET_CODE_PREFIX = 'SHR'
+
+
+def _highest_shared_asset_sequence(cur):
+    """Next sequence for SHR-#### codes across active + archived assets."""
+    highest = 0
+    like_pattern = f'{SHARED_ASSET_CODE_PREFIX}-%'
+    for table in ('assets', 'archived_assets'):
+        cur.execute(f'SELECT asset_code FROM {table} WHERE asset_code LIKE ?', (like_pattern,))
+        for row in cur.fetchall():
+            num = _sequence_from_asset_code(row[0], SHARED_ASSET_CODE_PREFIX)
+            if num is not None and num > highest:
+                highest = num
+    return highest
+
+
+def generate_shared_asset_code(cur=None):
+    """Return the next shared-asset code (SHR-0001, SHR-0002, …)."""
+    conn = None
+    if cur is None:
+        conn = get_db_connection()
+        cur = conn.cursor()
+    code = f'{SHARED_ASSET_CODE_PREFIX}-{_highest_shared_asset_sequence(cur) + 1:04d}'
+    if conn is not None:
+        conn.close()
+    return code
+
+
+def _migrate_shared_asset_codes(cur):
+    """Assign one SHR-#### code per shared group (unifies sibling rows)."""
+    if _migration_applied(cur, 'shared_asset_codes_v1'):
+        return
+
+    cur.execute(
+        '''
+        SELECT DISTINCT TRIM(shared_group_id) AS gid
+        FROM assets
+        WHERE asset_kind = ? AND shared_group_id IS NOT NULL AND TRIM(shared_group_id) != ''
+        ''',
+        (ASSET_KIND_SHARED,),
+    )
+    group_ids = [row[0] for row in cur.fetchall()]
+    for gid in group_ids:
+        cur.execute(
+            'SELECT id, asset_code FROM assets WHERE shared_group_id = ? ORDER BY id',
+            (gid,),
+        )
+        siblings = cur.fetchall()
+        if not siblings:
+            continue
+        unified = None
+        for row in siblings:
+            code = (row[1] or '').strip()
+            if code.upper().startswith(f'{SHARED_ASSET_CODE_PREFIX}-'.upper()):
+                unified = code
+                break
+        if not unified:
+            unified = generate_shared_asset_code(cur=cur)
+        cur.execute(
+            'UPDATE assets SET asset_code = ? WHERE shared_group_id = ?',
+            (unified, gid),
+        )
+
+    # Legacy shared rows without shared_group_id: group by name + type + owner.
+    cur.execute(
+        '''
+        SELECT DISTINCT name, IFNULL(asset_type, ''), IFNULL(owner, '')
+        FROM assets
+        WHERE asset_kind = ?
+          AND (shared_group_id IS NULL OR TRIM(shared_group_id) = '')
+        ''',
+        (ASSET_KIND_SHARED,),
+    )
+    for name, asset_type, owner in cur.fetchall():
+        cur.execute(
+            '''
+            SELECT id, asset_code FROM assets
+            WHERE asset_kind = ?
+              AND name = ?
+              AND IFNULL(asset_type, '') = ?
+              AND IFNULL(owner, '') = ?
+              AND (shared_group_id IS NULL OR TRIM(shared_group_id) = '')
+            ORDER BY id
+            ''',
+            (ASSET_KIND_SHARED, name, asset_type, owner),
+        )
+        siblings = cur.fetchall()
+        if len(siblings) <= 1:
+            continue
+        unified = None
+        for row in siblings:
+            code = (row[1] or '').strip()
+            if code.upper().startswith(f'{SHARED_ASSET_CODE_PREFIX}-'.upper()):
+                unified = code
+                break
+        if not unified:
+            unified = generate_shared_asset_code(cur=cur)
+        cur.execute(
+            '''
+            UPDATE assets SET asset_code = ?
+            WHERE asset_kind = ?
+              AND name = ?
+              AND IFNULL(asset_type, '') = ?
+              AND IFNULL(owner, '') = ?
+              AND (shared_group_id IS NULL OR TRIM(shared_group_id) = '')
+            ''',
+            (unified, ASSET_KIND_SHARED, name, asset_type, owner),
+        )
+
+    _mark_migration_applied(cur, 'shared_asset_codes_v1')
+
+
 def _migrate_departments_nullable_branch_id(cur):
     """Allow office-only departments (no branch). Rebuild table if branch_id was NOT NULL."""
     cur.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='departments'")
@@ -1262,6 +1375,50 @@ def init_db():
         cur.execute('ALTER TABLE archived_assets ADD COLUMN asset_date TEXT')
     _migrate_drop_quantity_columns(cur)
     _migrate_asset_kind_column(cur)
+
+    # Ownership / branch hand-over audit trail (keeps asset active; logs each transfer)
+    cur.execute(
+        '''
+        CREATE TABLE IF NOT EXISTS asset_ownership_history (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            asset_id INTEGER NOT NULL,
+            asset_code TEXT,
+            from_owner TEXT,
+            to_owner TEXT,
+            from_branch TEXT,
+            to_branch TEXT,
+            from_department TEXT,
+            to_department TEXT,
+            handed_over_by TEXT,
+            notes TEXT,
+            handed_over_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            split_from_shared INTEGER DEFAULT 0,
+            from_shared_branches TEXT,
+            shared_group_id TEXT,
+            FOREIGN KEY (asset_id) REFERENCES assets (id)
+        )
+        '''
+    )
+    cur.execute('PRAGMA table_info(asset_ownership_history)')
+    _hist_cols = [row[1] for row in cur.fetchall()]
+    if 'split_from_shared' not in _hist_cols:
+        cur.execute(
+            'ALTER TABLE asset_ownership_history '
+            'ADD COLUMN split_from_shared INTEGER DEFAULT 0'
+        )
+    if 'from_shared_branches' not in _hist_cols:
+        cur.execute(
+            'ALTER TABLE asset_ownership_history ADD COLUMN from_shared_branches TEXT'
+        )
+    if 'shared_group_id' not in _hist_cols:
+        cur.execute(
+            'ALTER TABLE asset_ownership_history ADD COLUMN shared_group_id TEXT'
+        )
+    cur.execute(
+        'CREATE INDEX IF NOT EXISTS idx_asset_ownership_history_asset_id '
+        'ON asset_ownership_history (asset_id)'
+    )
+    _migrate_shared_asset_codes(cur)
     
     # No default business data is seeded on startup. Asset types, names, branches, etc.
     # are managed through the UI. Login: only the first Super Admin when users_auth is empty

@@ -656,10 +656,17 @@
 .asset-dashboard .asset-register-card .app-table col.app-table-col-actions,
 .asset-dashboard .asset-register-card .app-table th.app-table-col-actions,
 .asset-dashboard .asset-register-card .app-table td.app-table-col-actions {
-    width: 4.75rem;
-    max-width: 4.75rem;
+    width: 6.5rem;
+    max-width: 6.5rem;
     white-space: normal;
     overflow-wrap: anywhere;
+}
+
+.asset-dashboard .app-table-actions {
+    display: inline-flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.35rem;
 }
 
 @media (max-width: 991.98px) {

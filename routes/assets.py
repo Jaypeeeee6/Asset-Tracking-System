@@ -15,6 +15,8 @@ import base64
 from models.database import (
     get_db_connection,
     generate_asset_code,
+    generate_shared_asset_code,
+    SHARED_ASSET_CODE_PREFIX,
     allocate_asset_codes,
     normalize_department_display_code,
     get_qr_label_layout_dict,
@@ -86,6 +88,163 @@ def _branch_code_map(cur):
         row[0]: (str(row[1]).strip() if row[1] else '')
         for row in cur.fetchall()
     }
+
+
+# Dashboard: one register row per shared group (not one row per branch).
+_ASSET_DISPLAY_KEY_SQL = """
+CASE
+    WHEN COALESCE(asset_kind, 'branch') = 'shared'
+         AND COALESCE(TRIM(shared_group_id), '') != ''
+        THEN 'sg:' || TRIM(shared_group_id)
+    WHEN COALESCE(asset_kind, 'branch') = 'shared'
+        THEN 'lg:' || name || '|' || COALESCE(asset_type, '') || '|' || COALESCE(owner, '')
+    ELSE 'id:' || CAST(id AS TEXT)
+END
+"""
+
+
+def _append_dashboard_branch_filter(where_clauses, params, branch_filter):
+    """Include shared groups when any sibling branch matches the filter."""
+    where_clauses.append(
+        f'''(
+            branch = ?
+            OR (
+                COALESCE(asset_kind, 'branch') = ?
+                AND COALESCE(TRIM(shared_group_id), '') != ''
+                AND shared_group_id IN (
+                    SELECT shared_group_id FROM assets
+                    WHERE branch = ?
+                      AND COALESCE(asset_kind, 'branch') = ?
+                      AND COALESCE(TRIM(shared_group_id), '') != ''
+                )
+            )
+            OR (
+                COALESCE(asset_kind, 'branch') = ?
+                AND (shared_group_id IS NULL OR TRIM(shared_group_id) = '')
+                AND EXISTS (
+                    SELECT 1 FROM assets s
+                    WHERE COALESCE(s.asset_kind, 'branch') = ?
+                      AND (s.shared_group_id IS NULL OR TRIM(s.shared_group_id) = '')
+                      AND s.name = assets.name
+                      AND IFNULL(s.asset_type, '') = IFNULL(assets.asset_type, '')
+                      AND IFNULL(s.owner, '') = IFNULL(assets.owner, '')
+                      AND s.branch = ?
+                )
+            )
+        )'''
+    )
+    params.extend([
+        branch_filter,
+        ASSET_KIND_SHARED, branch_filter, ASSET_KIND_SHARED,
+        ASSET_KIND_SHARED, ASSET_KIND_SHARED, branch_filter,
+    ])
+
+
+def _count_dashboard_assets(cur, where_sql, params):
+    cur.execute(
+        f'''
+        SELECT COUNT(*) FROM (
+            SELECT {_ASSET_DISPLAY_KEY_SQL} AS display_key
+            FROM assets
+            {where_sql}
+            GROUP BY display_key
+        )
+        ''',
+        params,
+    )
+    return cur.fetchone()[0]
+
+
+def _fetch_dashboard_assets(cur, where_sql, params, sort_by, sort_dir, limit, offset):
+    cur.execute(
+        f'''
+        SELECT * FROM assets
+        WHERE id IN (
+            SELECT MIN(id)
+            FROM assets
+            {where_sql}
+            GROUP BY {_ASSET_DISPLAY_KEY_SQL}
+        )
+        ORDER BY {sort_by} {sort_dir}
+        LIMIT ? OFFSET ?
+        ''',
+        params + [limit, offset],
+    )
+    columns = [desc[0] for desc in cur.description]
+    return [dict(zip(columns, row)) for row in cur.fetchall()]
+
+
+def _expand_shared_group_asset_ids(cur, asset_ids):
+    """When acting on a shared asset row, include all sibling branch rows."""
+    expanded = set()
+    for raw_id in asset_ids:
+        try:
+            asset_id = int(raw_id)
+        except (TypeError, ValueError):
+            continue
+        cur.execute(
+            '''
+            SELECT id, asset_kind, shared_group_id, name, asset_type, owner
+            FROM assets WHERE id = ?
+            ''',
+            (asset_id,),
+        )
+        row = cur.fetchone()
+        if not row:
+            continue
+        expanded.add(row['id'])
+        if (row['asset_kind'] or ASSET_KIND_BRANCH) != ASSET_KIND_SHARED:
+            continue
+        gid = (row['shared_group_id'] or '').strip()
+        if gid:
+            cur.execute('SELECT id FROM assets WHERE shared_group_id = ?', (gid,))
+            for sibling in cur.fetchall():
+                expanded.add(sibling[0])
+        else:
+            cur.execute(
+                '''
+                SELECT id FROM assets
+                WHERE asset_kind = ?
+                  AND name = ?
+                  AND IFNULL(asset_type, '') = IFNULL(?, '')
+                  AND IFNULL(owner, '') = IFNULL(?, '')
+                  AND (shared_group_id IS NULL OR TRIM(shared_group_id) = '')
+                ''',
+                (ASSET_KIND_SHARED, row['name'], row['asset_type'], row['owner']),
+            )
+            for sibling in cur.fetchall():
+                expanded.add(sibling[0])
+    return list(expanded)
+
+
+def _sync_shared_group_status(cur, asset_id, used_status):
+    """Apply status changes to every row in a shared asset group."""
+    cur.execute(
+        'SELECT asset_kind, shared_group_id, name, asset_type, owner FROM assets WHERE id = ?',
+        (asset_id,),
+    )
+    row = cur.fetchone()
+    if not row or (row['asset_kind'] or ASSET_KIND_BRANCH) != ASSET_KIND_SHARED:
+        cur.execute('UPDATE assets SET used_status = ? WHERE id = ?', (used_status, asset_id))
+        return
+    gid = (row['shared_group_id'] or '').strip()
+    if gid:
+        cur.execute(
+            'UPDATE assets SET used_status = ? WHERE shared_group_id = ?',
+            (used_status, gid),
+        )
+        return
+    cur.execute(
+        '''
+        UPDATE assets SET used_status = ?
+        WHERE asset_kind = ?
+          AND name = ?
+          AND IFNULL(asset_type, '') = IFNULL(?, '')
+          AND IFNULL(owner, '') = IFNULL(?, '')
+          AND (shared_group_id IS NULL OR TRIM(shared_group_id) = '')
+        ''',
+        (used_status, ASSET_KIND_SHARED, row['name'], row['asset_type'], row['owner']),
+    )
 
 
 def _attach_asset_location_displays(cur, assets):
@@ -199,18 +358,18 @@ def _validate_asset_venue_location(cur, venue, branch, department, brand_id=None
             return 'Select a valid office department.'
         return None
     area = _normalize_restaurant_area(department)
-    if not area:
-        return 'Select a restaurant area (Kitchen, Dining, Cashier, etc.).'
     cur.execute('SELECT id FROM branches WHERE name = ?', (branch,))
     row = cur.fetchone()
     if not row:
         return 'Select a valid restaurant branch.'
+    if not area:
+        return None
     bid = row[0]
     ensure_restaurant_area_department_for_branch(cur, bid, area)
     return None
 
 
-def _upsert_asset_row(cur, asset_name, price, owner, branch, department, used_status, asset_type, asset_kind, shared_group_id=None, asset_date=None):
+def _upsert_asset_row(cur, asset_name, price, owner, branch, department, used_status, asset_type, asset_kind, shared_group_id=None, asset_date=None, asset_code=None):
     """Insert or update one asset row; return asset id."""
     cur.execute(
         'SELECT id, asset_code, qr_random_code FROM assets WHERE name=? AND branch=? AND department=?',
@@ -218,12 +377,22 @@ def _upsert_asset_row(cur, asset_name, price, owner, branch, department, used_st
     )
     row = cur.fetchone()
     if row:
-        cur.execute(
-            'UPDATE assets SET used_status=?, asset_type=?, asset_kind=?, shared_group_id=?, owner=?, price=? WHERE id=?',
-            (used_status, asset_type, asset_kind, shared_group_id, owner, price, row[0]),
-        )
+        if asset_code:
+            cur.execute(
+                'UPDATE assets SET used_status=?, asset_type=?, asset_kind=?, shared_group_id=?, owner=?, price=?, asset_code=? WHERE id=?',
+                (used_status, asset_type, asset_kind, shared_group_id, owner, price, asset_code, row[0]),
+            )
+        else:
+            cur.execute(
+                'UPDATE assets SET used_status=?, asset_type=?, asset_kind=?, shared_group_id=?, owner=?, price=? WHERE id=?',
+                (used_status, asset_type, asset_kind, shared_group_id, owner, price, row[0]),
+            )
         return row[0]
-    asset_code = generate_asset_code(branch, department, cur=cur)
+    if asset_code is None:
+        if asset_kind == ASSET_KIND_SHARED and branch != OFFICE_BRANCH_LABEL:
+            asset_code = generate_shared_asset_code(cur=cur)
+        else:
+            asset_code = generate_asset_code(branch, department, cur=cur)
     qr_random_code = str(uuid.uuid4())
     date_value = (asset_date or '').strip() or datetime.date.today().isoformat()
     cur.execute(
@@ -469,8 +638,7 @@ def dashboard():
     params = []
     
     if branch_filter:
-        where_clauses.append('branch = ?')
-        params.append(branch_filter)
+        _append_dashboard_branch_filter(where_clauses, params, branch_filter)
     if department_filter:
         where_clauses.append('department = ?')
         params.append(department_filter)
@@ -499,14 +667,12 @@ def dashboard():
         sort_by = 'id'
     sort_dir = 'desc' if sort_dir == 'desc' else 'asc'
     
-    # Get total count
-    cur.execute(f'SELECT COUNT(*) FROM assets {where_sql}', params)
-    total_assets = cur.fetchone()[0]
+    # Get total count (one row per shared group, not per branch)
+    total_assets = _count_dashboard_assets(cur, where_sql, params)
     total_pages = (total_assets + per_page - 1) // per_page
     
-    # Get paginated results
-    cur.execute(f'SELECT * FROM assets {where_sql} ORDER BY {sort_by} {sort_dir} LIMIT ? OFFSET ?', params + [per_page, offset])
-    assets = [dict(zip([desc[0] for desc in cur.description], row)) for row in cur.fetchall()]
+    # Get paginated results (representative row per shared group)
+    assets = _fetch_dashboard_assets(cur, where_sql, params, sort_by, sort_dir, per_page, offset)
 
     cur.execute('''
         SELECT u.name, d.name as department, u.mobile, u.email
@@ -553,7 +719,14 @@ def dashboard():
         conn.close()
         return render_template('partials/asset_register_results.html', **partial_ctx)
 
-    cur.execute('SELECT used_status, branch, department, price FROM assets')
+    cur.execute(
+        f'''
+        SELECT used_status, branch, department, price FROM assets
+        WHERE id IN (
+            SELECT MIN(id) FROM assets GROUP BY {_ASSET_DISPLAY_KEY_SQL}
+        )
+        '''
+    )
     chart_data = _compute_chart_data_from_asset_rows(cur.fetchall())
     conn.close()
     
@@ -746,10 +919,6 @@ def add_asset():
     if not asset_names:
         return redirect(url_for('assets.dashboard'))
 
-    if venue == 'restaurant' and not department:
-        flash('Please select a restaurant area (Kitchen, Dining, Cashier, etc.).', 'error')
-        return redirect(url_for('assets.dashboard'))
-
     if venue == 'restaurant' and not branch_names:
         flash('Please select at least one branch.', 'error')
         return redirect(url_for('assets.dashboard'))
@@ -792,6 +961,11 @@ def add_asset():
 
     created_asset_ids = []
     shared_group_id = str(uuid.uuid4()) if asset_kind == ASSET_KIND_SHARED and venue == 'restaurant' else None
+    shared_asset_code = (
+        generate_shared_asset_code(cur=cur)
+        if asset_kind == ASSET_KIND_SHARED and venue == 'restaurant'
+        else None
+    )
 
     for branch in branch_names:
         for asset_name in asset_names:
@@ -799,6 +973,7 @@ def add_asset():
                 cur, asset_name, price, owner, branch, department, used_status, asset_type, asset_kind,
                 shared_group_id=shared_group_id,
                 asset_date=asset_date,
+                asset_code=shared_asset_code,
             )
             created_asset_ids.append(asset_id)
             _save_spec_values_for_asset(cur, asset_id, asset_name, asset_type, spec_values_by_name)
@@ -845,6 +1020,94 @@ def get_asset_spec_values(asset_id):
     conn.close()
     return jsonify({'values': values, 'inclusion_ids': inclusion_ids})
 
+
+def _update_shared_asset_group(
+    cur,
+    asset_id,
+    name,
+    asset_type,
+    asset_kind,
+    price,
+    owner,
+    department,
+    used_status,
+    branch_names,
+    spec_values,
+    inclusion_ids,
+):
+    """Create/update/delete sibling rows when editing a shared asset's branches."""
+    cur.execute(
+        '''
+        SELECT id, name, owner, branch, department, asset_code, asset_kind,
+               shared_group_id, asset_date
+        FROM assets WHERE id = ?
+        ''',
+        (asset_id,),
+    )
+    anchor = cur.fetchone()
+    if not anchor:
+        return None, 'Asset not found'
+
+    siblings = _get_shared_sibling_rows(cur, anchor)
+    shared_group_id = (anchor['shared_group_id'] or '').strip()
+    if not shared_group_id:
+        shared_group_id = str(uuid.uuid4())
+        for sibling in siblings:
+            cur.execute(
+                'UPDATE assets SET shared_group_id = ? WHERE id = ?',
+                (shared_group_id, sibling['id']),
+            )
+
+    shared_asset_code = anchor['asset_code']
+    if not shared_asset_code and siblings:
+        shared_asset_code = siblings[0].get('asset_code') or generate_shared_asset_code(cur=cur)
+
+    asset_date = anchor['asset_date'] if 'asset_date' in anchor.keys() else None
+    existing_by_branch = {
+        (s.get('branch') or ''): s for s in siblings if s.get('branch')
+    }
+    selected_set = set(branch_names)
+
+    removed_ids = [
+        s['id'] for branch, s in existing_by_branch.items()
+        if branch not in selected_set
+    ]
+    if removed_ids:
+        delete_all_documents_for_assets(cur, removed_ids)
+        placeholders = ','.join('?' * len(removed_ids))
+        cur.execute(f'DELETE FROM assets WHERE id IN ({placeholders})', removed_ids)
+
+    updated_ids = []
+    for branch in branch_names:
+        if branch in existing_by_branch and branch in selected_set:
+            row_id = existing_by_branch[branch]['id']
+            cur.execute(
+                '''
+                UPDATE assets
+                SET name=?, asset_type=?, asset_kind=?, price=?, owner=?,
+                    department=?, used_status=?, shared_group_id=?, asset_code=?
+                WHERE id=?
+                ''',
+                (
+                    name, asset_type, asset_kind, price, owner, department,
+                    used_status, shared_group_id, shared_asset_code, row_id,
+                ),
+            )
+        else:
+            row_id = _upsert_asset_row(
+                cur, name, price, owner, branch, department, used_status,
+                asset_type, asset_kind,
+                shared_group_id=shared_group_id,
+                asset_date=asset_date,
+                asset_code=shared_asset_code,
+            )
+        _save_spec_values_for_single_asset(cur, row_id, name, asset_type, spec_values)
+        _save_inclusion_values_for_single_asset(cur, row_id, name, asset_type, inclusion_ids)
+        updated_ids.append(row_id)
+
+    return updated_ids, None
+
+
 @assets_bp.route('/update/<int:asset_id>', methods=['POST'])
 @login_required
 def update_asset(asset_id):
@@ -870,16 +1133,43 @@ def update_asset(asset_id):
     if no_owner:
         owner = 'No Owner'
 
-    if venue == 'office':
+    branch_names = []
+    if venue == 'restaurant' and asset_kind == ASSET_KIND_SHARED:
+        branch_names = [
+            (b or '').strip()
+            for b in request.form.getlist('branch')
+            if (b or '').strip()
+        ]
+        seen_branches = set()
+        unique_branches = []
+        for b in branch_names:
+            if b not in seen_branches:
+                seen_branches.add(b)
+                unique_branches.append(b)
+        branch_names = unique_branches
+        branch = branch_names[0] if branch_names else ''
+    elif venue == 'office':
         branch = OFFICE_BRANCH_LABEL
+    else:
+        branch = (request.form.get('branch') or request.form.get('building') or '').strip()
     
     conn = get_db_connection()
     cur = conn.cursor()
 
-    err = _validate_asset_venue_location(cur, venue, branch, department)
-    if err:
-        conn.close()
-        return jsonify({'error': err}), 400
+    if venue == 'restaurant' and asset_kind == ASSET_KIND_SHARED:
+        if not branch_names:
+            conn.close()
+            return jsonify({'error': 'Shared assets require at least one branch.'}), 400
+        for branch_name in branch_names:
+            err = _validate_asset_venue_location(cur, venue, branch_name, department)
+            if err:
+                conn.close()
+                return jsonify({'error': err}), 400
+    else:
+        err = _validate_asset_venue_location(cur, venue, branch, department)
+        if err:
+            conn.close()
+            return jsonify({'error': err}), 400
 
     if asset_type:
         cur.execute('SELECT for_venue FROM asset_types WHERE name = ?', (asset_type,))
@@ -906,8 +1196,38 @@ def update_asset(asset_id):
         return jsonify({'error': 'Invalid asset inclusion data.'}), 400
     
     try:
+        if venue == 'restaurant' and asset_kind == ASSET_KIND_SHARED:
+            updated_ids, sync_err = _update_shared_asset_group(
+                cur, asset_id, name, asset_type, asset_kind, price, owner,
+                department, used_status, branch_names, spec_values, inclusion_ids,
+            )
+            if sync_err:
+                conn.close()
+                return jsonify({'error': sync_err}), 404
+
+            uploaded_files = request.files.getlist('supporting_documents')
+            if uploaded_files and updated_ids:
+                unique_ids = list(dict.fromkeys(updated_ids))
+                _, doc_err = save_uploaded_files_for_assets(cur, unique_ids, uploaded_files)
+                if doc_err:
+                    conn.rollback()
+                    conn.close()
+                    return jsonify({'error': doc_err}), 400
+
+            conn.commit()
+            conn.close()
+            return jsonify({
+                'success': True,
+                'asset_code_changed': False,
+                'old_asset_code': None,
+                'new_asset_code': None,
+            })
+
         # Get current asset data to check if branch or department changed
-        cur.execute('SELECT branch, department, asset_code FROM assets WHERE id=?', (asset_id,))
+        cur.execute(
+            'SELECT branch, department, asset_code, shared_group_id FROM assets WHERE id=?',
+            (asset_id,),
+        )
         current_asset = cur.fetchone()
         
         if not current_asset:
@@ -917,6 +1237,11 @@ def update_asset(asset_id):
         current_branch = current_asset['branch']
         current_department = current_asset['department']
         current_asset_code = current_asset['asset_code']
+        current_shared_group_id = (
+            (current_asset['shared_group_id'] or '').strip()
+            if 'shared_group_id' in current_asset.keys()
+            else ''
+        )
         
         # Check if branch or department has changed
         branch_changed = current_branch != branch
@@ -927,13 +1252,21 @@ def update_asset(asset_id):
         if branch_changed or department_changed:
             new_asset_code = generate_asset_code(branch, department, cur=cur)
             print(f"Asset code updated: {current_asset_code} -> {new_asset_code}")
+
+        # Branch assets must not remain linked to a shared group
+        if asset_kind == ASSET_KIND_BRANCH:
+            next_shared_group_id = None
+        elif asset_kind == ASSET_KIND_SHARED:
+            next_shared_group_id = current_shared_group_id or None
+        else:
+            next_shared_group_id = current_shared_group_id or None
         
         # Update the asset with new asset code if needed
         cur.execute('''
             UPDATE assets 
-            SET name=?, asset_type=?, asset_kind=?, price=?, owner=?, branch=?, department=?, used_status=?, asset_code=?
+            SET name=?, asset_type=?, asset_kind=?, price=?, owner=?, branch=?, department=?, used_status=?, asset_code=?, shared_group_id=?
             WHERE id=?
-        ''', (name, asset_type, asset_kind, price, owner, branch, department, used_status, new_asset_code, asset_id))
+        ''', (name, asset_type, asset_kind, price, owner, branch, department, used_status, new_asset_code, next_shared_group_id, asset_id))
 
         _save_spec_values_for_single_asset(cur, asset_id, name, asset_type, spec_values)
         _save_inclusion_values_for_single_asset(cur, asset_id, name, asset_type, inclusion_ids)
@@ -945,6 +1278,14 @@ def update_asset(asset_id):
                 conn.rollback()
                 conn.close()
                 return jsonify({'error': doc_err}), 400
+
+        # If this row left a shared group, convert a lone remaining sibling to Branch Asset
+        if (
+            asset_kind == ASSET_KIND_BRANCH
+            and current_shared_group_id
+            and next_shared_group_id is None
+        ):
+            _finalize_lone_shared_sibling(cur, current_shared_group_id, current_user.display_name)
         
         conn.commit()
         conn.close()
@@ -959,6 +1300,502 @@ def update_asset(asset_id):
         conn.rollback()
         conn.close()
         return jsonify({'error': str(e)}), 500
+
+
+def _list_shared_group_branches(cur, shared_group_id):
+    """Return sorted unique branch names in a shared group."""
+    gid = (shared_group_id or '').strip()
+    if not gid:
+        return []
+    cur.execute(
+        '''
+        SELECT DISTINCT branch FROM assets
+        WHERE shared_group_id = ?
+        ORDER BY branch COLLATE NOCASE
+        ''',
+        (gid,),
+    )
+    return [row[0] for row in cur.fetchall() if row[0]]
+
+
+def _shared_group_identity(cur, asset):
+    """Return (name, asset_type, owner) for shared-group sibling lookups."""
+    if not asset:
+        return '', '', ''
+    keys = asset.keys()
+    asset_id = asset['id'] if 'id' in keys else None
+    name = (asset['name'] if 'name' in keys else '') or ''
+    asset_type = asset['asset_type'] if 'asset_type' in keys else None
+    owner = (asset['owner'] if 'owner' in keys else '') or ''
+
+    if asset_type is None and asset_id:
+        cur.execute(
+            'SELECT name, asset_type, owner FROM assets WHERE id = ?',
+            (asset_id,),
+        )
+        row = cur.fetchone()
+        if row:
+            if not name:
+                name = row['name'] or ''
+            asset_type = row['asset_type']
+            if not owner:
+                owner = row['owner'] or ''
+
+    return name, asset_type or '', owner
+
+
+def _get_shared_branches_for_asset(cur, asset):
+    """All branch names assigned to a shared asset (group id or legacy fallback)."""
+    if not asset:
+        return []
+    kind = (asset['asset_kind'] if 'asset_kind' in asset.keys() else ASSET_KIND_BRANCH) or ASSET_KIND_BRANCH
+    if kind != ASSET_KIND_SHARED:
+        return []
+    gid = (asset['shared_group_id'] or '').strip() if 'shared_group_id' in asset.keys() else ''
+    if gid:
+        branches = _list_shared_group_branches(cur, gid)
+        if branches:
+            return branches
+    name, asset_type, owner = _shared_group_identity(cur, asset)
+    cur.execute(
+        '''
+        SELECT DISTINCT branch FROM assets
+        WHERE asset_kind = ?
+          AND name = ?
+          AND IFNULL(asset_type, '') = IFNULL(?, '')
+          AND IFNULL(owner, '') = IFNULL(?, '')
+        ORDER BY branch COLLATE NOCASE
+        ''',
+        (ASSET_KIND_SHARED, name, asset_type, owner),
+    )
+    return [row[0] for row in cur.fetchall() if row[0]]
+
+
+def _get_shared_sibling_rows(cur, asset):
+    """Return sibling asset rows for a shared asset."""
+    if not asset:
+        return []
+    kind = (asset['asset_kind'] if 'asset_kind' in asset.keys() else ASSET_KIND_BRANCH) or ASSET_KIND_BRANCH
+    if kind != ASSET_KIND_SHARED:
+        return [dict(asset)]
+    gid = (asset['shared_group_id'] or '').strip() if 'shared_group_id' in asset.keys() else ''
+    if gid:
+        cur.execute(
+            'SELECT id, branch, department, owner FROM assets WHERE shared_group_id = ? ORDER BY branch COLLATE NOCASE',
+            (gid,),
+        )
+        return [dict(row) for row in cur.fetchall()]
+    name, asset_type, owner = _shared_group_identity(cur, asset)
+    cur.execute(
+        '''
+        SELECT id, branch, department, owner FROM assets
+        WHERE asset_kind = ?
+          AND name = ?
+          AND IFNULL(asset_type, '') = IFNULL(?, '')
+          AND IFNULL(owner, '') = IFNULL(?, '')
+        ORDER BY branch COLLATE NOCASE
+        ''',
+        (ASSET_KIND_SHARED, name, asset_type, owner),
+    )
+    rows = [dict(row) for row in cur.fetchall()]
+    return rows if rows else [dict(asset)]
+
+
+def _resolve_shared_asset_row_id(cur, asset, branch_name):
+    """Find the sibling row id for a shared asset at the given branch."""
+    branch_name = (branch_name or '').strip()
+    if not branch_name:
+        return asset['id']
+    for sibling in _get_shared_sibling_rows(cur, asset):
+        if (sibling.get('branch') or '') == branch_name:
+            return sibling['id']
+    return asset['id']
+
+
+def _finalize_lone_shared_sibling(cur, shared_group_id, handed_over_by):
+    """
+    If only one asset remains in a shared group after a split, convert it to a
+    Branch Asset and clear shared_group_id. Writes a history note for audit.
+    Returns the converted asset id or None.
+    """
+    gid = (shared_group_id or '').strip()
+    if not gid:
+        return None
+    cur.execute(
+        '''
+        SELECT id, name, owner, branch, department, asset_code, asset_kind
+        FROM assets
+        WHERE shared_group_id = ?
+        ORDER BY id
+        ''',
+        (gid,),
+    )
+    siblings = cur.fetchall()
+    if len(siblings) != 1:
+        return None
+    lone = siblings[0]
+    lone_id = lone['id']
+    old_code = lone['asset_code']
+    new_code = generate_asset_code(lone['branch'], lone['department'], cur=cur)
+    cur.execute(
+        '''
+        UPDATE assets
+        SET asset_kind = ?, shared_group_id = NULL, asset_code = ?
+        WHERE id = ?
+        ''',
+        (ASSET_KIND_BRANCH, new_code, lone_id),
+    )
+    cur.execute(
+        '''
+        INSERT INTO asset_ownership_history (
+            asset_id, asset_code,
+            from_owner, to_owner,
+            from_branch, to_branch,
+            from_department, to_department,
+            handed_over_by, notes,
+            split_from_shared, from_shared_branches, shared_group_id
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, ?, ?)
+        ''',
+        (
+            lone_id,
+            new_code,
+            lone['owner'],
+            lone['owner'],
+            lone['branch'],
+            lone['branch'],
+            lone['department'],
+            lone['department'],
+            handed_over_by,
+            'Auto-converted to Branch Asset (last remaining branch in the shared group). Asset code updated from '
+            + (old_code or 'N/A') + ' to ' + new_code + '.',
+            lone['branch'],
+            gid,
+        ),
+    )
+    return lone_id
+
+
+@assets_bp.route('/handover/<int:asset_id>', methods=['POST'])
+@login_required
+def handover_asset(asset_id):
+    """Transfer asset ownership and/or branch location; write ownership history.
+
+    Shared assets: peels this row out of the shared group (becomes Branch Asset),
+    leaves sibling rows under the original group/owner, and auto-converts a lone
+    remaining sibling to Branch Asset.
+    """
+    owner = (request.form.get('owner') or '').strip()
+    branch = request.form.get('branch') or request.form.get('building')
+    venue = (request.form.get('asset_venue') or 'restaurant').strip().lower()
+    notes = (request.form.get('notes') or '').strip()
+    no_owner = request.form.get('no_owner') == 'on'
+
+    if venue == 'office':
+        department = (request.form.get('department') or '').strip()
+        branch = OFFICE_BRANCH_LABEL
+    else:
+        department = _normalize_restaurant_area(request.form.get('department', '')) or ''
+
+    if no_owner:
+        owner = 'No Owner'
+
+    if not owner:
+        return jsonify({'error': 'Select a new owner, or mark No Owner Required.'}), 400
+
+    conn = get_db_connection()
+    cur = conn.cursor()
+
+    cur.execute(
+        '''
+        SELECT id, name, owner, branch, department, asset_code, asset_kind, shared_group_id, asset_type
+        FROM assets WHERE id = ?
+        ''',
+        (asset_id,),
+    )
+    asset = cur.fetchone()
+    if not asset:
+        conn.close()
+        return jsonify({'error': 'Asset not found'}), 404
+
+    source_branch = (request.form.get('source_branch') or request.form.get('handover_source_branch') or '').strip()
+    is_shared_asset = (asset['asset_kind'] or ASSET_KIND_BRANCH) == ASSET_KIND_SHARED
+    if is_shared_asset:
+        if not source_branch:
+            source_branch = (asset['branch'] or '').strip()
+    elif not source_branch:
+        source_branch = (branch or '').strip()
+
+    target_asset_id = asset_id
+    if is_shared_asset and source_branch:
+        target_asset_id = _resolve_shared_asset_row_id(cur, asset, source_branch)
+        cur.execute(
+            '''
+            SELECT id, name, owner, branch, department, asset_code, asset_kind, shared_group_id, asset_type
+            FROM assets WHERE id = ?
+            ''',
+            (target_asset_id,),
+        )
+        target_row = cur.fetchone()
+        if target_row:
+            asset = target_row
+            if not branch:
+                branch = asset['branch']
+            if not department and venue != 'office':
+                department = asset['department'] or department
+
+    err = _validate_asset_venue_location(cur, venue, branch, department)
+    if err:
+        conn.close()
+        return jsonify({'error': err}), 400
+
+    from_owner = asset['owner'] or ''
+    from_branch = asset['branch'] or ''
+    from_department = asset['department'] or ''
+    current_asset_code = asset['asset_code']
+    from_kind = (asset['asset_kind'] or ASSET_KIND_BRANCH).strip().lower()
+    shared_group_id = (asset['shared_group_id'] or '').strip() or None
+    is_shared_split = from_kind == ASSET_KIND_SHARED
+
+    owner_changed = from_owner != owner
+    branch_changed = from_branch != branch
+    department_changed = from_department != department
+
+    # Shared split itself is a structural change; still require owner/location
+    # change so accidental opens don't peel a branch with no transfer intent.
+    if not (owner_changed or branch_changed or department_changed):
+        conn.close()
+        return jsonify({
+            'error': 'Nothing to hand over. Change the owner, branch, or department.',
+        }), 400
+
+    shared_branches_before = []
+    if is_shared_split:
+        if shared_group_id:
+            shared_branches_before = _list_shared_group_branches(cur, shared_group_id)
+        if from_branch and from_branch not in shared_branches_before:
+            shared_branches_before = sorted(
+                set(shared_branches_before + [from_branch]),
+                key=lambda b: b.casefold(),
+            )
+
+    new_asset_code = current_asset_code
+    if branch_changed or department_changed:
+        new_asset_code = generate_asset_code(branch, department, cur=cur)
+
+    history_notes = notes
+    if is_shared_split:
+        split_note = (
+            'Split from Shared Asset covering: '
+            + (', '.join(shared_branches_before) if shared_branches_before else from_branch)
+            + f'. This record is now a Branch Asset at {branch}.'
+        )
+        history_notes = f'{notes}\n{split_note}'.strip() if notes else split_note
+
+    try:
+        if is_shared_split:
+            cur.execute(
+                '''
+                UPDATE assets
+                SET owner = ?, branch = ?, department = ?, asset_code = ?,
+                    asset_kind = ?, shared_group_id = NULL
+                WHERE id = ?
+                ''',
+                (owner, branch, department, new_asset_code, ASSET_KIND_BRANCH, target_asset_id),
+            )
+        else:
+            cur.execute(
+                '''
+                UPDATE assets
+                SET owner = ?, branch = ?, department = ?, asset_code = ?
+                WHERE id = ?
+                ''',
+                (owner, branch, department, new_asset_code, asset_id),
+            )
+
+        cur.execute(
+            '''
+            INSERT INTO asset_ownership_history (
+                asset_id, asset_code,
+                from_owner, to_owner,
+                from_branch, to_branch,
+                from_department, to_department,
+                handed_over_by, notes,
+                split_from_shared, from_shared_branches, shared_group_id
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            ''',
+            (
+                target_asset_id,
+                new_asset_code or current_asset_code,
+                from_owner,
+                owner,
+                from_branch,
+                branch,
+                from_department,
+                department,
+                current_user.display_name,
+                history_notes or None,
+                1 if is_shared_split else 0,
+                ', '.join(shared_branches_before) if shared_branches_before else None,
+                shared_group_id if is_shared_split else None,
+            ),
+        )
+
+        converted_sibling_id = None
+        remaining_shared_branches = []
+        if is_shared_split and shared_group_id:
+            converted_sibling_id = _finalize_lone_shared_sibling(
+                cur, shared_group_id, current_user.display_name
+            )
+            remaining_shared_branches = _list_shared_group_branches(cur, shared_group_id)
+
+        conn.commit()
+        conn.close()
+        return jsonify({
+            'success': True,
+            'asset_code_changed': branch_changed or department_changed,
+            'old_asset_code': current_asset_code,
+            'new_asset_code': new_asset_code,
+            'from_owner': from_owner,
+            'to_owner': owner,
+            'from_branch': from_branch,
+            'to_branch': branch,
+            'from_department': from_department,
+            'to_department': department,
+            'split_from_shared': is_shared_split,
+            'from_shared_branches': shared_branches_before,
+            'remaining_shared_branches': remaining_shared_branches,
+            'converted_last_sibling': converted_sibling_id is not None,
+        })
+    except Exception as e:
+        conn.rollback()
+        conn.close()
+        return jsonify({'error': str(e)}), 500
+
+
+@assets_bp.route('/<int:asset_id>/group-info', methods=['GET'])
+@login_required
+def asset_group_info(asset_id):
+    """Return shared-group branches and sibling rows for edit/hand-over modals."""
+    conn = get_db_connection()
+    cur = conn.cursor()
+    cur.execute(
+        '''
+        SELECT id, name, owner, branch, department, asset_code, asset_kind, shared_group_id, asset_type
+        FROM assets WHERE id = ?
+        ''',
+        (asset_id,),
+    )
+    asset = cur.fetchone()
+    if not asset:
+        conn.close()
+        return jsonify({'error': 'Asset not found'}), 404
+
+    asset_kind = (asset['asset_kind'] or ASSET_KIND_BRANCH).strip().lower()
+    shared_branches = _get_shared_branches_for_asset(cur, asset)
+    siblings = _get_shared_sibling_rows(cur, asset)
+    conn.close()
+
+    return jsonify({
+        'asset_id': asset['id'],
+        'asset_kind': asset_kind,
+        'is_shared': asset_kind == ASSET_KIND_SHARED,
+        'shared_group_id': (asset['shared_group_id'] or '').strip() or None,
+        'shared_branches': shared_branches,
+        'branch_records': [
+            {
+                'id': s['id'],
+                'branch': s.get('branch') or '',
+                'department': s.get('department') or '',
+                'owner': s.get('owner') or '',
+            }
+            for s in siblings
+        ],
+        'siblings': [
+            {
+                'id': s['id'],
+                'branch': s.get('branch') or '',
+                'department': s.get('department') or '',
+                'owner': s.get('owner') or '',
+            }
+            for s in siblings
+        ],
+    })
+
+
+@assets_bp.route('/handover/<int:asset_id>/history', methods=['GET'])
+@login_required
+def handover_asset_history(asset_id):
+    """Return hand-over history for an asset (newest first)."""
+    conn = get_db_connection()
+    cur = conn.cursor()
+    cur.execute(
+        '''
+        SELECT id, owner, branch, department, asset_code, name, asset_kind, shared_group_id, asset_type
+        FROM assets WHERE id = ?
+        ''',
+        (asset_id,),
+    )
+    asset = cur.fetchone()
+    if not asset:
+        conn.close()
+        return jsonify({'error': 'Asset not found'}), 404
+
+    shared_branches = _get_shared_branches_for_asset(cur, asset)
+
+    cur.execute(
+        '''
+        SELECT id, asset_code,
+               from_owner, to_owner,
+               from_branch, to_branch,
+               from_department, to_department,
+               handed_over_by, notes, handed_over_at,
+               split_from_shared, from_shared_branches, shared_group_id
+        FROM asset_ownership_history
+        WHERE asset_id = ?
+        ORDER BY datetime(handed_over_at) DESC, id DESC
+        ''',
+        (asset_id,),
+    )
+    rows = cur.fetchall()
+    conn.close()
+
+    history = []
+    for row in rows:
+        keys = row.keys()
+        history.append({
+            'id': row['id'],
+            'asset_code': row['asset_code'],
+            'from_owner': row['from_owner'],
+            'to_owner': row['to_owner'],
+            'from_branch': row['from_branch'],
+            'to_branch': row['to_branch'],
+            'from_department': row['from_department'],
+            'to_department': row['to_department'],
+            'handed_over_by': row['handed_over_by'],
+            'notes': row['notes'] or '',
+            'handed_over_at': row['handed_over_at'],
+            'split_from_shared': bool(row['split_from_shared']) if 'split_from_shared' in keys else False,
+            'from_shared_branches': (row['from_shared_branches'] or '') if 'from_shared_branches' in keys else '',
+            'shared_group_id': (row['shared_group_id'] or '') if 'shared_group_id' in keys else '',
+        })
+
+    asset_kind = (asset['asset_kind'] or ASSET_KIND_BRANCH).strip().lower()
+    shared_group_id = (asset['shared_group_id'] or '').strip() or None
+    return jsonify({
+        'asset': {
+            'id': asset['id'],
+            'name': asset['name'],
+            'owner': asset['owner'],
+            'branch': asset['branch'],
+            'department': asset['department'],
+            'asset_code': asset['asset_code'],
+            'asset_kind': asset_kind,
+            'shared_group_id': shared_group_id,
+            'shared_branches': shared_branches,
+            'is_shared': asset_kind == ASSET_KIND_SHARED,
+        },
+        'history': history,
+    })
 
 
 @assets_bp.route('/<int:asset_id>/documents', methods=['GET'])
@@ -1059,26 +1896,33 @@ def delete_asset(asset_id):
     if not asset:
         conn.close()
         return jsonify({'error': 'Asset not found'}), 404
+
+    asset_ids_to_archive = _expand_shared_group_asset_ids(cur, [asset_id])
     
     # Insert into archived_assets table
-    cur.execute('''
-        INSERT INTO archived_assets 
-        (original_id, name, price, owner, branch, department, asset_code, qr_random_code, used_status, asset_type, asset_kind, shared_group_id, asset_date, archived_by, archive_reason)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-    ''', (
-        asset['id'], asset['name'], asset['price'] if asset['price'] is not None else 0.0, asset['owner'], 
-        asset['branch'], asset['department'], asset['asset_code'], 
-        asset['qr_random_code'], asset['used_status'], asset['asset_type'],
-        asset['asset_kind'] if asset['asset_kind'] else ASSET_KIND_BRANCH,
-        asset['shared_group_id'] if 'shared_group_id' in asset.keys() else None,
-        asset['asset_date'] if 'asset_date' in asset.keys() else None,
-        current_user.display_name, archive_reason
-    ))
+    for aid in asset_ids_to_archive:
+        cur.execute('SELECT * FROM assets WHERE id=?', (aid,))
+        asset_row = cur.fetchone()
+        if not asset_row:
+            continue
+        cur.execute('''
+            INSERT INTO archived_assets 
+            (original_id, name, price, owner, branch, department, asset_code, qr_random_code, used_status, asset_type, asset_kind, shared_group_id, asset_date, archived_by, archive_reason)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        ''', (
+            asset_row['id'], asset_row['name'], asset_row['price'] if asset_row['price'] is not None else 0.0, asset_row['owner'], 
+            asset_row['branch'], asset_row['department'], asset_row['asset_code'], 
+            asset_row['qr_random_code'], asset_row['used_status'], asset_row['asset_type'],
+            asset_row['asset_kind'] if asset_row['asset_kind'] else ASSET_KIND_BRANCH,
+            asset_row['shared_group_id'] if 'shared_group_id' in asset_row.keys() else None,
+            asset_row['asset_date'] if 'asset_date' in asset_row.keys() else None,
+            current_user.display_name, archive_reason
+        ))
 
-    delete_all_documents_for_assets(cur, [asset_id])
+    delete_all_documents_for_assets(cur, asset_ids_to_archive)
     
-    # Delete from assets table
-    cur.execute('DELETE FROM assets WHERE id=?', (asset_id,))
+    placeholders = ','.join(['?'] * len(asset_ids_to_archive))
+    cur.execute(f'DELETE FROM assets WHERE id IN ({placeholders})', asset_ids_to_archive)
     
     conn.commit()
     conn.close()
@@ -1094,7 +1938,7 @@ def update_status(asset_id):
     
     conn = get_db_connection()
     cur = conn.cursor()
-    cur.execute('UPDATE assets SET used_status=? WHERE id=?', (used_status, asset_id))
+    _sync_shared_group_status(cur, asset_id, used_status)
     conn.commit()
     conn.close()
     
@@ -1113,8 +1957,9 @@ def bulk_update_status():
     conn = get_db_connection()
     cur = conn.cursor()
     
-    placeholders = ','.join(['?'] * len(asset_ids))
-    cur.execute(f'UPDATE assets SET used_status=? WHERE id IN ({placeholders})', [used_status] + asset_ids)
+    expanded_ids = _expand_shared_group_asset_ids(cur, asset_ids)
+    placeholders = ','.join(['?'] * len(expanded_ids))
+    cur.execute(f'UPDATE assets SET used_status=? WHERE id IN ({placeholders})', [used_status] + expanded_ids)
     
     conn.commit()
     conn.close()
@@ -1134,9 +1979,9 @@ def bulk_delete():
     cur = conn.cursor()
     
     try:
-        # Get all assets to be deleted
-        placeholders = ','.join(['?'] * len(asset_ids))
-        cur.execute(f'SELECT * FROM assets WHERE id IN ({placeholders})', asset_ids)
+        expanded_ids = _expand_shared_group_asset_ids(cur, asset_ids)
+        placeholders = ','.join(['?'] * len(expanded_ids))
+        cur.execute(f'SELECT * FROM assets WHERE id IN ({placeholders})', expanded_ids)
         assets = cur.fetchall()
         
         if not assets:
@@ -1161,8 +2006,7 @@ def bulk_delete():
 
         delete_all_documents_for_assets(cur, [a['id'] for a in assets])
         
-        # Delete from assets table
-        cur.execute(f'DELETE FROM assets WHERE id IN ({placeholders})', asset_ids)
+        cur.execute(f'DELETE FROM assets WHERE id IN ({placeholders})', expanded_ids)
         
         conn.commit()
         conn.close()
@@ -1381,26 +2225,24 @@ def asset_info(asset_code):
     conn = get_db_connection()
     cur = conn.cursor()
     
-    # First check active assets
-    cur.execute('SELECT * FROM assets WHERE asset_code = ?', (asset_code,))
-    row = cur.fetchone()
+    cur.execute('SELECT * FROM assets WHERE asset_code = ? ORDER BY id', (asset_code,))
+    active_rows = cur.fetchall()
     
-    if row:
-        # Asset is active
+    if active_rows:
         columns = [desc[0] for desc in cur.description]
-        asset = dict(zip(columns, row))
+        asset = dict(zip(columns, active_rows[0]))
         asset['is_archived'] = False
+        if len(active_rows) > 1 or (asset.get('asset_kind') or ASSET_KIND_BRANCH) == ASSET_KIND_SHARED:
+            _attach_asset_location_displays(cur, [asset])
         conn.close()
         return render_template('asset_info.html', asset=asset)
     
-    # If not found in active assets, check archived assets
-    cur.execute('SELECT * FROM archived_assets WHERE asset_code = ?', (asset_code,))
-    row = cur.fetchone()
+    cur.execute('SELECT * FROM archived_assets WHERE asset_code = ? ORDER BY id', (asset_code,))
+    archived_rows = cur.fetchall()
     
-    if row:
-        # Asset is archived
+    if archived_rows:
         columns = [desc[0] for desc in cur.description]
-        asset = dict(zip(columns, row))
+        asset = dict(zip(columns, archived_rows[0]))
         asset['is_archived'] = True
         conn.close()
         return render_template('asset_info.html', asset=asset)

@@ -112,6 +112,132 @@ body.modal-open {
     margin-right: 0.35rem;
 }
 
+/* Hand-over modal — current ownership + history */
+.app-modal .handover-current-card {
+    background: rgba(217, 189, 125, 0.08);
+    border: 1px solid rgba(217, 189, 125, 0.35);
+    border-radius: 10px;
+    padding: 0.85rem 1rem;
+}
+
+.app-modal .handover-current-card-title {
+    font-size: 0.72rem;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: var(--gold-deeper);
+    margin-bottom: 0.65rem;
+}
+
+.app-modal .handover-current-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(9rem, 1fr));
+    gap: 0.75rem 1rem;
+}
+
+.app-modal .handover-current-label {
+    display: block;
+    font-size: 0.7rem;
+    font-weight: 600;
+    color: #7a869a;
+    margin-bottom: 0.15rem;
+}
+
+.app-modal .handover-current-value {
+    display: block;
+    font-size: 0.9rem;
+    font-weight: 600;
+    color: var(--text-dark, #1c1a14);
+    word-break: break-word;
+}
+
+.app-modal .handover-history-section {
+    margin-top: 0.25rem;
+    padding-top: 1rem;
+    border-top: 1px solid rgba(0, 0, 0, 0.08);
+}
+
+.app-modal .handover-history-header {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    font-size: 0.875rem;
+    margin-bottom: 0.65rem;
+    color: var(--text-dark, #1c1a14);
+}
+
+.app-modal .handover-history-header i {
+    color: var(--gold-deeper);
+}
+
+.app-modal .handover-history-list {
+    max-height: 14rem;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 0.55rem;
+}
+
+.app-modal .handover-history-item {
+    border: 1px solid rgba(0, 0, 0, 0.08);
+    border-radius: 8px;
+    padding: 0.65rem 0.75rem;
+    background: #fafbfc;
+    font-size: 0.8125rem;
+    line-height: 1.4;
+}
+
+.app-modal .handover-history-meta {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: space-between;
+    gap: 0.35rem 0.75rem;
+    margin-bottom: 0.4rem;
+    color: #7a869a;
+    font-size: 0.72rem;
+}
+
+.app-modal .handover-history-change {
+    color: var(--text-dark, #1c1a14);
+}
+
+.app-modal .handover-history-change + .handover-history-change {
+    margin-top: 0.2rem;
+}
+
+.app-modal .handover-history-arrow {
+    color: var(--gold-deeper);
+    font-weight: 700;
+    margin: 0 0.25rem;
+}
+
+.app-modal .handover-history-badge {
+    display: inline-block;
+    font-size: 0.65rem;
+    font-weight: 700;
+    letter-spacing: 0.03em;
+    text-transform: uppercase;
+    color: var(--gold-deeper);
+    background: rgba(217, 189, 125, 0.18);
+    border: 1px solid rgba(217, 189, 125, 0.45);
+    border-radius: 4px;
+    padding: 0.1rem 0.35rem;
+    margin-right: 0.25rem;
+    vertical-align: middle;
+}
+
+.app-modal .handover-history-notes {
+    margin-top: 0.35rem;
+    color: #5c6570;
+    font-style: italic;
+}
+
+.app-modal .handover-history-empty {
+    color: #7a869a;
+    font-size: 0.8125rem;
+    padding: 0.5rem 0;
+}
+
 /* Form fields — filter-bar style */
 .app-modal .form-label {
     display: block;
@@ -461,6 +587,45 @@ body.dark-mode .app-modal .app-modal-tip {
 body.dark-mode .app-modal .app-modal-tip strong,
 body.dark-mode .app-modal .app-modal-tip i {
     color: var(--gold-pale) !important;
+}
+
+body.dark-mode .app-modal .handover-current-card {
+    background: #332f26 !important;
+    border-color: rgba(217, 189, 125, 0.28) !important;
+}
+
+body.dark-mode .app-modal .handover-current-card-title,
+body.dark-mode .app-modal .handover-history-header i,
+body.dark-mode .app-modal .handover-history-arrow {
+    color: var(--gold-pale) !important;
+}
+
+body.dark-mode .app-modal .handover-history-badge {
+    color: var(--gold-pale) !important;
+    background: rgba(217, 189, 125, 0.14) !important;
+    border-color: rgba(217, 189, 125, 0.4) !important;
+}
+
+body.dark-mode .app-modal .handover-current-value,
+body.dark-mode .app-modal .handover-history-header,
+body.dark-mode .app-modal .handover-history-change {
+    color: #f5f5f0 !important;
+}
+
+body.dark-mode .app-modal .handover-current-label,
+body.dark-mode .app-modal .handover-history-meta,
+body.dark-mode .app-modal .handover-history-empty,
+body.dark-mode .app-modal .handover-history-notes {
+    color: #a8b0bc !important;
+}
+
+body.dark-mode .app-modal .handover-history-section {
+    border-top-color: rgba(217, 189, 125, 0.2) !important;
+}
+
+body.dark-mode .app-modal .handover-history-item {
+    background: #1e1c16 !important;
+    border-color: rgba(217, 189, 125, 0.22) !important;
 }
 
 body.dark-mode .app-modal .form-label {

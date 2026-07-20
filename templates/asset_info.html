@@ -22,7 +22,16 @@
                 <li class="list-group-item"><b>Asset Code:</b> {{ asset.asset_code }}</li>
                 <li class="list-group-item"><b>Name:</b> {{ asset.name }}</li>
                 <li class="list-group-item"><b>Owner:</b> {{ asset.owner }}</li>
+                {% if asset.location_lines %}
+                <li class="list-group-item">
+                    <b>Branches:</b>
+                    {% for line in asset.location_lines %}
+                    <span class="badge bg-light text-dark me-1 mb-1">{{ line }}</span>
+                    {% endfor %}
+                </li>
+                {% else %}
                 <li class="list-group-item"><b>Branch:</b> {{ asset.branch }}</li>
+                {% endif %}
                 <li class="list-group-item"><b>Department:</b> {{ asset.department }}</li>
                 <li class="list-group-item"><b>Price:</b> OMR {{ (asset.price or 0.0)|fmt_omr }}</li>
                 <li class="list-group-item"><b>Asset Category:</b> {{ asset.asset_type or 'N/A' }}</li>

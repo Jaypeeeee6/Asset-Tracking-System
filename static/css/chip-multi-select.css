@@ -210,6 +210,19 @@
   display: none !important;
 }
 
+.chip-multi-select.is-pick-one-visible-all .chip-multi-select-chip {
+  cursor: pointer;
+}
+
+.chip-multi-select.is-pick-one-visible-all .chip-multi-select-chip:not(.is-handover-target) {
+  opacity: 0.65;
+  filter: saturate(0.85);
+}
+
+.chip-multi-select.is-pick-one-visible-all .chip-multi-select-chip.is-handover-target {
+  box-shadow: 0 0 0 2px var(--gold, #c9a227);
+}
+
 /* Read-only category chips in suppliers table */
 .supplier-category-chips-readonly {
   gap: 6px;

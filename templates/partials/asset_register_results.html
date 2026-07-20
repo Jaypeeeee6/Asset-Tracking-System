@@ -122,21 +122,35 @@
                     {% endif %}
                 </td>
                 <td class="app-table-col-actions">
-                    <button type="button" class="btn-app-edit-icon edit-asset-btn"
-                            data-asset-id="{{ asset.id }}"
-                            data-asset-name="{{ asset.name }}"
-                            data-asset-type="{{ asset.asset_type or '' }}"
-                            data-asset-kind="{{ asset.asset_kind or 'branch' }}"
-                            data-asset-price="{{ asset.price or 0.0 }}"
-                            data-asset-owner="{{ asset.owner }}"
-                            data-asset-branch="{{ asset.branch }}"
-                            data-asset-department="{{ asset.department }}"
-                            data-asset-status="{{ asset.used_status }}"
-                            data-asset-date="{{ asset.asset_date or '' }}"
-                            title="Edit asset"
-                            aria-label="Edit asset">
-                        <i class="bi bi-pencil-square" aria-hidden="true"></i>
-                    </button>
+                    <div class="app-table-actions">
+                        <button type="button" class="btn-app-edit-icon edit-asset-btn"
+                                data-asset-id="{{ asset.id }}"
+                                data-asset-name="{{ asset.name }}"
+                                data-asset-type="{{ asset.asset_type or '' }}"
+                                data-asset-kind="{{ asset.asset_kind or 'branch' }}"
+                                data-asset-price="{{ asset.price or 0.0 }}"
+                                data-asset-owner="{{ asset.owner }}"
+                                data-asset-branch="{{ asset.branch }}"
+                                data-asset-department="{{ asset.department }}"
+                                data-asset-status="{{ asset.used_status }}"
+                                data-asset-date="{{ asset.asset_date or '' }}"
+                                title="Edit asset"
+                                aria-label="Edit asset">
+                            <i class="bi bi-pencil-square" aria-hidden="true"></i>
+                        </button>
+                        <button type="button" class="btn-app-edit-icon handover-asset-btn"
+                                data-asset-id="{{ asset.id }}"
+                                data-asset-name="{{ asset.name }}"
+                                data-asset-code="{{ asset.asset_code or '' }}"
+                                data-asset-kind="{{ asset.asset_kind or 'branch' }}"
+                                data-asset-owner="{{ asset.owner }}"
+                                data-asset-branch="{{ asset.branch }}"
+                                data-asset-department="{{ asset.department }}"
+                                title="Hand over asset"
+                                aria-label="Hand over asset">
+                            <i class="bi bi-arrow-left-right" aria-hidden="true"></i>
+                        </button>
+                    </div>
                 </td>
             </tr>
         {% endfor %}

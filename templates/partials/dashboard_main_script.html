@@ -143,23 +143,27 @@ function appDeleteConfirm(message, title) {
     function setAddAssetDepartmentLabel(venue) {
         var label = document.getElementById('addAssetDepartmentLabel');
         var help = document.getElementById('addAssetAreaHelp');
+        var deptSel = document.getElementById('department');
         if (label) {
             label.innerHTML = venue === 'office'
                 ? 'Department <span class="app-required-mark" aria-hidden="true">*</span>'
-                : 'Area <span class="app-required-mark" aria-hidden="true">*</span>';
+                : 'Area';
         }
         if (help) help.classList.toggle('d-none', venue === 'office');
+        if (deptSel) deptSel.required = venue === 'office';
     }
 
     function setEditAssetDepartmentLabel(venue) {
         var label = document.getElementById('editAssetDepartmentLabel');
         var help = document.getElementById('editAssetAreaHelp');
+        var deptSel = document.getElementById('edit_department');
         if (label) {
             label.innerHTML = venue === 'office'
                 ? 'Department <span class="app-required-mark" aria-hidden="true">*</span>'
-                : 'Area <span class="app-required-mark" aria-hidden="true">*</span>';
+                : 'Area';
         }
         if (help) help.classList.toggle('d-none', venue === 'office');
+        if (deptSel) deptSel.required = venue === 'office';
     }
 
     function getAddAssetKind() {
@@ -326,6 +330,74 @@ function appDeleteConfirm(message, title) {
         }
     }
 
+    function getSelectedEditBranches() {
+        if (getEditAssetKind() === 'shared' && getEditAssetVenue() === 'restaurant') {
+            var wrap = document.getElementById('editAssetBranchChipWrap');
+            var multi = document.getElementById('edit_branch_multi');
+            if (wrap && wrap._chipMultiSelectApi) {
+                return wrap._chipMultiSelectApi.getValues();
+            }
+            if (multi) {
+                return Array.prototype.filter.call(multi.selectedOptions, function (opt) {
+                    return !!opt.value;
+                }).map(function (opt) { return opt.value; });
+            }
+            return [];
+        }
+        var branchSel = document.getElementById('edit_branch');
+        return branchSel && branchSel.value ? [branchSel.value] : [];
+    }
+
+    function initEditSharedBranchChips(selectedBranches) {
+        var chipWrap = document.getElementById('editAssetBranchChipWrap');
+        var multi = document.getElementById('edit_branch_multi');
+        if (!chipWrap || !multi) return;
+
+        var selected = (selectedBranches || []).slice();
+        var sorted = (branchesData || []).slice().sort(function (a, b) {
+            return a.name.localeCompare(b.name);
+        });
+
+        if (chipWrap._handoverChipClickHandler) {
+            chipWrap.removeEventListener('click', chipWrap._handoverChipClickHandler);
+            chipWrap._handoverChipClickHandler = null;
+        }
+
+        multi.innerHTML = '';
+        sorted.forEach(function (building) {
+            var opt = document.createElement('option');
+            opt.value = building.name;
+            opt.textContent = formatBranchOptionLabel(building);
+            if (selected.indexOf(building.name) !== -1) opt.selected = true;
+            multi.appendChild(opt);
+        });
+        multi.disabled = false;
+
+        chipWrap.classList.remove('is-readonly', 'is-pick-one-visible-all');
+        chipWrap.dataset.readOnly = 'false';
+        chipWrap.classList.remove('d-none');
+
+        if (typeof window.destroyChipMultiSelect === 'function') {
+            window.destroyChipMultiSelect(chipWrap);
+        }
+        if (typeof window.initChipMultiSelect === 'function') {
+            window.initChipMultiSelect(chipWrap);
+        }
+        if (chipWrap._chipMultiSelectApi) {
+            chipWrap._chipMultiSelectApi.setValues(selected.length ? selected : []);
+        }
+    }
+
+    function refreshEditSharedBranchChips(keepSelected) {
+        var wrap = document.getElementById('editAssetBranchChipWrap');
+        if (!wrap) return;
+        if (typeof window.refreshChipMultiSelect === 'function') {
+            window.refreshChipMultiSelect(wrap, keepSelected !== false);
+        } else if (typeof window.initChipMultiSelect === 'function') {
+            window.initChipMultiSelect(wrap);
+        }
+    }
+
     function applyEditAssetKindUI() {
         var kindField = document.getElementById('editAssetKindField');
         var noOwnerCheck = document.getElementById('edit_noOwnerCheck');
@@ -347,6 +419,33 @@ function appDeleteConfirm(message, title) {
             ownerSelect.disabled = false;
             ownerSelect.style.opacity = '1';
             ownerSelect.style.backgroundColor = '';
+        }
+
+        // Shared Asset: branch chips show every branch in the shared group.
+        var editForm = document.getElementById('editAssetForm');
+        var isSharedFromDataset = editForm && editForm.dataset.isShared === '1';
+        var isSharedRestaurant = (isSharedFromDataset || getEditAssetKind() === 'shared') && venue === 'restaurant';
+        applySharedBranchFieldMode('edit', isSharedRestaurant);
+        if (isSharedRestaurant) {
+            var sharedBranches = [];
+            if (editForm && editForm.dataset.sharedBranches) {
+                try { sharedBranches = JSON.parse(editForm.dataset.sharedBranches); } catch (e) { sharedBranches = []; }
+            }
+            if (!sharedBranches.length) {
+                sharedBranches = getSelectedEditBranches();
+            }
+            initEditSharedBranchChips(sharedBranches);
+            loadOwnersForSharedBranches(getSelectedEditBranches(), 'edit_owner');
+        } else if (venue === 'restaurant') {
+            var branchSelect = document.getElementById('edit_branch');
+            var presetBranch = branchSelect ? branchSelect.value : '';
+            if (!presetBranch && editForm && editForm.dataset.sharedBranches) {
+                try {
+                    var prevShared = JSON.parse(editForm.dataset.sharedBranches);
+                    if (prevShared.length) presetBranch = prevShared[0];
+                } catch (ignoreErr) { /* keep presetBranch */ }
+            }
+            loadEditBranches(presetBranch, null);
         }
     }
 
@@ -570,6 +669,264 @@ function appDeleteConfirm(message, title) {
         const code = (building && building.branch_code || '').trim();
         if (code && name) return code + ' ' + name;
         return name || code;
+    }
+
+    function formatBranchNameLabel(branchName) {
+        const building = (branchesData || []).find(function (b) { return b.name === branchName; });
+        return building ? formatBranchOptionLabel(building) : branchName;
+    }
+
+    function fetchAssetSharedGroupInfo(assetId) {
+        return fetch('/assets/' + assetId + '/group-info')
+            .then(function (response) {
+                if (!response.ok) {
+                    throw new Error('group-info failed: ' + response.status);
+                }
+                return response.json();
+            })
+            .then(function (data) {
+                if (data.error) {
+                    return { is_shared: false, shared_branches: [], branch_records: [] };
+                }
+                if (!data.branch_records && data.siblings) {
+                    data.branch_records = data.siblings;
+                }
+                if (!(data.shared_branches && data.shared_branches.length) && data.branch_records) {
+                    data.shared_branches = data.branch_records
+                        .map(function (rec) { return rec.branch; })
+                        .filter(Boolean);
+                }
+                return data;
+            })
+            .catch(function (err) {
+                console.error('fetchAssetSharedGroupInfo:', err);
+                return { is_shared: false, shared_branches: [], branch_records: [] };
+            });
+    }
+
+    function setModalSharedBranchLabels(modalPrefix, isShared) {
+        var isEdit = modalPrefix === 'edit';
+        var label = document.getElementById(isEdit ? 'editAssetBranchLabel' : 'handoverAssetBranchLabel');
+        var help = document.getElementById(isEdit ? 'editAssetBranchMultiHelp' : 'handoverAssetBranchMultiHelp');
+        if (label) {
+            if (isEdit) {
+                label.innerHTML = isShared
+                    ? 'Branches <span class="app-required-mark" aria-hidden="true">*</span>'
+                    : 'Branch <span class="app-required-mark" aria-hidden="true">*</span>';
+            } else {
+                label.innerHTML = 'New branch <span class="app-required-mark" aria-hidden="true">*</span>';
+            }
+        }
+        if (help) {
+            if (isEdit) {
+                help.classList.toggle('d-none', !isShared);
+            } else {
+                help.classList.remove('d-none');
+            }
+        }
+    }
+
+    function getHandoverDestinationBranch() {
+        var chipWrap = document.getElementById('handoverAssetBranchChipWrap');
+        if (chipWrap && chipWrap._chipMultiSelectApi) {
+            var vals = chipWrap._chipMultiSelectApi.getValues();
+            return vals.length ? vals[0] : '';
+        }
+        var sel = document.getElementById('handover_branch');
+        return sel && !sel.disabled ? sel.value : '';
+    }
+
+    function initHandoverDestinationBranchChips(selectedBranch) {
+        var chipWrap = document.getElementById('handoverAssetBranchChipWrap');
+        var multi = document.getElementById('handover_branch_multi');
+        var nativeSelect = document.getElementById('handover_branch');
+        if (!chipWrap || !multi) return;
+
+        var sorted = (branchesData || []).slice().sort(function (a, b) {
+            return a.name.localeCompare(b.name);
+        });
+
+        multi.innerHTML = '';
+        sorted.forEach(function (building) {
+            var opt = document.createElement('option');
+            opt.value = building.name;
+            opt.textContent = formatBranchOptionLabel(building);
+            multi.appendChild(opt);
+        });
+        multi.disabled = false;
+
+        chipWrap.classList.remove('is-readonly', 'is-pick-one-visible-all');
+        chipWrap.dataset.readOnly = 'false';
+        chipWrap.classList.remove('d-none');
+
+        if (nativeSelect) {
+            nativeSelect.innerHTML = '<option value="">Select Branch</option>';
+            sorted.forEach(function (building) {
+                var option = document.createElement('option');
+                option.value = building.name;
+                option.textContent = formatBranchOptionLabel(building);
+                nativeSelect.appendChild(option);
+            });
+            nativeSelect.classList.add('d-none');
+            nativeSelect.disabled = true;
+            nativeSelect.required = false;
+        }
+
+        if (typeof window.destroyChipMultiSelect === 'function') {
+            window.destroyChipMultiSelect(chipWrap);
+        }
+        if (typeof window.initChipMultiSelect === 'function') {
+            window.initChipMultiSelect(chipWrap);
+        }
+
+        if (chipWrap._chipMultiSelectApi) {
+            chipWrap._chipMultiSelectApi.setValues(selectedBranch ? [selectedBranch] : []);
+        }
+        if (nativeSelect && selectedBranch) {
+            nativeSelect.value = selectedBranch;
+        }
+    }
+
+    function syncHandoverSourceBranchSelection(branch, formEl) {
+        var sourceInput = document.getElementById('handover_source_branch');
+        if (sourceInput) sourceInput.value = branch || '';
+        if (!formEl) formEl = document.getElementById('handoverAssetForm');
+        if (!formEl || !branch) return;
+        var recordMap = {};
+        try { recordMap = JSON.parse(formEl.dataset.branchRecordMap || '{}'); } catch (err) { recordMap = {}; }
+        if (recordMap[branch]) {
+            formEl.action = '/assets/handover/' + recordMap[branch];
+        }
+    }
+
+    function initHandoverSourceBranchChips(sharedBranches, selectedBranch) {
+        initSharedGroupBranchChips({
+            chipWrapId: 'handoverSourceBranchChipWrap',
+            multiId: 'handover_source_branch_multi',
+            hiddenSelectId: 'handover_source_branch',
+            branchNames: sharedBranches || [],
+            mode: 'pick-one-visible-all',
+            selectedBranch: selectedBranch || (sharedBranches && sharedBranches[0]) || '',
+        });
+        var branch = selectedBranch || (sharedBranches && sharedBranches[0]) || '';
+        syncHandoverSourceBranchSelection(branch);
+    }
+
+    function highlightHandoverBranchChip(chipWrap, activeBranch) {
+        var activeLabel = formatBranchNameLabel(activeBranch);
+        chipWrap.querySelectorAll('.chip-multi-select-chip').forEach(function (chip) {
+            var label = chip.querySelector('span');
+            var text = label ? label.textContent.trim() : '';
+            chip.classList.toggle('is-handover-target', text === activeLabel);
+        });
+    }
+
+    function initSharedGroupBranchChips(options) {
+        var chipWrap = document.getElementById(options.chipWrapId);
+        var multi = document.getElementById(options.multiId);
+        var hiddenSelect = options.hiddenSelectId
+            ? document.getElementById(options.hiddenSelectId)
+            : null;
+        var branchNames = options.branchNames || [];
+        var mode = options.mode || 'pick-one';
+        var selectedBranch = options.selectedBranch || '';
+
+        if (!chipWrap || !multi) return;
+
+        if (chipWrap._handoverChipClickHandler) {
+            chipWrap.removeEventListener('click', chipWrap._handoverChipClickHandler);
+            chipWrap._handoverChipClickHandler = null;
+        }
+        chipWrap.classList.remove('is-pick-one-visible-all');
+
+        multi.innerHTML = '';
+        branchNames.forEach(function (branchName) {
+            var opt = document.createElement('option');
+            opt.value = branchName;
+            opt.textContent = formatBranchNameLabel(branchName);
+            multi.appendChild(opt);
+        });
+        multi.disabled = false;
+
+        var isReadonlyAll = mode === 'readonly-all';
+        var isPickOneVisibleAll = mode === 'pick-one-visible-all';
+        chipWrap.classList.toggle('is-readonly', isReadonlyAll || isPickOneVisibleAll);
+        chipWrap.dataset.readOnly = (isReadonlyAll || isPickOneVisibleAll) ? 'true' : 'false';
+        chipWrap.classList.toggle('is-pick-one-visible-all', isPickOneVisibleAll);
+        chipWrap.classList.remove('d-none');
+
+        if (typeof window.destroyChipMultiSelect === 'function') {
+            window.destroyChipMultiSelect(chipWrap);
+        }
+        if (typeof window.initChipMultiSelect === 'function') {
+            window.initChipMultiSelect(chipWrap);
+        }
+
+        if (!chipWrap._chipMultiSelectApi) return;
+
+        if (isReadonlyAll || isPickOneVisibleAll) {
+            chipWrap._chipMultiSelectApi.setValues(branchNames.slice());
+        }
+
+        if (isReadonlyAll) {
+            if (hiddenSelect && branchNames.length) {
+                hiddenSelect.value = branchNames[0];
+            }
+            return;
+        }
+
+        if (isPickOneVisibleAll) {
+            var initialVisible = selectedBranch && branchNames.indexOf(selectedBranch) !== -1
+                ? selectedBranch
+                : (branchNames[0] || '');
+            if (hiddenSelect) {
+                hiddenSelect.value = initialVisible;
+            }
+            highlightHandoverBranchChip(chipWrap, initialVisible);
+            chipWrap._handoverChipClickHandler = function (e) {
+                var chip = e.target.closest('.chip-multi-select-chip');
+                if (!chip || !chipWrap.contains(chip)) return;
+                var labelEl = chip.querySelector('span');
+                var labelText = labelEl ? labelEl.textContent.trim() : '';
+                var branch = branchNames.find(function (name) {
+                    return formatBranchNameLabel(name) === labelText;
+                });
+                if (!branch) return;
+                if (hiddenSelect) {
+                    hiddenSelect.value = branch;
+                }
+                highlightHandoverBranchChip(chipWrap, branch);
+                chipWrap.dispatchEvent(new CustomEvent('handoverbranchpick', {
+                    bubbles: true,
+                    detail: { branch: branch },
+                }));
+            };
+            chipWrap.addEventListener('click', chipWrap._handoverChipClickHandler);
+            return;
+        }
+
+        var initial = selectedBranch && branchNames.indexOf(selectedBranch) !== -1
+            ? selectedBranch
+            : (branchNames[0] || '');
+        chipWrap._chipMultiSelectApi.setValues(initial ? [initial] : []);
+        if (hiddenSelect) {
+            hiddenSelect.value = initial;
+        }
+    }
+
+    function applySharedBranchFieldMode(modalPrefix, isShared) {
+        var isEdit = modalPrefix === 'edit';
+        var branchSelect = document.getElementById(isEdit ? 'edit_branch' : 'handover_branch');
+        var chipWrap = document.getElementById(isEdit ? 'editAssetBranchChipWrap' : 'handoverAssetBranchChipWrap');
+        var branchMulti = document.getElementById(isEdit ? 'edit_branch_multi' : 'handover_branch_multi');
+        setModalSharedBranchLabels(modalPrefix, isShared);
+        if (branchSelect) {
+            branchSelect.classList.toggle('d-none', isShared);
+            branchSelect.disabled = isShared;
+            branchSelect.required = !isShared;
+        }
+        if (chipWrap) chipWrap.classList.toggle('d-none', !isShared);
+        if (branchMulti) branchMulti.disabled = !isShared;
     }
 
     function updateAddAssetRestaurantBranchDropdown() {
@@ -2839,8 +3196,8 @@ function appDeleteConfirm(message, title) {
      * Load branch managers for Shared Asset from all selected branches.
      * Dedupes by employee name across branches.
      */
-    function loadOwnersForSharedBranches(branchNames) {
-        const ownerSelect = document.getElementById('owner');
+    function loadOwnersForSharedBranches(branchNames, ownerSelectId) {
+        const ownerSelect = document.getElementById(ownerSelectId || 'owner');
         if (!ownerSelect) return;
 
         const names = (branchNames || []).filter(Boolean);
@@ -3936,12 +4293,6 @@ function appDeleteConfirm(message, title) {
                             alert(kind === 'shared' ? 'Please select at least one branch.' : 'Please select a branch.');
                             return;
                         }
-                        const dsel = document.getElementById('department');
-                        if (!dsel || !dsel.value) {
-                            e.preventDefault();
-                            alert('Please select a restaurant area (Kitchen, Dining, Cashier, etc.).');
-                            return;
-                        }
                     } else {
                         const dsel = document.getElementById('department');
                         if (!dsel || !dsel.value) {
@@ -4118,7 +4469,17 @@ function appDeleteConfirm(message, title) {
                 departmentSelect.innerHTML = '<option value="">Select department</option>';
             }
         });
-        
+
+        // Shared edit mode: branch chips match add-asset (searchable multi-select).
+
+        const editAssetBranchChipWrap = document.getElementById('editAssetBranchChipWrap');
+        if (editAssetBranchChipWrap) {
+            editAssetBranchChipWrap.addEventListener('chipmultiselect:change', function () {
+                if (getEditAssetVenue() !== 'restaurant' || getEditAssetKind() !== 'shared') return;
+                loadOwnersForSharedBranches(getSelectedEditBranches(), 'edit_owner');
+            });
+        }
+
         // Handle edit department change
         document.getElementById('edit_department').addEventListener('change', function() {
             const selectedDepartment = this.value;
@@ -4150,15 +4511,19 @@ function appDeleteConfirm(message, title) {
             }
 
             if (venue === 'restaurant') {
-                const ebr = document.getElementById('edit_branch');
-                if (!ebr || !ebr.value) {
-                    alert('Please select a branch.');
-                    return;
-                }
-                const edSel = document.getElementById('edit_department');
-                if (!edSel || !edSel.value) {
-                    alert('Please select a restaurant area (Kitchen, Dining, Cashier, etc.).');
-                    return;
+                const isSharedEdit = getEditAssetKind() === 'shared';
+                if (isSharedEdit) {
+                    const branches = getSelectedEditBranches();
+                    if (!branches.length) {
+                        alert('Please select at least one branch.');
+                        return;
+                    }
+                } else {
+                    const ebr = document.getElementById('edit_branch');
+                    if (!ebr || !ebr.value) {
+                        alert('Please select a branch.');
+                        return;
+                    }
                 }
             } else {
                 const edSel = document.getElementById('edit_department');
@@ -4229,6 +4594,698 @@ function appDeleteConfirm(message, title) {
                 });
             });
         });
+        }
+
+        // --- Hand-Over Asset modal ---
+        function getHandoverAssetVenue() {
+            const office = document.getElementById('handoverAssetVenueOffice');
+            return (office && office.checked) ? 'office' : 'restaurant';
+        }
+
+        function syncHandoverAssetVenueField() {
+            const field = document.getElementById('handoverAssetVenueField');
+            if (field) field.value = getHandoverAssetVenue();
+        }
+
+        function handoverLocationFieldLabel(branchOrVenue) {
+            if (branchOrVenue === 'office' || branchOrVenue === OFFICE_BRANCH_LABEL_JS) {
+                return 'Department';
+            }
+            return 'Area';
+        }
+
+        function setHandoverAssetDepartmentLabel(venue) {
+            const label = document.getElementById('handoverAssetDepartmentLabel');
+            if (!label) return;
+            label.innerHTML = venue === 'office'
+                ? 'New department <span class="app-required-mark" aria-hidden="true">*</span>'
+                : 'New area <span class="app-required-mark" aria-hidden="true">*</span>';
+        }
+
+        function applyHandoverVenueUI(sourceBranch, destinationBranch, selectedDepartment, groupInfo) {
+            const venue = getHandoverAssetVenue();
+            syncHandoverAssetVenueField();
+            setHandoverAssetDepartmentLabel(venue);
+            const branchField = document.getElementById('handoverAssetBranchField');
+            const sourceBranchField = document.getElementById('handoverSourceBranchField');
+            const departmentSelect = document.getElementById('handover_department');
+            const ownerSelect = document.getElementById('handover_owner');
+            const handoverForm = document.getElementById('handoverAssetForm');
+            const isSharedHandOver = groupInfo
+                ? !!groupInfo.is_shared
+                : (handoverForm && handoverForm.dataset.isShared === '1');
+
+            if (venue === 'office') {
+                if (branchField) branchField.classList.add('d-none');
+                if (sourceBranchField) sourceBranchField.classList.add('d-none');
+                const branchSelect = document.getElementById('handover_branch');
+                if (branchSelect) {
+                    branchSelect.innerHTML = '';
+                    const opt = document.createElement('option');
+                    opt.value = OFFICE_BRANCH_LABEL_JS;
+                    opt.textContent = OFFICE_BRANCH_LABEL_JS;
+                    opt.selected = true;
+                    branchSelect.appendChild(opt);
+                    branchSelect.required = false;
+                }
+                const destChipWrap = document.getElementById('handoverAssetBranchChipWrap');
+                if (destChipWrap) destChipWrap.classList.add('d-none');
+                return loadHandoverDepartments(OFFICE_BRANCH_LABEL_JS, selectedDepartment || '').then(function () {
+                    const dept = (departmentSelect && departmentSelect.value) || selectedDepartment || '';
+                    if (dept) return loadHandoverOwners(OFFICE_BRANCH_LABEL_JS, dept, ownerSelect ? ownerSelect.value : '');
+                });
+            }
+
+            if (branchField) branchField.classList.remove('d-none');
+            setModalSharedBranchLabels('handover', false);
+
+            if (isSharedHandOver && handoverForm && (!groupInfo || !(groupInfo.shared_branches || []).length)) {
+                try {
+                    groupInfo = groupInfo || {};
+                    groupInfo.is_shared = true;
+                    groupInfo.shared_branches = JSON.parse(handoverForm.dataset.sharedBranches || '[]');
+                    var branchRecordMap = JSON.parse(handoverForm.dataset.branchRecordMap || '{}');
+                    groupInfo.branch_records = Object.keys(branchRecordMap).map(function (branch) {
+                        return { branch: branch, id: branchRecordMap[branch] };
+                    });
+                } catch (err) {
+                    groupInfo = groupInfo || { is_shared: true, shared_branches: [], branch_records: [] };
+                }
+            }
+
+            if (isSharedHandOver && sourceBranchField && groupInfo && (groupInfo.shared_branches || []).length) {
+                sourceBranchField.classList.remove('d-none');
+                var initialSource = sourceBranch || groupInfo.shared_branches[0] || '';
+                if (groupInfo.shared_branches.indexOf(initialSource) === -1) {
+                    initialSource = groupInfo.shared_branches[0] || '';
+                }
+                initHandoverSourceBranchChips(groupInfo.shared_branches, initialSource);
+            } else if (sourceBranchField) {
+                sourceBranchField.classList.add('d-none');
+                var sourceInput = document.getElementById('handover_source_branch');
+                if (sourceInput) sourceInput.value = '';
+            }
+
+            initHandoverDestinationBranchChips(destinationBranch || '');
+
+            const destBranch = getHandoverDestinationBranch();
+            if (!destBranch) {
+                if (departmentSelect) fillRestaurantAreaSelect(departmentSelect, '');
+                if (ownerSelect) ownerSelect.innerHTML = '<option value="">Select destination branch first</option>';
+                return Promise.resolve();
+            }
+            return loadHandoverDepartments(destBranch, selectedDepartment || '').then(function () {
+                const dept = (departmentSelect && departmentSelect.value) || selectedDepartment || '';
+                if (dept) return loadHandoverOwners(destBranch, dept, ownerSelect ? ownerSelect.value : '');
+            });
+        }
+
+        function loadHandoverBranches(selectedBuilding) {
+            initHandoverDestinationBranchChips(selectedBuilding || '');
+            return Promise.resolve();
+        }
+
+        function loadHandoverDepartments(selectedBuilding, selectedDepartment) {
+            const departmentSelect = document.getElementById('handover_department');
+            if (!departmentSelect || !selectedBuilding) return Promise.resolve();
+
+            if (selectedBuilding === OFFICE_BRANCH_LABEL_JS) {
+                departmentSelect.innerHTML = '<option value="">Select department</option>';
+                return fetch('/admin/departments?office_only=1')
+                    .then(function (response) { return response.json(); })
+                    .then(function (departments) {
+                        departments.forEach(function (department) {
+                            const option = document.createElement('option');
+                            option.value = department.name;
+                            option.textContent = department.name;
+                            departmentSelect.appendChild(option);
+                        });
+                        if (selectedDepartment) departmentSelect.value = selectedDepartment;
+                    });
+            }
+
+            fillRestaurantAreaSelect(departmentSelect, selectedDepartment || '');
+            return Promise.resolve();
+        }
+
+        function loadHandoverOwners(selectedBuilding, selectedDepartment, selectedOwner) {
+            if (!selectedBuilding || !selectedDepartment) return Promise.resolve();
+            const ownerSelect = document.getElementById('handover_owner');
+            if (!ownerSelect) return Promise.resolve();
+
+            const ownerDeptName = (selectedBuilding === OFFICE_BRANCH_LABEL_JS)
+                ? selectedDepartment
+                : RESTAURANT_DEFAULT_DEPT_JS;
+
+            return fetch('/admin/departments')
+                .then(function (response) { return response.json(); })
+                .then(function (departments) {
+                    const department = departments.find(function (d) {
+                        return d.name === ownerDeptName &&
+                            ((selectedBuilding === OFFICE_BRANCH_LABEL_JS &&
+                                (d.branch_id == null || d.branch_name === OFFICE_BRANCH_LABEL_JS)) ||
+                                (d.branch_name === selectedBuilding));
+                    });
+                    if (department) return fetch('/admin/users?department_id=' + department.id);
+                    return Promise.reject('Department not found');
+                })
+                .then(function (response) { return response.json(); })
+                .then(function (users) {
+                    ownerSelect.innerHTML = '<option value="">Select Owner</option>';
+                    (users || []).slice().sort(function (a, b) {
+                        const byId = (a.employee_id || '').localeCompare(b.employee_id || '');
+                        if (byId !== 0) return byId;
+                        return (a.name || '').localeCompare(b.name || '');
+                    }).forEach(function (user) {
+                        const option = document.createElement('option');
+                        option.value = user.name;
+                        option.textContent = formatEmployeeOwnerLabel(user);
+                        ownerSelect.appendChild(option);
+                    });
+                    if (selectedOwner && selectedOwner !== 'No Owner') {
+                        if (!Array.prototype.some.call(ownerSelect.options, function (o) {
+                            return o.value === selectedOwner;
+                        })) {
+                            const fallback = document.createElement('option');
+                            fallback.value = selectedOwner;
+                            fallback.textContent = selectedOwner;
+                            ownerSelect.appendChild(fallback);
+                        }
+                        ownerSelect.value = selectedOwner;
+                    }
+                })
+                .catch(function (error) {
+                    console.error('Error loading owners for hand-over:', error);
+                    if (selectedOwner && selectedOwner !== 'No Owner') {
+                        ownerSelect.innerHTML = '<option value="">Select Owner</option>';
+                        const fallback = document.createElement('option');
+                        fallback.value = selectedOwner;
+                        fallback.textContent = selectedOwner;
+                        fallback.selected = true;
+                        ownerSelect.appendChild(fallback);
+                    }
+                });
+        }
+
+        function formatHandoverTimestamp(raw) {
+            if (!raw) return '';
+            const normalized = String(raw).replace(' ', 'T');
+            const d = new Date(normalized);
+            if (Number.isNaN(d.getTime())) return String(raw);
+            return d.toLocaleString(undefined, {
+                year: 'numeric',
+                month: 'short',
+                day: 'numeric',
+                hour: '2-digit',
+                minute: '2-digit',
+            });
+        }
+
+        function escapeHtml(text) {
+            return String(text == null ? '' : text)
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;')
+                .replace(/'/g, '&#39;');
+        }
+
+        function renderHandoverHistory(history) {
+            const list = document.getElementById('handoverHistoryList');
+            if (!list) return;
+            if (!history || !history.length) {
+                list.innerHTML = '<div class="handover-history-empty">No hand-overs yet. This will be the first transfer for this asset.</div>';
+                return;
+            }
+            list.innerHTML = history.map(function (entry) {
+                const ownerChanged = entry.from_owner !== entry.to_owner;
+                const branchChanged = entry.from_branch !== entry.to_branch;
+                const deptChanged = entry.from_department !== entry.to_department;
+                const parts = [];
+                if (entry.split_from_shared) {
+                    parts.push(
+                        '<div class="handover-history-change">'
+                        + '<span class="handover-history-badge">Shared split</span> '
+                        + (entry.from_shared_branches
+                            ? ('from ' + escapeHtml(entry.from_shared_branches))
+                            : 'peeled from shared group')
+                        + '</div>'
+                    );
+                }
+                if (ownerChanged) {
+                    parts.push(
+                        '<div class="handover-history-change"><strong>Owner</strong> '
+                        + escapeHtml(entry.from_owner || '—')
+                        + '<span class="handover-history-arrow">→</span>'
+                        + escapeHtml(entry.to_owner || '—')
+                        + '</div>'
+                    );
+                }
+                if (branchChanged) {
+                    parts.push(
+                        '<div class="handover-history-change"><strong>Branch</strong> '
+                        + escapeHtml(entry.from_branch || '—')
+                        + '<span class="handover-history-arrow">→</span>'
+                        + escapeHtml(entry.to_branch || '—')
+                        + '</div>'
+                    );
+                }
+                if (deptChanged) {
+                    const deptLabel = handoverLocationFieldLabel(entry.to_branch || entry.from_branch || '');
+                    parts.push(
+                        '<div class="handover-history-change"><strong>' + deptLabel + '</strong> '
+                        + escapeHtml(entry.from_department || '—')
+                        + '<span class="handover-history-arrow">→</span>'
+                        + escapeHtml(entry.to_department || '—')
+                        + '</div>'
+                    );
+                }
+                if (!parts.length) {
+                    parts.push('<div class="handover-history-change">Ownership recorded</div>');
+                }
+                const notesHtml = entry.notes
+                    ? '<div class="handover-history-notes">' + escapeHtml(entry.notes) + '</div>'
+                    : '';
+                return (
+                    '<div class="handover-history-item">'
+                    + '<div class="handover-history-meta">'
+                    + '<span>' + escapeHtml(formatHandoverTimestamp(entry.handed_over_at)) + '</span>'
+                    + '<span>by ' + escapeHtml(entry.handed_over_by || 'Unknown') + '</span>'
+                    + '</div>'
+                    + parts.join('')
+                    + notesHtml
+                    + '</div>'
+                );
+            }).join('');
+        }
+
+        function setHandoverSharedSplitTip(isShared, thisBranch, sharedBranches) {
+            const tip = document.getElementById('handoverSharedSplitTip');
+            const listEl = document.getElementById('handoverSharedBranchesList');
+            const thisEl = document.getElementById('handoverSharedThisBranch');
+            if (!tip) return;
+            if (!isShared) {
+                tip.classList.add('d-none');
+                return;
+            }
+            const branches = (sharedBranches && sharedBranches.length)
+                ? sharedBranches
+                : (thisBranch ? [thisBranch] : []);
+            if (listEl) listEl.textContent = branches.length ? branches.join(', ') : 'multiple branches';
+            if (thisEl) thisEl.textContent = thisBranch || 'this branch';
+            tip.classList.remove('d-none');
+        }
+
+        function loadHandoverHistory(assetId) {
+            const list = document.getElementById('handoverHistoryList');
+            if (list) list.innerHTML = '<div class="text-muted small py-2">Loading history…</div>';
+            return fetch('/assets/handover/' + assetId + '/history')
+                .then(function (response) { return response.json(); })
+                .then(function (data) {
+                    if (data.error) throw new Error(data.error);
+                    const assetInfo = data.asset || {};
+                    setHandoverSharedSplitTip(
+                        !!assetInfo.is_shared,
+                        assetInfo.branch || '',
+                        assetInfo.shared_branches || []
+                    );
+                    if (assetInfo.is_shared && assetInfo.shared_branches && assetInfo.shared_branches.length) {
+                        var curBranchEl = document.getElementById('handoverCurrentBranch');
+                        if (curBranchEl) curBranchEl.textContent = assetInfo.shared_branches.join(', ');
+                    }
+                    renderHandoverHistory(data.history || []);
+                    return data;
+                })
+                .catch(function (error) {
+                    console.error('Error loading hand-over history:', error);
+                    if (list) {
+                        list.innerHTML = '<div class="handover-history-empty">Could not load hand-over history.</div>';
+                    }
+                });
+        }
+
+        function setHandoverNoOwnerState(checked) {
+            const ownerSelect = document.getElementById('handover_owner');
+            const noOwnerCheck = document.getElementById('handover_noOwnerCheck');
+            if (noOwnerCheck) noOwnerCheck.checked = !!checked;
+            if (!ownerSelect) return;
+            if (checked) {
+                ownerSelect.disabled = true;
+                ownerSelect.required = false;
+                ownerSelect.style.opacity = '0.5';
+                ownerSelect.style.backgroundColor = '#f8f9fa';
+                ownerSelect.value = '';
+            } else {
+                ownerSelect.disabled = false;
+                ownerSelect.required = true;
+                ownerSelect.style.opacity = '1';
+                ownerSelect.style.backgroundColor = '';
+            }
+        }
+
+        function populateHandoverAssetModal(button) {
+            const assetId = button.getAttribute('data-asset-id');
+            const assetName = button.getAttribute('data-asset-name') || '';
+            const assetCode = button.getAttribute('data-asset-code') || '';
+            const assetKind = button.getAttribute('data-asset-kind') || 'branch';
+            const assetOwner = button.getAttribute('data-asset-owner') || '';
+            const assetBranch = button.getAttribute('data-asset-branch') || '';
+            const assetDepartment = button.getAttribute('data-asset-department') || '';
+
+            const form = document.getElementById('handoverAssetForm');
+            if (form) {
+                form.action = '/assets/handover/' + assetId;
+                form.dataset.assetId = String(assetId);
+                form.dataset.assetKind = assetKind;
+                form.dataset.isShared = assetKind === 'shared' ? '1' : '0';
+            }
+
+            const nameEl = document.getElementById('handoverAssetName');
+            if (nameEl) nameEl.textContent = assetName;
+            const codeEl = document.getElementById('handoverAssetCode');
+            const codeWrap = document.getElementById('handoverAssetCodeWrap');
+            if (codeEl) codeEl.textContent = assetCode || 'N/A';
+            if (codeWrap) codeWrap.style.display = assetCode ? '' : 'none';
+
+            const curOwner = document.getElementById('handoverCurrentOwner');
+            const curBranch = document.getElementById('handoverCurrentBranch');
+            const curDept = document.getElementById('handoverCurrentDepartment');
+            if (curOwner) curOwner.textContent = assetOwner || '—';
+            if (curBranch) curBranch.textContent = assetBranch || '—';
+            if (curDept) curDept.textContent = assetDepartment || '—';
+
+            const isOffice = assetBranch === OFFICE_BRANCH_LABEL_JS;
+            const curDeptLabel = document.getElementById('handoverCurrentDepartmentLabel');
+            if (curDeptLabel) {
+                curDeptLabel.textContent = handoverLocationFieldLabel(isOffice ? OFFICE_BRANCH_LABEL_JS : 'restaurant');
+            }
+
+            // Provisional tip until history payload returns full sibling list
+            setHandoverSharedSplitTip(assetKind === 'shared', assetBranch, []);
+
+            const notes = document.getElementById('handover_notes');
+            if (notes) notes.value = '';
+
+            const restaurantRadio = document.getElementById('handoverAssetVenueRestaurant');
+            const officeRadio = document.getElementById('handoverAssetVenueOffice');
+            if (restaurantRadio && officeRadio) {
+                restaurantRadio.checked = !isOffice;
+                officeRadio.checked = isOffice;
+            }
+
+            setHandoverNoOwnerState(assetOwner === 'No Owner');
+
+            var handoverGroupInfo = null;
+            return Promise.all([
+                fetchAssetSharedGroupInfo(assetId).then(function (groupInfo) {
+                    handoverGroupInfo = groupInfo || {};
+                    const isShared = !!handoverGroupInfo.is_shared;
+                    var recordMap = {};
+                    (handoverGroupInfo.branch_records || []).forEach(function (rec) {
+                        if (rec.branch) recordMap[rec.branch] = rec.id;
+                    });
+                    if (form) {
+                        form.dataset.isShared = isShared ? '1' : '0';
+                        form.dataset.sharedBranches = JSON.stringify(handoverGroupInfo.shared_branches || []);
+                        form.dataset.branchRecordMap = JSON.stringify(recordMap);
+                    }
+                    if (isShared && handoverGroupInfo.shared_branches && handoverGroupInfo.shared_branches.length) {
+                        setHandoverSharedSplitTip(true, assetBranch, handoverGroupInfo.shared_branches);
+                        var initialBranch = assetBranch;
+                        if (handoverGroupInfo.shared_branches.indexOf(initialBranch) === -1) {
+                            initialBranch = handoverGroupInfo.shared_branches[0];
+                        }
+                        if (form && recordMap[initialBranch]) {
+                            form.action = '/assets/handover/' + recordMap[initialBranch];
+                        }
+                        if (curBranch) {
+                            curBranch.textContent = handoverGroupInfo.shared_branches.join(', ');
+                        }
+                    }
+                    return applyHandoverVenueUI(
+                        assetBranch,
+                        '',
+                        assetDepartment,
+                        handoverGroupInfo
+                    ).then(function () {
+                        if (assetOwner !== 'No Owner' && !isOffice) {
+                            var branchName = getHandoverDestinationBranch();
+                            if (!branchName) return;
+                            return loadHandoverOwners(
+                                branchName,
+                                assetDepartment,
+                                assetOwner
+                            );
+                        }
+                    });
+                }),
+                loadHandoverHistory(assetId),
+            ]);
+        }
+
+        document.addEventListener('click', function (event) {
+            const button = event.target.closest('.handover-asset-btn');
+            if (!button) return;
+            event.preventDefault();
+            if (button.disabled) return;
+            button.disabled = true;
+            const prevOpacity = button.style.opacity;
+            button.style.opacity = '0.55';
+            populateHandoverAssetModal(button)
+                .finally(function () {
+                    button.disabled = false;
+                    button.style.opacity = prevOpacity || '';
+                    const modalEl = document.getElementById('handoverAssetModal');
+                    if (!modalEl || typeof bootstrap === 'undefined') return;
+                    bootstrap.Modal.getOrCreateInstance(modalEl).show();
+                });
+        });
+
+        if (document.getElementById('handoverAssetForm')) {
+            const handoverNoOwner = document.getElementById('handover_noOwnerCheck');
+            if (handoverNoOwner) {
+                handoverNoOwner.addEventListener('change', function () {
+                    setHandoverNoOwnerState(this.checked);
+                });
+            }
+
+            document.querySelectorAll('input[name="handover_asset_venue_ui"]').forEach(function (radio) {
+                radio.addEventListener('change', function () {
+                    var formEl = document.getElementById('handoverAssetForm');
+                    var groupInfo = null;
+                    if (formEl && formEl.dataset.isShared === '1') {
+                        try {
+                            groupInfo = {
+                                is_shared: true,
+                                shared_branches: JSON.parse(formEl.dataset.sharedBranches || '[]'),
+                                branch_records: Object.keys(JSON.parse(formEl.dataset.branchRecordMap || '{}')).map(function (branch) {
+                                    var map = JSON.parse(formEl.dataset.branchRecordMap || '{}');
+                                    return { branch: branch, id: map[branch] };
+                                }),
+                            };
+                        } catch (e) {
+                            groupInfo = { is_shared: true, shared_branches: [], branch_records: [] };
+                        }
+                    }
+                    applyHandoverVenueUI('', '', '', groupInfo);
+                });
+            });
+
+            const handoverBranch = document.getElementById('handover_branch');
+            const handoverBranchChipWrap = document.getElementById('handoverAssetBranchChipWrap');
+            if (handoverBranchChipWrap && handoverBranch) {
+                handoverBranchChipWrap.addEventListener('chipmultiselect:change', function (e) {
+                    if (getHandoverAssetVenue() !== 'restaurant') return;
+                    if (handoverBranchChipWrap._destSyncing) return;
+
+                    const values = (e && e.detail && Array.isArray(e.detail.values)) ? e.detail.values : [];
+                    const keep = values.length ? values[values.length - 1] : '';
+                    if (values.length > 1 && handoverBranchChipWrap._chipMultiSelectApi) {
+                        handoverBranchChipWrap._destSyncing = true;
+                        handoverBranchChipWrap._chipMultiSelectApi.setValues(keep ? [keep] : []);
+                        handoverBranchChipWrap._destSyncing = false;
+                    }
+
+                    handoverBranch.value = keep;
+                    const departmentSelect = document.getElementById('handover_department');
+                    const ownerSelect = document.getElementById('handover_owner');
+                    if (ownerSelect) ownerSelect.innerHTML = '<option value="">Select department first</option>';
+                    if (!keep) {
+                        if (departmentSelect) fillRestaurantAreaSelect(departmentSelect, '');
+                        return;
+                    }
+                    loadHandoverDepartments(keep, '').then(function () {
+                        if (departmentSelect && departmentSelect.value) {
+                            loadHandoverOwners(keep, departmentSelect.value, '');
+                        }
+                    });
+                });
+            }
+
+            const handoverSourceBranchChipWrap = document.getElementById('handoverSourceBranchChipWrap');
+            if (handoverSourceBranchChipWrap) {
+                handoverSourceBranchChipWrap.addEventListener('handoverbranchpick', function (e) {
+                    const formEl = document.getElementById('handoverAssetForm');
+                    const isSharedHandOver = formEl && formEl.dataset.isShared === '1';
+                    if (!isSharedHandOver) return;
+
+                    const keep = (e && e.detail && e.detail.branch) ? e.detail.branch : '';
+                    if (!keep) return;
+
+                    syncHandoverSourceBranchSelection(keep, formEl);
+                    var sharedBranches = [];
+                    try { sharedBranches = JSON.parse(formEl.dataset.sharedBranches || '[]'); } catch (e2) { sharedBranches = []; }
+                    setHandoverSharedSplitTip(true, keep, sharedBranches);
+                });
+            }
+
+            if (handoverBranch) {
+                handoverBranch.addEventListener('change', function () {
+                    const selectedBuilding = this.value;
+                    const departmentSelect = document.getElementById('handover_department');
+                    const ownerSelect = document.getElementById('handover_owner');
+                    if (ownerSelect) ownerSelect.innerHTML = '<option value="">Select department first</option>';
+                    if (!selectedBuilding) {
+                        if (getHandoverAssetVenue() === 'restaurant' && departmentSelect) {
+                            fillRestaurantAreaSelect(departmentSelect, '');
+                        }
+                        return;
+                    }
+                    loadHandoverDepartments(selectedBuilding, '').then(function () {
+                        if (departmentSelect && departmentSelect.value) {
+                            loadHandoverOwners(selectedBuilding, departmentSelect.value, '');
+                        }
+                    });
+                });
+            }
+
+            const handoverDepartment = document.getElementById('handover_department');
+            if (handoverDepartment) {
+                handoverDepartment.addEventListener('change', function () {
+                    const selectedDepartment = this.value;
+                    const selectedBuilding = getHandoverDestinationBranch();
+                    const ownerSelect = document.getElementById('handover_owner');
+                    if (ownerSelect) ownerSelect.innerHTML = '<option value="">Select Owner</option>';
+                    if (selectedDepartment && selectedBuilding) {
+                        loadHandoverOwners(selectedBuilding, selectedDepartment, '');
+                    }
+                });
+            }
+
+            document.getElementById('handoverAssetForm').addEventListener('submit', function (e) {
+                e.preventDefault();
+                syncHandoverAssetVenueField();
+                const venue = getHandoverAssetVenue();
+                const branchSelect = document.getElementById('handover_branch');
+                const departmentSelect = document.getElementById('handover_department');
+                const ownerSelect = document.getElementById('handover_owner');
+                const noOwner = document.getElementById('handover_noOwnerCheck');
+                const assetName = (document.getElementById('handoverAssetName') || {}).textContent || 'this asset';
+                const formEl = document.getElementById('handoverAssetForm');
+                const isSharedHandOver = formEl && formEl.dataset.isShared === '1';
+
+                if (venue === 'restaurant') {
+                    if (isSharedHandOver) {
+                        const sourceBranch = document.getElementById('handover_source_branch');
+                        if (!sourceBranch || !sourceBranch.value) {
+                            alert('Please select which shared branch to hand over.');
+                            return;
+                        }
+                    }
+                    const destBranch = getHandoverDestinationBranch();
+                    if (!destBranch) {
+                        alert('Please select a destination branch.');
+                        return;
+                    }
+                    if (branchSelect) branchSelect.value = destBranch;
+                    if (!departmentSelect || !departmentSelect.value) {
+                        alert('Please select a restaurant area.');
+                        return;
+                    }
+                } else if (!departmentSelect || !departmentSelect.value) {
+                    alert('Please select a department.');
+                    return;
+                }
+
+                if (!(noOwner && noOwner.checked) && (!ownerSelect || !ownerSelect.value)) {
+                    alert('Please select a new owner, or mark No Owner Required.');
+                    return;
+                }
+
+                let confirmMessage = 'Hand over "' + assetName + '" to the selected owner and location? This will be recorded in hand-over history.';
+                if (isSharedHandOver) {
+                    confirmMessage = 'Hand over "' + assetName + '" and split it out of the Shared Asset group?\n\n'
+                        + '• This branch becomes a Branch Asset under the new owner\n'
+                        + '• Other branches stay shared under the current owner\n'
+                        + '• If only one branch remains, it becomes a Branch Asset automatically';
+                }
+
+                AppDialogs.confirm({
+                    title: isSharedHandOver ? 'Confirm shared hand-over' : 'Confirm hand-over',
+                    message: confirmMessage,
+                    confirmText: 'Hand Over'
+                }).then(function (ok) {
+                    if (!ok) return;
+                    const form = document.getElementById('handoverAssetForm');
+                    const formData = new FormData(form);
+                    if (noOwner && noOwner.checked) {
+                        formData.set('no_owner', 'on');
+                    }
+                    if (isSharedHandOver) {
+                        const sourceBranchEl = document.getElementById('handover_source_branch');
+                        if (sourceBranchEl && sourceBranchEl.value) {
+                            formData.set('source_branch', sourceBranchEl.value);
+                        }
+                    }
+                    const destBranch = getHandoverDestinationBranch();
+                    if (destBranch) {
+                        formData.set('branch', destBranch);
+                    }
+                    fetch(form.action, {
+                        method: 'POST',
+                        body: formData
+                    })
+                    .then(function (response) { return response.json().then(function (data) {
+                        return { ok: response.ok, data: data };
+                    }); })
+                    .then(function (result) {
+                        const data = result.data || {};
+                        if (result.ok && data.success) {
+                            let message = 'Asset handed over successfully.';
+                            if (data.split_from_shared) {
+                                message = 'Shared asset split and handed over successfully.';
+                                if (data.from_shared_branches && data.from_shared_branches.length) {
+                                    message += '\n\nPreviously shared across: ' + data.from_shared_branches.join(', ');
+                                }
+                                message += '\nNow a Branch Asset at: ' + (data.to_branch || '—')
+                                    + '\nNew owner: ' + (data.to_owner || '—');
+                                if (data.remaining_shared_branches && data.remaining_shared_branches.length) {
+                                    message += '\n\nStill shared under the previous owner: '
+                                        + data.remaining_shared_branches.join(', ');
+                                }
+                                if (data.converted_last_sibling) {
+                                    message += '\n\nThe last remaining shared branch was auto-converted to a Branch Asset.';
+                                }
+                            }
+                            if (data.asset_code_changed) {
+                                message += '\n\nAsset code updated:\nOld: ' + data.old_asset_code
+                                    + '\nNew: ' + data.new_asset_code
+                                    + '\n\nThis happened because the branch or department changed.';
+                            }
+                            alert(message);
+                            const modal = bootstrap.Modal.getInstance(document.getElementById('handoverAssetModal'));
+                            if (modal) modal.hide();
+                            window.location.reload();
+                        } else {
+                            alert('Error handing over asset: ' + (data.error || 'Unknown error'));
+                        }
+                    })
+                    .catch(function (error) {
+                        console.error('Error:', error);
+                        alert('Error handing over asset. Please try again.');
+                    });
+                });
+            });
         }
 
         const exportDepartmentQRPdfBtn = document.getElementById('exportDepartmentQRPdfBtn');
@@ -5130,40 +6187,82 @@ function appDeleteConfirm(message, title) {
         if (editDeptField) editDeptField.classList.remove('d-none');
         setEditAssetDepartmentLabel(isOfficeAsset ? 'office' : 'restaurant');
         setEditAssetKind(isOfficeAsset ? 'branch' : assetKind);
-        applyEditAssetKindUI();
+
+        const editForm = document.getElementById('editAssetForm');
 
         return Promise.all([
             loadAssetTypes(),
             updateAssetNameDropdowns(),
-            loadEditBranches(assetBuilding, null),
+            fetchAssetSharedGroupInfo(assetId),
             loadEditAssetDocuments(assetId),
             fetch(`/assets/${assetId}/spec-values`).then(function (r) { return r.json(); }).catch(function () {
                 return { values: [], inclusion_ids: [] };
             }),
         ]).then(function (results) {
+            const groupInfo = results[2] || {};
             const specPayload = results[4] || { values: [], inclusion_ids: [] };
-            updateAssetTypeDropdowns();
-            document.getElementById('edit_asset_type').value = assetTypeToSet || '';
-            fillEditAssetNameSelect(assetTypeToSet, assetName);
-            return loadEditDepartments(assetBuilding, assetDepartment).then(function () {
-                return loadEditOwners(assetBuilding, assetDepartment, assetOwner).catch(function () {
-                    const ownerSelect = document.getElementById('edit_owner');
-                    if (ownerSelect && assetOwner && assetOwner !== 'No Owner') {
-                        ownerSelect.innerHTML = '<option value="">Select Owner</option>';
-                        const fallback = document.createElement('option');
-                        fallback.value = assetOwner;
-                        fallback.textContent = assetOwner;
-                        fallback.selected = true;
-                        ownerSelect.appendChild(fallback);
+            const isShared = !!groupInfo.is_shared;
+            if (editForm) {
+                editForm.dataset.isShared = isShared ? '1' : '0';
+                editForm.dataset.sharedBranches = JSON.stringify(groupInfo.shared_branches || []);
+            }
+            if (isShared && !isOfficeAsset) {
+                setEditAssetKind('shared');
+            }
+            applyEditAssetKindUI();
+
+            var branchLoadPromise = Promise.resolve();
+            if (!isShared || isOfficeAsset) {
+                branchLoadPromise = loadEditBranches(assetBuilding, null);
+            }
+
+            return branchLoadPromise.then(function () {
+                updateAssetTypeDropdowns();
+                document.getElementById('edit_asset_type').value = assetTypeToSet || '';
+                fillEditAssetNameSelect(assetTypeToSet, assetName);
+                const branchForLoad = assetBuilding;
+                return loadEditDepartments(branchForLoad, assetDepartment).then(function () {
+                    var ownersPromise;
+                    if (isShared && !isOfficeAsset) {
+                        ownersPromise = loadOwnersForSharedBranches(
+                            groupInfo.shared_branches || [],
+                            'edit_owner'
+                        ).then(function () {
+                            const ownerSelect = document.getElementById('edit_owner');
+                            if (ownerSelect && assetOwner && assetOwner !== 'No Owner') {
+                                if (!Array.prototype.some.call(ownerSelect.options, function (o) {
+                                    return o.value === assetOwner;
+                                })) {
+                                    const fallback = document.createElement('option');
+                                    fallback.value = assetOwner;
+                                    fallback.textContent = assetOwner;
+                                    ownerSelect.appendChild(fallback);
+                                }
+                                ownerSelect.value = assetOwner;
+                            }
+                        });
+                    } else {
+                        ownersPromise = loadEditOwners(branchForLoad, assetDepartment, assetOwner).catch(function () {
+                            const ownerSelect = document.getElementById('edit_owner');
+                            if (ownerSelect && assetOwner && assetOwner !== 'No Owner') {
+                                ownerSelect.innerHTML = '<option value="">Select Owner</option>';
+                                const fallback = document.createElement('option');
+                                fallback.value = assetOwner;
+                                fallback.textContent = assetOwner;
+                                fallback.selected = true;
+                                ownerSelect.appendChild(fallback);
+                            }
+                        });
                     }
+                    return ownersPromise;
+                }).then(function () {
+                    const existingValues = {};
+                    (specPayload.values || []).forEach(function (item) {
+                        existingValues[item.spec_field_id] = item.value;
+                    });
+                    renderEditAssetSpecFields(existingValues);
+                    renderEditAssetInclusions(specPayload.inclusion_ids || []);
                 });
-            }).then(function () {
-                const existingValues = {};
-                (specPayload.values || []).forEach(function (item) {
-                    existingValues[item.spec_field_id] = item.value;
-                });
-                renderEditAssetSpecFields(existingValues);
-                renderEditAssetInclusions(specPayload.inclusion_ids || []);
             });
         }).catch(function (error) {
             console.error('Error loading edit data:', error);
