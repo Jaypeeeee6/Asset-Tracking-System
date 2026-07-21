@@ -286,15 +286,12 @@ def format_branch_with_code(branch_name, branch_code=None):
 
 
 def format_asset_location_display(branch, department, branch_code=None):
-    """Single location label for lists: hide Office/Restaurant venue placeholders."""
+    """Single location label for lists: office department, or branch code + name (no area)."""
     branch = (branch or '').strip()
     department = (department or '').strip()
     if branch == OFFICE_BRANCH_LABEL:
         return department or '—'
-    label = format_branch_with_code(branch, branch_code)
-    if not department or department == RESTAURANT_DEFAULT_DEPARTMENT_NAME:
-        return label
-    return f'{label} / {department}'
+    return format_branch_with_code(branch, branch_code)
 
 
 def ensure_restaurant_default_department_for_branch(cur, branch_id):
