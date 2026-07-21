@@ -996,6 +996,15 @@ function appDeleteConfirm(message, title) {
         });
     }
 
+    function bindBrandRowActions() {
+        document.querySelectorAll('.edit-brand-btn').forEach(btn => {
+            btn.addEventListener('click', handleEditBrand);
+        });
+        document.querySelectorAll('.delete-brand-btn').forEach(btn => {
+            btn.addEventListener('click', handleDeleteBrand);
+        });
+    }
+
     function updateBrandsList() {
         const tbody = document.getElementById('brandsList');
         if (!tbody) return;
@@ -1026,12 +1035,7 @@ function appDeleteConfirm(message, title) {
             `;
             tbody.appendChild(tr);
         });
-        document.querySelectorAll('.edit-brand-btn').forEach(btn => {
-            btn.addEventListener('click', handleEditBrand);
-        });
-        document.querySelectorAll('.delete-brand-btn').forEach(btn => {
-            btn.addEventListener('click', handleDeleteBrand);
-        });
+        bindBrandRowActions();
         if (typeof applySettingsTableSearch === 'function') {
             applySettingsTableSearch('brandsList');
         }
@@ -1062,14 +1066,18 @@ function appDeleteConfirm(message, title) {
      * Called on page load and after department operations
      */
     function loadDepartments() {
-        fetch('/admin/departments')
+        return fetch('/admin/departments')
             .then(response => response.json())
             .then(data => {
                 departmentsData = data;
                 updateDepartmentsList();
                 updateDepartmentQRList();
+                return data;
             })
-            .catch(error => console.error('Error loading departments:', error));
+            .catch(error => {
+                console.error('Error loading departments:', error);
+                return Promise.reject(error);
+            });
     }
 
 // ============================================================================
@@ -1400,6 +1408,15 @@ function appDeleteConfirm(message, title) {
         updateBranchesList();
     }
 
+    function bindBranchRowActions() {
+        document.querySelectorAll('.edit-branch-btn').forEach(btn => {
+            btn.addEventListener('click', handleEditBranch);
+        });
+        document.querySelectorAll('.delete-branch-btn').forEach(btn => {
+            btn.addEventListener('click', handleDeleteBranch);
+        });
+    }
+
     function updateBranchesList() {
         const branchesList = document.getElementById('branchesList');
         if (!branchesList) return;
@@ -1445,12 +1462,7 @@ function appDeleteConfirm(message, title) {
             branchesList.appendChild(tr);
         });
 
-        document.querySelectorAll('.edit-branch-btn').forEach(btn => {
-            btn.addEventListener('click', handleEditBranch);
-        });
-        document.querySelectorAll('.delete-branch-btn').forEach(btn => {
-            btn.addEventListener('click', handleDeleteBranch);
-        });
+        bindBranchRowActions();
         resetMgmtTableBulkUI('selectAllBranchesCheckbox', 'bulkDeleteBranchesBtn', 'branchesList', 'branch-row-checkbox');
         if (typeof applySettingsTableSearch === 'function') {
             applySettingsTableSearch('branchesList');
@@ -1463,6 +1475,15 @@ function appDeleteConfirm(message, title) {
 
     function isOfficeDepartment(dept) {
         return dept.branch_id == null || dept.branch_name === OFFICE_BRANCH_LABEL_JS;
+    }
+
+    function bindDepartmentRowActions() {
+        document.querySelectorAll('.edit-department-btn').forEach(btn => {
+            btn.addEventListener('click', handleEditDepartment);
+        });
+        document.querySelectorAll('.delete-department-btn').forEach(btn => {
+            btn.addEventListener('click', handleDeleteDepartment);
+        });
     }
 
     // Update departments list in management modal (office departments only; restaurant branches live in Branches)
@@ -1513,12 +1534,7 @@ function appDeleteConfirm(message, title) {
             departmentsList.appendChild(tr);
         });
 
-        document.querySelectorAll('.edit-department-btn').forEach(btn => {
-            btn.addEventListener('click', handleEditDepartment);
-        });
-        document.querySelectorAll('.delete-department-btn').forEach(btn => {
-            btn.addEventListener('click', handleDeleteDepartment);
-        });
+        bindDepartmentRowActions();
         resetMgmtTableBulkUI('selectAllDepartmentsCheckbox', 'bulkDeleteDepartmentsBtn', 'departmentsList', 'department-row-checkbox');
         if (typeof applySettingsTableSearch === 'function') {
             applySettingsTableSearch('departmentsList');
@@ -3517,22 +3533,19 @@ function appDeleteConfirm(message, title) {
 
     // Load data for user modal
     function loadUserModalData() {
-        loadBranches()
-            .then(function () {
+        populateEmployeeBrandSelects();
+        const bub = document.getElementById('bulkUserModalBranch');
+        if (bub) bub.innerHTML = '<option value="">Select branch</option>';
+        const bubm = document.getElementById('bulkUserModalBrand');
+        if (bubm) bubm.value = '';
+        loadUserModalUsers();
+        loadUserModalFilterDropdown();
+        if (document.getElementById('bulkEmployeeVenue')) syncBulkEmployeeRegisterVenue();
+        if (!branchesData || !branchesData.length) {
+            loadBranches().then(function () {
                 populateEmployeeBrandSelects();
-                const bub = document.getElementById('bulkUserModalBranch');
-                if (bub) bub.innerHTML = '<option value="">Select branch</option>';
-                const bubm = document.getElementById('bulkUserModalBrand');
-                if (bubm) bubm.value = '';
-                loadUserModalUsers();
-                loadUserModalFilterDropdown();
-                if (document.getElementById('bulkEmployeeVenue')) syncBulkEmployeeRegisterVenue();
-            })
-            .catch(function () {
-                loadUserModalUsers();
-                loadUserModalFilterDropdown();
-                if (document.getElementById('bulkEmployeeVenue')) syncBulkEmployeeRegisterVenue();
-            });
+            }).catch(function () {});
+        }
     }
 
     function syncBulkEmployeeRegisterVenue() {
@@ -3586,7 +3599,7 @@ function appDeleteConfirm(message, title) {
 
     // Load users for user modal
     function loadUserModalUsers(filterDepartmentId = '') {
-        fetch('/admin/users?grouped=1')
+        return fetch('/admin/users?grouped=1')
             .then(response => response.json())
             .then(users => {
                 const sorted = [...users].sort((a, b) => {
@@ -3602,9 +3615,11 @@ function appDeleteConfirm(message, title) {
                     if (sel) sel.value = String(filterDepartmentId);
                 }
                 applyEmployeeRosterFilters();
+                return sorted;
             })
             .catch(error => {
                 console.error('Error loading users for modal:', error);
+                return Promise.reject(error);
             });
     }
 
@@ -3721,43 +3736,51 @@ function appDeleteConfirm(message, title) {
         populateEmployeeBranchFilter(brandSel ? brandSel.value : '');
     }
 
+    function populateUserModalFilterFromDepartments(departments) {
+        const filterSelect = document.getElementById('userModalFilterDepartment');
+        if (!filterSelect) return;
+        const prev = filterSelect.value;
+        filterSelect.innerHTML = '<option value="">All departments</option>';
+
+        const departmentsByBuilding = {};
+        (departments || []).forEach(dept => {
+            if ((dept.name || '') === 'Restaurant') return;
+            const key = dept.branch_name || OFFICE_BRANCH_LABEL_JS;
+            if (!departmentsByBuilding[key]) departmentsByBuilding[key] = [];
+            departmentsByBuilding[key].push(dept);
+        });
+
+        Object.keys(departmentsByBuilding).sort().forEach(buildingName => {
+            const group = document.createElement('optgroup');
+            group.label = buildingName;
+            departmentsByBuilding[buildingName].sort((a, b) => a.name.localeCompare(b.name)).forEach(dept => {
+                const option = document.createElement('option');
+                option.value = dept.id;
+                option.textContent = dept.name;
+                group.appendChild(option);
+            });
+            filterSelect.appendChild(group);
+        });
+        if (prev) filterSelect.value = prev;
+        populateEmployeeFilterSelects();
+    }
+
     // Load filter dropdown for user modal
     function loadUserModalFilterDropdown() {
-        fetch('/admin/departments')
+        if (departmentsData && departmentsData.length) {
+            populateUserModalFilterFromDepartments(departmentsData);
+            return Promise.resolve(departmentsData);
+        }
+        return fetch('/admin/departments')
             .then(response => response.json())
             .then(departments => {
-                const filterSelect = document.getElementById('userModalFilterDepartment');
-                if (filterSelect) {
-                    const prev = filterSelect.value;
-                    filterSelect.innerHTML = '<option value="">All departments</option>';
-
-                    // Group by branch, excluding each branch's default "Restaurant" area
-                    // (restaurant employees are filtered by brand/branch instead).
-                    const departmentsByBuilding = {};
-                    departments.forEach(dept => {
-                        if ((dept.name || '') === 'Restaurant') return;
-                        const key = dept.branch_name || OFFICE_BRANCH_LABEL_JS;
-                        if (!departmentsByBuilding[key]) departmentsByBuilding[key] = [];
-                        departmentsByBuilding[key].push(dept);
-                    });
-
-                    Object.keys(departmentsByBuilding).sort().forEach(buildingName => {
-                        const group = document.createElement('optgroup');
-                        group.label = buildingName;
-                        departmentsByBuilding[buildingName].sort((a, b) => a.name.localeCompare(b.name)).forEach(dept => {
-                            const option = document.createElement('option');
-                            option.value = dept.id;
-                            option.textContent = dept.name;
-                            group.appendChild(option);
-                        });
-                        filterSelect.appendChild(group);
-                    });
-                    if (prev) filterSelect.value = prev;
-                }
-                populateEmployeeFilterSelects();
+                departmentsData = departments;
+                populateUserModalFilterFromDepartments(departments);
+                return departments;
             })
             .catch(error => {
-                console.error('Error loading departments for filter:', error);
+                console.error('Error loading filter dropdown:', error);
+                return Promise.reject(error);
             });
     }
 
@@ -4194,6 +4217,111 @@ function appDeleteConfirm(message, title) {
 // INITIALIZATION
 // ============================================================================
 
+// ============================================================================
+// SETTINGS PAGE INITIALIZATION (tab-aware, uses server-rendered data when available)
+// ============================================================================
+
+    function hydrateSettingsFromServer() {
+        const init = window.__settingsInitialData;
+        if (!init) return false;
+
+        if (Array.isArray(init.brands)) {
+            brandsData = init.brands;
+            if (!window.AssetAppState) window.AssetAppState = {};
+            window.AssetAppState.brands = init.brands;
+        }
+        if (Array.isArray(init.branches)) {
+            branchesData = init.branches;
+            if (!window.AssetAppState) window.AssetAppState = {};
+            window.AssetAppState.branches = init.branches;
+        }
+        if (Array.isArray(init.departments)) {
+            departmentsData = init.departments;
+        }
+        if (Array.isArray(init.employees)) {
+            window.__employeeRosterAll = init.employees;
+        }
+        return true;
+    }
+
+    function finalizeSettingsTabUI(tab) {
+        if (tab === 'branches') {
+            updateNewBranchBrandSelect();
+            if (typeof populateBranchFilterSelects === 'function') populateBranchFilterSelects();
+            if (typeof populateEmployeeBrandSelects === 'function') populateEmployeeBrandSelects();
+            bindBrandRowActions();
+            bindBranchRowActions();
+            resetMgmtTableBulkUI('selectAllBranchesCheckbox', 'bulkDeleteBranchesBtn', 'branchesList', 'branch-row-checkbox');
+            if (typeof applySettingsTableSearch === 'function') {
+                applySettingsTableSearch('brandsList');
+                applySettingsTableSearch('branchesList');
+            }
+        } else if (tab === 'departments') {
+            bindDepartmentRowActions();
+            resetMgmtTableBulkUI('selectAllDepartmentsCheckbox', 'bulkDeleteDepartmentsBtn', 'departmentsList', 'department-row-checkbox');
+            if (typeof applySettingsTableSearch === 'function') {
+                applySettingsTableSearch('departmentsList');
+            }
+        } else if (tab === 'employees') {
+            updateBranchDropdown();
+            updateDepartmentBranchDropdown();
+            populateEmployeeBrandSelects();
+            populateEmployeeFilterSelects();
+            populateUserModalFilterFromDepartments(departmentsData);
+            applyEmployeeRosterFilters();
+            resetMgmtTableBulkUI('selectAllEmployeesRosterCheckbox', 'bulkDeleteEmployeesRosterBtn', 'userModalList', 'employee-roster-checkbox');
+            if (typeof applySettingsTableSearch === 'function') {
+                applySettingsTableSearch('userModalList');
+            }
+        }
+    }
+
+    window.__settingsTabsReady = window.__settingsTabsReady || {};
+
+    function activateSettingsTabUI(tab) {
+        if (!tab || window.__settingsTabsReady[tab]) return;
+        window.__settingsTabsReady[tab] = true;
+        finalizeSettingsTabUI(tab);
+    }
+
+    window.finalizeSettingsTabUI = finalizeSettingsTabUI;
+    window.activateSettingsTabUI = activateSettingsTabUI;
+
+    function initSettingsPageData() {
+        const init = window.__settingsInitialData || {};
+        const tab = init.active_tab || '';
+        hydrateSettingsFromServer();
+
+        if (tab === 'assets') {
+            Promise.all([loadAssetTypes(), loadAssetNames()]).then(function () {
+                activateSettingsTabUI(tab);
+                updateAssetNameDropdowns();
+            }).catch(function () {
+                activateSettingsTabUI(tab);
+            });
+            return;
+        }
+
+        activateSettingsTabUI(tab);
+    }
+
+    function initDashboardPageData() {
+        Promise.all([
+            loadBrands(),
+            loadBranches(),
+            loadDepartments(),
+            loadAssetTypes(),
+            loadAssetNames(),
+        ]).then(function () {
+            return loadUserModalUsers();
+        }).then(function () {
+            updateAssetNameDropdowns();
+            populateUserModalFilterFromDepartments(departmentsData);
+        }).catch(function () {});
+    }
+
+// ============================================================================
+
     // Initialize data on page load
     document.addEventListener('DOMContentLoaded', function() {
         window.MgmtEditCallbacks = window.MgmtEditCallbacks || {};
@@ -4214,14 +4342,11 @@ function appDeleteConfirm(message, title) {
         };
 
         setupMgmtBulkDeletes();
-        loadBrands().then(function () {
-            return loadBranches();
-        }).catch(function () {});
-        loadDepartments();
-        loadUserModalData();
-            loadAssetTypes();
-            loadAssetNames();
-            updateAssetNameDropdowns();
+        if (document.querySelector('.settings-page')) {
+            initSettingsPageData();
+        } else {
+            initDashboardPageData();
+        }
 
             const assetTypeInput = document.getElementById('asset_type');
             const editAssetTypeInput = document.getElementById('edit_asset_type');

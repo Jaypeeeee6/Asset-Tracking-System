@@ -53,7 +53,29 @@
             <th>Actions</th>
           </tr>
         </thead>
-        <tbody id="brandsList"></tbody>
+        <tbody id="brandsList">
+          {% set sorted_brands = settings_brands|sort(attribute='name') %}
+          {% if sorted_brands %}
+            {% for brand in sorted_brands %}
+            <tr>
+              <td>{{ loop.index }}</td>
+              <td><strong class="brand-name" data-id="{{ brand.id }}">{{ brand.name }}</strong></td>
+              <td>
+                <div class="d-flex gap-2 flex-wrap align-items-center">
+                  <button type="button" class="btn-app-edit-icon edit-brand-btn" data-id="{{ brand.id }}" data-name="{{ brand.name|e }}" title="Edit brand" aria-label="Edit brand">
+                    <i class="bi bi-pencil-square" aria-hidden="true"></i>
+                  </button>
+                  <button type="button" class="btn-app-edit-icon btn-app-danger-icon delete-brand-btn" data-id="{{ brand.id }}" data-name="{{ brand.name|e }}" title="Delete brand" aria-label="Delete brand">
+                    <i class="bi bi-trash" aria-hidden="true"></i>
+                  </button>
+                </div>
+              </td>
+            </tr>
+            {% endfor %}
+          {% else %}
+            <tr><td colspan="3" class="text-center text-muted py-4">No brands yet. Add one above.</td></tr>
+          {% endif %}
+        </tbody>
       </table>
     </div>
   </div>
@@ -99,7 +121,34 @@
             <th>Actions</th>
           </tr>
         </thead>
-        <tbody id="branchesList"></tbody>
+        <tbody id="branchesList">
+          {% set sorted_branches = settings_branches|sort(attribute='name') %}
+          {% if sorted_branches %}
+            {% for branch in sorted_branches %}
+            {% set code_label = (branch.branch_code or '')|trim or '-' %}
+            {% set brand_label = branch.brand_name or '—' %}
+            <tr>
+              <td><input type="checkbox" class="branch-row-checkbox" value="{{ branch.id }}" aria-label="Select {{ branch.name|e }}"></td>
+              <td>{{ loop.index }}</td>
+              <td>{{ code_label }}</td>
+              <td><strong class="branch-name" data-id="{{ branch.id }}">{{ branch.name }}</strong></td>
+              <td>{{ brand_label }}</td>
+              <td>
+                <div class="d-flex gap-2 flex-wrap align-items-center">
+                  <button type="button" class="btn-app-edit-icon edit-branch-btn" data-id="{{ branch.id }}" data-name="{{ branch.name|e }}" title="Edit branch" aria-label="Edit branch">
+                    <i class="bi bi-pencil-square" aria-hidden="true"></i>
+                  </button>
+                  <button type="button" class="btn-app-edit-icon btn-app-danger-icon delete-branch-btn" data-id="{{ branch.id }}" data-name="{{ branch.name|e }}" title="Delete branch" aria-label="Delete branch">
+                    <i class="bi bi-trash" aria-hidden="true"></i>
+                  </button>
+                </div>
+              </td>
+            </tr>
+            {% endfor %}
+          {% else %}
+            <tr><td colspan="6" class="text-center text-muted py-4">No branches yet. Add one above.</td></tr>
+          {% endif %}
+        </tbody>
       </table>
     </div>
   </div>

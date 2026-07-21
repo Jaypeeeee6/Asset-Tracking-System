@@ -758,6 +758,85 @@ def _employee_group_key(employee_id, name, is_office):
     return ('O:' if is_office else 'R:') + (name or '').strip().lower()
 
 
+def fetch_grouped_employees(cur, department_id=None):
+    """Return roster rows with multi-branch employees collapsed into one entry."""
+    cur.execute(
+        '''
+        SELECT u.id, u.name, u.employee_id, u.mobile, u.email, u.department_id,
+               d.name as department_name, d.branch_id,
+               CASE WHEN u.department_id IS NULL THEN ? ELSE COALESCE(b.name, ?) END as branch_name
+        FROM users u
+        LEFT JOIN departments d ON u.department_id = d.id
+        LEFT JOIN branches b ON d.branch_id = b.id
+        ''',
+        (OFFICE_BRANCH_LABEL, OFFICE_BRANCH_LABEL),
+    )
+    rows = [dict(r) for r in cur.fetchall()]
+
+    groups = {}
+    order = []
+    for r in rows:
+        is_office = r['department_id'] is None or r['branch_id'] is None
+        key = _employee_group_key(r['employee_id'], r['name'], is_office)
+        g = groups.get(key)
+        if not g:
+            g = {
+                'id': r['id'],
+                'name': r['name'],
+                'employee_id': r['employee_id'],
+                'mobile': r['mobile'],
+                'email': r['email'],
+                'is_office': is_office,
+                'row_ids': [],
+                'branch_ids': [],
+                'branch_names': [],
+                'department_ids': [],
+                'department_names': [],
+                'department_id': None,
+            }
+            groups[key] = g
+            order.append(key)
+        g['row_ids'].append(r['id'])
+        if r['id'] < g['id']:
+            g['id'] = r['id']
+        if not g['employee_id'] and r['employee_id']:
+            g['employee_id'] = r['employee_id']
+        if not g['mobile'] and r['mobile']:
+            g['mobile'] = r['mobile']
+        if not g['email'] and r['email']:
+            g['email'] = r['email']
+        if r['branch_id'] is not None and r['branch_id'] not in g['branch_ids']:
+            g['branch_ids'].append(r['branch_id'])
+            g['branch_names'].append(r['branch_name'])
+        if r['department_id'] is not None and r['department_id'] not in g['department_ids']:
+            g['department_ids'].append(r['department_id'])
+            g['department_names'].append(r['department_name'])
+        if g['department_id'] is None:
+            g['department_id'] = r['department_id']
+
+    dept_filter = None
+    if department_id:
+        try:
+            dept_filter = int(department_id)
+        except (TypeError, ValueError):
+            dept_filter = None
+
+    result = []
+    for key in order:
+        g = groups[key]
+        if dept_filter is not None and dept_filter not in g['department_ids']:
+            continue
+        if g['is_office']:
+            g['branch_name'] = OFFICE_BRANCH_LABEL
+        else:
+            g['branch_name'] = ', '.join(sorted(g['branch_names']))
+        g['department_name'] = ', '.join(sorted(set(n for n in g['department_names'] if n))) or '—'
+        result.append(g)
+
+    result.sort(key=lambda x: ((x['branch_name'] or '').lower(), (x['name'] or '').lower()))
+    return result
+
+
 def _load_employee_group(cur, user_id):
     """Return every ``users`` row belonging to the same logical employee as ``user_id``."""
     cur.execute(
@@ -857,82 +936,8 @@ def get_users():
         conn.close()
         return jsonify(users)
 
-    # Grouped roster: collapse an employee's per-branch rows into one entry.
-    cur.execute(
-        '''
-        SELECT u.id, u.name, u.employee_id, u.mobile, u.email, u.department_id,
-               d.name as department_name, d.branch_id,
-               CASE WHEN u.department_id IS NULL THEN ? ELSE COALESCE(b.name, ?) END as branch_name
-        FROM users u
-        LEFT JOIN departments d ON u.department_id = d.id
-        LEFT JOIN branches b ON d.branch_id = b.id
-        ''',
-        (OFFICE_BRANCH_LABEL, OFFICE_BRANCH_LABEL),
-    )
-    rows = [dict(r) for r in cur.fetchall()]
+    result = fetch_grouped_employees(cur, department_id=department_id)
     conn.close()
-
-    groups = {}
-    order = []
-    for r in rows:
-        is_office = r['department_id'] is None or r['branch_id'] is None
-        key = _employee_group_key(r['employee_id'], r['name'], is_office)
-        g = groups.get(key)
-        if not g:
-            g = {
-                'id': r['id'],
-                'name': r['name'],
-                'employee_id': r['employee_id'],
-                'mobile': r['mobile'],
-                'email': r['email'],
-                'is_office': is_office,
-                'row_ids': [],
-                'branch_ids': [],
-                'branch_names': [],
-                'department_ids': [],
-                'department_names': [],
-                'department_id': None,
-            }
-            groups[key] = g
-            order.append(key)
-        g['row_ids'].append(r['id'])
-        if r['id'] < g['id']:
-            g['id'] = r['id']
-        if not g['employee_id'] and r['employee_id']:
-            g['employee_id'] = r['employee_id']
-        if not g['mobile'] and r['mobile']:
-            g['mobile'] = r['mobile']
-        if not g['email'] and r['email']:
-            g['email'] = r['email']
-        if r['branch_id'] is not None and r['branch_id'] not in g['branch_ids']:
-            g['branch_ids'].append(r['branch_id'])
-            g['branch_names'].append(r['branch_name'])
-        if r['department_id'] is not None and r['department_id'] not in g['department_ids']:
-            g['department_ids'].append(r['department_id'])
-            g['department_names'].append(r['department_name'])
-        if g['department_id'] is None:
-            g['department_id'] = r['department_id']
-
-    dept_filter = None
-    if department_id:
-        try:
-            dept_filter = int(department_id)
-        except (TypeError, ValueError):
-            dept_filter = None
-
-    result = []
-    for key in order:
-        g = groups[key]
-        if dept_filter is not None and dept_filter not in g['department_ids']:
-            continue
-        if g['is_office']:
-            g['branch_name'] = OFFICE_BRANCH_LABEL
-        else:
-            g['branch_name'] = ', '.join(sorted(g['branch_names']))
-        g['department_name'] = ', '.join(sorted(set(n for n in g['department_names'] if n))) or '—'
-        result.append(g)
-
-    result.sort(key=lambda x: ((x['branch_name'] or '').lower(), (x['name'] or '').lower()))
     return jsonify(result)
 
 @admin_bp.route('/users', methods=['POST'])

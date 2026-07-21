@@ -37,7 +37,44 @@
             <th>Actions</th>
           </tr>
         </thead>
-        <tbody id="departmentsList"></tbody>
+        <tbody id="departmentsList">
+          {% set ns = namespace(items=[]) %}
+          {% for department in settings_departments %}
+            {% if department.branch_id is none or department.branch_name == 'Office' %}
+              {% set ns.items = ns.items + [department] %}
+            {% endif %}
+          {% endfor %}
+          {% set sorted_departments = ns.items|sort(attribute='name') %}
+          {% if sorted_departments %}
+            {% for department in sorted_departments %}
+            <tr>
+              <td><input type="checkbox" class="department-row-checkbox" value="{{ department.id }}" aria-label="Select {{ department.name|e }}"></td>
+              <td>{{ loop.index }}</td>
+              <td><strong class="department-name" data-id="{{ department.id }}">{{ department.name }}</strong></td>
+              <td>
+                <div class="d-flex gap-2 flex-wrap align-items-center">
+                  <button type="button" class="btn-app-edit-icon edit-department-btn"
+                          data-id="{{ department.id }}"
+                          data-name="{{ department.name|e }}"
+                          data-branch="{{ department.branch_name|e }}"
+                          title="Edit department" aria-label="Edit department">
+                    <i class="bi bi-pencil-square" aria-hidden="true"></i>
+                  </button>
+                  <button type="button" class="btn-app-edit-icon btn-app-danger-icon delete-department-btn"
+                          data-id="{{ department.id }}"
+                          data-name="{{ department.name|e }}"
+                          data-branch="{{ department.branch_name|e }}"
+                          title="Delete department" aria-label="Delete department">
+                    <i class="bi bi-trash" aria-hidden="true"></i>
+                  </button>
+                </div>
+              </td>
+            </tr>
+            {% endfor %}
+          {% else %}
+            <tr><td colspan="4" class="text-center text-muted py-4">No departments found</td></tr>
+          {% endif %}
+        </tbody>
       </table>
     </div>
   </div>

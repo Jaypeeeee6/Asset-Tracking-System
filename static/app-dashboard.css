@@ -834,6 +834,27 @@
     border-bottom-color: var(--gold);
 }
 
+@keyframes settings-tab-panel-enter {
+    from {
+        opacity: 0;
+        transform: translate3d(0, 10px, 0);
+    }
+    to {
+        opacity: 1;
+        transform: translate3d(0, 0, 0);
+    }
+}
+
+.asset-dashboard.settings-page .settings-tab-panel.settings-tab-panel-enter {
+    animation: settings-tab-panel-enter 0.32s ease-out both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .asset-dashboard.settings-page .settings-tab-panel.settings-tab-panel-enter {
+        animation: none;
+    }
+}
+
 .asset-dashboard.settings-page .settings-section-title {
     margin: 0 0 0.65rem 0;
     font-size: 0.72rem;

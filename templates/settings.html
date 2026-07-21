@@ -25,7 +25,7 @@
     <div class="page-header">
         <div>
             <h1><i class="bi bi-gear-wide-connected" style="color:var(--gold);" aria-hidden="true"></i>Settings</h1>
-            <p class="subtitle">
+            <p class="subtitle" id="settingsPageSubtitle">
                 {% if active_tab == 'users' %}
                     User accounts and access roles
                 {% elif active_tab == 'branches' %}
@@ -47,28 +47,28 @@
     </div>
 
     <div class="filter-bar settings-tab-bar" role="tablist" aria-label="Settings sections">
-        <a href="{{ url_for('assets.settings') }}?tab=users" class="settings-tab-link {{ 'active' if active_tab == 'users' }}" role="tab" aria-selected="{{ 'true' if active_tab == 'users' else 'false' }}">User Accounts</a>
-        <a href="{{ url_for('assets.settings') }}?tab=branches" class="settings-tab-link {{ 'active' if active_tab == 'branches' }}" role="tab" aria-selected="{{ 'true' if active_tab == 'branches' else 'false' }}">Branches</a>
-        <a href="{{ url_for('assets.settings') }}?tab=departments" class="settings-tab-link {{ 'active' if active_tab == 'departments' }}" role="tab" aria-selected="{{ 'true' if active_tab == 'departments' else 'false' }}">Departments</a>
-        <a href="{{ url_for('assets.settings') }}?tab=employees" class="settings-tab-link {{ 'active' if active_tab == 'employees' }}" role="tab" aria-selected="{{ 'true' if active_tab == 'employees' else 'false' }}">Employees</a>
-        <a href="{{ url_for('assets.settings') }}?tab=assets" class="settings-tab-link {{ 'active' if active_tab == 'assets' }}" role="tab" aria-selected="{{ 'true' if active_tab == 'assets' else 'false' }}">Asset Categories</a>
+        <a href="{{ url_for('assets.settings') }}?tab=users" data-settings-tab="users" data-settings-subtitle="User accounts and access roles" class="settings-tab-link {{ 'active' if active_tab == 'users' }}" role="tab" aria-selected="{{ 'true' if active_tab == 'users' else 'false' }}">User Accounts</a>
+        <a href="{{ url_for('assets.settings') }}?tab=branches" data-settings-tab="branches" data-settings-subtitle="Branch locations" class="settings-tab-link {{ 'active' if active_tab == 'branches' }}" role="tab" aria-selected="{{ 'true' if active_tab == 'branches' else 'false' }}">Branches</a>
+        <a href="{{ url_for('assets.settings') }}?tab=departments" data-settings-tab="departments" data-settings-subtitle="Departments linked to branches" class="settings-tab-link {{ 'active' if active_tab == 'departments' }}" role="tab" aria-selected="{{ 'true' if active_tab == 'departments' else 'false' }}">Departments</a>
+        <a href="{{ url_for('assets.settings') }}?tab=employees" data-settings-tab="employees" data-settings-subtitle="People by branch and department" class="settings-tab-link {{ 'active' if active_tab == 'employees' }}" role="tab" aria-selected="{{ 'true' if active_tab == 'employees' else 'false' }}">Employees</a>
+        <a href="{{ url_for('assets.settings') }}?tab=assets" data-settings-tab="assets" data-settings-subtitle="Asset categories and reusable asset names" class="settings-tab-link {{ 'active' if active_tab == 'assets' }}" role="tab" aria-selected="{{ 'true' if active_tab == 'assets' else 'false' }}">Asset Categories</a>
     </div>
 
     <div class="app-card mb-4 settings-main-card">
         <div class="card-body-pad">
-            <div class="settings-tab-panel {{ 'd-none' if active_tab != 'users' }}">
+            <div id="settingsTabPanel-users" class="settings-tab-panel {{ 'd-none' if active_tab != 'users' }}">
                 {% include 'partials/settings_auth_users_panel.html' %}
             </div>
-            <div class="settings-tab-panel {{ 'd-none' if active_tab != 'branches' }}">
+            <div id="settingsTabPanel-branches" class="settings-tab-panel {{ 'd-none' if active_tab != 'branches' }}">
                 {% include 'partials/mgmt_panel_branch.html' %}
             </div>
-            <div class="settings-tab-panel {{ 'd-none' if active_tab != 'departments' }}">
+            <div id="settingsTabPanel-departments" class="settings-tab-panel {{ 'd-none' if active_tab != 'departments' }}">
                 {% include 'partials/mgmt_panel_department.html' %}
             </div>
-            <div class="settings-tab-panel {{ 'd-none' if active_tab != 'employees' }}">
+            <div id="settingsTabPanel-employees" class="settings-tab-panel {{ 'd-none' if active_tab != 'employees' }}">
                 {% include 'partials/mgmt_panel_employees.html' %}
             </div>
-            <div class="settings-tab-panel {{ 'd-none' if active_tab != 'assets' }}">
+            <div id="settingsTabPanel-assets" class="settings-tab-panel {{ 'd-none' if active_tab != 'assets' }}">
                 {% include 'partials/mgmt_panel_assets.html' %}
             </div>
         </div>
@@ -193,7 +193,9 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 <script src="{{ url_for('static', filename='js/settings-search.js') }}"></script>
+<script>window.__settingsInitialData = {{ settings_initial_data|tojson }};</script>
 {% include 'partials/dashboard_main_script.html' %}
+<script src="{{ url_for('static', filename='js/settings-tabs.js') }}"></script>
 <script>
 function showUserDetails(email, fullName, role) {
     const modal = new bootstrap.Modal(document.getElementById('userDetailsModal'));

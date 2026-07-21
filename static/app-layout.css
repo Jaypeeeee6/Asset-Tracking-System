@@ -138,10 +138,17 @@ body {
     overflow-y: auto;
     overflow-x: hidden;
     z-index: 900;
-    transition: width 0.25s ease, transform 0.25s ease;
     border-right: 1px solid var(--dark-mid);
     scrollbar-width: thin;
     scrollbar-color: rgba(217,189,125,0.15) transparent;
+}
+
+#wrapper.sidebar-transitioning #sidebar-wrapper {
+    transition: width 0.25s ease, transform 0.25s ease;
+}
+
+#wrapper.sidebar-transitioning #page-content-wrapper {
+    transition: margin-left 0.25s ease;
 }
 
 .sidebar-main {
@@ -214,7 +221,6 @@ body {
     padding: 1.15rem 0.9rem 0;
     display: flex;
     flex-direction: column;
-    transition: margin-left 0.25s ease;
     background: var(--body-bg);
     overflow-x: hidden;
 }
@@ -420,11 +426,11 @@ a.btn-app-add:focus-visible {
 @keyframes page-enter {
     from {
         opacity: 0;
-        transform: translateY(10px);
+        transform: translate3d(0, 10px, 0);
     }
     to {
         opacity: 1;
-        transform: translateY(0);
+        transform: translate3d(0, 0, 0);
     }
 }
 

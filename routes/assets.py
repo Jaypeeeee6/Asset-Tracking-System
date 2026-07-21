@@ -838,6 +838,69 @@ _SETTINGS_CHART_DATA = {
 }
 
 
+def _load_settings_tab_data(tab):
+    """Load server-side settings management data (mirrors admin API shapes)."""
+    payload = {
+        'active_tab': tab,
+        'brands': [],
+        'branches': [],
+        'departments': [],
+        'employees': [],
+    }
+
+    conn = get_db_connection()
+    cur = conn.cursor()
+
+    cur.execute('SELECT id, name FROM brands ORDER BY name')
+    payload['brands'] = [{'id': row[0], 'name': row[1]} for row in cur.fetchall()]
+    cur.execute(
+        '''
+        SELECT b.id, b.name, b.brand_id, b.branch_code, br.name AS brand_name
+        FROM branches b
+        LEFT JOIN brands br ON b.brand_id = br.id
+        ORDER BY b.name
+        '''
+    )
+    payload['branches'] = [
+        {
+            'id': row[0],
+            'name': row[1],
+            'brand_id': row[2],
+            'branch_code': row[3],
+            'brand_name': row[4],
+        }
+        for row in cur.fetchall()
+    ]
+    cur.execute(
+        '''
+        SELECT d.id, d.name, d.branch_id,
+               CASE WHEN d.branch_id IS NULL THEN ? ELSE b.name END AS branch_name,
+               b.branch_code
+        FROM departments d
+        LEFT JOIN branches b ON d.branch_id = b.id
+        ORDER BY branch_name, d.name
+        ''',
+        (OFFICE_BRANCH_LABEL,),
+    )
+    payload['departments'] = [
+        {
+            'id': row[0],
+            'name': row[1],
+            'branch_id': row[2],
+            'branch_name': row[3],
+            'branch_code': row[4],
+        }
+        for row in cur.fetchall()
+    ]
+
+    from routes.admin import fetch_grouped_employees
+
+    payload['employees'] = fetch_grouped_employees(cur)
+
+    conn.close()
+    return payload
+
+
 @assets_bp.route('/settings')
 @login_required
 def settings():
@@ -860,11 +923,17 @@ def settings():
         )
         auth_users = cur.fetchall()
         conn.close()
+    settings_initial_data = _load_settings_tab_data(tab)
     return render_template(
         'settings.html',
         active_tab=tab,
         users=auth_users,
         chart_data=_SETTINGS_CHART_DATA,
+        settings_initial_data=settings_initial_data,
+        settings_brands=settings_initial_data['brands'],
+        settings_branches=settings_initial_data['branches'],
+        settings_departments=settings_initial_data['departments'],
+        settings_employees=settings_initial_data['employees'],
     )
 
 

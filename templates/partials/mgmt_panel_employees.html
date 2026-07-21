@@ -102,7 +102,41 @@
             <th>Actions</th>
           </tr>
         </thead>
-        <tbody id="userModalList"></tbody>
+        <tbody id="userModalList">
+          {% if settings_employees %}
+            {% for user in settings_employees %}
+            {% set employee_id = user.employee_id or '—' %}
+            {% set mobile = user.mobile or '—' %}
+            {% set email = user.email or '—' %}
+            <tr>
+              <td><input type="checkbox" class="employee-roster-checkbox" value="{{ user.id }}" aria-label="Select {{ user.name|e }}"></td>
+              <td>{{ loop.index }}</td>
+              <td><span class="text-muted">{{ employee_id }}</span></td>
+              <td><strong>{{ user.name }}</strong></td>
+              <td>{% if mobile == '—' %}<span class="text-muted">—</span>{% else %}{{ mobile }}{% endif %}</td>
+              <td>{% if email == '—' %}<span class="text-muted">—</span>{% else %}{{ email }}{% endif %}</td>
+              <td>{{ user.branch_name }}</td>
+              <td>{{ user.department_name }}</td>
+              <td>
+                <div class="d-flex gap-2 flex-wrap align-items-center">
+                  <button type="button" class="btn-app-edit-icon" onclick="handleEditUserModal(event)"
+                          data-id="{{ user.id }}" data-name="{{ user.name|e }}" data-department="{{ user.department_name|e }}"
+                          title="Edit employee" aria-label="Edit employee">
+                    <i class="bi bi-pencil-square" aria-hidden="true"></i>
+                  </button>
+                  <button type="button" class="btn-app-edit-icon btn-app-danger-icon" onclick="handleDeleteUserModal(event)"
+                          data-id="{{ user.id }}" data-name="{{ user.name|e }}" data-department="{{ user.department_name|e }}"
+                          title="Delete employee" aria-label="Delete employee">
+                    <i class="bi bi-trash" aria-hidden="true"></i>
+                  </button>
+                </div>
+              </td>
+            </tr>
+            {% endfor %}
+          {% else %}
+            <tr><td colspan="9" class="text-center text-muted py-4">No employees found.</td></tr>
+          {% endif %}
+        </tbody>
       </table>
     </div>
   </div>
