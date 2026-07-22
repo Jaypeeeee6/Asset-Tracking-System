@@ -181,5 +181,18 @@ def create_app():
     # Initialize database
     with app.app_context():
         init_db()
-    
+
+    # Run last among app callbacks so we can clear Flask-Login's Vary: Cookie
+    # on signature assets (important for Gmail's image proxy).
+    @app.after_request
+    def _signature_image_headers(response):
+        if request.path.startswith('/signature/') or request.path.startswith(
+            '/static/images/signature/'
+        ):
+            response.headers['Cache-Control'] = 'public, max-age=604800, immutable'
+            response.headers['Access-Control-Allow-Origin'] = '*'
+            response.headers.pop('Vary', None)
+            response.headers.pop('X-Frame-Options', None)
+        return response
+
     return app 
