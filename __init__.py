@@ -12,7 +12,7 @@ load_dotenv(Path(__file__).resolve().parent / '.env')
 
 # Public email-signature assets (Gmail loads these with no cookies / Google image proxy)
 _SIGNATURE_DIR = Path(__file__).resolve().parent / 'static' / 'images' / 'signature'
-_SIGNATURE_ALLOWED = frozenset({'maa-logo.png', 'maa-logo-email.jpg', 'maa-logo-email.png', 'icon-phone.png', 'icon-email.png'})
+_SIGNATURE_ALLOWED = frozenset({'maa-logo.png', 'icon-phone.png', 'icon-email.png'})
 
 def create_app():
     app = Flask(__name__)
@@ -164,11 +164,10 @@ def create_app():
         name = Path(filename).name
         if name not in _SIGNATURE_ALLOWED:
             abort(404)
-        mime = 'image/jpeg' if name.lower().endswith(('.jpg', '.jpeg')) else 'image/png'
         return send_from_directory(
             _SIGNATURE_DIR,
             name,
-            mimetype=mime,
+            mimetype='image/png',
             max_age=604800,
         )
     
