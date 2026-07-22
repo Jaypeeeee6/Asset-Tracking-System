@@ -57,21 +57,7 @@ def create_app():
     login_manager.init_app(app)
     login_manager.login_view = 'auth.login'
     login_manager.login_message = 'Please log in to access this page.'
-
-    # -------------------------------------------------------------------------
-    # TEMPORARY: set DISABLE_AUTH=1 in .env to skip login (auto-login as first
-    # IT user, or first user). Auth routes/decorators stay in place — just unset
-    # DISABLE_AUTH (or set to 0) to restore normal login. Do not use in production
-    # longer than needed.
-    # -------------------------------------------------------------------------
-    _disable_auth = os.environ.get('DISABLE_AUTH', '').strip().lower() in (
-        '1',
-        'true',
-        'yes',
-        'on',
-    )
-    app.config['DISABLE_AUTH'] = _disable_auth
-
+    
     @login_manager.user_loader
     def load_user(user_id):
         conn = get_db_connection()
@@ -89,46 +75,6 @@ def create_app():
                 fn = ''
             return User(user_data[0], user_data[1], user_data[2], fn)
         return None
-
-    if _disable_auth:
-        @login_manager.request_loader
-        def _temp_auto_login(_request):
-            """TEMPORARY bypass: treat every request as logged-in."""
-            conn = get_db_connection()
-            cur = conn.cursor()
-            from utils.auth_roles import AUTH_ROLE_IT
-
-            cur.execute(
-                "SELECT id, email, role, full_name FROM users_auth "
-                "WHERE role = ? ORDER BY id ASC LIMIT 1",
-                (AUTH_ROLE_IT,),
-            )
-            row = cur.fetchone()
-            if not row:
-                cur.execute(
-                    'SELECT id, email, role, full_name FROM users_auth '
-                    'ORDER BY id ASC LIMIT 1'
-                )
-                row = cur.fetchone()
-            conn.close()
-            if not row:
-                return None
-            try:
-                fn = row['full_name'] or ''
-            except (KeyError, IndexError):
-                fn = ''
-            return User(row[0], row[1], row[2], fn)
-
-        @app.before_request
-        def _temp_skip_login_page():
-            """TEMPORARY: send / and /auth/login straight to the dashboard."""
-            from flask import redirect, request, url_for
-
-            if request.endpoint in ('root', 'auth.login'):
-                return redirect(url_for('assets.dashboard'))
-    # -------------------------------------------------------------------------
-    # END TEMPORARY DISABLE_AUTH
-    # -------------------------------------------------------------------------
     
     # Register blueprints
     from routes.auth import auth_bp
@@ -139,12 +85,10 @@ def create_app():
     app.register_blueprint(assets_bp, url_prefix='/assets')
     app.register_blueprint(admin_bp, url_prefix='/admin')
     
-    # Root route redirects to login (or dashboard when DISABLE_AUTH is on)
+    # Root route redirects to login
     @app.route('/')
     def root():
         from flask import redirect, url_for
-        if app.config.get('DISABLE_AUTH'):
-            return redirect(url_for('assets.dashboard'))
         return redirect(url_for('auth.login'))
     
     # Asset info route at root level for QR code compatibility
