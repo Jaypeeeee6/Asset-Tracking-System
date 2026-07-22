@@ -3,12 +3,16 @@ import secrets
 from pathlib import Path
 
 from dotenv import load_dotenv
-from flask import Flask
+from flask import Flask, request, send_from_directory, abort
 from flask_login import LoginManager
 from models.database import get_db_connection, init_db
 from models.user import User
 
 load_dotenv(Path(__file__).resolve().parent / '.env')
+
+# Public email-signature assets (Gmail loads these with no cookies / Google image proxy)
+_SIGNATURE_DIR = Path(__file__).resolve().parent / 'static' / 'images' / 'signature'
+_SIGNATURE_ALLOWED = frozenset({'maa-logo.png', 'icon-phone.png', 'icon-email.png'})
 
 def create_app():
     app = Flask(__name__)
@@ -50,6 +54,12 @@ def create_app():
         response.headers['X-Content-Type-Options'] = 'nosniff'
         response.headers['X-Frame-Options'] = 'DENY'
         response.headers['X-XSS-Protection'] = '1; mode=block'
+        # Signature images must be cacheable by Gmail's image proxy (no cookie vary)
+        if request.path.startswith('/signature/'):
+            response.headers['Cache-Control'] = 'public, max-age=604800, immutable'
+            response.headers['Access-Control-Allow-Origin'] = '*'
+            response.headers.pop('Vary', None)
+            response.headers.pop('X-Frame-Options', None)
         return response
     
     # Initialize Flask-Login
@@ -146,6 +156,20 @@ def create_app():
         if app.config.get('DISABLE_AUTH'):
             return redirect(url_for('assets.dashboard'))
         return redirect(url_for('auth.login'))
+
+    # Public signature images for Gmail (no login). Prefer this over /static/... so
+    # responses are cache-friendly for Google's image proxy.
+    @app.route('/signature/<path:filename>')
+    def public_signature_image(filename):
+        name = Path(filename).name
+        if name not in _SIGNATURE_ALLOWED:
+            abort(404)
+        return send_from_directory(
+            _SIGNATURE_DIR,
+            name,
+            mimetype='image/png',
+            max_age=604800,
+        )
     
     # Asset info route at root level for QR code compatibility
     @app.route('/asset/<asset_code>')
