@@ -55,7 +55,7 @@ def create_app():
         response.headers['X-Frame-Options'] = 'DENY'
         response.headers['X-XSS-Protection'] = '1; mode=block'
         # Signature images must be cacheable by Gmail's image proxy (no cookie vary)
-        if request.path.startswith('/signature/'):
+        if request.path.startswith('/signature/') or request.path.startswith('/static/images/signature/'):
             response.headers['Cache-Control'] = 'public, max-age=604800, immutable'
             response.headers['Access-Control-Allow-Origin'] = '*'
             response.headers.pop('Vary', None)
