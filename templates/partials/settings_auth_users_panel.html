@@ -28,8 +28,8 @@
     {% if users %}
     {{ settings_search_bar('settingsAuthUsersList', 'Search emails, names, roles…', 'settingsAuthUsersSearch') }}
     <div class="settings-auth-table-bleed">
-        <div style="overflow-x:auto;">
-            <table class="app-table" style="width: 100%; min-width: 720px;">
+        <div class="app-table-scroll">
+            <table class="app-table app-table--min-2xl">
                 <thead>
                     <tr>
                         <th><input type="checkbox" id="selectAllUsersCheckbox" title="Select all" aria-label="Select all deletable users"></th>

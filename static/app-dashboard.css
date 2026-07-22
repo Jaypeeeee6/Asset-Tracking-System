@@ -321,6 +321,28 @@
 }
 
 /* ----- Table ----- */
+/* Scroll wrapper: table keeps column widths; parent scrolls horizontally on narrow viewports */
+.asset-dashboard .app-table-scroll {
+    width: 100%;
+    max-width: 100%;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+}
+
+.asset-dashboard .app-table-scroll > .app-table {
+    width: max-content;
+    min-width: 100%;
+}
+
+.asset-dashboard .app-table.app-table--min-sm { min-width: 400px; }
+.asset-dashboard .app-table.app-table--min-md { min-width: 480px; }
+.asset-dashboard .app-table.app-table--min-categories { min-width: 520px; }
+.asset-dashboard .app-table.app-table--min-lg { min-width: 640px; }
+.asset-dashboard .app-table.app-table--min-xl { min-width: 680px; }
+.asset-dashboard .app-table.app-table--min-2xl { min-width: 720px; }
+.asset-dashboard .app-table.app-table--min-3xl { min-width: 1040px; }
+.asset-dashboard .app-table.app-table--min-4xl { min-width: 1100px; }
+
 .asset-dashboard .app-table {
     width: 100%;
     border-collapse: collapse;
@@ -570,15 +592,18 @@
     field-sizing: content;
 }
 
-/* Asset register: fit content width (drop min-width scroll; fixed layout + column budget) */
+/* Asset register: horizontal scroll instead of squeezing columns */
 .asset-dashboard .asset-register-card .asset-register-table-wrap {
+    width: 100%;
     max-width: 100%;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
 }
 
 .asset-dashboard .asset-register-card .app-table.asset-register-table {
-    width: 100%;
-    max-width: 100%;
-    table-layout: fixed;
+    width: max-content;
+    min-width: 72rem;
+    table-layout: auto;
 }
 
 .asset-dashboard .asset-register-card .app-table.asset-register-table thead th,
@@ -587,7 +612,7 @@
 }
 
 .asset-dashboard .asset-register-card .app-table.asset-register-table thead th {
-    white-space: normal;
+    white-space: nowrap;
     line-height: 1.25;
     vertical-align: middle;
 }
@@ -595,26 +620,19 @@
 .asset-dashboard .asset-register-card .app-table col.app-table-col-select,
 .asset-dashboard .asset-register-card .app-table th.app-table-col-select,
 .asset-dashboard .asset-register-card .app-table td.app-table-col-select {
-    width: 2.25rem;
-    max-width: 2.25rem;
+    min-width: 2.25rem;
 }
 
 .asset-dashboard .asset-register-card .app-table col.app-table-col-num,
 .asset-dashboard .asset-register-card .app-table th.app-table-col-num,
 .asset-dashboard .asset-register-card .app-table td.app-table-col-num {
-    width: 2rem;
-    max-width: 2rem;
+    min-width: 2rem;
 }
 
-.asset-dashboard .asset-register-card .app-table col.app-table-col-name {
-    width: 10.5rem;
-}
-
+.asset-dashboard .asset-register-card .app-table col.app-table-col-name,
 .asset-dashboard .asset-register-card .app-table th.app-table-col-name,
 .asset-dashboard .asset-register-card .app-table td.app-table-col-name {
-    width: 10.5rem;
-    max-width: 11rem;
-    min-width: 0;
+    min-width: 10.5rem;
     overflow-wrap: anywhere;
     word-break: break-word;
 }
@@ -622,15 +640,13 @@
 .asset-dashboard .asset-register-card .app-table col.app-table-col-status,
 .asset-dashboard .asset-register-card .app-table th.app-table-col-status,
 .asset-dashboard .asset-register-card .app-table td.app-table-col-status {
-    width: 9rem;
-    max-width: 9rem;
-    white-space: normal;
+    min-width: 9rem;
+    white-space: nowrap;
 }
 
 .asset-dashboard .asset-register-card .app-table td.app-table-col-status .status-select {
-    width: 100%;
-    max-width: 100%;
-    min-width: 0;
+    width: max-content;
+    min-width: max-content;
     text-align: center;
     text-align-last: center;
     padding-left: 1.35rem;
@@ -640,10 +656,8 @@
 .asset-dashboard .asset-register-card .app-table col.app-table-col-qr,
 .asset-dashboard .asset-register-card .app-table th.app-table-col-qr,
 .asset-dashboard .asset-register-card .app-table td.app-table-col-qr {
-    width: 6.25rem;
-    max-width: 6.25rem;
-    white-space: normal;
-    overflow-wrap: anywhere;
+    min-width: 6.25rem;
+    white-space: nowrap;
     text-align: center;
 }
 
@@ -665,66 +679,42 @@
 .asset-dashboard .asset-register-card .app-table col.app-table-col-actions,
 .asset-dashboard .asset-register-card .app-table th.app-table-col-actions,
 .asset-dashboard .asset-register-card .app-table td.app-table-col-actions {
-    width: 6.5rem;
-    max-width: 6.5rem;
-    white-space: normal;
-    overflow-wrap: anywhere;
+    min-width: 6.5rem;
+    white-space: nowrap;
 }
 
 .asset-dashboard .app-table-actions {
     display: inline-flex;
-    flex-wrap: wrap;
+    flex-wrap: nowrap;
     align-items: center;
     gap: 0.35rem;
 }
 
-@media (max-width: 991.98px) {
-    .asset-dashboard .asset-register-card .asset-register-table-wrap {
-        overflow-x: auto;
-        -webkit-overflow-scrolling: touch;
-    }
-}
-
-/* Type column — slightly narrower */
-.asset-dashboard .asset-register-card .app-table col.app-table-col-type {
-    width: 6.25rem;
-}
-
+/* Type column */
+.asset-dashboard .asset-register-card .app-table col.app-table-col-type,
 .asset-dashboard .asset-register-card .app-table th.app-table-col-type,
 .asset-dashboard .asset-register-card .app-table td.app-table-col-type {
-    width: 6.25rem;
-    max-width: 6.25rem;
-    white-space: normal;
+    min-width: 6.25rem;
     overflow-wrap: anywhere;
     box-sizing: border-box;
     text-align: center;
 }
 
-/* Owner column — slightly narrower */
-.asset-dashboard .asset-register-card .app-table col.app-table-col-owner {
-    width: 13rem;
-}
-
+/* Owner column */
+.asset-dashboard .asset-register-card .app-table col.app-table-col-owner,
 .asset-dashboard .asset-register-card .app-table th.app-table-col-owner,
 .asset-dashboard .asset-register-card .app-table td.app-table-col-owner {
-    width: 13rem;
-    max-width: 13rem;
-    white-space: normal;
+    min-width: 13rem;
     overflow-wrap: anywhere;
     box-sizing: border-box;
     text-align: center;
 }
 
-/* Branch/Department column — chips for locations; absorbs leftover table width */
-.asset-dashboard .asset-register-card .app-table col.app-table-col-location {
-    width: auto;
-}
-
+/* Branch/Department column — chips for locations */
+.asset-dashboard .asset-register-card .app-table col.app-table-col-location,
 .asset-dashboard .asset-register-card .app-table th.app-table-col-location,
 .asset-dashboard .asset-register-card .app-table td.app-table-col-location {
-    width: auto;
     min-width: 12rem;
-    max-width: none;
     white-space: normal;
     overflow-wrap: anywhere;
     box-sizing: border-box;
@@ -759,28 +749,20 @@
     text-align: center;
 }
 
-.asset-dashboard .asset-register-card .app-table col.app-table-col-date {
-    width: 7.5rem;
-}
-
+.asset-dashboard .asset-register-card .app-table col.app-table-col-date,
 .asset-dashboard .asset-register-card .app-table th.app-table-col-date,
 .asset-dashboard .asset-register-card .app-table td.app-table-col-date {
-    width: 7.5rem;
-    max-width: 7.5rem;
+    min-width: 7.5rem;
     white-space: nowrap;
     text-align: center;
     vertical-align: middle;
     box-sizing: border-box;
 }
 
-.asset-dashboard .asset-register-card .app-table col.app-table-col-docs {
-    width: 12rem;
-}
-
+.asset-dashboard .asset-register-card .app-table col.app-table-col-docs,
 .asset-dashboard .asset-register-card .app-table th.app-table-col-docs,
 .asset-dashboard .asset-register-card .app-table td.app-table-col-docs {
-    width: 12rem;
-    max-width: 14rem;
+    min-width: 12rem;
     white-space: normal;
     vertical-align: middle;
     text-align: center;
@@ -1312,6 +1294,16 @@ body.dark-mode .asset-dashboard.archive-page .archive-reason {
 .asset-dashboard.price-analysis-page .price-analysis-table-wrap {
     max-height: 420px;
     overflow: auto;
+    -webkit-overflow-scrolling: touch;
+}
+
+.asset-dashboard.price-analysis-page .price-analysis-table-wrap .app-table {
+    width: max-content;
+    min-width: 100%;
+}
+
+.asset-dashboard.price-analysis-page #assetBreakdownTable {
+    min-width: 52rem;
 }
 
 .asset-dashboard.price-analysis-page .price-analysis-table-wrap--tall {
