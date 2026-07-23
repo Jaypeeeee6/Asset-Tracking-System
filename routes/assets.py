@@ -140,6 +140,19 @@ def _append_dashboard_branch_filter(where_clauses, params, branch_filter):
     ])
 
 
+def _append_dashboard_department_filter(where_clauses, params, department_filter):
+    """Office department name, or Restaurant = all non-office (restaurant) assets."""
+    dept = (department_filter or '').strip()
+    if not dept:
+        return
+    if dept == RESTAURANT_DEFAULT_DEPARTMENT_NAME:
+        where_clauses.append('(branch IS NULL OR branch != ?)')
+        params.append(OFFICE_BRANCH_LABEL)
+        return
+    where_clauses.append('department = ? AND branch = ?')
+    params.extend([dept, OFFICE_BRANCH_LABEL])
+
+
 def _count_dashboard_assets(cur, where_sql, params):
     cur.execute(
         f'''
@@ -682,8 +695,14 @@ def dashboard():
     cur.execute('SELECT name FROM branches ORDER BY name')
     branches = [row[0] for row in cur.fetchall()]
     
-    cur.execute('SELECT DISTINCT department FROM assets')
-    departments = [row[0] for row in cur.fetchall()]
+    # Office departments from Settings (not restaurant areas on assets)
+    cur.execute(
+        'SELECT name FROM departments WHERE branch_id IS NULL ORDER BY name'
+    )
+    departments = [
+        row[0] for row in cur.fetchall()
+        if (row[0] or '').strip() and row[0].strip() != RESTAURANT_DEFAULT_DEPARTMENT_NAME
+    ]
     
     # Build WHERE clause
     where_clauses = []
@@ -692,8 +711,7 @@ def dashboard():
     if branch_filter:
         _append_dashboard_branch_filter(where_clauses, params, branch_filter)
     if department_filter:
-        where_clauses.append('department = ?')
-        params.append(department_filter)
+        _append_dashboard_department_filter(where_clauses, params, department_filter)
     if status_filter:
         where_clauses.append('used_status = ?')
         params.append(status_filter)
@@ -787,8 +805,7 @@ def _register_filter_where_from_request():
         where_clauses.append('branch = ?')
         params.append(branch_filter)
     if department_filter:
-        where_clauses.append('department = ?')
-        params.append(department_filter)
+        _append_dashboard_department_filter(where_clauses, params, department_filter)
     if status_filter:
         where_clauses.append('used_status = ?')
         params.append(status_filter)

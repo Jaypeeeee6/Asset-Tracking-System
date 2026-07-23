@@ -720,7 +720,8 @@
             </div>
             <div class="filter-group">
                 <select id="departmentFilter" name="department" aria-label="Department">
-                    <option value="">All Departments</option>
+                    <option value="" {% if not department_filter %}selected{% endif %}>All Departments</option>
+                    <option value="Restaurant" {% if department_filter == 'Restaurant' %}selected{% endif %}>Restaurant</option>
                     {% for d in departments %}
                         <option value="{{ d }}" {% if d == department_filter %}selected{% endif %}>{{ d }}</option>
                     {% endfor %}
