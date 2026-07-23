@@ -1,4 +1,5 @@
 import os
+import re
 import sqlite3
 import uuid
 from flask import current_app
@@ -20,16 +21,75 @@ def get_db_connection():
 # Canonical branch label stored on assets for office-venue rows (must match admin/JS).
 OFFICE_BRANCH_LABEL = 'Office'
 
+# Office asset codes: HO[DeptAbbrev]-0001 (e.g. HORD-0001 for Research & Development).
+OFFICE_ASSET_CODE_PREFIX = 'HO'
+
+# Readable short codes for single-word / ambiguous office department names.
+_DEPARTMENT_CODE_OVERRIDES = {
+    'finance': 'FIN',
+    'logistics': 'LOG',
+    'maintenance': 'MNT',
+    'marketing': 'MKT',
+    'operations': 'OPS',
+    'procurement': 'PRC',
+    'project': 'PRJ',
+    'maa ceo': 'CEO',
+    'maa gm': 'GM',
+    'maa office': 'OFF',
+}
+
+_DEPARTMENT_CODE_SKIP_WORDS = frozenset({'and', 'or', 'of', 'the', 'a', 'an', '&'})
+
 # Asset kind: Shared Asset (multi brand/branch) vs Branch Asset (single branch).
 ASSET_KIND_SHARED = 'shared'
 ASSET_KIND_BRANCH = 'branch'
 ASSET_KINDS = (ASSET_KIND_SHARED, ASSET_KIND_BRANCH)
 
 
+def _department_name_tokens(text):
+    parts = [p for p in re.split(r'[^A-Za-z0-9]+', text or '') if p]
+    significant = [p for p in parts if p.lower() not in _DEPARTMENT_CODE_SKIP_WORDS]
+    return significant or parts
+
+
+def shorten_department_for_asset_code(department):
+    """Short uppercase dept code used in office asset tags (Research & Development → RD)."""
+    raw = (department or '').strip()
+    if not raw:
+        return 'GEN'
+
+    lookup_key = re.sub(r'\s+', ' ', raw.lower()).replace('&', 'and')
+    if lookup_key in _DEPARTMENT_CODE_OVERRIDES:
+        return _DEPARTMENT_CODE_OVERRIDES[lookup_key]
+
+    paren_match = re.search(r'\(([^)]*)\)', raw)
+    base = re.sub(r'\([^)]*\)', '', raw).strip()
+    tokens = _department_name_tokens(base)
+
+    if len(tokens) == 1:
+        word = tokens[0]
+        code = word.upper() if len(word) <= 4 else word[:3].upper()
+    elif tokens:
+        code = ''.join(t[0].upper() for t in tokens)
+    else:
+        code = 'GEN'
+
+    if paren_match:
+        extra = _department_name_tokens(paren_match.group(1))
+        if extra:
+            code += ''.join(t[0].upper() for t in extra)
+
+    return code or 'GEN'
+
+
+def _office_asset_code_prefix(department):
+    return f'{OFFICE_ASSET_CODE_PREFIX}{shorten_department_for_asset_code(department)}'
+
+
 def _asset_code_prefix(cur, branch, department):
-    """Restaurant: branch_code from DB. Office: department name."""
+    """Restaurant: branch_code from DB. Office: HO + shortened department (e.g. HORD)."""
     if branch == OFFICE_BRANCH_LABEL:
-        return (department or '').strip()
+        return _office_asset_code_prefix(department)
     cur.execute('SELECT branch_code FROM branches WHERE name = ?', (branch,))
     row = cur.fetchone()
     if row and row[0] and str(row[0]).strip():
@@ -83,7 +143,7 @@ def _highest_asset_sequence(cur, branch, department, prefix):
 
 
 def allocate_asset_codes(cur, branch, department, count):
-    """Return the next `count` asset codes (restaurant: [BranchCode]-0001; office: [Dept]-0001)."""
+    """Return next codes (restaurant: [BranchCode]-0001; office: HO[Dept]-0001)."""
     if count < 1:
         return []
     prefix = _asset_code_prefix(cur, branch, department)
@@ -213,6 +273,48 @@ def _migrate_shared_asset_codes(cur):
         )
 
     _mark_migration_applied(cur, 'shared_asset_codes_v1')
+
+
+def _migrate_office_asset_codes(cur):
+    """Rewrite office codes from [Dept]-#### to HO[Abbrev]-#### (e.g. IT-0001 → HOIT-0001)."""
+    if _migration_applied(cur, 'office_asset_codes_ho_v1'):
+        return
+
+    entries = []
+    for table in ('assets', 'archived_assets'):
+        cur.execute(
+            f'SELECT id, department, asset_code FROM {table} WHERE branch = ?',
+            (OFFICE_BRANCH_LABEL,),
+        )
+        for row in cur.fetchall():
+            entries.append((table, row[0], (row[1] or '').strip(), (row[2] or '').strip()))
+
+    by_department = {}
+    for entry in entries:
+        by_department.setdefault(entry[2], []).append(entry)
+
+    for department, rows in by_department.items():
+        prefix = _office_asset_code_prefix(department)
+
+        def sort_key(entry):
+            _table, row_id, _dept, code = entry
+            seq = _sequence_from_asset_code(code, prefix)
+            if seq is None:
+                # Legacy [DeptName]-#### or any trailing numeric suffix
+                legacy_prefix = code.rsplit('-', 1)[0] if '-' in code else ''
+                seq = _sequence_from_asset_code(code, legacy_prefix) if legacy_prefix else None
+            return (seq if seq is not None else 10**9, row_id)
+
+        rows.sort(key=sort_key)
+        for index, (table, row_id, _dept, old_code) in enumerate(rows, start=1):
+            new_code = f'{prefix}-{index:04d}'
+            if new_code != old_code:
+                cur.execute(
+                    f'UPDATE {table} SET asset_code = ? WHERE id = ?',
+                    (new_code, row_id),
+                )
+
+    _mark_migration_applied(cur, 'office_asset_codes_ho_v1')
 
 
 def _migrate_departments_nullable_branch_id(cur):
@@ -1416,6 +1518,7 @@ def init_db():
         'ON asset_ownership_history (asset_id)'
     )
     _migrate_shared_asset_codes(cur)
+    _migrate_office_asset_codes(cur)
     
     # No default business data is seeded on startup. Asset types, names, branches, etc.
     # are managed through the UI. Login: only the first Super Admin when users_auth is empty
