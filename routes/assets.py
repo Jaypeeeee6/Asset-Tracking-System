@@ -369,25 +369,30 @@ def _validate_asset_venue_location(cur, venue, branch, department, brand_id=None
     return None
 
 
-def _upsert_asset_row(cur, asset_name, price, owner, branch, department, used_status, asset_type, asset_kind, shared_group_id=None, asset_date=None, asset_code=None):
-    """Insert or update one asset row; return asset id."""
-    cur.execute(
-        'SELECT id, asset_code, qr_random_code FROM assets WHERE name=? AND branch=? AND department=?',
-        (asset_name, branch, department),
-    )
-    row = cur.fetchone()
-    if row:
-        if asset_code:
-            cur.execute(
-                'UPDATE assets SET used_status=?, asset_type=?, asset_kind=?, shared_group_id=?, owner=?, price=?, asset_code=? WHERE id=?',
-                (used_status, asset_type, asset_kind, shared_group_id, owner, price, asset_code, row[0]),
-            )
-        else:
-            cur.execute(
-                'UPDATE assets SET used_status=?, asset_type=?, asset_kind=?, shared_group_id=?, owner=?, price=? WHERE id=?',
-                (used_status, asset_type, asset_kind, shared_group_id, owner, price, row[0]),
-            )
-        return row[0]
+def _upsert_asset_row(cur, asset_name, price, owner, branch, department, used_status, asset_type, asset_kind, shared_group_id=None, asset_date=None, asset_code=None, force_insert=False):
+    """Insert or update one asset row; return asset id.
+
+    When ``force_insert`` is True (multi-asset bulk add), always create a new row
+    even if name+branch+department already exists.
+    """
+    if not force_insert:
+        cur.execute(
+            'SELECT id, asset_code, qr_random_code FROM assets WHERE name=? AND branch=? AND department=?',
+            (asset_name, branch, department),
+        )
+        row = cur.fetchone()
+        if row:
+            if asset_code:
+                cur.execute(
+                    'UPDATE assets SET used_status=?, asset_type=?, asset_kind=?, shared_group_id=?, owner=?, price=?, asset_code=? WHERE id=?',
+                    (used_status, asset_type, asset_kind, shared_group_id, owner, price, asset_code, row[0]),
+                )
+            else:
+                cur.execute(
+                    'UPDATE assets SET used_status=?, asset_type=?, asset_kind=?, shared_group_id=?, owner=?, price=? WHERE id=?',
+                    (used_status, asset_type, asset_kind, shared_group_id, owner, price, row[0]),
+                )
+            return row[0]
     if asset_code is None:
         if asset_kind == ASSET_KIND_SHARED and branch != OFFICE_BRANCH_LABEL:
             asset_code = generate_shared_asset_code(cur=cur)
@@ -609,6 +614,53 @@ def _compute_chart_data_from_asset_rows(rows):
     }
 
 
+def _attach_owner_contacts(cur, assets):
+    """Attach owner mobile/email onto asset dicts for table display.
+
+    Office employees are keyed by department name. Restaurant employees live on
+    the branch default ``Restaurant`` department, while assets store an area
+    (Kitchen, Dining, …) or blank — so also resolve by branch / Restaurant /
+    owner name alone.
+    """
+    cur.execute(
+        '''
+        SELECT u.name, d.name AS department, b.name AS branch, u.mobile, u.email
+        FROM users u
+        JOIN departments d ON u.department_id = d.id
+        LEFT JOIN branches b ON d.branch_id = b.id
+        '''
+    )
+    by_dept = {}
+    by_branch = {}
+    by_name = {}
+    for name, dept, branch, mobile, email in cur.fetchall():
+        contact = {'mobile': mobile or '', 'email': email or ''}
+        if not contact['mobile'] and not contact['email']:
+            continue
+        by_dept[(name, dept)] = contact
+        if branch:
+            by_branch[(name, branch)] = contact
+        by_name.setdefault(name, contact)
+
+    for asset in assets:
+        owner = asset.get('owner') or ''
+        if not owner or owner == 'No Owner':
+            asset['owner_mobile'] = ''
+            asset['owner_email'] = ''
+            continue
+        department = asset.get('department') or ''
+        branch = asset.get('branch') or ''
+        contact = (
+            by_dept.get((owner, department))
+            or by_branch.get((owner, branch))
+            or by_dept.get((owner, RESTAURANT_DEFAULT_DEPARTMENT_NAME))
+            or by_name.get(owner)
+            or {}
+        )
+        asset['owner_mobile'] = contact.get('mobile', '')
+        asset['owner_email'] = contact.get('email', '')
+
+
 @assets_bp.route('/dashboard')
 @login_required
 def dashboard():
@@ -674,23 +726,7 @@ def dashboard():
     # Get paginated results (representative row per shared group)
     assets = _fetch_dashboard_assets(cur, where_sql, params, sort_by, sort_dir, per_page, offset)
 
-    cur.execute('''
-        SELECT u.name, d.name as department, u.mobile, u.email
-        FROM users u
-        JOIN departments d ON u.department_id = d.id
-    ''')
-    owner_contacts = {
-        (row[0], row[1]): {'mobile': row[2] or '', 'email': row[3] or ''}
-        for row in cur.fetchall()
-    }
-    for asset in assets:
-        if asset.get('owner') == 'No Owner':
-            asset['owner_mobile'] = ''
-            asset['owner_email'] = ''
-        else:
-            contact = owner_contacts.get((asset.get('owner'), asset.get('department')), {})
-            asset['owner_mobile'] = contact.get('mobile', '')
-            asset['owner_email'] = contact.get('email', '')
+    _attach_owner_contacts(cur, assets)
 
     docs_by_asset = list_documents_grouped_by_asset_ids(
         cur, [asset['id'] for asset in assets]
@@ -937,41 +973,67 @@ def settings():
     )
 
 
-@assets_bp.route('/add', methods=['POST'])
-@login_required
-def add_asset():
-    selected_asset_names = request.form.get('selected_asset_names', '')
-    asset_type = request.form.get('asset_type', '')
-    asset_kind = _parse_asset_kind(request.form.get('asset_kind'))
-    owner = request.form.get('owner', '')
-    venue = (request.form.get('asset_venue') or 'restaurant').strip().lower()
-    price_raw = (request.form.get('price') or '').strip()
+def _form_get(data, key, default=''):
+    if data is None:
+        return default
+    if hasattr(data, 'getlist') and key in ('branch', 'brand_id'):
+        # Prefer get for single-value keys; callers use getlist explicitly when needed.
+        pass
+    val = data.get(key, default) if hasattr(data, 'get') else default
+    return default if val is None else val
+
+
+def _form_getlist(data, key):
+    if data is None:
+        return []
+    if hasattr(data, 'getlist'):
+        return data.getlist(key)
+    raw = data.get(key)
+    if raw is None:
+        return []
+    if isinstance(raw, (list, tuple)):
+        return list(raw)
+    return [raw]
+
+
+def _create_assets_from_payload(cur, form_data, uploaded_files=None, force_insert=False):
+    """
+    Create asset row(s) from one form-like payload.
+    Returns (created_asset_ids, error_message). On error, created_asset_ids is [].
+    Does not commit; caller owns the transaction.
+
+    When ``force_insert`` is True, always insert new rows (used by multi-asset bulk add).
+    """
+    selected_asset_names = _form_get(form_data, 'selected_asset_names', '')
+    asset_type = _form_get(form_data, 'asset_type', '')
+    asset_kind = _parse_asset_kind(_form_get(form_data, 'asset_kind'))
+    owner = _form_get(form_data, 'owner', '')
+    venue = (_form_get(form_data, 'asset_venue') or 'restaurant').strip().lower()
+    price_raw = (_form_get(form_data, 'price') or '').strip()
     try:
         price = float(price_raw) if price_raw else 0.0
     except ValueError:
-        flash('Invalid price.', 'error')
-        return redirect(url_for('assets.dashboard'))
-    used_status = request.form.get('used_status', 'Not Used')
-    no_owner = request.form.get('no_owner') == 'on'
-    asset_date = _parse_asset_date(request.form.get('asset_date'))
+        return [], 'Invalid price.'
+    used_status = _form_get(form_data, 'used_status', 'Not Used') or 'Not Used'
+    no_owner_raw = _form_get(form_data, 'no_owner', '')
+    no_owner = no_owner_raw in ('on', 'true', '1', True, 1)
+    asset_date = _parse_asset_date(_form_get(form_data, 'asset_date'))
 
     if no_owner:
         owner = 'No Owner'
 
     if venue == 'office':
-        department = request.form.get('department', '')
+        department = _form_get(form_data, 'department', '')
         branch_names = [OFFICE_BRANCH_LABEL]
-        # Office has no multi-branch concept; treat as branch asset.
         asset_kind = ASSET_KIND_BRANCH
     else:
-        department = _normalize_restaurant_area(request.form.get('department', '')) or ''
+        department = _normalize_restaurant_area(_form_get(form_data, 'department', '')) or ''
         if asset_kind == ASSET_KIND_SHARED:
             branch_names = [
                 (b or '').strip()
-                for b in request.form.getlist('branch')
+                for b in _form_getlist(form_data, 'branch')
                 if (b or '').strip()
             ]
-            # Deduplicate while preserving order
             seen = set()
             unique_branches = []
             for b in branch_names:
@@ -980,53 +1042,51 @@ def add_asset():
                     unique_branches.append(b)
             branch_names = unique_branches
         else:
-            single_branch = (request.form.get('branch') or request.form.get('building') or '').strip()
+            single_branch = (
+                _form_get(form_data, 'branch') or _form_get(form_data, 'building') or ''
+            ).strip()
+            # When branch arrives as a list (bulk JSON), take the first value.
+            if isinstance(single_branch, list):
+                single_branch = (single_branch[0] if single_branch else '') or ''
+                single_branch = str(single_branch).strip()
             branch_names = [single_branch] if single_branch else []
 
-    asset_names = [name.strip() for name in selected_asset_names.split(',') if name.strip()]
+    if isinstance(selected_asset_names, list):
+        asset_names = [str(name).strip() for name in selected_asset_names if str(name).strip()]
+    else:
+        asset_names = [name.strip() for name in str(selected_asset_names).split(',') if name.strip()]
 
     if not asset_names:
-        return redirect(url_for('assets.dashboard'))
+        return [], 'Please select at least one asset name.'
 
     if venue == 'restaurant' and not branch_names:
-        flash('Please select at least one branch.', 'error')
-        return redirect(url_for('assets.dashboard'))
+        return [], 'Please select at least one branch.'
 
     if venue == 'restaurant' and asset_kind == ASSET_KIND_SHARED and len(branch_names) < 1:
-        flash('Shared assets require at least one branch.', 'error')
-        return redirect(url_for('assets.dashboard'))
+        return [], 'Shared assets require at least one branch.'
 
-    spec_values_by_name = _parse_asset_spec_values_json(request.form.get('asset_spec_values_json', ''))
+    spec_values_by_name = _parse_asset_spec_values_json(_form_get(form_data, 'asset_spec_values_json', ''))
     if spec_values_by_name is None:
-        flash('Invalid asset specification data.', 'error')
-        return redirect(url_for('assets.dashboard'))
+        return [], 'Invalid asset specification data.'
 
-    inclusion_values_by_name = _parse_asset_inclusion_values_json(request.form.get('asset_inclusion_values_json', ''))
+    inclusion_values_by_name = _parse_asset_inclusion_values_json(
+        _form_get(form_data, 'asset_inclusion_values_json', '')
+    )
     if inclusion_values_by_name is None:
-        flash('Invalid asset inclusion data.', 'error')
-        return redirect(url_for('assets.dashboard'))
-
-    conn = get_db_connection()
-    cur = conn.cursor()
+        return [], 'Invalid asset inclusion data.'
 
     if asset_type:
         cur.execute('SELECT for_venue FROM asset_types WHERE name = ?', (asset_type,))
         vt_rows = cur.fetchall()
         if not vt_rows:
-            conn.close()
-            flash('Invalid asset category.', 'error')
-            return redirect(url_for('assets.dashboard'))
+            return [], 'Invalid asset category.'
         if not any(asset_type_for_venue_matches(r[0], venue) for r in vt_rows):
-            conn.close()
-            flash('Asset category does not match Restaurant / Office selection.', 'error')
-            return redirect(url_for('assets.dashboard'))
+            return [], 'Asset category does not match Restaurant / Office selection.'
 
     for branch in branch_names:
         err = _validate_asset_venue_location(cur, venue, branch, department)
         if err:
-            conn.close()
-            flash(err, 'error')
-            return redirect(url_for('assets.dashboard'))
+            return [], err
 
     created_asset_ids = []
     shared_group_id = str(uuid.uuid4()) if asset_kind == ASSET_KIND_SHARED and venue == 'restaurant' else None
@@ -1043,23 +1103,108 @@ def add_asset():
                 shared_group_id=shared_group_id,
                 asset_date=asset_date,
                 asset_code=shared_asset_code,
+                force_insert=force_insert,
             )
             created_asset_ids.append(asset_id)
             _save_spec_values_for_asset(cur, asset_id, asset_name, asset_type, spec_values_by_name)
             _save_inclusion_values_for_asset(cur, asset_id, asset_name, asset_type, inclusion_values_by_name)
 
-    uploaded_files = request.files.getlist('supporting_documents')
-    if uploaded_files and created_asset_ids:
+    files = uploaded_files or []
+    files = [f for f in files if f and getattr(f, 'filename', None)]
+    if files and created_asset_ids:
         unique_ids = list(dict.fromkeys(created_asset_ids))
-        _, doc_err = save_uploaded_files_for_assets(cur, unique_ids, uploaded_files)
+        _, doc_err = save_uploaded_files_for_assets(cur, unique_ids, files)
         if doc_err:
+            return [], doc_err
+
+    return created_asset_ids, None
+
+
+@assets_bp.route('/new', methods=['GET'])
+@login_required
+def add_asset_page():
+    return render_template('add_asset.html')
+
+
+@assets_bp.route('/add', methods=['POST'])
+@login_required
+def add_asset():
+    conn = get_db_connection()
+    cur = conn.cursor()
+    created_asset_ids, err = _create_assets_from_payload(
+        cur, request.form, request.files.getlist('supporting_documents')
+    )
+    if err:
+        conn.rollback()
+        conn.close()
+        flash(err, 'error')
+        return redirect(url_for('assets.add_asset_page'))
+    conn.commit()
+    conn.close()
+    return redirect(url_for('assets.dashboard'))
+
+
+@assets_bp.route('/add-bulk', methods=['POST'])
+@login_required
+def add_assets_bulk():
+    """Create multiple independent asset configs in one transaction."""
+    wants_json = (
+        request.headers.get('X-Requested-With') == 'XMLHttpRequest'
+        or 'application/json' in (request.accept_mimetypes.best or '')
+    )
+
+    def fail(message, status=400):
+        if wants_json:
+            return jsonify({'ok': False, 'error': message}), status
+        flash(message, 'error')
+        return redirect(url_for('assets.add_asset_page'))
+
+    raw = request.form.get('assets_json', '')
+    try:
+        payloads = json.loads(raw) if raw else []
+    except (TypeError, ValueError):
+        return fail('Invalid asset data.')
+
+    if not isinstance(payloads, list) or not payloads:
+        return fail('Please add at least one asset.')
+
+    conn = get_db_connection()
+    cur = conn.cursor()
+    all_created = []
+    for index, payload in enumerate(payloads):
+        if not isinstance(payload, dict):
             conn.rollback()
             conn.close()
-            flash(doc_err, 'error')
-            return redirect(url_for('assets.dashboard'))
+            return fail(f'Invalid data for asset {index + 1}.')
+        # Normalize branch for non-shared: accept list or string
+        branches = payload.get('branch')
+        if isinstance(branches, list) and payload.get('asset_kind') != 'shared':
+            payload = dict(payload)
+            payload['branch'] = branches[0] if branches else ''
+        files = request.files.getlist(f'docs_{index}')
+        created_ids, err = _create_assets_from_payload(
+            cur, payload, files, force_insert=True
+        )
+        if err:
+            conn.rollback()
+            conn.close()
+            return fail(f'Asset {index + 1}: {err}')
+        all_created.extend(created_ids)
 
     conn.commit()
     conn.close()
+    record_count = len(all_created)
+    flash(
+        f'Successfully added {record_count} asset{"s" if record_count != 1 else ""}.',
+        'success',
+    )
+    if wants_json:
+        return jsonify({
+            'ok': True,
+            'created_count': record_count,
+            'created_ids': all_created,
+            'redirect': url_for('assets.dashboard'),
+        })
     return redirect(url_for('assets.dashboard'))
 
 @assets_bp.route('/<int:asset_id>/spec-values', methods=['GET'])

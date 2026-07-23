@@ -504,6 +504,7 @@ function appDeleteConfirm(message, title) {
         clearSelectedAssetNames();
         const at = document.getElementById('asset_type');
         if (at) at.value = '';
+        fillAddAssetNameSelect('', '');
         applyAddAssetKindUI();
     }
 
@@ -2788,56 +2789,59 @@ function appDeleteConfirm(message, title) {
         return result;
     }
 
-    // Update asset name datalist based on selected asset type
+    // Update asset name options based on selected asset type
     function updateAssetNameDropdown(assetTypeName, inputId) {
         if (inputId === 'edit_name') {
             fillEditAssetNameSelect(assetTypeName, document.getElementById('edit_name')?.value || '');
             return;
         }
-        const input = document.getElementById(inputId);
-        const datalistId = inputId === 'name' ? 'assetNameList' : 'editAssetNameList';
-        const datalist = document.getElementById(datalistId);
-        
-        if (!input || !datalist) return;
-        
-        // Clear existing options
-        datalist.innerHTML = '';
-        
-        if (!assetTypeName || !window.assetNamesByType || !window.assetNamesByType[assetTypeName]) {
-            const option = document.createElement('option');
-            option.value = '';
-            option.textContent = 'No asset names available for this type';
-            datalist.appendChild(option);
+        if (inputId === 'name' || inputId === 'asset_name') {
+            fillAddAssetNameSelect(assetTypeName, document.getElementById('asset_name')?.value || '');
             return;
         }
-        
-        // Add all asset names for the selected type
-        window.assetNamesByType[assetTypeName].forEach(assetName => {
-            const option = document.createElement('option');
-            option.value = assetName.name;
-            option.textContent = assetName.name;
-            datalist.appendChild(option);
-        });
-        
-        // Set initial placeholder
-        const totalOptions = window.assetNamesByType[assetTypeName].length;
-        input.placeholder = `Type to search predefined names (${totalOptions} available)`;
-        
-        // Add event listener for real-time filtering
-        input.addEventListener('input', function() {
-            filterAssetNameOptions(assetTypeName, inputId);
-        });
-        
-        // Add event listener for selection (only for add asset form)
-        if (inputId === 'name') {
-            input.addEventListener('change', function() {
-                const selectedValue = this.value.trim();
-                if (selectedValue && validateAssetName(assetTypeName, selectedValue)) {
-                    addAssetNameToSelection(selectedValue);
-                    this.value = '';
-                }
+    }
+
+    function fillAddAssetNameSelect(assetTypeName, selectedName) {
+        const select = document.getElementById('asset_name');
+        if (!select) return;
+        const prev = (selectedName || select.value || '').trim();
+        select.innerHTML = '<option value="">Select Asset Name</option>';
+
+        const rows = (assetTypeName && window.assetNamesByType && window.assetNamesByType[assetTypeName])
+            ? window.assetNamesByType[assetTypeName]
+            : [];
+
+        rows
+            .slice()
+            .sort(function (a, b) { return (a.name || '').localeCompare(b.name || ''); })
+            .forEach(function (assetName) {
+                if (!assetName || !assetName.name) return;
+                const option = document.createElement('option');
+                option.value = assetName.name;
+                option.textContent = assetName.name;
+                if (prev && prev === assetName.name) option.selected = true;
+                select.appendChild(option);
             });
+
+        if (prev && !Array.prototype.some.call(select.options, function (o) { return o.value === prev; })) {
+            const fallback = document.createElement('option');
+            fallback.value = prev;
+            fallback.textContent = prev;
+            fallback.selected = true;
+            select.appendChild(fallback);
+        } else if (prev) {
+            select.value = prev;
         }
+
+        syncSelectedAssetNamesFromSelect();
+        select.disabled = !assetTypeName;
+    }
+
+    function syncSelectedAssetNamesFromSelect() {
+        const select = document.getElementById('asset_name');
+        const val = select && select.value ? String(select.value).trim() : '';
+        selectedAssetNames = val ? [val] : [];
+        updateHiddenInput();
     }
 
     // Filter asset name options based on user input
@@ -2907,51 +2911,50 @@ function appDeleteConfirm(message, title) {
         return validNames.includes(assetName);
     }
 
-    // Multi-select asset names functionality
+    // Single-select asset name (one name per add-asset form)
     let selectedAssetNames = [];
 
-    // Add asset name to selected list
     function addAssetNameToSelection(assetName) {
-        if (!selectedAssetNames.includes(assetName)) {
-            selectedAssetNames.push(assetName);
-            updateSelectedAssetNamesDisplay();
-            updateHiddenInput();
-            renderAddAssetSpecFields();
+        const select = document.getElementById('asset_name');
+        if (select) {
+            if (assetName && !Array.prototype.some.call(select.options, function (o) { return o.value === assetName; })) {
+                const opt = document.createElement('option');
+                opt.value = assetName;
+                opt.textContent = assetName;
+                select.appendChild(opt);
+            }
+            select.value = assetName || '';
         }
+        selectedAssetNames = assetName ? [assetName] : [];
+        updateHiddenInput();
+        renderAddAssetSpecFields();
     }
 
-    // Remove asset name from selected list
-    function removeAssetNameFromSelection(assetName) {
-        const index = selectedAssetNames.indexOf(assetName);
-        if (index > -1) {
-            selectedAssetNames.splice(index, 1);
-            updateSelectedAssetNamesDisplay();
-            updateHiddenInput();
-            renderAddAssetSpecFields();
-        }
+    function removeAssetNameFromSelection() {
+        clearSelectedAssetNames();
     }
 
-    // Update the display of selected asset names
+    window.removeAssetNameFromSelection = removeAssetNameFromSelection;
+    window.addAssetNameToSelection = addAssetNameToSelection;
+
     function updateSelectedAssetNamesDisplay() {
-        const container = document.getElementById('selectedAssetNames');
-        if (!container) return;
-        
-        container.innerHTML = '';
-        
-        selectedAssetNames.forEach(assetName => {
-            const tag = document.createElement('div');
-            tag.className = 'asset-name-tag';
-            tag.innerHTML = `
-                <span class="asset-name-text">${assetName}</span>
-                <button type="button" class="remove-btn" onclick="removeAssetNameFromSelection('${assetName}')">
-                    <i class="fas fa-times"></i>
-                </button>
-            `;
-            container.appendChild(tag);
-        });
+        // Native <select id="asset_name"> is the display; keep select in sync.
+        const select = document.getElementById('asset_name');
+        const name = selectedAssetNames[0] || '';
+        if (!select) return;
+        if (name && select.value !== name) {
+            if (!Array.prototype.some.call(select.options, function (o) { return o.value === name; })) {
+                const opt = document.createElement('option');
+                opt.value = name;
+                opt.textContent = name;
+                select.appendChild(opt);
+            }
+            select.value = name;
+        }
+        if (!name) select.value = '';
+        updateHiddenInput();
     }
 
-    // Update hidden input with selected asset names
     function updateHiddenInput() {
         const hiddenInput = document.getElementById('selectedAssetNamesInput');
         if (hiddenInput) {
@@ -2959,10 +2962,10 @@ function appDeleteConfirm(message, title) {
         }
     }
 
-    // Clear selected asset names
     function clearSelectedAssetNames() {
         selectedAssetNames = [];
-        updateSelectedAssetNamesDisplay();
+        const select = document.getElementById('asset_name');
+        if (select) select.value = '';
         updateHiddenInput();
         renderAddAssetSpecFields();
     }
@@ -3139,11 +3142,10 @@ function appDeleteConfirm(message, title) {
      */
     function loadOwnersForDepartment(departmentName) {
         const ownerSelect = document.getElementById('owner');
-        if (!ownerSelect) return;
+        if (!ownerSelect) return Promise.resolve();
 
         if (getAddAssetKind() === 'shared' && getAddAssetVenue() === 'restaurant') {
-            loadOwnersForSharedBranches(getSelectedAddBranches());
-            return;
+            return loadOwnersForSharedBranches(getSelectedAddBranches()) || Promise.resolve();
         }
 
         // Clear existing options
@@ -3151,7 +3153,7 @@ function appDeleteConfirm(message, title) {
         
         if (!departmentName) {
             ownerSelect.innerHTML = '<option value="">Select department first</option>';
-            return;
+            return Promise.resolve();
         }
         
         // Resolve department id (restaurant vs office) then load users
@@ -3159,10 +3161,10 @@ function appDeleteConfirm(message, title) {
         const deptId = resolveDepartmentIdForOwnerLookup(departmentName, branchName);
         if (!deptId) {
             ownerSelect.innerHTML = '<option value="">Department not found</option>';
-            return;
+            return Promise.resolve();
         }
 
-        fetch('/admin/users?department_id=' + encodeURIComponent(deptId))
+        return fetch('/admin/users?department_id=' + encodeURIComponent(deptId))
             .then(response => response.json())
             .then(users => {
                 fillOwnerSelectOptions(ownerSelect, users, 'No users in this department');
@@ -3214,12 +3216,12 @@ function appDeleteConfirm(message, title) {
      */
     function loadOwnersForSharedBranches(branchNames, ownerSelectId) {
         const ownerSelect = document.getElementById(ownerSelectId || 'owner');
-        if (!ownerSelect) return;
+        if (!ownerSelect) return Promise.resolve();
 
         const names = (branchNames || []).filter(Boolean);
         if (!names.length) {
             ownerSelect.innerHTML = '<option value="">Select branch(es) first</option>';
-            return;
+            return Promise.resolve();
         }
 
         ownerSelect.innerHTML = '<option value="">Loading...</option>';
@@ -3233,7 +3235,7 @@ function appDeleteConfirm(message, title) {
                 .catch(function () { return []; });
         });
 
-        Promise.all(requests).then(function (results) {
+        return Promise.all(requests).then(function (results) {
             const byKey = {};
             results.forEach(function (users) {
                 users.forEach(function (user) {
@@ -4217,6 +4219,624 @@ function appDeleteConfirm(message, title) {
 // INITIALIZATION
 // ============================================================================
 
+    function validateAddAssetFormClient() {
+        syncAddAssetVenueField();
+        const venue = getAddAssetVenue();
+        const assetTypeEl = document.getElementById('asset_type');
+        const assetType = assetTypeEl ? assetTypeEl.value : '';
+        const atRow = (assetTypesData || []).find(function (t) { return t.name === assetType; });
+        if (!venue || (venue !== 'restaurant' && venue !== 'office')) {
+            alert('Please choose Restaurant or Office.');
+            return false;
+        }
+        if (!atRow || !assetTypeMatchesVenue(atRow.for_venue, venue)) {
+            alert('Please select an asset category that matches Restaurant or Office.');
+            return false;
+        }
+        const selectedAssetNamesInput = document.getElementById('selectedAssetNamesInput');
+
+        if (!assetType) {
+            alert('Please select an asset category.');
+            return false;
+        }
+
+        if (!selectedAssetNamesInput || !selectedAssetNamesInput.value.trim()) {
+            alert('Please select an asset name.');
+            return false;
+        }
+
+        const selectedNames = selectedAssetNamesInput.value.split(',').map(function (name) { return name.trim(); }).filter(Boolean);
+        if (selectedNames.length !== 1) {
+            alert('Please select exactly one asset name for this form.');
+            return false;
+        }
+        for (var i = 0; i < selectedNames.length; i++) {
+            var assetName = selectedNames[i];
+            if (!validateAssetName(assetType, assetName)) {
+                alert('Asset name "' + assetName + '" does not exist. Please select from the available asset names or add it first through Settings.');
+                return false;
+            }
+        }
+        collectAddAssetSpecValuesJson();
+        collectAddAssetInclusionValuesJson();
+        if (venue === 'restaurant') {
+            const kind = getAddAssetKind();
+            const selectedBranches = getSelectedAddBranches();
+            if (!selectedBranches.length) {
+                alert(kind === 'shared' ? 'Please select at least one branch.' : 'Please select a branch.');
+                return false;
+            }
+        } else {
+            const dsel = document.getElementById('department');
+            if (!dsel || !dsel.value) {
+                alert('Please select a department.');
+                return false;
+            }
+        }
+        const noOwner = document.getElementById('noOwnerCheck');
+        const ownerSel = document.getElementById('owner');
+        if ((!noOwner || !noOwner.checked) && (!ownerSel || !ownerSel.value)) {
+            alert('Please select an owner, or check No Owner Required.');
+            return false;
+        }
+        return true;
+    }
+
+    function resetAddAssetFormToDefaults() {
+        const noOwnerCheck = document.getElementById('noOwnerCheck');
+        if (noOwnerCheck) {
+            noOwnerCheck.checked = false;
+            if (noOwnerCheck.parentElement) noOwnerCheck.parentElement.style.display = 'none';
+        }
+
+        const ownerSelect = document.getElementById('owner');
+        if (ownerSelect) {
+            ownerSelect.disabled = false;
+            ownerSelect.style.opacity = '1';
+            ownerSelect.style.backgroundColor = '';
+            ownerSelect.innerHTML = '<option value="">Select department first</option>';
+            ownerSelect.setAttribute('required', 'required');
+        }
+
+        const rRest = document.getElementById('assetVenueRestaurant');
+        const rOff = document.getElementById('assetVenueOffice');
+        if (rRest) rRest.checked = true;
+        if (rOff) rOff.checked = false;
+
+        setAddAssetKind('branch');
+        var brandMultiReset = document.getElementById('add_asset_brand_multi');
+        var branchMultiReset = document.getElementById('branch_multi');
+        if (brandMultiReset) {
+            Array.prototype.forEach.call(brandMultiReset.options, function (opt) { opt.selected = false; });
+        }
+        if (branchMultiReset) {
+            Array.prototype.forEach.call(branchMultiReset.options, function (opt) { opt.selected = false; });
+        }
+        refreshAddAssetBrandChips(false);
+        refreshAddAssetBranchChips(false);
+
+        var dateInput = document.getElementById('asset_date');
+        if (dateInput) dateInput.value = todayIsoDate();
+
+        var priceEl = document.getElementById('price');
+        if (priceEl) priceEl.value = '';
+        var statusEl = document.getElementById('used_status');
+        if (statusEl) statusEl.value = 'Used';
+        var nameInput = document.getElementById('asset_name');
+        if (nameInput) nameInput.value = '';
+
+        clearSelectedAssetNames();
+        resetAddAssetDocuments();
+    }
+
+    function serializeAddAssetDraft() {
+        syncSelectedAssetNamesFromSelect();
+        collectAddAssetSpecValuesJson();
+        collectAddAssetInclusionValuesJson();
+        syncAddAssetVenueField();
+        var branches = getSelectedAddBranches();
+        var brandIds = getSelectedAddBrandIds();
+        var noOwnerEl = document.getElementById('noOwnerCheck');
+        var ownerEl = document.getElementById('owner');
+        var deptEl = document.getElementById('department');
+        var priceEl = document.getElementById('price');
+        var statusEl = document.getElementById('used_status');
+        var dateEl = document.getElementById('asset_date');
+        var typeEl = document.getElementById('asset_type');
+        var specEl = document.getElementById('addAssetSpecValuesJson');
+        var incEl = document.getElementById('addAssetInclusionValuesJson');
+        return {
+            asset_venue: getAddAssetVenue(),
+            asset_kind: getAddAssetKind(),
+            asset_type: typeEl ? typeEl.value : '',
+            selected_asset_names: selectedAssetNames.slice(0, 1),
+            asset_spec_values_json: specEl ? specEl.value : '',
+            asset_inclusion_values_json: incEl ? incEl.value : '',
+            price: priceEl ? priceEl.value : '',
+            brand_ids: brandIds.slice(),
+            branch: branches.slice(),
+            department: deptEl ? deptEl.value : '',
+            no_owner: !!(noOwnerEl && noOwnerEl.checked),
+            owner: ownerEl ? ownerEl.value : '',
+            used_status: statusEl ? statusEl.value : 'Used',
+            asset_date: dateEl ? dateEl.value : todayIsoDate(),
+            pendingDocs: (addAssetPendingDocs || []).slice()
+        };
+    }
+
+    /** Deep-copy a draft so later edits never leak across forms. */
+    function cloneAddAssetDraft(draft) {
+        draft = draft || {};
+        var copy;
+        try {
+            copy = JSON.parse(JSON.stringify(Object.assign({}, draft, { pendingDocs: null })));
+        } catch (err) {
+            copy = {
+                asset_venue: draft.asset_venue || 'restaurant',
+                asset_kind: draft.asset_kind || 'branch',
+                asset_type: draft.asset_type || '',
+                selected_asset_names: (draft.selected_asset_names || []).slice(),
+                asset_spec_values_json: draft.asset_spec_values_json || '',
+                asset_inclusion_values_json: draft.asset_inclusion_values_json || '',
+                price: draft.price || '',
+                brand_ids: (draft.brand_ids || []).slice(),
+                branch: Array.isArray(draft.branch) ? draft.branch.slice() : (draft.branch ? [draft.branch] : []),
+                department: draft.department || '',
+                no_owner: !!draft.no_owner,
+                owner: draft.owner || '',
+                used_status: draft.used_status || 'Used',
+                asset_date: draft.asset_date || todayIsoDate()
+            };
+        }
+        // Files cannot be JSON-cloned; keep a separate array copy (same File refs are ok).
+        copy.pendingDocs = (draft.pendingDocs || []).slice();
+        return copy;
+    }
+
+    function draftDisplayTitle(draft) {
+        if (!draft) return 'New Asset';
+        var names = draft.selected_asset_names || [];
+        if (names.length === 1) return names[0];
+        if (names.length > 1) return names[0] + ' +' + (names.length - 1);
+        return 'New Asset';
+    }
+
+    function applyAddAssetSpecValuesFromJson(jsonStr) {
+        var data = {};
+        try { data = JSON.parse(jsonStr || '{}') || {}; } catch (e) { data = {}; }
+        document.querySelectorAll('#addAssetSpecFieldsContainer .asset-spec-input').forEach(function (input) {
+            var assetName = input.getAttribute('data-asset-name');
+            var fieldId = input.getAttribute('data-spec-field-id');
+            if (!assetName || !fieldId || !data[assetName]) return;
+            var val = data[assetName][fieldId];
+            if (val == null) val = data[assetName][String(fieldId)];
+            if (val != null) input.value = val;
+        });
+        collectAddAssetSpecValuesJson();
+    }
+
+    function applyAddAssetInclusionValuesFromJson(jsonStr) {
+        var data = {};
+        try { data = JSON.parse(jsonStr || '{}') || {}; } catch (e) { data = {}; }
+        document.querySelectorAll('#addAssetInclusionsContainer .asset-inclusion-input').forEach(function (input) {
+            var assetName = input.getAttribute('data-asset-name');
+            var inclusionId = parseInt(input.getAttribute('data-inclusion-id'), 10);
+            var list = data[assetName] || [];
+            input.checked = list.indexOf(inclusionId) !== -1 || list.indexOf(String(inclusionId)) !== -1;
+        });
+        collectAddAssetInclusionValuesJson();
+    }
+
+    function setAddAssetBranchValues(branches, kind) {
+        branches = (branches || []).filter(Boolean);
+        var branchSel = document.getElementById('branch');
+        var branchMulti = document.getElementById('branch_multi');
+        var wrap = document.getElementById('addAssetBranchChipWrap');
+        if (kind === 'shared') {
+            if (branchMulti) {
+                Array.prototype.forEach.call(branchMulti.options, function (opt) {
+                    opt.selected = branches.indexOf(opt.value) !== -1;
+                });
+            }
+            ensureAddAssetChipSelects();
+            if (wrap && wrap._chipMultiSelectApi && typeof wrap._chipMultiSelectApi.setValues === 'function') {
+                wrap._chipMultiSelectApi.setValues(branches);
+            } else {
+                refreshAddAssetBranchChips(true);
+            }
+        } else if (branchSel) {
+            branchSel.value = branches[0] || '';
+        }
+    }
+
+    function loadAddAssetDraft(draft) {
+        try {
+            draft = draft || {};
+            var venue = draft.asset_venue || 'restaurant';
+            var kind = draft.asset_kind || 'branch';
+            var rRest = document.getElementById('assetVenueRestaurant');
+            var rOff = document.getElementById('assetVenueOffice');
+            if (rRest) rRest.checked = venue === 'restaurant';
+            if (rOff) rOff.checked = venue === 'office';
+            syncAddAssetVenueField();
+            setAddAssetKind(kind);
+
+            var brandWrap = document.getElementById('addAssetBrandField');
+            var brandSel = document.getElementById('add_asset_brand');
+            var branchWrap = document.getElementById('addAssetBranchField');
+            var branchSelect = document.getElementById('branch');
+            var deptWrap = document.getElementById('addAssetDepartmentField');
+            var departmentSelect = document.getElementById('department');
+            setAddAssetDepartmentLabel(venue);
+            updateAssetTypeDropdowns();
+
+            if (venue === 'office') {
+                if (brandWrap) brandWrap.classList.add('d-none');
+                if (brandSel) { brandSel.value = ''; brandSel.disabled = true; }
+                if (deptWrap) deptWrap.classList.remove('d-none');
+                if (branchWrap) branchWrap.classList.add('d-none');
+                if (branchSelect) {
+                    branchSelect.multiple = false;
+                    branchSelect.removeAttribute('size');
+                    branchSelect.disabled = false;
+                    branchSelect.classList.remove('d-none');
+                    branchSelect.innerHTML = '<option value="' + OFFICE_BRANCH_LABEL_JS + '" selected>' + OFFICE_BRANCH_LABEL_JS + '</option>';
+                }
+                var brandMulti = document.getElementById('add_asset_brand_multi');
+                var branchMulti = document.getElementById('branch_multi');
+                var brandChip = document.getElementById('addAssetBrandChipWrap');
+                var branchChip = document.getElementById('addAssetBranchChipWrap');
+                if (brandMulti) { brandMulti.innerHTML = ''; brandMulti.disabled = true; }
+                if (branchMulti) { branchMulti.innerHTML = ''; branchMulti.disabled = true; }
+                if (brandChip) brandChip.classList.add('d-none');
+                if (branchChip) branchChip.classList.add('d-none');
+            } else {
+                if (brandWrap) brandWrap.classList.add('d-none');
+                if (brandSel) { brandSel.value = ''; brandSel.disabled = true; }
+                if (deptWrap) deptWrap.classList.remove('d-none');
+                if (branchWrap) branchWrap.classList.remove('d-none');
+                updateAddAssetRestaurantBranchDropdown();
+            }
+            applyAddAssetKindUI();
+
+            var typeEl = document.getElementById('asset_type');
+            if (typeEl) {
+                typeEl.value = draft.asset_type || '';
+            }
+            selectedAssetNames = (draft.selected_asset_names || []).slice(0, 1);
+            var nameToSelect = selectedAssetNames[0] || '';
+            var ensureNames = (!window.assetNamesByType || !Object.keys(window.assetNamesByType).length)
+                ? updateAssetNameDropdowns()
+                : Promise.resolve();
+            return Promise.resolve(ensureNames).then(function () {
+                fillAddAssetNameSelect(draft.asset_type || '', nameToSelect);
+                renderAddAssetSpecFields();
+                applyAddAssetSpecValuesFromJson(draft.asset_spec_values_json || '');
+                applyAddAssetInclusionValuesFromJson(draft.asset_inclusion_values_json || '');
+
+                var priceEl = document.getElementById('price');
+                if (priceEl) priceEl.value = draft.price != null ? draft.price : '';
+                var statusEl = document.getElementById('used_status');
+                if (statusEl) statusEl.value = draft.used_status || 'Used';
+                var dateEl = document.getElementById('asset_date');
+                if (dateEl) dateEl.value = draft.asset_date || todayIsoDate();
+
+                var branches = draft.branch || [];
+                if (!Array.isArray(branches)) branches = branches ? [branches] : [];
+                setAddAssetBranchValues(branches, kind);
+
+                var deptValue = draft.department || '';
+                var ownerPromise = Promise.resolve();
+                if (venue === 'office') {
+                    if (departmentSelect) {
+                        ownerPromise = fillOfficeDepartmentsSelect(departmentSelect, 'Select department').then(function () {
+                            departmentSelect.value = deptValue;
+                            return loadOwnersForDepartment(departmentSelect.value);
+                        });
+                    }
+                } else {
+                    if (departmentSelect) fillRestaurantAreaSelect(departmentSelect, deptValue);
+                    if (kind === 'shared') {
+                        ownerPromise = loadOwnersForSharedBranches(branches);
+                    } else {
+                        ownerPromise = loadOwnersForDepartment(deptValue || RESTAURANT_DEFAULT_DEPT_JS);
+                    }
+                    if (typeof checkNoOwnerOption === 'function') checkNoOwnerOption();
+                }
+
+                var noOwnerEl = document.getElementById('noOwnerCheck');
+                var ownerEl = document.getElementById('owner');
+
+                function refreshDocPreview() {
+                    var input = document.getElementById('addAssetDocuments');
+                    var list = document.getElementById('addAssetDocumentsPreview');
+                    syncFilesToInput(input, addAssetPendingDocs);
+                    renderPendingDocumentsList(list, addAssetPendingDocs, function (index) {
+                        addAssetPendingDocs.splice(index, 1);
+                        refreshDocPreview();
+                    });
+                }
+
+                return Promise.resolve(ownerPromise).then(function () {
+                    if (noOwnerEl) {
+                        noOwnerEl.checked = !!draft.no_owner;
+                        if (noOwnerEl.checked && ownerEl) {
+                            ownerEl.disabled = true;
+                            ownerEl.value = '';
+                            ownerEl.style.opacity = '0.6';
+                            ownerEl.style.backgroundColor = '#f8f9fa';
+                            ownerEl.removeAttribute('required');
+                        } else if (ownerEl) {
+                            ownerEl.disabled = false;
+                            ownerEl.style.opacity = '1';
+                            ownerEl.style.backgroundColor = '';
+                            ownerEl.setAttribute('required', 'required');
+                        }
+                    }
+                    if (ownerEl && draft.owner && !draft.no_owner) {
+                        ownerEl.value = draft.owner;
+                        if (ownerEl.value !== draft.owner) {
+                            var opt = document.createElement('option');
+                            opt.value = draft.owner;
+                            opt.textContent = draft.owner;
+                            opt.selected = true;
+                            ownerEl.appendChild(opt);
+                        }
+                    }
+                    addAssetPendingDocs = (draft.pendingDocs || []).slice();
+                    refreshDocPreview();
+                });
+            });
+        } catch (err) {
+            console.error('loadAddAssetDraft failed', err);
+            return Promise.resolve();
+        }
+    }
+
+    function draftToSubmitPayload(draft) {
+        var branches = draft.branch || [];
+        if (!Array.isArray(branches)) branches = branches ? [branches] : [];
+        var payload = {
+            asset_venue: draft.asset_venue || 'restaurant',
+            asset_kind: draft.asset_kind || 'branch',
+            asset_type: draft.asset_type || '',
+            selected_asset_names: (draft.selected_asset_names || []).join(','),
+            asset_spec_values_json: draft.asset_spec_values_json || '',
+            asset_inclusion_values_json: draft.asset_inclusion_values_json || '',
+            price: draft.price || '',
+            department: draft.department || '',
+            no_owner: draft.no_owner ? 'on' : '',
+            owner: draft.owner || '',
+            used_status: draft.used_status || 'Used',
+            asset_date: draft.asset_date || todayIsoDate()
+        };
+        if (payload.asset_kind === 'shared' && payload.asset_venue === 'restaurant') {
+            payload.branch = branches;
+        } else {
+            payload.branch = branches[0] || '';
+        }
+        return payload;
+    }
+
+    function initAddAssetMultiPage() {
+        var drafts = [];
+        var currentIndex = 0;
+        var loadSeq = 0;
+
+        var pagerBack = document.getElementById('addAssetPagerBack');
+        var pagerNext = document.getElementById('addAssetPagerNext');
+        var pagerTitle = document.getElementById('addAssetPagerTitle');
+        var pagerCount = document.getElementById('addAssetPagerCount');
+        var newBtn = document.getElementById('addNewAssetBtn');
+        var removeBtn = document.getElementById('removeCurrentAssetBtn');
+        var submitBtn = document.getElementById('addAssetsSubmitBtn');
+        var formEl = document.getElementById('addAssetForm');
+        var actionsBar = document.querySelector('.add-asset-actions');
+
+        function updatePagerUI() {
+            var total = drafts.length;
+            var draft = drafts[currentIndex];
+            // Title reflects the form on screen; stored drafts stay untouched until persist.
+            if (pagerTitle) {
+                pagerTitle.textContent = draftDisplayTitle({
+                    selected_asset_names: selectedAssetNames.length
+                        ? selectedAssetNames.slice()
+                        : ((draft && draft.selected_asset_names) || [])
+                });
+            }
+            if (pagerCount) pagerCount.textContent = (currentIndex + 1) + ' of ' + total;
+            // Only bound by position — never lock Back/Next on async load state
+            if (pagerBack) pagerBack.disabled = currentIndex <= 0;
+            if (pagerNext) pagerNext.disabled = currentIndex >= total - 1;
+            if (removeBtn) removeBtn.hidden = total <= 1;
+            if (actionsBar) actionsBar.hidden = total <= 1;
+            if (submitBtn) {
+                var label = submitBtn.querySelector('.btn-app-add-label');
+                var text = total === 1 ? 'Add 1 Asset' : ('Add ' + total + ' Assets');
+                if (label) label.textContent = text;
+                else submitBtn.textContent = text;
+            }
+        }
+
+        function persistCurrent() {
+            if (currentIndex < 0 || currentIndex >= drafts.length) return;
+            // Always store an isolated snapshot (never a live-linked object).
+            drafts[currentIndex] = cloneAddAssetDraft(serializeAddAssetDraft());
+        }
+
+        function runDraftLoad(index) {
+            var seq = ++loadSeq;
+            return Promise.resolve()
+                .then(function () {
+                    // Load a clone so in-form edits cannot mutate the stored draft until persist.
+                    return loadAddAssetDraft(cloneAddAssetDraft(drafts[index]));
+                })
+                .catch(function (err) {
+                    console.error('Draft load failed', err);
+                })
+                .finally(function () {
+                    if (seq !== loadSeq) return;
+                    updatePagerUI();
+                });
+        }
+
+        function goToIndex(nextIndex) {
+            if (nextIndex < 0 || nextIndex >= drafts.length || nextIndex === currentIndex) return;
+            persistCurrent();
+            currentIndex = nextIndex;
+            updatePagerUI();
+            runDraftLoad(currentIndex);
+        }
+
+        function bootstrapFirstDraft() {
+            resetAddAssetFormToDefaults();
+            applyAddAssetVenueToAddAssetModal();
+            drafts = [cloneAddAssetDraft(serializeAddAssetDraft())];
+            currentIndex = 0;
+            updatePagerUI();
+        }
+
+        if (newBtn) {
+            newBtn.addEventListener('click', function () {
+                // Freeze current form into its slot, then add a one-time copy as the next form.
+                persistCurrent();
+                var snapshotFromCurrent = cloneAddAssetDraft(drafts[currentIndex]);
+                drafts.push(snapshotFromCurrent);
+                currentIndex = drafts.length - 1;
+                updatePagerUI();
+                runDraftLoad(currentIndex).then(function () {
+                    try {
+                        window.scrollTo({ top: 0, behavior: 'smooth' });
+                    } catch (e) {
+                        window.scrollTo(0, 0);
+                    }
+                });
+            });
+        }
+
+        if (pagerBack) {
+            pagerBack.addEventListener('click', function (e) {
+                e.preventDefault();
+                goToIndex(currentIndex - 1);
+            });
+        }
+        if (pagerNext) {
+            pagerNext.addEventListener('click', function (e) {
+                e.preventDefault();
+                goToIndex(currentIndex + 1);
+            });
+        }
+
+        if (removeBtn) {
+            removeBtn.addEventListener('click', function () {
+                if (drafts.length <= 1) return;
+                drafts.splice(currentIndex, 1);
+                if (currentIndex >= drafts.length) currentIndex = drafts.length - 1;
+                updatePagerUI();
+                runDraftLoad(currentIndex);
+            });
+        }
+
+        if (formEl) {
+            formEl.addEventListener('submit', function (e) {
+                e.preventDefault();
+                persistCurrent();
+
+                // All drafts must be complete before create; navigation stays free.
+                for (var i = 0; i < drafts.length; i++) {
+                    var d = drafts[i];
+                    var label = 'Asset ' + (i + 1);
+                    if (!d.asset_type) {
+                        alert(label + ' is incomplete. Please select an asset category.');
+                        goToIndex(i);
+                        return;
+                    }
+                    if (!(d.selected_asset_names || []).length) {
+                        alert(label + ' is incomplete. Please select an asset name.');
+                        goToIndex(i);
+                        return;
+                    }
+                    if ((d.selected_asset_names || []).length > 1) {
+                        alert(label + ': please select only one asset name.');
+                        goToIndex(i);
+                        return;
+                    }
+                    if (d.asset_venue === 'restaurant' && !(d.branch || []).length) {
+                        alert(label + ': please select a branch.');
+                        goToIndex(i);
+                        return;
+                    }
+                    if (d.asset_venue === 'office' && !d.department) {
+                        alert(label + ': please select a department.');
+                        goToIndex(i);
+                        return;
+                    }
+                    if (!d.no_owner && !d.owner) {
+                        alert(label + ': please select an owner, or check No Owner Required.');
+                        goToIndex(i);
+                        return;
+                    }
+                }
+
+                // Also run live-form checks on the current page (names vs catalog, etc.)
+                if (!validateAddAssetFormClient()) return;
+
+                var fd = new FormData();
+                var payloads = drafts.map(draftToSubmitPayload);
+                fd.append('assets_json', JSON.stringify(payloads));
+                drafts.forEach(function (d, idx) {
+                    (d.pendingDocs || []).forEach(function (file) {
+                        fd.append('docs_' + idx, file, file.name);
+                    });
+                });
+
+                if (submitBtn) submitBtn.disabled = true;
+                fetch(formEl.action, {
+                    method: 'POST',
+                    body: fd,
+                    credentials: 'same-origin',
+                    headers: {
+                        'X-Requested-With': 'XMLHttpRequest',
+                        'Accept': 'application/json'
+                    }
+                }).then(function (res) {
+                    return res.json().then(function (data) {
+                        return { res: res, data: data };
+                    }).catch(function () {
+                        return { res: res, data: null };
+                    });
+                }).then(function (result) {
+                    var data = result.data || {};
+                    if (result.res.ok && data.ok) {
+                        window.location.href = data.redirect || '/assets/dashboard';
+                        return;
+                    }
+                    alert(data.error || 'Could not save assets. Please try again.');
+                    if (submitBtn) submitBtn.disabled = false;
+                }).catch(function () {
+                    alert('Could not save assets. Please try again.');
+                    if (submitBtn) submitBtn.disabled = false;
+                });
+            });
+        }
+
+        // Wait for catalog data then initialize first draft
+        Promise.all([
+            loadBrands(),
+            loadBranches(),
+            loadDepartments(),
+            loadAssetTypes(),
+            loadAssetNames(),
+            updateAssetNameDropdowns()
+        ]).then(function () {
+            bootstrapFirstDraft();
+        }).catch(function () {
+            updateAssetNameDropdowns().finally(function () {
+                bootstrapFirstDraft();
+            });
+        });
+    }
+
 // ============================================================================
 // SETTINGS PAGE INITIALIZATION (tab-aware, uses server-rendered data when available)
 // ============================================================================
@@ -4344,6 +4964,8 @@ function appDeleteConfirm(message, title) {
         setupMgmtBulkDeletes();
         if (document.querySelector('.settings-page')) {
             initSettingsPageData();
+        } else if (document.getElementById('addAssetPage')) {
+            initDashboardPageData();
         } else {
             initDashboardPageData();
         }
@@ -4351,12 +4973,33 @@ function appDeleteConfirm(message, title) {
             const assetTypeInput = document.getElementById('asset_type');
             const editAssetTypeInput = document.getElementById('edit_asset_type');
             const addAssetFormEl = document.getElementById('addAssetForm');
-            if (assetTypeInput && editAssetTypeInput && addAssetFormEl) {
-                assetTypeInput.addEventListener('change', function() {
-                    updateAssetNameDropdown(this.value, 'name');
-                    renderAddAssetSpecFields();
-                });
+            const isAddAssetPage = !!document.getElementById('addAssetPage');
 
+            if (assetTypeInput && addAssetFormEl) {
+                assetTypeInput.addEventListener('change', function() {
+                    var typeName = this.value;
+                    var ensure = (!window.assetNamesByType || !Object.keys(window.assetNamesByType).length)
+                        ? updateAssetNameDropdowns()
+                        : Promise.resolve();
+                    Promise.resolve(ensure).then(function () {
+                        fillAddAssetNameSelect(typeName, '');
+                        renderAddAssetSpecFields();
+                    });
+                });
+            }
+
+            var addAssetNameSelect = document.getElementById('asset_name');
+            if (addAssetNameSelect) {
+                addAssetNameSelect.disabled = true;
+                addAssetNameSelect.addEventListener('change', function () {
+                    syncSelectedAssetNamesFromSelect();
+                    renderAddAssetSpecFields();
+                    var title = document.getElementById('addAssetPagerTitle');
+                    if (title) title.textContent = this.value || 'New Asset';
+                });
+            }
+
+            if (editAssetTypeInput) {
                 editAssetTypeInput.addEventListener('change', function() {
                     fillEditAssetNameSelect(this.value, '');
                     renderEditAssetSpecFields();
@@ -4370,68 +5013,12 @@ function appDeleteConfirm(message, title) {
                         renderEditAssetInclusions();
                     });
                 }
+            }
 
+            if (addAssetFormEl && !isAddAssetPage) {
                 addAssetFormEl.addEventListener('submit', function(e) {
-                    syncAddAssetVenueField();
-                    const venue = getAddAssetVenue();
-                    const assetType = document.getElementById('asset_type').value;
-                    const atRow = (assetTypesData || []).find(function (t) { return t.name === assetType; });
-                    if (!venue || (venue !== 'restaurant' && venue !== 'office')) {
+                    if (!validateAddAssetFormClient()) {
                         e.preventDefault();
-                        alert('Please choose Restaurant or Office.');
-                        return;
-                    }
-                    if (!atRow || !assetTypeMatchesVenue(atRow.for_venue, venue)) {
-                        e.preventDefault();
-                        alert('Please select an asset category that matches Restaurant or Office.');
-                        return;
-                    }
-                    const selectedAssetNamesInput = document.getElementById('selectedAssetNamesInput');
-
-                    if (!assetType) {
-                        e.preventDefault();
-                        alert('Please select an asset category.');
-                        return;
-                    }
-
-                    if (!selectedAssetNamesInput || !selectedAssetNamesInput.value.trim()) {
-                        e.preventDefault();
-                        alert('Please select at least one asset name.');
-                        return;
-                    }
-
-                    const selectedNames = selectedAssetNamesInput.value.split(',').filter(name => name.trim());
-                    for (const assetName of selectedNames) {
-                        if (!validateAssetName(assetType, assetName.trim())) {
-                            e.preventDefault();
-                            alert(`Asset name "${assetName.trim()}" does not exist. Please select from the available asset names or add it first through the "Manage Assets" button.`);
-                            return;
-                        }
-                    }
-                    collectAddAssetSpecValuesJson();
-                    collectAddAssetInclusionValuesJson();
-                    if (venue === 'restaurant') {
-                        const kind = getAddAssetKind();
-                        const selectedBranches = getSelectedAddBranches();
-                        if (!selectedBranches.length) {
-                            e.preventDefault();
-                            alert(kind === 'shared' ? 'Please select at least one branch.' : 'Please select a branch.');
-                            return;
-                        }
-                    } else {
-                        const dsel = document.getElementById('department');
-                        if (!dsel || !dsel.value) {
-                            e.preventDefault();
-                            alert('Please select a department.');
-                            return;
-                        }
-                    }
-                    const noOwner = document.getElementById('noOwnerCheck');
-                    const ownerSel = document.getElementById('owner');
-                    if ((!noOwner || !noOwner.checked) && (!ownerSel || !ownerSel.value)) {
-                        e.preventDefault();
-                        alert('Please select an owner, or check No Owner Required.');
-                        return;
                     }
                 });
             }
@@ -4485,37 +5072,7 @@ function appDeleteConfirm(message, title) {
 
         const addAssetModal = document.getElementById('addAssetModal');
         if (addAssetModal) addAssetModal.addEventListener('show.bs.modal', function() {
-            const noOwnerCheck = document.getElementById('noOwnerCheck');
-            noOwnerCheck.checked = false;
-            noOwnerCheck.parentElement.style.display = 'none';
-            
-            const ownerSelect = document.getElementById('owner');
-            ownerSelect.disabled = false;
-            ownerSelect.style.opacity = '1';
-            ownerSelect.style.backgroundColor = '';
-            ownerSelect.innerHTML = '<option value="">Select department first</option>';
-
-            const rRest = document.getElementById('assetVenueRestaurant');
-            const rOff = document.getElementById('assetVenueOffice');
-            if (rRest) rRest.checked = true;
-            if (rOff) rOff.checked = false;
-
-            setAddAssetKind('branch');
-            var brandMultiReset = document.getElementById('add_asset_brand_multi');
-            var branchMultiReset = document.getElementById('branch_multi');
-            if (brandMultiReset) {
-                Array.prototype.forEach.call(brandMultiReset.options, function (opt) { opt.selected = false; });
-            }
-            if (branchMultiReset) {
-                Array.prototype.forEach.call(branchMultiReset.options, function (opt) { opt.selected = false; });
-            }
-            refreshAddAssetBrandChips(false);
-            refreshAddAssetBranchChips(false);
-
-            var dateInput = document.getElementById('asset_date');
-            if (dateInput) dateInput.value = todayIsoDate();
-
-            resetAddAssetDocuments();
+            resetAddAssetFormToDefaults();
         });
         if (addAssetModal) addAssetModal.addEventListener('shown.bs.modal', function() {
             loadAssetTypes().then(function () {
@@ -4524,6 +5081,10 @@ function appDeleteConfirm(message, title) {
                 applyAddAssetVenueToAddAssetModal();
             });
         });
+
+        if (document.getElementById('addAssetPage')) {
+            initAddAssetMultiPage();
+        }
         
         // Open edit asset modal only after fields are fully populated (avoids loading flash)
         document.addEventListener('click', function (event) {
@@ -6395,229 +6956,5 @@ function appDeleteConfirm(message, title) {
             setEditAssetModalReady();
         });
     }
-
-    // --- Improved Asset Name Multi-Select ---
-    const assetNameInput = document.getElementById('name');
-    const assetNameDropdown = document.getElementById('assetNameDropdown');
-    const assetNameList = document.getElementById('assetNameList');
-    let allAssetNames = [];
-    let filteredAssetNames = [];
-
-    // Helper: Populate allAssetNames from asset type selection
-    function updateAllAssetNames() {
-        const assetTypeSelect = document.getElementById('asset_type');
-        const selectedType = assetTypeSelect.value;
-        
-        if (selectedType && window.assetNamesByType && window.assetNamesByType[selectedType]) {
-            allAssetNames = window.assetNamesByType[selectedType].map(item => item.name);
-        } else {
-            allAssetNames = [];
-        }
-        renderAssetNameOptions('');
-    }
-
-    // Helper: Render custom dropdown options
-    function renderAssetNameOptions(filter = '') {
-        assetNameList.innerHTML = '';
-        dropdownItems = [];
-        const lowerFilter = filter.trim().toLowerCase();
-        
-        // Show all available options when no filter is applied
-        if (lowerFilter === '') {
-            filteredAssetNames = allAssetNames.filter(name => !selectedAssetNames.includes(name));
-        } else {
-            filteredAssetNames = allAssetNames.filter(name =>
-                !selectedAssetNames.includes(name) &&
-                name.toLowerCase().includes(lowerFilter)
-            );
-        }
-        
-        if (filteredAssetNames.length === 0) {
-            const item = document.createElement('div');
-            item.className = 'dropdown-item';
-            item.textContent = 'No asset names found';
-            item.style.color = '#6c757d';
-            item.style.fontStyle = 'italic';
-            assetNameList.appendChild(item);
-        } else {
-            filteredAssetNames.forEach((name, index) => {
-                const item = document.createElement('div');
-                item.className = 'dropdown-item';
-                item.textContent = name;
-                item.style.cursor = 'pointer';
-                item.dataset.index = index;
-                item.onclick = function(e) {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    addAssetNameToSelection(name);
-                    assetNameInput.value = '';
-                    selectedIndex = -1;
-                    // Re-render options to remove the selected item
-                    renderAssetNameOptions('');
-                    // Keep dropdown open for next selection
-                    if (filteredAssetNames.length > 0) {
-                        assetNameInput.focus();
-                    } else {
-                        hideDropdown();
-                    }
-                };
-                assetNameList.appendChild(item);
-                dropdownItems.push(item);
-            });
-        }
-        // Reset selection when rendering new options
-        selectedIndex = -1;
-        updateDropdownSelection();
-    }
-
-    // Update dropdown selection highlighting
-    function updateDropdownSelection() {
-        dropdownItems.forEach((item, index) => {
-            if (index === selectedIndex) {
-                item.style.backgroundColor = '#007bff';
-                item.style.color = 'white';
-                item.classList.add('selected');
-            } else {
-                item.style.backgroundColor = '';
-                item.style.color = '';
-                item.classList.remove('selected');
-            }
-        });
-    }
-
-    // Show dropdown
-    function showDropdown() {
-        assetNameDropdown.style.display = 'block';
-        renderAssetNameOptions(assetNameInput.value);
-    }
-
-    // Hide dropdown
-    function hideDropdown() {
-        assetNameDropdown.style.display = 'none';
-    }
-
-    // On input: filter options
-    assetNameInput.addEventListener('input', function() {
-        showDropdown();
-        renderAssetNameOptions(assetNameInput.value);
-    });
-    
-    // Keep dropdown open when typing
-    assetNameInput.addEventListener('keyup', function() {
-        if (assetNameInput.value.trim() !== '') {
-            showDropdown();
-            renderAssetNameOptions(assetNameInput.value);
-        }
-    });
-
-    // On focus: show all options immediately
-    assetNameInput.addEventListener('focus', function() {
-        showDropdown();
-        renderAssetNameOptions('');
-    });
-
-    // On click: also show all options
-    assetNameInput.addEventListener('click', function() {
-        showDropdown();
-        renderAssetNameOptions('');
-    });
-
-    // Keyboard navigation variables
-    let selectedIndex = -1;
-    let dropdownItems = [];
-
-    // On Enter: add asset name as tag
-    assetNameInput.addEventListener('keydown', function(e) {
-        if (e.key === 'Enter') {
-            e.preventDefault();
-            const val = assetNameInput.value.trim();
-            if (val && filteredAssetNames.includes(val)) {
-                addAssetNameToSelection(val);
-                assetNameInput.value = '';
-                selectedIndex = -1;
-                renderAssetNameOptions('');
-                if (filteredAssetNames.length > 0) {
-                    assetNameInput.focus();
-                } else {
-                    hideDropdown();
-                }
-            } else if (selectedIndex >= 0 && dropdownItems[selectedIndex]) {
-                // Select highlighted item
-                const selectedName = dropdownItems[selectedIndex].textContent;
-                addAssetNameToSelection(selectedName);
-                assetNameInput.value = '';
-                selectedIndex = -1;
-                renderAssetNameOptions('');
-                if (filteredAssetNames.length > 0) {
-                    assetNameInput.focus();
-                } else {
-                    hideDropdown();
-                }
-            }
-        } else if (e.key === 'ArrowDown') {
-            e.preventDefault();
-            if (dropdownItems.length > 0) {
-                selectedIndex = Math.min(selectedIndex + 1, dropdownItems.length - 1);
-                updateDropdownSelection();
-            }
-        } else if (e.key === 'ArrowUp') {
-            e.preventDefault();
-            if (dropdownItems.length > 0) {
-                selectedIndex = Math.max(selectedIndex - 1, -1);
-                updateDropdownSelection();
-            }
-        } else if (e.key === 'Escape') {
-            e.preventDefault();
-            hideDropdown();
-            selectedIndex = -1;
-        } else if (e.key === 'Backspace' && assetNameInput.value === '') {
-            // Remove last tag if input is empty
-            if (selectedAssetNames.length > 0) {
-                removeAssetNameFromSelection(selectedAssetNames[selectedAssetNames.length - 1]);
-            }
-        }
-    });
-
-    // Hide dropdown when clicking outside
-    document.addEventListener('click', function(e) {
-        if (!assetNameInput.contains(e.target) && !assetNameDropdown.contains(e.target)) {
-            hideDropdown();
-        }
-    });
-    
-    // Prevent dropdown from closing when clicking inside it
-    assetNameDropdown.addEventListener('click', function(e) {
-        e.stopPropagation();
-    });
-
-    // When removing a tag, re-render options
-    function addAssetNameToSelection(assetName) {
-        if (!selectedAssetNames.includes(assetName)) {
-            selectedAssetNames.push(assetName);
-            updateSelectedAssetNamesDisplay();
-            updateHiddenInput();
-            renderAddAssetSpecFields();
-        }
-    }
-    
-    function removeAssetNameFromSelection(assetName) {
-        const index = selectedAssetNames.indexOf(assetName);
-        if (index > -1) {
-            selectedAssetNames.splice(index, 1);
-            updateSelectedAssetNamesDisplay();
-            updateHiddenInput();
-            renderAddAssetSpecFields();
-        }
-    }
-
-    // Update dropdown when asset type changes
-    document.getElementById('asset_type').addEventListener('change', function() {
-        updateAllAssetNames();
-        renderAddAssetSpecFields();
-    });
-
-
-
-
 
   </script>

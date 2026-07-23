@@ -1,0 +1,86 @@
+{% extends "base_app.html" %}
+{% block title %}Add Assets — Asset Tracking System{% endblock %}
+{% block extra_head %}
+<link rel="stylesheet" href="{{ url_for('static', filename='app-dashboard.css') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/chip-multi-select.css') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/add-asset-page.css') }}">
+{% endblock %}
+
+{% block app_content %}
+<div class="asset-dashboard add-asset-page" id="addAssetPage">
+    {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+            <div class="row mb-3">
+                <div class="col-md-12">
+                    {% for category, message in messages %}
+                        <div class="alert alert-{{ 'danger' if category == 'error' else category }} alert-dismissible fade show" role="alert">
+                            {{ message }}
+                            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                        </div>
+                    {% endfor %}
+                </div>
+            </div>
+        {% endif %}
+    {% endwith %}
+
+    <div class="page-header">
+        <div>
+            <h1><i class="bi bi-plus-square" style="color:var(--gold);" aria-hidden="true"></i>Add Assets</h1>
+            <p class="subtitle">Create one or more assets with their own details</p>
+        </div>
+        <div class="d-flex gap-2 align-items-center flex-wrap">
+            <a href="{{ url_for('assets.dashboard') }}" class="btn btn-outline-secondary btn-sm">
+                <i class="bi bi-arrow-left me-1"></i>Back to Dashboard
+            </a>
+            <button type="submit" class="btn-app-add" id="addAssetsSubmitBtn" form="addAssetForm">
+                <i class="bi bi-plus-lg" aria-hidden="true"></i>
+                <span class="btn-app-add-label">Add 1 Asset</span>
+            </button>
+        </div>
+    </div>
+
+    <div class="app-card add-asset-card mb-4">
+        <div class="card-body-pad">
+            <form id="addAssetForm" method="post" action="{{ url_for('assets.add_assets_bulk') }}" enctype="multipart/form-data" novalidate>
+                <div id="addAssetFormFields">
+                    {% include 'partials/add_asset_form_fields.html' %}
+                </div>
+
+                <div class="add-asset-new-section mt-4 pt-3">
+                    <button type="button" class="btn-add-new-asset" id="addNewAssetBtn">
+                        <i class="bi bi-plus-circle-fill" aria-hidden="true"></i>
+                        <span>New Asset</span>
+                    </button>
+                    <p class="form-text mb-0 mt-2">Adds another asset form, starting with a copy of the current details.</p>
+                </div>
+
+                <div class="add-asset-pager" id="addAssetPager" aria-label="Asset form navigation">
+                    <button type="button" class="add-asset-pager-btn" id="addAssetPagerBack" disabled>
+                        <i class="bi bi-chevron-left" aria-hidden="true"></i>
+                        <span>Back</span>
+                    </button>
+                    <div class="add-asset-pager-center">
+                        <div class="add-asset-pager-title" id="addAssetPagerTitle">New Asset</div>
+                        <div class="add-asset-pager-count" id="addAssetPagerCount">1 of 1</div>
+                    </div>
+                    <button type="button" class="add-asset-pager-btn" id="addAssetPagerNext" disabled>
+                        <span>Next</span>
+                        <i class="bi bi-chevron-right" aria-hidden="true"></i>
+                    </button>
+                </div>
+
+                <div class="add-asset-actions d-flex flex-wrap gap-2 align-items-center mt-4 pt-3" hidden>
+                    <button type="button" class="btn btn-outline-danger btn-sm" id="removeCurrentAssetBtn" hidden>
+                        <i class="bi bi-trash me-1" aria-hidden="true"></i>Remove this asset
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script src="{{ url_for('static', filename='js/chip-multi-select.js') }}"></script>
+{% include 'partials/dashboard_main_script.html' %}
+{% endblock %}

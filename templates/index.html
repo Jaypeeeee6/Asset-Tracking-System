@@ -659,7 +659,7 @@
             <p class="subtitle">Asset inventory overview</p>
         </div>
         <div class="d-flex gap-2 align-items-center flex-wrap">
-            {{ add_button('Add Asset', button_id='addAssetBtn', modal_target='#addAssetModal') }}
+            {{ add_button('Add Asset', button_id='addAssetBtn', href=url_for('assets.add_asset_page')) }}
             <button type="button" class="btn btn-outline-secondary btn-sm" id="departmentQRBtn" data-bs-toggle="modal" data-bs-target="#departmentQRModal">
                 <i class="bi bi-qr-code me-1"></i>QR Codes
             </button>
@@ -781,169 +781,6 @@
 {% endblock %}
 {% block modals %}
 {% from "macros/app_components.html" import modal_cancel_button, add_button, form_label %}
-<!-- Add Asset Modal -->
-<div class="modal fade app-modal" id="addAssetModal" tabindex="-1" aria-labelledby="addAssetModalLabel" aria-hidden="true">
-  <div class="modal-dialog modal-lg app-modal-dialog-comfort">
-    <div class="modal-content">
-      <div class="modal-header">
-        <h5 class="modal-title" id="addAssetModalLabel"><i class="bi bi-plus-square me-2" style="color:var(--gold);" aria-hidden="true"></i>Add New Asset</h5>
-        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-      </div>
-                            <form id="addAssetForm" method="post" action="{{ url_for('assets.add_asset') }}" enctype="multipart/form-data">
-        <div class="modal-body" style="overflow-y: auto; max-height: 70vh;">
-            <input type="hidden" name="asset_venue" id="assetVenueField" value="restaurant">
-            <div class="mb-3">
-                {{ form_label('Location', 'assetVenueRestaurant', true) }}
-                <div class="d-flex flex-wrap gap-3">
-                    <div class="form-check">
-                        <input class="form-check-input" type="radio" name="asset_venue_ui" id="assetVenueRestaurant" value="restaurant" checked>
-                        <label class="form-check-label" for="assetVenueRestaurant">Restaurant</label>
-                    </div>
-                    <div class="form-check">
-                        <input class="form-check-input" type="radio" name="asset_venue_ui" id="assetVenueOffice" value="office">
-                        <label class="form-check-label" for="assetVenueOffice">Office</label>
-                    </div>
-                </div>
-                <div class="form-text"><i class="bi bi-info-circle" aria-hidden="true"></i> Restaurant: pick branch(es) and area. Office: pick an office department only.</div>
-            </div>
-            <div class="mb-3" id="addAssetKindField">
-                {{ form_label('Asset Type', 'assetKindBranch', true) }}
-                <div class="d-flex flex-wrap gap-3">
-                    <div class="form-check">
-                        <input class="form-check-input" type="radio" name="asset_kind" id="assetKindBranch" value="branch" checked>
-                        <label class="form-check-label" for="assetKindBranch">Branch Asset</label>
-                    </div>
-                    <div class="form-check">
-                        <input class="form-check-input" type="radio" name="asset_kind" id="assetKindShared" value="shared">
-                        <label class="form-check-label" for="assetKindShared">Shared Asset</label>
-                    </div>
-                </div>
-                <div class="form-text" id="addAssetKindHelp">
-                    <i class="bi bi-info-circle" aria-hidden="true"></i> Branch Asset is for one branch. Shared Asset can span multiple branches.
-                </div>
-            </div>
-            <div class="mb-3">
-                {{ form_label('Asset Category', 'asset_type', true) }}
-                <select class="form-select" id="asset_type" name="asset_type" required>
-                    <option value="">Select Asset Category</option>
-                </select>
-            </div>
-            <div class="mb-3">
-                {{ form_label('Asset names', 'name', true) }}
-                <div class="asset-names-container" id="assetNamesContainer">
-                    <div class="selected-asset-names" id="selectedAssetNames"></div>
-                    <input type="text" class="form-control asset-name-input" id="name" name="name" placeholder="Click to select asset names..." autocomplete="off">
-                    <div class="custom-dropdown" id="assetNameDropdown" style="display: none;">
-                        <div class="dropdown-list" id="assetNameList"></div>
-                    </div>
-                </div>
-                <input type="hidden" id="selectedAssetNamesInput" name="selected_asset_names" value="">
-            </div>
-            <div class="mb-3" id="addAssetSpecFieldsSection" style="display: none;">
-                {{ form_label('Asset Specifications', 'addAssetSpecFieldsContainer', false) }}
-                <div id="addAssetSpecFieldsContainer"></div>
-                <input type="hidden" id="addAssetSpecValuesJson" name="asset_spec_values_json" value="">
-            </div>
-            <div class="mb-3" id="addAssetInclusionsSection" style="display: none;">
-                <label class="form-label">Inclusions</label>
-                <div class="form-text mb-2"><i class="bi bi-info-circle" aria-hidden="true"></i> Check the items included with this asset.</div>
-                <div id="addAssetInclusionsContainer"></div>
-                <input type="hidden" id="addAssetInclusionValuesJson" name="asset_inclusion_values_json" value="">
-            </div>
-            <div class="mb-3">
-                {{ form_label('Price (OMR)', 'price', false) }}
-                <input type="number" class="form-control" id="price" name="price" min="0" step="0.01" placeholder="0.00">
-                <div class="form-text">
-                    <i class="bi bi-info-circle" aria-hidden="true"></i> Optional. Enter the price in Omani Rial (OMR).
-                </div>
-            </div>
-            <div class="mb-3 d-none" id="addAssetBrandField" aria-hidden="true">
-                <label for="add_asset_brand" class="form-label" id="addAssetBrandLabel">Brand</label>
-                <select class="form-select app-select-with-chevron" id="add_asset_brand" name="brand_id" disabled>
-                    <option value="">Select brand</option>
-                </select>
-                <div id="addAssetBrandChipWrap" class="chip-multi-select d-none" data-chip-multi-select data-placeholder="Search brands…">
-                    <div class="chip-multi-select-chips" aria-live="polite"></div>
-                    <div class="chip-multi-select-input-wrap">
-                        <input type="text" class="chip-multi-select-search form-control" placeholder="Search brands…" autocomplete="off" aria-label="Search brands">
-                        <svg class="chip-multi-select-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>
-                        <div class="chip-multi-select-dropdown" role="listbox"></div>
-                    </div>
-                    <select multiple class="chip-multi-select-source" id="add_asset_brand_multi" name="brand_id" disabled></select>
-                </div>
-                <div class="form-text d-none" id="addAssetBrandMultiHelp">
-                    <i class="bi bi-info-circle" aria-hidden="true"></i> Search and select one or more brands.
-                </div>
-            </div>
-            <div class="mb-3" id="addAssetBranchField">
-                <label for="branch" class="form-label" id="addAssetBranchLabel">Branch <span class="app-required-mark" aria-hidden="true">*</span></label>
-                <select class="form-select" id="branch" name="branch" required>
-                    <option value="">Select Branch</option>
-                </select>
-                <div id="addAssetBranchChipWrap" class="chip-multi-select d-none" data-chip-multi-select data-placeholder="Search branches…">
-                    <div class="chip-multi-select-chips" aria-live="polite"></div>
-                    <div class="chip-multi-select-input-wrap">
-                        <input type="text" class="chip-multi-select-search form-control" placeholder="Search branches…" autocomplete="off" aria-label="Search branches">
-                        <svg class="chip-multi-select-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>
-                        <div class="chip-multi-select-dropdown" role="listbox"></div>
-                    </div>
-                    <select multiple class="chip-multi-select-source" id="branch_multi" name="branch" disabled></select>
-                </div>
-                <div class="form-text d-none" id="addAssetBranchMultiHelp">
-                    <i class="bi bi-info-circle" aria-hidden="true"></i> Search and select one or more branches. One asset record is created per branch.
-                </div>
-            </div>
-            <div class="mb-3" id="addAssetDepartmentField">
-                <label for="department" class="form-label" id="addAssetDepartmentLabel">Area</label>
-                <select class="form-select" id="department" name="department">
-                    <option value="">Select area</option>
-                </select>
-                <div class="form-text d-none" id="addAssetAreaHelp">
-                    <i class="bi bi-info-circle" aria-hidden="true"></i> Where in the restaurant this asset belongs (Kitchen, Dining, Cashier, etc.).
-                </div>
-            </div>
-            <div class="mb-3">
-                <div class="form-check mb-2">
-                    <input class="form-check-input" type="checkbox" id="noOwnerCheck" name="no_owner">
-                    <label class="form-check-label" for="noOwnerCheck">
-                        <i class="bi bi-person-x" aria-hidden="true"></i> No Owner Required
-                    </label>
-                </div>
-                {{ form_label('Owner', 'owner', true) }}
-                <select class="form-select" id="owner" name="owner" required>
-                    <option value="">Select branch or department first</option>
-                </select>
-                <div class="form-text" id="ownerHelp">
-                    <i class="bi bi-info-circle" aria-hidden="true"></i> For shared assets, choose a branch manager from the selected branches, or select &quot;No Owner Required&quot;.
-                </div>
-            </div>
-            <div class="mb-3">
-                {{ form_label('Status', 'used_status', true) }}
-                <select class="form-select" id="used_status" name="used_status" required>
-                    <option value="Used">Used</option>
-                    <option value="Not Used">Not Used</option>
-                    <option value="Out of Service">Out of Service</option>
-                </select>
-            </div>
-            <div class="mb-3">
-                {{ form_label('Date', 'asset_date', true) }}
-                <input type="date" class="form-control" id="asset_date" name="asset_date" required readonly>
-                <div class="form-text"><i class="bi bi-info-circle" aria-hidden="true"></i> Automatically set to today&apos;s date.</div>
-            </div>
-            <div class="mb-0">
-                {{ form_label('Supporting documents', 'addAssetDocuments', false) }}
-                <input type="file" class="form-control" id="addAssetDocuments" name="supporting_documents" multiple
-                       accept=".pdf,.doc,.docx,.xls,.xlsx,.csv,.txt,.png,.jpg,.jpeg,.gif,.webp,.zip,application/pdf,image/*">
-                <div class="form-text"><i class="bi bi-info-circle" aria-hidden="true"></i> Optional. Upload one or more files (PDF, Office, images, ZIP; max 10 MB each). Selecting again adds more files; use the remove button on a file to drop it before saving.</div>
-                <ul id="addAssetDocumentsPreview" class="asset-doc-list mt-2 mb-0" hidden></ul>
-            </div>
-        </div>
-        <div class="modal-footer">{{ modal_cancel_button('Cancel') }}{{ add_button('Add Asset', button_type='submit') }}</div>
-      </form>
-    </div>
-  </div>
-</div>
-
 <!-- Edit Asset Modal -->
 <div class="modal fade app-modal" id="editAssetModal" tabindex="-1" aria-labelledby="editAssetModalLabel" aria-hidden="true">
   <div class="modal-dialog modal-lg app-modal-dialog-comfort">
@@ -1579,6 +1416,10 @@
         if (!id) return;
         if (id === 'priceAnalysisModal') {
             window.location.replace('/assets/price-analysis');
+            return;
+        }
+        if (id === 'addAssetModal') {
+            window.location.replace('{{ url_for("assets.add_asset_page") }}');
             return;
         }
         var el = document.getElementById(id);

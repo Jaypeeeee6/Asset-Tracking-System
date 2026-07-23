@@ -123,7 +123,7 @@ h1, .modal-title {
 }
 
 .form-label {
-    color: #D4AF37;
+    color: var(--text-dark, #1C1A14);
     font-weight: 600;
 }
 
@@ -963,11 +963,11 @@ body.modal-open #sidebar-wrapper {
 
 .form-text {
     font-size: 0.875rem;
-    color: #ffd700;
+    color: var(--text-mid, #5c5035);
 }
 
 .form-text i {
-    color: #ffd700;
+    color: var(--gold-deeper, #A8833A);
 }
 
 .form-text.settings-import-hint,
