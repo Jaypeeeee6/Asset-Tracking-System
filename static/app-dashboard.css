@@ -6,6 +6,9 @@
     --text-mid: #5c5035;
     --text-light: #9e8e6a;
     --text-muted: #bfb49a;
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
 }
 
 /* ----- Page header ----- */
@@ -216,6 +219,13 @@
     opacity: 0.55;
     pointer-events: none;
     transition: opacity 0.15s ease;
+}
+
+.asset-dashboard .live-search-results,
+.asset-dashboard .asset-register-card {
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
 }
 
 /* ----- Asset register card (app-card + horizontal scroll + footer bar) ----- */
@@ -602,8 +612,8 @@
 }
 
 .asset-dashboard .asset-register-card .app-table.asset-register-table {
-    width: max-content;
-    min-width: 72rem;
+    width: 100%;
+    min-width: 100%;
     table-layout: auto;
 }
 
@@ -634,6 +644,7 @@
 .asset-dashboard .asset-register-card .app-table th.app-table-col-name,
 .asset-dashboard .asset-register-card .app-table td.app-table-col-name {
     min-width: 10.5rem;
+    width: 14%;
     overflow-wrap: anywhere;
     word-break: break-word;
 }
@@ -745,6 +756,7 @@ body.dark-mode .asset-documents-modal-asset {
 .asset-dashboard .asset-register-card .app-table th.app-table-col-owner,
 .asset-dashboard .asset-register-card .app-table td.app-table-col-owner {
     min-width: 13rem;
+    width: 16%;
     overflow-wrap: anywhere;
     box-sizing: border-box;
     text-align: center;
@@ -755,6 +767,7 @@ body.dark-mode .asset-documents-modal-asset {
 .asset-dashboard .asset-register-card .app-table th.app-table-col-location,
 .asset-dashboard .asset-register-card .app-table td.app-table-col-location {
     min-width: 12rem;
+    width: 18%;
     white-space: normal;
     overflow-wrap: anywhere;
     box-sizing: border-box;
