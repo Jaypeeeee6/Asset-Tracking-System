@@ -815,7 +815,7 @@ def _attach_owner_contacts(cur, assets):
 def dashboard():
     page = int(request.args.get('page', 1))
     sort_by = request.args.get('sort_by', 'id')
-    sort_dir = request.args.get('sort_dir', 'asc')
+    sort_dir = request.args.get('sort_dir', 'desc')
     branch_filter = request.args.get('branch') or request.args.get('building', '')
     department_filter = request.args.get('department', '')
     search_query = request.args.get('search', '')
