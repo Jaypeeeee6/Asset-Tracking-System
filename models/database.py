@@ -21,7 +21,7 @@ def get_db_connection():
 # Canonical branch label stored on assets for office-venue rows (must match admin/JS).
 OFFICE_BRANCH_LABEL = 'Office'
 
-# Office asset codes: HO[DeptAbbrev]-0001 (e.g. HORD-0001 for Research & Development).
+# Office asset codes: HO-[DeptAbbrev]-0001 (e.g. HO-RD-0001 for Research & Development).
 OFFICE_ASSET_CODE_PREFIX = 'HO'
 
 # Readable short codes for single-word / ambiguous office department names.
@@ -83,11 +83,11 @@ def shorten_department_for_asset_code(department):
 
 
 def _office_asset_code_prefix(department):
-    return f'{OFFICE_ASSET_CODE_PREFIX}{shorten_department_for_asset_code(department)}'
+    return f'{OFFICE_ASSET_CODE_PREFIX}-{shorten_department_for_asset_code(department)}'
 
 
 def _asset_code_prefix(cur, branch, department):
-    """Restaurant: branch_code from DB. Office: HO + shortened department (e.g. HORD)."""
+    """Restaurant: branch_code from DB. Office: HO-{DeptAbbrev} (e.g. HO-RD)."""
     if branch == OFFICE_BRANCH_LABEL:
         return _office_asset_code_prefix(department)
     cur.execute('SELECT branch_code FROM branches WHERE name = ?', (branch,))
@@ -143,7 +143,7 @@ def _highest_asset_sequence(cur, branch, department, prefix):
 
 
 def allocate_asset_codes(cur, branch, department, count):
-    """Return next codes (restaurant: [BranchCode]-0001; office: HO[Dept]-0001)."""
+    """Return next codes (restaurant: [BranchCode]-0001; office: HO-[Dept]-0001)."""
     if count < 1:
         return []
     prefix = _asset_code_prefix(cur, branch, department)
@@ -275,11 +275,8 @@ def _migrate_shared_asset_codes(cur):
     _mark_migration_applied(cur, 'shared_asset_codes_v1')
 
 
-def _migrate_office_asset_codes(cur):
-    """Rewrite office codes from [Dept]-#### to HO[Abbrev]-#### (e.g. IT-0001 → HOIT-0001)."""
-    if _migration_applied(cur, 'office_asset_codes_ho_v1'):
-        return
-
+def _rewrite_office_asset_codes(cur):
+    """Renumber office assets to the current HO-[Abbrev]-#### format per department."""
     entries = []
     for table in ('assets', 'archived_assets'):
         cur.execute(
@@ -300,7 +297,7 @@ def _migrate_office_asset_codes(cur):
             _table, row_id, _dept, code = entry
             seq = _sequence_from_asset_code(code, prefix)
             if seq is None:
-                # Legacy [DeptName]-#### or any trailing numeric suffix
+                # Legacy formats: [Dept]-####, HO[Abbrev]-####, or any trailing -NNNN
                 legacy_prefix = code.rsplit('-', 1)[0] if '-' in code else ''
                 seq = _sequence_from_asset_code(code, legacy_prefix) if legacy_prefix else None
             return (seq if seq is not None else 10**9, row_id)
@@ -314,7 +311,13 @@ def _migrate_office_asset_codes(cur):
                     (new_code, row_id),
                 )
 
-    _mark_migration_applied(cur, 'office_asset_codes_ho_v1')
+
+def _migrate_office_asset_codes(cur):
+    """Rewrite office codes to HO-[Abbrev]-#### (e.g. IT-0001 / HOIT-0001 → HO-IT-0001)."""
+    if _migration_applied(cur, 'office_asset_codes_ho_dash_v2'):
+        return
+    _rewrite_office_asset_codes(cur)
+    _mark_migration_applied(cur, 'office_asset_codes_ho_dash_v2')
 
 
 def _migrate_departments_nullable_branch_id(cur):
