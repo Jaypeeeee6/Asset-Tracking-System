@@ -680,7 +680,7 @@
 .asset-dashboard .asset-register-card .app-table col.app-table-col-actions,
 .asset-dashboard .asset-register-card .app-table th.app-table-col-actions,
 .asset-dashboard .asset-register-card .app-table td.app-table-col-actions {
-    min-width: 6.5rem;
+    min-width: 8.5rem;
     white-space: nowrap;
 }
 
@@ -689,6 +689,45 @@
     flex-wrap: nowrap;
     align-items: center;
     gap: 0.35rem;
+}
+
+.asset-dashboard .app-table .btn-app-edit-icon.view-asset-docs-btn {
+    position: relative;
+}
+
+.asset-dashboard .app-table .btn-app-edit-icon.view-asset-docs-btn.is-disabled-empty {
+    opacity: 0.45;
+    cursor: not-allowed;
+}
+
+.asset-dashboard .asset-docs-action-badge {
+    position: absolute;
+    top: -0.2rem;
+    right: -0.25rem;
+    min-width: 1rem;
+    height: 1rem;
+    padding: 0 0.2rem;
+    border-radius: 999px;
+    background: var(--gold, #c9a227);
+    color: #fff;
+    font-size: 0.625rem;
+    font-weight: 700;
+    line-height: 1rem;
+    text-align: center;
+    pointer-events: none;
+}
+
+.asset-doc-list--modal .asset-doc-item {
+    grid-template-columns: auto 1fr auto;
+}
+
+.asset-documents-modal-asset {
+    padding-bottom: 0.75rem;
+    border-bottom: 1px solid rgba(0, 0, 0, 0.08);
+}
+
+body.dark-mode .asset-documents-modal-asset {
+    border-bottom-color: rgba(255, 255, 255, 0.1);
 }
 
 /* Type column */
@@ -758,40 +797,6 @@
     text-align: center;
     vertical-align: middle;
     box-sizing: border-box;
-}
-
-.asset-dashboard .asset-register-card .app-table col.app-table-col-docs,
-.asset-dashboard .asset-register-card .app-table th.app-table-col-docs,
-.asset-dashboard .asset-register-card .app-table td.app-table-col-docs {
-    min-width: 12rem;
-    white-space: normal;
-    vertical-align: middle;
-    text-align: center;
-}
-
-.asset-dashboard .asset-register-docs li + li {
-    margin-top: 0.25rem;
-}
-
-.asset-dashboard .asset-register-doc-link {
-    display: inline-flex;
-    align-items: center;
-    gap: 0.35rem;
-    max-width: 100%;
-    color: inherit;
-    text-decoration: none;
-    font-size: 0.85rem;
-}
-
-.asset-dashboard .asset-register-doc-link:hover {
-    color: var(--gold, #c9a227);
-    text-decoration: underline;
-}
-
-.asset-dashboard .asset-register-doc-link span {
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
 }
 
 /* ----- Settings page (same shell as dashboard) ----- */

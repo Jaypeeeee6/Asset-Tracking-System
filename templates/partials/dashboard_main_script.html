@@ -1310,6 +1310,52 @@ function appDeleteConfirm(message, title) {
             });
     }
 
+    function renderAssetDocumentsModalList(documents) {
+        var list = document.getElementById('assetDocumentsModalList');
+        if (!list) return;
+        if (!documents || !documents.length) {
+            list.innerHTML = '<div class="text-muted small">No supporting documents for this asset.</div>';
+            return;
+        }
+        list.innerHTML = '';
+        documents.forEach(function (doc) {
+            var row = document.createElement('div');
+            row.className = 'asset-doc-item asset-doc-item--view-only';
+            row.innerHTML = '<i class="bi bi-file-earmark" aria-hidden="true"></i>'
+                + '<a class="asset-doc-name" href="' + escapeHtmlDoc(doc.download_url) + '" target="_blank" rel="noopener">'
+                + escapeHtmlDoc(doc.original_filename) + '</a>'
+                + '<span class="asset-doc-meta">' + escapeHtmlDoc(formatFileSize(doc.file_size)) + '</span>';
+            list.appendChild(row);
+        });
+    }
+
+    function openAssetDocumentsModal(button) {
+        var assetId = button.getAttribute('data-asset-id');
+        var assetName = button.getAttribute('data-asset-name') || '';
+        var assetCode = button.getAttribute('data-asset-code') || '';
+        var modalEl = document.getElementById('assetDocumentsModal');
+        var nameEl = document.getElementById('assetDocumentsModalAssetName');
+        var codeEl = document.getElementById('assetDocumentsModalAssetCode');
+        var listEl = document.getElementById('assetDocumentsModalList');
+        if (!modalEl || !assetId || typeof bootstrap === 'undefined') return;
+
+        if (nameEl) nameEl.textContent = assetName;
+        if (codeEl) codeEl.textContent = assetCode || '';
+        if (listEl) listEl.innerHTML = '<div class="text-muted small">Loading documents…</div>';
+
+        var modal = bootstrap.Modal.getOrCreateInstance(modalEl);
+        modal.show();
+
+        fetch('/assets/' + encodeURIComponent(assetId) + '/documents')
+            .then(function (r) { return r.json(); })
+            .then(function (data) {
+                renderAssetDocumentsModalList((data && data.documents) || []);
+            })
+            .catch(function () {
+                if (listEl) listEl.innerHTML = '<div class="text-danger small">Failed to load documents.</div>';
+            });
+    }
+
     function deleteEditAssetDocument(assetId, documentId, filename, rowEl) {
         var doDelete = function () {
             fetch('/assets/' + encodeURIComponent(assetId) + '/documents/' + encodeURIComponent(documentId), {
@@ -5319,6 +5365,14 @@ function appDeleteConfirm(message, title) {
         
         // Open edit asset modal only after fields are fully populated (avoids loading flash)
         document.addEventListener('click', function (event) {
+            const docsButton = event.target.closest('.view-asset-docs-btn');
+            if (docsButton) {
+                event.preventDefault();
+                if (docsButton.disabled) return;
+                openAssetDocumentsModal(docsButton);
+                return;
+            }
+
             const button = event.target.closest('.edit-asset-btn');
             if (!button) return;
             event.preventDefault();

@@ -1087,6 +1087,28 @@
   </div>
 </div>
 
+<!-- Asset Documents Modal -->
+<div class="modal fade app-modal" id="assetDocumentsModal" tabindex="-1" aria-labelledby="assetDocumentsModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered app-modal-dialog-comfort">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="assetDocumentsModalLabel">
+          <i class="bi bi-paperclip me-2" style="color:var(--gold);" aria-hidden="true"></i>Supporting Documents
+        </h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body">
+        <div class="asset-documents-modal-asset mb-3">
+          <div class="fw-semibold" id="assetDocumentsModalAssetName"></div>
+          <div class="text-muted small" id="assetDocumentsModalAssetCode"></div>
+        </div>
+        <div id="assetDocumentsModalList" class="asset-doc-list asset-doc-list--modal"></div>
+      </div>
+      <div class="modal-footer">{{ modal_cancel_button('Close') }}</div>
+    </div>
+  </div>
+</div>
+
 <!-- QR Code Modal -->
 <div class="modal fade app-modal app-modal--qr" id="qrModal" tabindex="-1" aria-labelledby="qrModalLabel" aria-hidden="true">
   <div class="modal-dialog modal-lg app-modal-dialog-comfort">

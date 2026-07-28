@@ -20,7 +20,6 @@
             <col class="app-table-col-location">
             <col class="app-table-col-status">
             <col class="app-table-col-date">
-            <col class="app-table-col-docs">
             <col class="app-table-col-actions">
         </colgroup>
         <thead>
@@ -34,7 +33,6 @@
                 <th class="app-table-col-location"><a href="{{ url_for('assets.dashboard') }}{{ sort_href('branch') }}">Branch/Department{% if sort_by == 'branch' %} {% if sort_dir == 'asc' %}&#9650;{% else %}&#9660;{% endif %}{% endif %}</a></th>
                 <th class="app-table-col-status"><a href="{{ url_for('assets.dashboard') }}{{ sort_href('used_status') }}">Status{% if sort_by == 'used_status' %} {% if sort_dir == 'asc' %}&#9650;{% else %}&#9660;{% endif %}{% endif %}</a></th>
                 <th class="app-table-col-date"><a href="{{ url_for('assets.dashboard') }}{{ sort_href('asset_date') }}">Date{% if sort_by == 'asset_date' %} {% if sort_dir == 'asc' %}&#9650;{% else %}&#9660;{% endif %}{% endif %}</a></th>
-                <th class="app-table-col-docs">Documents</th>
                 <th class="app-table-col-actions">Actions</th>
             </tr>
         </thead>
@@ -105,24 +103,22 @@
                         <span class="text-muted">—</span>
                     {% endif %}
                 </td>
-                <td class="app-table-col-docs">
-                    {% if asset.supporting_documents %}
-                    <ul class="asset-register-docs list-unstyled mb-0">
-                        {% for doc in asset.supporting_documents %}
-                        <li>
-                            <a href="{{ doc.download_url }}" class="asset-register-doc-link" title="{{ doc.original_filename }}">
-                                <i class="bi bi-file-earmark" aria-hidden="true"></i>
-                                <span>{{ doc.original_filename }}</span>
-                            </a>
-                        </li>
-                        {% endfor %}
-                    </ul>
-                    {% else %}
-                    <span class="text-muted">—</span>
-                    {% endif %}
-                </td>
                 <td class="app-table-col-actions">
                     <div class="app-table-actions">
+                        {% set doc_count = asset.supporting_documents|length if asset.supporting_documents else 0 %}
+                        <button type="button" class="btn-app-edit-icon view-asset-docs-btn{% if doc_count == 0 %} is-disabled-empty{% endif %}"
+                                data-asset-id="{{ asset.id }}"
+                                data-asset-name="{{ asset.name }}"
+                                data-asset-code="{{ asset.asset_code or '' }}"
+                                data-doc-count="{{ doc_count }}"
+                                title="{% if doc_count %}View {{ doc_count }} document{% if doc_count != 1 %}s{% endif %}{% else %}No documents{% endif %}"
+                                aria-label="{% if doc_count %}View documents{% else %}No documents{% endif %}"
+                                {% if doc_count == 0 %}disabled{% endif %}>
+                            <i class="bi bi-paperclip" aria-hidden="true"></i>
+                            {% if doc_count > 0 %}
+                            <span class="asset-docs-action-badge" aria-hidden="true">{{ doc_count }}</span>
+                            {% endif %}
+                        </button>
                         <button type="button" class="btn-app-edit-icon edit-asset-btn"
                                 data-asset-id="{{ asset.id }}"
                                 data-asset-name="{{ asset.name }}"
