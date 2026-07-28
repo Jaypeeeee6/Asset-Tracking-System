@@ -34,6 +34,10 @@
         </div>
     </div>
 
+    <div class="col-12 asset-form-section-divider-wrap">
+        <hr class="asset-form-section-divider" aria-hidden="true">
+    </div>
+
     <div class="col-md-6">
         {{ form_label('Asset Category', 'asset_type', true) }}
         <select class="form-select" id="asset_type" name="asset_type" required>
@@ -58,15 +62,29 @@
     </div>
 
     <div class="col-12" id="addAssetSpecFieldsSection" style="display: none;">
+        <hr class="asset-form-section-divider" aria-hidden="true">
         {{ form_label('Asset Specifications', 'addAssetSpecFieldsContainer', false) }}
         <div id="addAssetSpecFieldsContainer"></div>
         <input type="hidden" id="addAssetSpecValuesJson" name="asset_spec_values_json" value="">
     </div>
     <div class="col-12" id="addAssetInclusionsSection" style="display: none;">
+        <hr class="asset-form-section-divider" aria-hidden="true">
         <label class="form-label">Inclusions</label>
         <div class="form-text mb-2"><i class="bi bi-info-circle" aria-hidden="true"></i> Check the items included with this asset.</div>
         <div id="addAssetInclusionsContainer"></div>
         <input type="hidden" id="addAssetInclusionValuesJson" name="asset_inclusion_values_json" value="">
+    </div>
+
+    <div class="col-12" id="addAssetSubscriptionsSection" style="display: none;">
+        <hr class="asset-form-section-divider" aria-hidden="true">
+        <label class="form-label">Subscriptions</label>
+        <div class="form-text mb-2"><i class="bi bi-info-circle" aria-hidden="true"></i> Optional software subscriptions included with this laptop.</div>
+        <div id="addAssetSubscriptionsContainer"></div>
+        <input type="hidden" id="addAssetSubscriptionsJson" name="asset_subscriptions_json" value="">
+    </div>
+
+    <div class="col-12 asset-form-section-divider-wrap">
+        <hr class="asset-form-section-divider" aria-hidden="true">
     </div>
 
     <div class="col-md-6 d-none" id="addAssetBrandField" aria-hidden="true">
@@ -116,6 +134,10 @@
         </div>
     </div>
 
+    <div class="col-12 asset-form-section-divider-wrap">
+        <hr class="asset-form-section-divider" aria-hidden="true">
+    </div>
+
     <div class="col-12">
         <div class="form-check mb-2">
             <input class="form-check-input" type="checkbox" id="noOwnerCheck" name="no_owner">
@@ -143,6 +165,10 @@
         {{ form_label('Date', 'asset_date', true) }}
         <input type="date" class="form-control" id="asset_date" name="asset_date" required readonly>
         <div class="form-text"><i class="bi bi-info-circle" aria-hidden="true"></i> Automatically set to today&apos;s date.</div>
+    </div>
+
+    <div class="col-12 asset-form-section-divider-wrap">
+        <hr class="asset-form-section-divider" aria-hidden="true">
     </div>
 
     <div class="col-12">

@@ -32,6 +32,9 @@ from models.database import (
     asset_type_for_venue_matches,
     format_branch_with_code,
     format_asset_location_display,
+    asset_supports_subscriptions,
+    SUBSCRIPTION_TYPE_MICROSOFT_OFFICE,
+    SUBSCRIPTION_TYPE_GOOGLE_WORKSPACE,
 )
 from utils.asset_documents import (
     list_documents_for_asset,
@@ -575,6 +578,139 @@ def _save_inclusion_values_for_single_asset(cur, asset_id, asset_name, asset_typ
     _save_inclusion_values_for_asset(cur, asset_id, asset_name, asset_type, wrapped)
 
 
+def _empty_subscriptions_payload():
+    return {
+        'microsoft_office': {'enabled': False, 'product_key': '', 'price': ''},
+        'google_workspace': {'enabled': False, 'price': ''},
+    }
+
+
+def _parse_asset_subscriptions_json(raw):
+    """Parse subscription payload from form JSON."""
+    if not raw:
+        return _empty_subscriptions_payload()
+    try:
+        data = json.loads(raw)
+    except (TypeError, ValueError):
+        return None
+    if not isinstance(data, dict):
+        return None
+    base = _empty_subscriptions_payload()
+    for key in ('microsoft_office', 'google_workspace'):
+        block = data.get(key)
+        if not isinstance(block, dict):
+            continue
+        base[key]['enabled'] = bool(block.get('enabled'))
+        if key == 'microsoft_office':
+            base[key]['product_key'] = (block.get('product_key') or '').strip()
+        price = block.get('price')
+        if price is not None and str(price).strip() != '':
+            base[key]['price'] = str(price).strip()
+    return base
+
+
+def _validate_subscription_price(price_raw, label):
+    if price_raw is None or str(price_raw).strip() == '':
+        return f'{label} price is required when enabled.'
+    try:
+        price = float(price_raw)
+    except (TypeError, ValueError):
+        return f'Invalid {label} price.'
+    if price < 0:
+        return f'{label} price cannot be negative.'
+    return None
+
+
+def _validate_asset_subscriptions(subscriptions_data, asset_name, asset_type):
+    if not asset_supports_subscriptions(asset_name, asset_type):
+        if subscriptions_data and any(
+            (subscriptions_data.get(key) or {}).get('enabled')
+            for key in ('microsoft_office', 'google_workspace')
+        ):
+            return 'Subscriptions are only available for Laptop assets under Electronics.'
+        return None
+
+    office = subscriptions_data.get('microsoft_office') or {}
+    if office.get('enabled'):
+        if not (office.get('product_key') or '').strip():
+            return 'Microsoft Office Product Key is required when Microsoft Office Subscription is enabled.'
+        price_err = _validate_subscription_price(office.get('price'), 'Microsoft Office')
+        if price_err:
+            return price_err
+
+    gws = subscriptions_data.get('google_workspace') or {}
+    if gws.get('enabled'):
+        price_err = _validate_subscription_price(gws.get('price'), 'Google Workspace')
+        if price_err:
+            return price_err
+
+    return None
+
+
+def _save_asset_subscriptions(cur, asset_id, asset_name, asset_type, subscriptions_data):
+    cur.execute('DELETE FROM asset_subscriptions WHERE asset_id = ?', (asset_id,))
+    if not asset_supports_subscriptions(asset_name, asset_type):
+        return
+    if not isinstance(subscriptions_data, dict):
+        return
+
+    office = subscriptions_data.get('microsoft_office') or {}
+    if office.get('enabled'):
+        cur.execute(
+            '''
+            INSERT INTO asset_subscriptions (asset_id, subscription_type, product_key, price)
+            VALUES (?, ?, ?, ?)
+            ''',
+            (
+                asset_id,
+                SUBSCRIPTION_TYPE_MICROSOFT_OFFICE,
+                (office.get('product_key') or '').strip(),
+                float(office.get('price') or 0),
+            ),
+        )
+
+    gws = subscriptions_data.get('google_workspace') or {}
+    if gws.get('enabled'):
+        cur.execute(
+            '''
+            INSERT INTO asset_subscriptions (asset_id, subscription_type, product_key, price)
+            VALUES (?, ?, NULL, ?)
+            ''',
+            (
+                asset_id,
+                SUBSCRIPTION_TYPE_GOOGLE_WORKSPACE,
+                float(gws.get('price') or 0),
+            ),
+        )
+
+
+def _get_asset_subscriptions(cur, asset_id):
+    cur.execute(
+        '''
+        SELECT subscription_type, product_key, price
+        FROM asset_subscriptions
+        WHERE asset_id = ?
+        ORDER BY subscription_type
+        ''',
+        (asset_id,),
+    )
+    result = _empty_subscriptions_payload()
+    for row in cur.fetchall():
+        stype = row[0]
+        if stype == SUBSCRIPTION_TYPE_MICROSOFT_OFFICE:
+            result['microsoft_office'] = {
+                'enabled': True,
+                'product_key': row[1] or '',
+                'price': row[2] if row[2] is not None else '',
+            }
+        elif stype == SUBSCRIPTION_TYPE_GOOGLE_WORKSPACE:
+            result['google_workspace'] = {
+                'enabled': True,
+                'price': row[2] if row[2] is not None else '',
+            }
+    return result
+
+
 def _compute_chart_data_from_asset_rows(rows):
     """Aggregate branch/department/value stats from asset rows (tuple or dict)."""
     status_counts = {'Used': 0, 'Not Used': 0, 'Out of Service': 0}
@@ -1092,6 +1228,12 @@ def _create_assets_from_payload(cur, form_data, uploaded_files=None, force_inser
     if inclusion_values_by_name is None:
         return [], 'Invalid asset inclusion data.'
 
+    subscriptions_data = _parse_asset_subscriptions_json(
+        _form_get(form_data, 'asset_subscriptions_json', '')
+    )
+    if subscriptions_data is None:
+        return [], 'Invalid asset subscription data.'
+
     if asset_type:
         cur.execute('SELECT for_venue FROM asset_types WHERE name = ?', (asset_type,))
         vt_rows = cur.fetchall()
@@ -1104,6 +1246,11 @@ def _create_assets_from_payload(cur, form_data, uploaded_files=None, force_inser
         err = _validate_asset_venue_location(cur, venue, branch, department)
         if err:
             return [], err
+
+    for asset_name in asset_names:
+        sub_err = _validate_asset_subscriptions(subscriptions_data, asset_name, asset_type)
+        if sub_err:
+            return [], sub_err
 
     created_asset_ids = []
     shared_group_id = str(uuid.uuid4()) if asset_kind == ASSET_KIND_SHARED and venue == 'restaurant' else None
@@ -1125,6 +1272,7 @@ def _create_assets_from_payload(cur, form_data, uploaded_files=None, force_inser
             created_asset_ids.append(asset_id)
             _save_spec_values_for_asset(cur, asset_id, asset_name, asset_type, spec_values_by_name)
             _save_inclusion_values_for_asset(cur, asset_id, asset_name, asset_type, inclusion_values_by_name)
+            _save_asset_subscriptions(cur, asset_id, asset_name, asset_type, subscriptions_data)
 
     files = uploaded_files or []
     files = [f for f in files if f and getattr(f, 'filename', None)]
@@ -1248,8 +1396,9 @@ def get_asset_spec_values(asset_id):
         (asset_id,),
     )
     inclusion_ids = [row[0] for row in cur.fetchall()]
+    subscriptions = _get_asset_subscriptions(cur, asset_id)
     conn.close()
-    return jsonify({'values': values, 'inclusion_ids': inclusion_ids})
+    return jsonify({'values': values, 'inclusion_ids': inclusion_ids, 'subscriptions': subscriptions})
 
 
 def _update_shared_asset_group(
@@ -1265,6 +1414,7 @@ def _update_shared_asset_group(
     branch_names,
     spec_values,
     inclusion_ids,
+    subscriptions_data=None,
 ):
     """Create/update/delete sibling rows when editing a shared asset's branches."""
     cur.execute(
@@ -1334,6 +1484,7 @@ def _update_shared_asset_group(
             )
         _save_spec_values_for_single_asset(cur, row_id, name, asset_type, spec_values)
         _save_inclusion_values_for_single_asset(cur, row_id, name, asset_type, inclusion_ids)
+        _save_asset_subscriptions(cur, row_id, name, asset_type, subscriptions_data or {})
         updated_ids.append(row_id)
 
     return updated_ids, None
@@ -1425,12 +1576,24 @@ def update_asset(asset_id):
     if inclusion_ids is None:
         conn.close()
         return jsonify({'error': 'Invalid asset inclusion data.'}), 400
+
+    subscriptions_data = _parse_asset_subscriptions_json(
+        request.form.get('asset_subscriptions_json', '')
+    )
+    if subscriptions_data is None:
+        conn.close()
+        return jsonify({'error': 'Invalid asset subscription data.'}), 400
+    sub_err = _validate_asset_subscriptions(subscriptions_data, name, asset_type)
+    if sub_err:
+        conn.close()
+        return jsonify({'error': sub_err}), 400
     
     try:
         if venue == 'restaurant' and asset_kind == ASSET_KIND_SHARED:
             updated_ids, sync_err = _update_shared_asset_group(
                 cur, asset_id, name, asset_type, asset_kind, price, owner,
                 department, used_status, branch_names, spec_values, inclusion_ids,
+                subscriptions_data,
             )
             if sync_err:
                 conn.close()
@@ -1501,6 +1664,7 @@ def update_asset(asset_id):
 
         _save_spec_values_for_single_asset(cur, asset_id, name, asset_type, spec_values)
         _save_inclusion_values_for_single_asset(cur, asset_id, name, asset_type, inclusion_ids)
+        _save_asset_subscriptions(cur, asset_id, name, asset_type, subscriptions_data)
 
         uploaded_files = request.files.getlist('supporting_documents')
         if uploaded_files:

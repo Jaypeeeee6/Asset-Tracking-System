@@ -2504,6 +2504,227 @@ function appDeleteConfirm(message, title) {
         return window.assetNamesByType[assetTypeName].find(item => item.name === assetName) || null;
     }
 
+    const LAPTOP_SUBSCRIPTION_CATEGORY = 'Electronics';
+    const LAPTOP_SUBSCRIPTION_ASSET_NAME = 'Laptop';
+
+    function assetNameSupportsSubscriptions(assetType, assetName) {
+        return assetType === LAPTOP_SUBSCRIPTION_CATEGORY && assetName === LAPTOP_SUBSCRIPTION_ASSET_NAME;
+    }
+
+    function emptySubscriptionsPayload() {
+        return {
+            microsoft_office: { enabled: false, product_key: '', price: '' },
+            google_workspace: { enabled: false, price: '' }
+        };
+    }
+
+    function readSubscriptionsFromContainer(container, prefix) {
+        const result = emptySubscriptionsPayload();
+        if (!container) return result;
+
+        const officeCheck = container.querySelector('.' + prefix + '-subscription-office-check');
+        const officeKey = container.querySelector('.' + prefix + '-subscription-office-key');
+        const officePrice = container.querySelector('.' + prefix + '-subscription-office-price');
+        const gwsCheck = container.querySelector('.' + prefix + '-subscription-gws-check');
+        const gwsPrice = container.querySelector('.' + prefix + '-subscription-gws-price');
+
+        if (officeCheck && officeCheck.checked) {
+            result.microsoft_office.enabled = true;
+            result.microsoft_office.product_key = officeKey ? officeKey.value.trim() : '';
+            result.microsoft_office.price = officePrice ? officePrice.value.trim() : '';
+        }
+        if (gwsCheck && gwsCheck.checked) {
+            result.google_workspace.enabled = true;
+            result.google_workspace.price = gwsPrice ? gwsPrice.value.trim() : '';
+        }
+        return result;
+    }
+
+    function applySubscriptionsToContainer(container, prefix, data) {
+        data = data || emptySubscriptionsPayload();
+        if (!container) return;
+
+        const office = data.microsoft_office || {};
+        const gws = data.google_workspace || {};
+        const officeCheck = container.querySelector('.' + prefix + '-subscription-office-check');
+        const officeFields = container.querySelector('.' + prefix + '-subscription-office-fields');
+        const officeKey = container.querySelector('.' + prefix + '-subscription-office-key');
+        const officePrice = container.querySelector('.' + prefix + '-subscription-office-price');
+        const gwsCheck = container.querySelector('.' + prefix + '-subscription-gws-check');
+        const gwsFields = container.querySelector('.' + prefix + '-subscription-gws-fields');
+        const gwsPrice = container.querySelector('.' + prefix + '-subscription-gws-price');
+
+        if (officeCheck) officeCheck.checked = !!office.enabled;
+        if (officeKey) officeKey.value = office.product_key || '';
+        if (officePrice) officePrice.value = office.price != null && office.price !== '' ? office.price : '';
+        if (gwsCheck) gwsCheck.checked = !!gws.enabled;
+        if (gwsPrice) gwsPrice.value = gws.price != null && gws.price !== '' ? gws.price : '';
+        if (officeFields) officeFields.style.display = officeCheck && officeCheck.checked ? 'block' : 'none';
+        if (gwsFields) gwsFields.style.display = gwsCheck && gwsCheck.checked ? 'block' : 'none';
+    }
+
+    function buildSubscriptionFieldsMarkup(prefix) {
+        return `
+            <div class="form-check mb-2">
+                <input class="form-check-input ${prefix}-subscription-office-check" type="checkbox" id="${prefix}SubscriptionOfficeCheck">
+                <label class="form-check-label" for="${prefix}SubscriptionOfficeCheck">Microsoft Office Subscription</label>
+            </div>
+            <div class="${prefix}-subscription-office-fields ms-4 mb-3" style="display: none;">
+                <div class="mb-2">
+                    <label class="form-label" for="${prefix}SubscriptionOfficeKey">Product Key</label>
+                    <input type="text" class="form-control ${prefix}-subscription-office-key" id="${prefix}SubscriptionOfficeKey" maxlength="200" placeholder="Enter product key">
+                </div>
+                <div class="mb-2">
+                    <label class="form-label" for="${prefix}SubscriptionOfficePrice">Price (OMR)</label>
+                    <input type="number" class="form-control ${prefix}-subscription-office-price" id="${prefix}SubscriptionOfficePrice" min="0" step="0.01" placeholder="0.00">
+                </div>
+            </div>
+            <div class="form-check mb-2">
+                <input class="form-check-input ${prefix}-subscription-gws-check" type="checkbox" id="${prefix}SubscriptionGwsCheck">
+                <label class="form-check-label" for="${prefix}SubscriptionGwsCheck">Google Workspace Account</label>
+            </div>
+            <div class="${prefix}-subscription-gws-fields ms-4" style="display: none;">
+                <div class="mb-2">
+                    <label class="form-label" for="${prefix}SubscriptionGwsPrice">Price (OMR)</label>
+                    <input type="number" class="form-control ${prefix}-subscription-gws-price" id="${prefix}SubscriptionGwsPrice" min="0" step="0.01" placeholder="0.00">
+                </div>
+            </div>
+        `;
+    }
+
+    function wireSubscriptionContainer(container, prefix) {
+        if (!container || container.dataset.subscriptionWired === '1') return;
+        container.dataset.subscriptionWired = '1';
+        container.addEventListener('change', function (event) {
+            const target = event.target;
+            if (!target || !target.classList) return;
+            if (target.classList.contains(prefix + '-subscription-office-check')) {
+                const fields = container.querySelector('.' + prefix + '-subscription-office-fields');
+                if (fields) fields.style.display = target.checked ? 'block' : 'none';
+            }
+            if (target.classList.contains(prefix + '-subscription-gws-check')) {
+                const fields = container.querySelector('.' + prefix + '-subscription-gws-fields');
+                if (fields) fields.style.display = target.checked ? 'block' : 'none';
+            }
+        });
+    }
+
+    function renderAddAssetSubscriptions() {
+        const section = document.getElementById('addAssetSubscriptionsSection');
+        const container = document.getElementById('addAssetSubscriptionsContainer');
+        const hidden = document.getElementById('addAssetSubscriptionsJson');
+        if (!section || !container) return;
+
+        const assetType = document.getElementById('asset_type')?.value;
+        const assetName = selectedAssetNames[0] || '';
+        if (!assetNameSupportsSubscriptions(assetType, assetName)) {
+            section.style.display = 'none';
+            container.innerHTML = '';
+            if (hidden) hidden.value = '';
+            return;
+        }
+
+        const preserved = readSubscriptionsFromContainer(container, 'add');
+        container.innerHTML = buildSubscriptionFieldsMarkup('add');
+        wireSubscriptionContainer(container, 'add');
+        applySubscriptionsToContainer(container, 'add', preserved);
+        section.style.display = 'block';
+        collectAddAssetSubscriptionsJson();
+    }
+
+    function collectAddAssetSubscriptionsJson() {
+        const container = document.getElementById('addAssetSubscriptionsContainer');
+        const hidden = document.getElementById('addAssetSubscriptionsJson');
+        const result = readSubscriptionsFromContainer(container, 'add');
+        if (hidden) hidden.value = JSON.stringify(result);
+        return result;
+    }
+
+    function validateAddAssetSubscriptions() {
+        const assetType = document.getElementById('asset_type')?.value;
+        const assetName = selectedAssetNames[0] || '';
+        if (!assetNameSupportsSubscriptions(assetType, assetName)) return true;
+
+        const data = collectAddAssetSubscriptionsJson();
+        if (data.microsoft_office.enabled) {
+            if (!data.microsoft_office.product_key) {
+                alert('Microsoft Office Product Key is required when Microsoft Office Subscription is enabled.');
+                return false;
+            }
+            if (data.microsoft_office.price === '') {
+                alert('Microsoft Office price is required when Microsoft Office Subscription is enabled.');
+                return false;
+            }
+        }
+        if (data.google_workspace.enabled && data.google_workspace.price === '') {
+            alert('Google Workspace price is required when Google Workspace Account is enabled.');
+            return false;
+        }
+        return true;
+    }
+
+    function applyAddAssetSubscriptionsFromJson(jsonStr) {
+        let data = emptySubscriptionsPayload();
+        try { data = Object.assign(emptySubscriptionsPayload(), JSON.parse(jsonStr || '{}') || {}); } catch (e) {}
+        const container = document.getElementById('addAssetSubscriptionsContainer');
+        applySubscriptionsToContainer(container, 'add', data);
+        collectAddAssetSubscriptionsJson();
+    }
+
+    function renderEditAssetSubscriptions(existingData) {
+        const section = document.getElementById('editAssetSubscriptionsSection');
+        const container = document.getElementById('editAssetSubscriptionsContainer');
+        const hidden = document.getElementById('editAssetSubscriptionsJson');
+        if (!section || !container) return;
+
+        const assetType = document.getElementById('edit_asset_type')?.value;
+        const assetName = document.getElementById('edit_name')?.value.trim();
+        if (!assetNameSupportsSubscriptions(assetType, assetName)) {
+            section.style.display = 'none';
+            container.innerHTML = '';
+            if (hidden) hidden.value = '';
+            return;
+        }
+
+        const preserved = existingData || readSubscriptionsFromContainer(container, 'edit');
+        container.innerHTML = buildSubscriptionFieldsMarkup('edit');
+        wireSubscriptionContainer(container, 'edit');
+        applySubscriptionsToContainer(container, 'edit', preserved);
+        section.style.display = 'block';
+        collectEditAssetSubscriptionsJson();
+    }
+
+    function collectEditAssetSubscriptionsJson() {
+        const container = document.getElementById('editAssetSubscriptionsContainer');
+        const hidden = document.getElementById('editAssetSubscriptionsJson');
+        const result = readSubscriptionsFromContainer(container, 'edit');
+        if (hidden) hidden.value = JSON.stringify(result);
+        return result;
+    }
+
+    function validateEditAssetSubscriptions() {
+        const assetType = document.getElementById('edit_asset_type')?.value;
+        const assetName = document.getElementById('edit_name')?.value.trim();
+        if (!assetNameSupportsSubscriptions(assetType, assetName)) return true;
+
+        const data = collectEditAssetSubscriptionsJson();
+        if (data.microsoft_office.enabled) {
+            if (!data.microsoft_office.product_key) {
+                alert('Microsoft Office Product Key is required when Microsoft Office Subscription is enabled.');
+                return false;
+            }
+            if (data.microsoft_office.price === '') {
+                alert('Microsoft Office price is required when Microsoft Office Subscription is enabled.');
+                return false;
+            }
+        }
+        if (data.google_workspace.enabled && data.google_workspace.price === '') {
+            alert('Google Workspace price is required when Google Workspace Account is enabled.');
+            return false;
+        }
+        return true;
+    }
+
     function renderAddAssetSpecFields() {
         renderAddAssetInclusions();
         const section = document.getElementById('addAssetSpecFieldsSection');
@@ -2553,6 +2774,7 @@ function appDeleteConfirm(message, title) {
 
         section.style.display = hasAnySpecs ? 'block' : 'none';
         if (!hasAnySpecs && hidden) hidden.value = '';
+        renderAddAssetSubscriptions();
     }
 
     function collectAddAssetSpecValuesJson() {
@@ -4259,6 +4481,7 @@ function appDeleteConfirm(message, title) {
         }
         collectAddAssetSpecValuesJson();
         collectAddAssetInclusionValuesJson();
+        if (!validateAddAssetSubscriptions()) return false;
         if (venue === 'restaurant') {
             const kind = getAddAssetKind();
             const selectedBranches = getSelectedAddBranches();
@@ -4345,6 +4568,8 @@ function appDeleteConfirm(message, title) {
         var typeEl = document.getElementById('asset_type');
         var specEl = document.getElementById('addAssetSpecValuesJson');
         var incEl = document.getElementById('addAssetInclusionValuesJson');
+        var subEl = document.getElementById('addAssetSubscriptionsJson');
+        collectAddAssetSubscriptionsJson();
         return {
             asset_venue: getAddAssetVenue(),
             asset_kind: getAddAssetKind(),
@@ -4352,6 +4577,7 @@ function appDeleteConfirm(message, title) {
             selected_asset_names: selectedAssetNames.slice(0, 1),
             asset_spec_values_json: specEl ? specEl.value : '',
             asset_inclusion_values_json: incEl ? incEl.value : '',
+            asset_subscriptions_json: subEl ? subEl.value : '',
             price: priceEl ? priceEl.value : '',
             brand_ids: brandIds.slice(),
             branch: branches.slice(),
@@ -4378,6 +4604,7 @@ function appDeleteConfirm(message, title) {
                 selected_asset_names: (draft.selected_asset_names || []).slice(),
                 asset_spec_values_json: draft.asset_spec_values_json || '',
                 asset_inclusion_values_json: draft.asset_inclusion_values_json || '',
+                asset_subscriptions_json: draft.asset_subscriptions_json || '',
                 price: draft.price || '',
                 brand_ids: (draft.brand_ids || []).slice(),
                 branch: Array.isArray(draft.branch) ? draft.branch.slice() : (draft.branch ? [draft.branch] : []),
@@ -4513,6 +4740,7 @@ function appDeleteConfirm(message, title) {
                 renderAddAssetSpecFields();
                 applyAddAssetSpecValuesFromJson(draft.asset_spec_values_json || '');
                 applyAddAssetInclusionValuesFromJson(draft.asset_inclusion_values_json || '');
+                applyAddAssetSubscriptionsFromJson(draft.asset_subscriptions_json || '');
 
                 var priceEl = document.getElementById('price');
                 if (priceEl) priceEl.value = draft.price != null ? draft.price : '';
@@ -4603,6 +4831,7 @@ function appDeleteConfirm(message, title) {
             selected_asset_names: (draft.selected_asset_names || []).join(','),
             asset_spec_values_json: draft.asset_spec_values_json || '',
             asset_inclusion_values_json: draft.asset_inclusion_values_json || '',
+            asset_subscriptions_json: draft.asset_subscriptions_json || '',
             price: draft.price || '',
             department: draft.department || '',
             no_owner: draft.no_owner ? 'on' : '',
@@ -5004,6 +5233,7 @@ function appDeleteConfirm(message, title) {
                     fillEditAssetNameSelect(this.value, '');
                     renderEditAssetSpecFields();
                     renderEditAssetInclusions();
+                    renderEditAssetSubscriptions();
                 });
 
                 const editNameInput = document.getElementById('edit_name');
@@ -5011,6 +5241,7 @@ function appDeleteConfirm(message, title) {
                     editNameInput.addEventListener('change', function() {
                         renderEditAssetSpecFields();
                         renderEditAssetInclusions();
+                        renderEditAssetSubscriptions();
                     });
                 }
             }
@@ -5240,8 +5471,12 @@ function appDeleteConfirm(message, title) {
             if (!validateEditAssetSpecFields()) {
                 return;
             }
+            if (!validateEditAssetSubscriptions()) {
+                return;
+            }
             collectEditAssetSpecValuesJson();
             collectEditAssetInclusionValuesJson();
+            collectEditAssetSubscriptionsJson();
             
             AppDialogs.confirm({
                 title: 'Update asset',
@@ -6882,11 +7117,11 @@ function appDeleteConfirm(message, title) {
             fetchAssetSharedGroupInfo(assetId),
             loadEditAssetDocuments(assetId),
             fetch(`/assets/${assetId}/spec-values`).then(function (r) { return r.json(); }).catch(function () {
-                return { values: [], inclusion_ids: [] };
+                return { values: [], inclusion_ids: [], subscriptions: emptySubscriptionsPayload() };
             }),
         ]).then(function (results) {
             const groupInfo = results[2] || {};
-            const specPayload = results[4] || { values: [], inclusion_ids: [] };
+            const specPayload = results[4] || { values: [], inclusion_ids: [], subscriptions: emptySubscriptionsPayload() };
             const isShared = !!groupInfo.is_shared;
             if (editForm) {
                 editForm.dataset.isShared = isShared ? '1' : '0';
@@ -6948,6 +7183,7 @@ function appDeleteConfirm(message, title) {
                     });
                     renderEditAssetSpecFields(existingValues);
                     renderEditAssetInclusions(specPayload.inclusion_ids || []);
+                    renderEditAssetSubscriptions(specPayload.subscriptions || emptySubscriptionsPayload());
                 });
             });
         }).catch(function (error) {

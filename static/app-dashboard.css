@@ -1345,3 +1345,24 @@ body.dark-mode .asset-dashboard.price-analysis-page .price-analysis-value--branc
 body.dark-mode .asset-dashboard.price-analysis-page .price-analysis-value--dept {
     color: #22d3ee;
 }
+
+/* Add / edit asset form section separators */
+.asset-form-section-divider-wrap {
+    margin-top: 0.5rem;
+    margin-bottom: 0.5rem;
+}
+
+.asset-form-section-divider {
+    border: 0;
+    border-top: 1px solid rgba(0, 0, 0, 0.1);
+    margin: 1rem 0 1.75rem;
+    opacity: 1;
+}
+
+#editAssetModal .asset-form-section-divider {
+    margin: 1rem 0 2rem;
+}
+
+body.dark-mode .asset-form-section-divider {
+    border-top-color: rgba(255, 255, 255, 0.12);
+}

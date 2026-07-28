@@ -21,6 +21,18 @@ def get_db_connection():
 # Canonical branch label stored on assets for office-venue rows (must match admin/JS).
 OFFICE_BRANCH_LABEL = 'Office'
 
+# Default catalog entries bootstrapped on first run (see _ensure_default_electronics_laptop).
+DEFAULT_ELECTRONICS_CATEGORY = 'Electronics'
+DEFAULT_LAPTOP_ASSET_NAME = 'Laptop'
+
+# Per-asset subscription types (Laptop only; stored in asset_subscriptions).
+SUBSCRIPTION_TYPE_MICROSOFT_OFFICE = 'microsoft_office'
+SUBSCRIPTION_TYPE_GOOGLE_WORKSPACE = 'google_workspace'
+SUBSCRIPTION_TYPES = (
+    SUBSCRIPTION_TYPE_MICROSOFT_OFFICE,
+    SUBSCRIPTION_TYPE_GOOGLE_WORKSPACE,
+)
+
 # Office asset codes: HO-[DeptAbbrev]-0001 (e.g. HO-RD-0001 for Research & Development).
 OFFICE_ASSET_CODE_PREFIX = 'HO'
 
@@ -512,6 +524,58 @@ def _migrate_asset_specifications(cur):
             UNIQUE(asset_id, inclusion_id)
         )
     ''')
+
+
+def _migrate_asset_subscriptions(cur):
+    """Optional per-asset subscriptions (e.g. Microsoft Office, Google Workspace on laptops)."""
+    cur.execute('''
+        CREATE TABLE IF NOT EXISTS asset_subscriptions (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            asset_id INTEGER NOT NULL,
+            subscription_type TEXT NOT NULL
+                CHECK (subscription_type IN ('microsoft_office', 'google_workspace')),
+            product_key TEXT,
+            price REAL NOT NULL DEFAULT 0.0,
+            notes TEXT,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (asset_id) REFERENCES assets (id) ON DELETE CASCADE,
+            UNIQUE(asset_id, subscription_type)
+        )
+    ''')
+
+
+def asset_supports_subscriptions(asset_name, asset_type):
+    """True when the asset is the default Laptop under Electronics."""
+    return (
+        (asset_name or '').strip() == DEFAULT_LAPTOP_ASSET_NAME
+        and (asset_type or '').strip() == DEFAULT_ELECTRONICS_CATEGORY
+    )
+
+
+def _ensure_default_electronics_laptop(cur):
+    """
+    Bootstrap default Electronics category and Laptop asset name when missing.
+
+    Idempotent: if the category or name already exists (e.g. added manually), nothing is duplicated.
+    """
+    cur.execute(
+        'SELECT id FROM asset_types WHERE name = ? ORDER BY id LIMIT 1',
+        (DEFAULT_ELECTRONICS_CATEGORY,),
+    )
+    row = cur.fetchone()
+    if row:
+        type_id = row[0]
+    else:
+        cur.execute(
+            "INSERT INTO asset_types (name, for_venue) VALUES (?, ?)",
+            (DEFAULT_ELECTRONICS_CATEGORY, 'both'),
+        )
+        type_id = cur.lastrowid
+
+    cur.execute(
+        'INSERT OR IGNORE INTO asset_names (name, asset_type_id) VALUES (?, ?)',
+        (DEFAULT_LAPTOP_ASSET_NAME, type_id),
+    )
 
 
 def _migrate_asset_types_allow_both(cur):
@@ -1446,6 +1510,8 @@ def init_db():
         )
     ''')
     _migrate_asset_specifications(cur)
+    _migrate_asset_subscriptions(cur)
+    _ensure_default_electronics_laptop(cur)
 
     from utils.asset_documents import _migrate_asset_documents
     _migrate_asset_documents(cur)
@@ -1523,9 +1589,8 @@ def init_db():
     _migrate_shared_asset_codes(cur)
     _migrate_office_asset_codes(cur)
     
-    # No default business data is seeded on startup. Asset types, names, branches, etc.
-    # are managed through the UI. Login: only the first Super Admin when users_auth is empty
-    # (see _ensure_default_super_admin).
+    # Default catalog: Electronics + Laptop (_ensure_default_electronics_laptop).
+    # Login: only the first Super Admin when users_auth is empty (_ensure_default_super_admin).
     
     conn.commit()
     cur.execute("SELECT id FROM assets WHERE qr_random_code IS NULL OR qr_random_code = ''")

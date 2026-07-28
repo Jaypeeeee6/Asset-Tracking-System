@@ -829,6 +829,7 @@
               <i class="bi bi-info-circle" aria-hidden="true"></i> Editing updates this asset&apos;s branch only. To add more branches, create a new Shared Asset.
             </div>
           </div>
+          <hr class="asset-form-section-divider" aria-hidden="true">
             <div class="mb-3">
                 {{ form_label('Asset Category', 'edit_asset_type', true) }}
                 <select class="form-select" id="edit_asset_type" name="asset_type" required>
@@ -842,16 +843,26 @@
                 </select>
             </div>
             <div class="mb-3" id="editAssetSpecFieldsSection" style="display: none;">
+                <hr class="asset-form-section-divider" aria-hidden="true">
                 {{ form_label('Asset Specifications', 'editAssetSpecFieldsContainer', false) }}
                 <div id="editAssetSpecFieldsContainer"></div>
                 <input type="hidden" id="editAssetSpecValuesJson" name="asset_spec_values_json" value="">
             </div>
             <div class="mb-3" id="editAssetInclusionsSection" style="display: none;">
+                <hr class="asset-form-section-divider" aria-hidden="true">
                 <label class="form-label">Inclusions</label>
                 <div class="form-text mb-2"><i class="bi bi-info-circle" aria-hidden="true"></i> Check the items included with this asset.</div>
                 <div id="editAssetInclusionsContainer"></div>
                 <input type="hidden" id="editAssetInclusionValuesJson" name="asset_inclusion_values_json" value="">
             </div>
+            <div class="mb-3" id="editAssetSubscriptionsSection" style="display: none;">
+                <hr class="asset-form-section-divider" aria-hidden="true">
+                <label class="form-label">Subscriptions</label>
+                <div class="form-text mb-2"><i class="bi bi-info-circle" aria-hidden="true"></i> Optional software subscriptions included with this laptop.</div>
+                <div id="editAssetSubscriptionsContainer"></div>
+                <input type="hidden" id="editAssetSubscriptionsJson" name="asset_subscriptions_json" value="">
+            </div>
+            <hr class="asset-form-section-divider" aria-hidden="true">
             <div class="mb-3">
                 {{ form_label('Price (OMR)', 'edit_price', false) }}
                 <input type="number" class="form-control" id="edit_price" name="price" min="0" step="0.01" placeholder="0.00">
@@ -865,6 +876,7 @@
                     <option value="">Select brand</option>
                 </select>
             </div>
+            <hr class="asset-form-section-divider" aria-hidden="true">
             <div class="mb-3" id="editAssetBranchField">
                 <label for="edit_branch" class="form-label" id="editAssetBranchLabel">Branch <span class="app-required-mark" aria-hidden="true">*</span></label>
                 <select class="form-select" id="edit_branch" name="branch" required>
@@ -892,6 +904,7 @@
                     <i class="bi bi-info-circle" aria-hidden="true"></i> Where in the restaurant this asset belongs (Kitchen, Dining, Cashier, etc.).
                 </div>
             </div>
+            <hr class="asset-form-section-divider" aria-hidden="true">
             <div class="mb-3">
                 <div class="form-check mb-2">
                     <input class="form-check-input" type="checkbox" id="edit_noOwnerCheck" name="no_owner">
@@ -920,6 +933,7 @@
                 <input type="date" class="form-control" id="edit_asset_date" name="asset_date" readonly>
                 <div class="form-text"><i class="bi bi-info-circle" aria-hidden="true"></i> Date this asset was added.</div>
             </div>
+            <hr class="asset-form-section-divider" aria-hidden="true">
             <div class="mb-0">
                 {{ form_label('Supporting documents', 'editAssetDocuments', false) }}
                 <div id="editAssetDocumentsExisting" class="asset-doc-list mb-2"></div>
