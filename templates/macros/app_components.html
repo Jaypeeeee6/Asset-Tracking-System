@@ -1,4 +1,4 @@
-{# Reusable gold-accent controls. Import: {% from 'macros/app_components.html' import add_button, modal_cancel_button, settings_search_bar %} #}
+{# Reusable gold-accent controls. Import: {% from 'macros/app_components.html' import add_button, import_excel_button, modal_cancel_button, settings_search_bar %} #}
 
 {% macro modal_cancel_button(label='Cancel', button_id=None, extra_classes='', icon=None, dismiss_modal=True, aria_label=None) -%}
 <button type="button" class="btn-app-modal-cancel {{ extra_classes }}"{% if button_id %} id="{{ button_id }}"{% endif %}{% if dismiss_modal %} data-bs-dismiss="modal"{% endif %} aria-label="{{ (aria_label or label)|e }}">
@@ -16,6 +16,13 @@
   <i class="{{ icon }}" aria-hidden="true"></i><span class="btn-app-add-label">{{ label }}</span>
 </button>
 {% endif %}
+{%- endmacro %}
+
+{% macro import_excel_button(label, button_id, file_input_id, title=None) -%}
+<button type="button" class="btn-app-import" id="{{ button_id }}"{% if title %} title="{{ title|e }}"{% endif %}>
+  <i class="bi bi-upload" aria-hidden="true"></i><span class="btn-app-import-label">{{ label }}</span>
+</button>
+<input type="file" id="{{ file_input_id }}" accept=".xlsx,.xls" class="d-none" aria-hidden="true">
 {%- endmacro %}
 
 {% macro form_label(text, for_id, required=false) -%}

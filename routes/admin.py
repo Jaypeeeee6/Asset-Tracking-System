@@ -1418,6 +1418,183 @@ def delete_asset_type(asset_type_id):
     
     return jsonify({'success': True})
 
+
+DEFAULT_IMPORT_FOR_VENUE = 'both'
+
+
+def _normalize_for_venue(location_label):
+    """Map Excel location labels to asset_types.for_venue values."""
+    if not location_label:
+        return None
+    s = str(location_label).strip().lower().replace('&', ' and ')
+    if not s:
+        return None
+    if s in ('both', 'all', 'all locations'):
+        return 'both'
+    if 'both' in s or ('restaurant' in s and 'office' in s):
+        return 'both'
+    if s in ('office', 'all office', 'all office departments'):
+        return 'office'
+    if 'office' in s:
+        return 'office'
+    if s in ('restaurant', 'all restaurants'):
+        return 'restaurant'
+    if 'restaurant' in s:
+        return 'restaurant'
+    return None
+
+
+def _parse_import_label_list(value):
+    """Parse semicolon-separated specification/inclusion labels from import rows."""
+    if value is None:
+        return []
+    if isinstance(value, list):
+        raw_items = value
+    else:
+        raw_items = str(value).replace('|', ';').split(';')
+    seen = set()
+    labels = []
+    for item in raw_items:
+        label = str(item).strip()
+        if not label:
+            continue
+        key = label.lower()
+        if key in seen:
+            continue
+        seen.add(key)
+        labels.append(label)
+    return labels
+
+
+@admin_bp.route('/import-asset-config', methods=['POST'])
+@login_required
+def import_asset_config():
+    """Bulk import asset categories and asset names from a parsed Excel sheet.
+
+    Expects JSON rows with category (required), optional asset_name, optional location
+    (defaults to all restaurants & all office departments), optional specifications and
+    inclusions. Location and category may be filled down on the client before send.
+    """
+    if not current_user.has_it_access():
+        return jsonify({'error': 'Access denied. Only IT users can import asset configuration.'}), 403
+
+    data = request.get_json(silent=True) or {}
+    rows = data.get('rows')
+    if not isinstance(rows, list) or not rows:
+        return jsonify({'error': 'No import rows found. Please check the file.'}), 400
+
+    conn = get_db_connection()
+    cur = conn.cursor()
+
+    summary = {
+        'categories_created': 0,
+        'categories_skipped': 0,
+        'asset_names_created': 0,
+        'asset_names_skipped': 0,
+        'errors': [],
+    }
+
+    category_cache = {}
+
+    def get_or_create_category(category_name, for_venue):
+        key = (category_name.lower(), for_venue)
+        if key in category_cache:
+            return category_cache[key]
+        cur.execute(
+            'SELECT id FROM asset_types WHERE name = ? AND for_venue = ?',
+            (category_name, for_venue),
+        )
+        found = cur.fetchone()
+        if found:
+            category_cache[key] = found[0]
+            summary['categories_skipped'] += 1
+            return found[0]
+        try:
+            cur.execute(
+                'INSERT INTO asset_types (name, for_venue) VALUES (?, ?)',
+                (category_name, for_venue),
+            )
+            category_id = cur.lastrowid
+            category_cache[key] = category_id
+            summary['categories_created'] += 1
+            return category_id
+        except sqlite3.IntegrityError:
+            cur.execute(
+                'SELECT id FROM asset_types WHERE name = ? AND for_venue = ?',
+                (category_name, for_venue),
+            )
+            found = cur.fetchone()
+            if found:
+                category_cache[key] = found[0]
+                summary['categories_skipped'] += 1
+                return found[0]
+            raise
+
+    for idx, row in enumerate(rows):
+        if not isinstance(row, dict):
+            continue
+
+        location = (row.get('location') or '').strip()
+        category_name = (row.get('category') or '').strip()
+        asset_name = (row.get('asset_name') or '').strip()
+        spec_labels = _parse_import_label_list(row.get('specifications'))
+        inclusion_labels = _parse_import_label_list(row.get('inclusions'))
+
+        if not category_name and not asset_name:
+            continue
+
+        if not category_name:
+            summary['errors'].append(
+                f'Row {idx + 1}: category is required (asset name "{asset_name}").'
+            )
+            continue
+
+        if location:
+            for_venue = _normalize_for_venue(location)
+            if not for_venue:
+                summary['errors'].append(
+                    f'Row {idx + 1}: could not determine location from "{location}". '
+                    'Use values like "All restaurants", "All office departments", or '
+                    '"All restaurants & All office departments".'
+                )
+                continue
+        else:
+            for_venue = DEFAULT_IMPORT_FOR_VENUE
+
+        try:
+            asset_type_id = get_or_create_category(category_name, for_venue)
+
+            if not asset_name:
+                continue
+
+            cur.execute(
+                'SELECT id FROM asset_names WHERE name = ? AND asset_type_id = ?',
+                (asset_name, asset_type_id),
+            )
+            existing = cur.fetchone()
+            if existing:
+                summary['asset_names_skipped'] += 1
+                continue
+
+            cur.execute(
+                'INSERT INTO asset_names (name, asset_type_id) VALUES (?, ?)',
+                (asset_name, asset_type_id),
+            )
+            asset_name_id = cur.lastrowid
+            if spec_labels:
+                _save_spec_fields_for_asset_name(cur, asset_name_id, spec_labels)
+            if inclusion_labels:
+                _save_inclusions_for_asset_name(cur, asset_name_id, inclusion_labels)
+            summary['asset_names_created'] += 1
+        except sqlite3.Error as e:
+            summary['errors'].append(f'Row {idx + 1} ("{asset_name or category_name}"): {str(e)}')
+
+    conn.commit()
+    conn.close()
+    summary['success'] = True
+    return jsonify(summary)
+
+
 # ===== ASSET NAME MANAGEMENT API =====
 
 def _fetch_spec_fields_for_asset_names(cur, asset_name_ids):

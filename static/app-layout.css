@@ -321,6 +321,63 @@ a.btn-app-add:focus-visible {
     color: var(--dark-bg);
 }
 
+/* ----- Excel import actions (JAE-TCRMS-style outline; use macros `import_excel_button`) ----- */
+.btn-app-import {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    color: #6b7280;
+    font-size: 0.875rem;
+    font-weight: 400;
+    padding: 0.5rem 0.75rem;
+    border-radius: 8px;
+    border: 1px solid #e5e7eb;
+    background: #fff;
+    cursor: pointer;
+    line-height: 1.25;
+    white-space: nowrap;
+    box-shadow: none;
+    transition: color 0.15s, background 0.15s, border-color 0.15s;
+}
+
+.btn-app-import .btn-app-import-label {
+    line-height: inherit;
+}
+
+.btn-app-import i {
+    font-size: 0.875rem;
+    line-height: 1;
+    flex-shrink: 0;
+}
+
+.btn-app-import:hover {
+    color: #1d72b8;
+    background: #eff6ff;
+    border-color: #bfdbfe;
+}
+
+.btn-app-import:focus-visible {
+    outline: 2px solid #1d72b8;
+    outline-offset: 2px;
+}
+
+.btn-app-import:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+}
+
+.dark-mode .btn-app-import {
+    color: #9ca3af;
+    background: var(--dark-bg, #1c1a14);
+    border-color: #374151;
+}
+
+.dark-mode .btn-app-import:hover {
+    color: #60a5fa;
+    background: rgba(29, 114, 184, 0.15);
+    border-color: #1d72b8;
+}
+
 /* ===== GLOBAL FOOTER ===== */
 .app-footer {
     text-align: center;

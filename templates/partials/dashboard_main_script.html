@@ -1875,6 +1875,13 @@ function appDeleteConfirm(message, title) {
         const fileInput = document.getElementById('importBranchesFile');
         if (!importBtn || !fileInput) return;
 
+        const importLabel = importBtn.querySelector('.btn-app-import-label');
+        const defaultImportLabel = importLabel ? importLabel.textContent : '';
+        function setImportBusy(busy) {
+            importBtn.disabled = busy;
+            if (importLabel) importLabel.textContent = busy ? 'Importing…' : defaultImportLabel;
+        }
+
         function norm(v) { return (v === null || v === undefined) ? '' : String(v).trim(); }
 
         function findHeader(aoa) {
@@ -1936,7 +1943,7 @@ function appDeleteConfirm(message, title) {
         }
 
         function sendImport(rows) {
-            importBtn.disabled = true;
+            setImportBusy(true);
             fetch('/admin/import-branches', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -1972,7 +1979,7 @@ function appDeleteConfirm(message, title) {
                 console.error('Import error:', err);
                 alert('Import failed. Please try again.');
             })
-            .finally(function () { importBtn.disabled = false; });
+            .finally(function () { setImportBusy(false); });
         }
 
         importBtn.addEventListener('click', function () {
@@ -2021,6 +2028,13 @@ function appDeleteConfirm(message, title) {
         const importBtn = document.getElementById('importOfficeEmployeesBtn');
         const fileInput = document.getElementById('importOfficeEmployeesFile');
         if (!importBtn || !fileInput) return;
+
+        const importLabel = importBtn.querySelector('.btn-app-import-label');
+        const defaultImportLabel = importLabel ? importLabel.textContent : '';
+        function setImportBusy(busy) {
+            importBtn.disabled = busy;
+            if (importLabel) importLabel.textContent = busy ? 'Importing…' : defaultImportLabel;
+        }
 
         function norm(v) {
             if (v === null || v === undefined) return '';
@@ -2120,7 +2134,7 @@ function appDeleteConfirm(message, title) {
         }
 
         function sendImport(rows) {
-            importBtn.disabled = true;
+            setImportBusy(true);
             fetch('/admin/import-office-employees', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -2160,7 +2174,7 @@ function appDeleteConfirm(message, title) {
                 console.error('Import error:', err);
                 alert('Import failed. Please try again.');
             })
-            .finally(function () { importBtn.disabled = false; });
+            .finally(function () { setImportBusy(false); });
         }
 
         importBtn.addEventListener('click', function () {
@@ -2198,6 +2212,205 @@ function appDeleteConfirm(message, title) {
                         confirmText: 'Import'
                     }).then(function (ok) { if (ok) doIt(); });
                 } else if (confirm('Import ' + rows.length + ' employee row(s)?')) {
+                    doIt();
+                }
+            };
+            reader.readAsArrayBuffer(file);
+        });
+    })();
+
+    (function bindAssetConfigImport() {
+        const importBtn = document.getElementById('importAssetConfigBtn');
+        const fileInput = document.getElementById('importAssetConfigFile');
+        if (!importBtn || !fileInput) return;
+
+        const importLabel = importBtn.querySelector('.btn-app-import-label');
+        const defaultImportLabel = importLabel ? importLabel.textContent : '';
+        function setImportBusy(busy) {
+            importBtn.disabled = busy;
+            if (importLabel) importLabel.textContent = busy ? 'Importing…' : defaultImportLabel;
+        }
+
+        function norm(v) {
+            if (v === null || v === undefined) return '';
+            let s = String(v).trim();
+            if (/^\d+\.0$/.test(s)) s = s.slice(0, -2);
+            return s;
+        }
+
+        const DEFAULT_IMPORT_LOCATION = 'All restaurants & All office departments';
+
+        function findHeader(aoa) {
+            for (let i = 0; i < aoa.length; i++) {
+                const lowered = (aoa[i] || []).map(function (c) { return norm(c).toLowerCase(); });
+                const hasCat = lowered.indexOf('category') !== -1
+                    || lowered.indexOf('category name') !== -1
+                    || lowered.indexOf('asset category') !== -1;
+                const hasName = lowered.indexOf('asset name') !== -1;
+                if (hasCat && hasName) {
+                    return { idx: i, header: lowered };
+                }
+            }
+            return null;
+        }
+
+        function colIndex(header, candidates) {
+            for (let i = 0; i < candidates.length; i++) {
+                const idx = header.indexOf(candidates[i]);
+                if (idx !== -1) return idx;
+            }
+            return -1;
+        }
+
+        function splitLabels(v) {
+            if (!v) return [];
+            return String(v).split(/[;|]/).map(function (s) { return s.trim(); }).filter(Boolean);
+        }
+
+        function parseWorkbook(wb) {
+            let best = null;
+            (wb.SheetNames || []).forEach(function (sn) {
+                const ws = wb.Sheets[sn];
+                if (!ws) return;
+                const aoa = XLSX.utils.sheet_to_json(ws, { header: 1, defval: '' });
+                const found = findHeader(aoa);
+                if (!found) return;
+                if (!best || found.idx < best.found.idx) {
+                    best = { aoa: aoa, found: found };
+                }
+            });
+            if (!best) return [];
+            const h = best.found.header;
+            const ci = {
+                location: colIndex(h, ['location', 'venue']),
+                category: colIndex(h, ['category', 'category name', 'asset category']),
+                asset_name: colIndex(h, ['asset name']),
+                specifications: colIndex(h, ['specifications', 'specification', 'specs']),
+                inclusions: colIndex(h, ['inclusions', 'inclusion'])
+            };
+            const rows = [];
+            let lastLocation = DEFAULT_IMPORT_LOCATION;
+            let lastCategory = '';
+            for (let i = best.found.idx + 1; i < best.aoa.length; i++) {
+                const r = best.aoa[i] || [];
+                const locCell = ci.location !== -1 ? norm(r[ci.location]) : '';
+                const catCell = ci.category !== -1 ? norm(r[ci.category]) : '';
+                const assetName = ci.asset_name !== -1 ? norm(r[ci.asset_name]) : '';
+                const specifications = ci.specifications !== -1 ? norm(r[ci.specifications]) : '';
+                const inclusions = ci.inclusions !== -1 ? norm(r[ci.inclusions]) : '';
+
+                if (locCell) lastLocation = locCell;
+                if (catCell) lastCategory = catCell;
+
+                if (!lastCategory && !assetName) continue;
+                if (!lastCategory) continue;
+
+                rows.push({
+                    location: lastLocation || DEFAULT_IMPORT_LOCATION,
+                    category: lastCategory,
+                    asset_name: assetName,
+                    specifications: splitLabels(specifications),
+                    inclusions: splitLabels(inclusions)
+                });
+            }
+            return rows;
+        }
+
+        function sendImport(rows) {
+            setImportBusy(true);
+            fetch('/admin/import-asset-config', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ rows: rows })
+            })
+            .then(function (r) { return r.json(); })
+            .then(function (data) {
+                if (!data || data.error) {
+                    alert((data && data.error) || 'Import failed.');
+                    return;
+                }
+                const parts = [
+                    'Categories added: ' + (data.categories_created || 0),
+                    'Categories already existed: ' + (data.categories_skipped || 0),
+                    'Asset names added: ' + (data.asset_names_created || 0),
+                    'Asset names skipped (already existed): ' + (data.asset_names_skipped || 0)
+                ];
+                if (data.errors && data.errors.length) {
+                    parts.push('Rows with issues: ' + data.errors.length);
+                }
+                const msg = parts.join('\n');
+                const refresh = function () {
+                    if (typeof loadAssetTypes === 'function' && typeof loadAssetNames === 'function') {
+                        loadAssetTypes().then(function () { return loadAssetNames(); }).catch(function () {});
+                    }
+                };
+                refresh();
+                if (data.errors && data.errors.length) {
+                    const detail = data.errors.slice(0, 8).join('\n');
+                    const more = data.errors.length > 8 ? '\n…and ' + (data.errors.length - 8) + ' more.' : '';
+                    if (window.AppDialogs && AppDialogs.success) {
+                        AppDialogs.success(msg + '\n\n' + detail + more, 'Import complete (with issues)');
+                    } else {
+                        alert(msg + '\n\n' + detail + more);
+                    }
+                } else if (window.AppDialogs && AppDialogs.success) {
+                    AppDialogs.success(msg, 'Import complete');
+                } else {
+                    alert(msg);
+                }
+            })
+            .catch(function (err) {
+                console.error('Import error:', err);
+                alert('Import failed. Please try again.');
+            })
+            .finally(function () { setImportBusy(false); });
+        }
+
+        importBtn.addEventListener('click', function () {
+            if (typeof XLSX === 'undefined') {
+                alert('The spreadsheet library did not load. Please refresh the page and try again.');
+                return;
+            }
+            fileInput.value = '';
+            fileInput.click();
+        });
+
+        fileInput.addEventListener('change', function () {
+            const file = fileInput.files && fileInput.files[0];
+            if (!file) return;
+            const reader = new FileReader();
+            reader.onload = function (e) {
+                let rows;
+                try {
+                    const wb = XLSX.read(new Uint8Array(e.target.result), { type: 'array' });
+                    rows = parseWorkbook(wb);
+                } catch (err) {
+                    console.error('Parse error:', err);
+                    alert('Could not read the Excel file. Please check that it matches the expected format.');
+                    return;
+                }
+                if (!rows.length) {
+                    alert(
+                        'No importable rows were found. The sheet needs Category and Asset name columns. '
+                        + 'Location is optional (defaults to all restaurants & all office departments). '
+                        + 'Leave Location and Category blank on following rows to repeat the value above.'
+                    );
+                    return;
+                }
+                const categoryRows = rows.filter(function (r) { return r.category; }).length;
+                const nameRows = rows.filter(function (r) { return r.asset_name; }).length;
+                const doIt = function () { sendImport(rows); };
+                const message = 'Found ' + rows.length + ' row(s) in "' + file.name + '".\n\n'
+                    + 'Categories referenced: ' + categoryRows + '\n'
+                    + 'Asset names to import: ' + nameRows + '\n\n'
+                    + 'New categories and asset names will be added. Existing entries are kept.';
+                if (window.AppDialogs && AppDialogs.confirm) {
+                    AppDialogs.confirm({
+                        title: 'Import categories & asset names',
+                        message: message,
+                        confirmText: 'Import'
+                    }).then(function (ok) { if (ok) doIt(); });
+                } else if (confirm(message)) {
                     doIt();
                 }
             };

@@ -1,8 +1,10 @@
-{% from "macros/app_components.html" import add_button %}
+{% from "macros/app_components.html" import add_button, import_excel_button %}
 <div class="settings-panel-stack">
   <h6 class="settings-section-title">Asset categories</h6>
-  <div class="d-flex flex-wrap gap-2 mb-3">
+  <div class="d-flex flex-wrap align-items-center gap-2 mb-3">
     {{ add_button('Add asset category', button_id='addAssetTypeBtn', modal_target='#addMgmtAssetTypeModal') }}
+    {{ import_excel_button('Import categories & asset names', 'importAssetConfigBtn', 'importAssetConfigFile', title='Import asset categories and asset names from Excel') }}
+    <span class="form-text settings-import-hint mb-0"><i class="bi bi-info-circle" aria-hidden="true"></i> Excel needs <strong>Category</strong> and <strong>Asset name</strong> columns.</span>
   </div>
   <h6 class="settings-section-title mb-2">Existing asset categories</h6>
   <div id="settingsAssetTypesBulkBar" class="app-bulk-bar mb-3" style="display: none;">
