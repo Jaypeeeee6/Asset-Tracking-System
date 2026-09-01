@@ -87,6 +87,8 @@
 {% include "partials/archive_results.html" %}
     </div>
 
+    {% include "partials/archive_mobile_filter_dock.html" %}
+
 </div>
 {% endblock %}
 
@@ -118,6 +120,8 @@
 
 {% block extra_scripts %}
 <script src="{{ url_for('static', filename='js/live-search.js') }}"></script>
+<script src="{{ url_for('static', filename='js/archive-mobile-cards.js') }}"></script>
+<script src="{{ url_for('static', filename='js/mobile-archive-filters.js') }}"></script>
 <script>
     document.addEventListener('DOMContentLoaded', function() {
         if (typeof bindLiveSearchForm === 'function') {
@@ -129,6 +133,12 @@
                 onUpdated: function () {
                     applyArchivedCheckboxDomFromSelection();
                     updateArchivedSelectionBar();
+                    if (typeof window.syncArchiveMobileCards === 'function') {
+                        window.syncArchiveMobileCards();
+                    }
+                    if (window.ATSArchiveMobileFilters && typeof window.ATSArchiveMobileFilters.refreshBadge === 'function') {
+                        window.ATSArchiveMobileFilters.refreshBadge();
+                    }
                 }
             });
         }
@@ -181,6 +191,7 @@
             cb.checked = idSet.has(String(aid));
         });
     }
+    window.applyArchivedCheckboxDomFromSelection = applyArchivedCheckboxDomFromSelection;
 
     function syncArchivedSelectAllVisual() {
         const meta = document.getElementById('archivedMatchingTotal');

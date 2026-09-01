@@ -5,8 +5,8 @@
 
     <div class="app-card mb-4 asset-register-card">
         {% if archived_assets %}
-        <div class="app-table-scroll">
-            <table class="app-table app-table--min-4xl">
+        <div class="app-table-scroll asset-register-table-wrap">
+            <table class="app-table app-table--min-4xl archive-table">
                 <thead>
                     <tr>
                         <th><input type="checkbox" id="selectAllArchivedCheckbox" title="Select all"></th>
@@ -91,6 +91,7 @@
                 </tbody>
             </table>
         </div>
+        <div class="asset-register-mobile-cards" aria-label="Archived assets list"></div>
         <div class="d-flex flex-wrap justify-content-between align-items-end gap-3 p-3 asset-register-pagination"
              style="border-top:1px solid var(--card-border);">
             <div class="d-flex flex-column gap-2 asset-register-pageinfo">

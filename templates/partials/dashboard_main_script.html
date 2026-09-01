@@ -6814,6 +6814,7 @@ function appDeleteConfirm(message, title) {
             cb.checked = idSet.has(String(aid));
         });
     }
+    window.applyAssetCheckboxDomFromSelection = applyAssetCheckboxDomFromSelection;
 
     function syncRegisterSelectAllVisual() {
         const meta = document.getElementById('registerMatchingTotal');
@@ -6908,6 +6909,7 @@ function appDeleteConfirm(message, title) {
             persistAssetBulkSelection();
             syncRegisterSelectAllVisual();
             updateBulkActionsBar();
+            applyAssetCheckboxDomFromSelection();
         }
     });
 
@@ -7157,6 +7159,9 @@ function appDeleteConfirm(message, title) {
             results: 'assetRegisterResults',
             selectIds: ['branchFilter', 'departmentFilter', 'statusFilter', 'assetTypeFilter'],
             onUpdated: function () {
+                if (typeof syncAssetRegisterMobileCards === 'function') {
+                    syncAssetRegisterMobileCards();
+                }
                 if (typeof applyAssetCheckboxDomFromSelection === 'function') {
                     applyAssetCheckboxDomFromSelection();
                 }

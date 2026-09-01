@@ -1,0 +1,46 @@
+{# Mobile filter bottom sheet + action dock (maa-inventory item master pattern) #}
+<div id="mobile-filter-sheet" class="mobile-filter-sheet" hidden aria-hidden="true">
+    <div class="mobile-filter-sheet-backdrop" data-mobile-filter-close tabindex="-1"></div>
+    <button type="button" class="mobile-filter-sheet-close-fab" data-mobile-filter-close aria-label="Close filters">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" aria-hidden="true"><path d="M18 6L6 18M6 6l12 12"/></svg>
+    </button>
+    <div class="mobile-filter-sheet-panel" role="dialog" aria-modal="true" aria-labelledby="mobile-filter-sheet-title">
+        <div class="mobile-filter-sheet-header">
+            <svg class="mobile-filter-sheet-header-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10 5H3"/><path d="M12 19H3"/><path d="M14 3v4"/><path d="M16 17v4"/><path d="M21 12h-9"/><path d="M21 19h-5"/><path d="M21 5h-7"/><path d="M8 10v4"/><path d="M8 12H3"/></svg>
+            <h3 id="mobile-filter-sheet-title" class="mobile-filter-sheet-title">Filter by</h3>
+        </div>
+        <div class="mobile-filter-sheet-body">
+            <div class="mobile-filter-sheet-cats" data-mobile-filter-cats></div>
+            <div class="mobile-filter-sheet-options" data-mobile-filter-options></div>
+        </div>
+        <div class="mobile-filter-sheet-footer">
+            <button type="button" class="mobile-filter-sheet-clear" data-mobile-filter-clear>Clear Filters</button>
+            <button type="button" class="mobile-filter-sheet-apply" data-mobile-filter-apply>Apply</button>
+        </div>
+    </div>
+</div>
+
+<nav class="dashboard-mobile-dock" aria-label="Quick actions">
+    <button type="button"
+            class="dashboard-mobile-dock-side"
+            data-dashboard-dock-filter
+            data-mobile-filter-trigger
+            aria-label="Filters">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10 5H3"/><path d="M12 19H3"/><path d="M14 3v4"/><path d="M16 17v4"/><path d="M21 12h-9"/><path d="M21 19h-5"/><path d="M21 5h-7"/><path d="M8 10v4"/><path d="M8 12H3"/></svg>
+        <span>Filters</span>
+    </button>
+    <div class="dashboard-mobile-dock-center-wrap">
+        <a href="{{ url_for('assets.add_asset_page') }}"
+           class="dashboard-mobile-dock-center"
+           aria-label="Add Asset">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>
+        </a>
+    </div>
+    <button type="button"
+            class="dashboard-mobile-dock-side"
+            data-dashboard-dock-qr
+            aria-label="QR Codes">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect width="5" height="5" x="3" y="3" rx="1"/><rect width="5" height="5" x="16" y="3" rx="1"/><rect width="5" height="5" x="3" y="16" rx="1"/><path d="M21 16h-3a2 2 0 0 0-2 2v3"/><path d="M21 21v.01"/><path d="M12 7v3a2 2 0 0 1-2 2H7"/><path d="M3 12h.01"/><path d="M12 3h.01"/><path d="M12 16v.01"/><path d="M16 12h1"/><path d="M21 12v.01"/><path d="M12 21v-1"/></svg>
+        <span>QR Codes</span>
+    </button>
+</nav>

@@ -5,8 +5,8 @@
     </button>
     {% endif %}
     <a class="brand" href="{% if current_user.is_authenticated %}{{ url_for('assets.dashboard') }}{% else %}{{ url_for('auth.login') }}{% endif %}">
-        <img src="{{ url_for('static', filename='images/maa-logo.png') }}" alt="MAA Logo" style="height:36px;width:auto;object-fit:contain;margin-right:12px;">
-        Asset Tracking System
+        <img src="{{ url_for('static', filename='images/maa-logo.png') }}" alt="MAA Logo" class="app-navbar-brand-logo">
+        <span class="app-navbar-brand-text">Asset Tracking System</span>
     </a>
     {% if current_user.is_authenticated %}
     <div class="ms-auto d-flex align-items-center gap-2">

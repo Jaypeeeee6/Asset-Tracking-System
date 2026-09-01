@@ -38,7 +38,7 @@
         </thead>
         <tbody>
         {% for asset in assets %}
-            <tr>
+            <tr class="asset-register-row">
                 <td class="app-table-col-select"><input type="checkbox" class="asset-checkbox" data-asset-id="{{ asset.id }}" data-asset-name="{{ asset.name }}" data-asset-code="{{ asset.asset_code or '' }}"></td>
                 <td class="app-table-col-num">{{ loop.index + (page-1)*per_page }}</td>
                 <td class="app-table-col-qr">
@@ -153,6 +153,7 @@
         </tbody>
         </table>
         </div>
+        <div class="asset-register-mobile-cards" aria-label="Asset register list"></div>
         <div class="d-flex flex-wrap justify-content-between align-items-end gap-3 p-3 asset-register-pagination"
              style="border-top:1px solid #e8ecf2;">
             <div class="d-flex flex-column gap-2 asset-register-pageinfo">

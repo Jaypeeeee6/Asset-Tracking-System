@@ -1,0 +1,33 @@
+{# Mobile filter bottom sheet + filter FAB (dashboard center-only pattern) #}
+<div id="mobile-filter-sheet" class="mobile-filter-sheet" hidden aria-hidden="true">
+    <div class="mobile-filter-sheet-backdrop" data-mobile-filter-close tabindex="-1"></div>
+    <button type="button" class="mobile-filter-sheet-close-fab" data-mobile-filter-close aria-label="Close filters">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" aria-hidden="true"><path d="M18 6L6 18M6 6l12 12"/></svg>
+    </button>
+    <div class="mobile-filter-sheet-panel" role="dialog" aria-modal="true" aria-labelledby="mobile-filter-sheet-title">
+        <div class="mobile-filter-sheet-header">
+            <svg class="mobile-filter-sheet-header-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10 5H3"/><path d="M12 19H3"/><path d="M14 3v4"/><path d="M16 17v4"/><path d="M21 12h-9"/><path d="M21 19h-5"/><path d="M21 5h-7"/><path d="M8 10v4"/><path d="M8 12H3"/></svg>
+            <h3 id="mobile-filter-sheet-title" class="mobile-filter-sheet-title">Filter by</h3>
+        </div>
+        <div class="mobile-filter-sheet-body">
+            <div class="mobile-filter-sheet-cats" data-mobile-filter-cats></div>
+            <div class="mobile-filter-sheet-options" data-mobile-filter-options></div>
+        </div>
+        <div class="mobile-filter-sheet-footer">
+            <button type="button" class="mobile-filter-sheet-clear" data-mobile-filter-clear>Clear Filters</button>
+            <button type="button" class="mobile-filter-sheet-apply" data-mobile-filter-apply>Apply</button>
+        </div>
+    </div>
+</div>
+
+<nav class="archive-mobile-dock is-center-only" aria-label="Quick actions">
+    <div class="archive-mobile-dock-center-wrap">
+        <button type="button"
+                class="archive-mobile-dock-center"
+                data-archive-dock-filter
+                data-mobile-filter-trigger
+                aria-label="Filters">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10 5H3"/><path d="M12 19H3"/><path d="M14 3v4"/><path d="M16 17v4"/><path d="M21 12h-9"/><path d="M21 19h-5"/><path d="M21 5h-7"/><path d="M8 10v4"/><path d="M8 12H3"/></svg>
+        </button>
+    </div>
+</nav>
