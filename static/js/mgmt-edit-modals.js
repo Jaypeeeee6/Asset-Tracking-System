@@ -134,6 +134,10 @@
         if (val === 'office') {
             if (brwrap) brwrap.classList.add('d-none');
             if (dwrap) dwrap.classList.remove('d-none');
+            if (global.EmployeeBranchChecklist && global.EmployeeBranchChecklist.getChecked) {
+                global.__editMgmtEmployeeBranchIds =
+                    global.EmployeeBranchChecklist.getChecked('editMgmtEmployeeBranchList');
+            }
             dept.innerHTML = '<option value="">Loading...</option>';
             fetch('/admin/departments?office_only=1')
                 .then(function (r) { return r.json(); })
@@ -154,7 +158,11 @@
             if (brwrap) brwrap.classList.remove('d-none');
             if (dwrap) dwrap.classList.add('d-none');
             if (search) search.value = '';
-            renderEditBranchChecklist([]);
+            var deptEl = $('editMgmtEmployeeDepartment');
+            if (deptEl && deptEl.value) {
+                global.__editMgmtEmployeeDeptId = deptEl.value;
+            }
+            renderEditBranchChecklist(global.__editMgmtEmployeeBranchIds || []);
         } else {
             if (brwrap) brwrap.classList.add('d-none');
             if (dwrap) dwrap.classList.add('d-none');
@@ -304,7 +312,10 @@
                             o.textContent = d.name;
                             dept.appendChild(o);
                         });
-                        if (departmentId) dept.value = String(departmentId);
+                        if (departmentId) {
+                            dept.value = String(departmentId);
+                            global.__editMgmtEmployeeDeptId = String(departmentId);
+                        }
                     })
                     .catch(function () {
                         dept.innerHTML = '<option value="">Error loading departments</option>';
@@ -314,6 +325,7 @@
             if (brwrap) brwrap.classList.remove('d-none');
             if (dwrap) dwrap.classList.add('d-none');
             var branchIds = data.branchIds || data.branch_ids || [];
+            global.__editMgmtEmployeeBranchIds = branchIds.slice();
             renderEditBranchChecklist(branchIds);
         }
 
@@ -339,7 +351,7 @@
             payload.branch_ids = branchIds;
         } else {
             if (!departmentId) return showError('Please select a department.');
-            payload.department_id = departmentId;
+            payload.department_id = parseInt(departmentId, 10);
         }
 
         return fetch('/admin/users/' + encodeURIComponent(id), {
