@@ -1288,8 +1288,16 @@ def delete_user(user_id):
 def get_asset_types():
     conn = get_db_connection()
     cur = conn.cursor()
-    cur.execute('SELECT id, name, for_venue FROM asset_types ORDER BY for_venue, name')
-    asset_types = [{'id': row[0], 'name': row[1], 'for_venue': row[2]} for row in cur.fetchall()]
+    cur.execute('SELECT id, name, for_venue, description FROM asset_types ORDER BY for_venue, name')
+    asset_types = [
+        {
+            'id': row[0],
+            'name': row[1],
+            'for_venue': row[2],
+            'description': row[3] or '',
+        }
+        for row in cur.fetchall()
+    ]
     conn.close()
     return jsonify(asset_types)
 
@@ -1303,6 +1311,8 @@ def add_asset_type():
     name = request.form.get('name', '').strip()
     if not name:
         return jsonify({'error': 'Asset category name is required'}), 400
+
+    description = (request.form.get('description') or '').strip() or None
 
     all_restaurants = request.form.get('all_restaurants') in ('1', 'true', 'on', 'yes')
     all_office = request.form.get('all_office_departments') in ('1', 'true', 'on', 'yes')
@@ -1330,8 +1340,8 @@ def add_asset_type():
     cur = conn.cursor()
     try:
         cur.execute(
-            'INSERT INTO asset_types (name, for_venue) VALUES (?, ?)',
-            (name, for_venue),
+            'INSERT INTO asset_types (name, for_venue, description) VALUES (?, ?, ?)',
+            (name, for_venue, description),
         )
         asset_type_id = cur.lastrowid
         conn.commit()
@@ -1340,6 +1350,7 @@ def add_asset_type():
             'success': True,
             'name': name,
             'for_venue': for_venue,
+            'description': description or '',
             'created_count': 1,
             'skipped_count': 0,
             'ids': [asset_type_id],
@@ -1363,6 +1374,8 @@ def update_asset_type(asset_type_id):
     name = request.form.get('name', '').strip()
     if not name:
         return jsonify({'error': 'Asset category name is required'}), 400
+
+    description = (request.form.get('description') or '').strip() or None
     
     conn = get_db_connection()
     cur = conn.cursor()
@@ -1375,13 +1388,19 @@ def update_asset_type(asset_type_id):
 
         old_name, old_venue = old_row[0], old_row[1]
 
-        cur.execute('UPDATE asset_types SET name = ? WHERE id = ?', (name, asset_type_id))
+        cur.execute('UPDATE asset_types SET name = ?, description = ? WHERE id = ?', (name, description, asset_type_id))
 
         cur.execute('UPDATE assets SET asset_type = ? WHERE asset_type = ?', (name, old_name))
         
         conn.commit()
         conn.close()
-        return jsonify({'success': True, 'id': asset_type_id, 'name': name, 'for_venue': old_venue})
+        return jsonify({
+            'success': True,
+            'id': asset_type_id,
+            'name': name,
+            'for_venue': old_venue,
+            'description': description or '',
+        })
     except sqlite3.IntegrityError:
         conn.close()
         return jsonify({'error': 'An asset category with this name already exists for that location'}), 400
@@ -1496,9 +1515,14 @@ def import_asset_config():
 
     category_cache = {}
 
-    def get_or_create_category(category_name, for_venue):
+    def get_or_create_category(category_name, for_venue, description=None):
         key = (category_name.lower(), for_venue)
         if key in category_cache:
+            if description:
+                cur.execute(
+                    'UPDATE asset_types SET description = ? WHERE id = ?',
+                    (description, category_cache[key]),
+                )
             return category_cache[key]
         cur.execute(
             'SELECT id FROM asset_types WHERE name = ? AND for_venue = ?',
@@ -1508,11 +1532,16 @@ def import_asset_config():
         if found:
             category_cache[key] = found[0]
             summary['categories_skipped'] += 1
+            if description:
+                cur.execute(
+                    'UPDATE asset_types SET description = ? WHERE id = ?',
+                    (description, found[0]),
+                )
             return found[0]
         try:
             cur.execute(
-                'INSERT INTO asset_types (name, for_venue) VALUES (?, ?)',
-                (category_name, for_venue),
+                'INSERT INTO asset_types (name, for_venue, description) VALUES (?, ?, ?)',
+                (category_name, for_venue, description),
             )
             category_id = cur.lastrowid
             category_cache[key] = category_id
@@ -1537,6 +1566,7 @@ def import_asset_config():
         location = (row.get('location') or '').strip()
         category_name = (row.get('category') or '').strip()
         asset_name = (row.get('asset_name') or '').strip()
+        description = (row.get('description') or '').strip() or None
         spec_labels = _parse_import_label_list(row.get('specifications'))
         inclusion_labels = _parse_import_label_list(row.get('inclusions'))
 
@@ -1562,7 +1592,7 @@ def import_asset_config():
             for_venue = DEFAULT_IMPORT_FOR_VENUE
 
         try:
-            asset_type_id = get_or_create_category(category_name, for_venue)
+            asset_type_id = get_or_create_category(category_name, for_venue, description)
 
             if not asset_name:
                 continue

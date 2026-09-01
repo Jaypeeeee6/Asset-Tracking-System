@@ -374,6 +374,8 @@
         if (!modalEl) return;
         $('editMgmtAssetTypeId').value = data.id;
         $('editMgmtAssetTypeName').value = data.name || '';
+        var descEl = $('editMgmtAssetTypeDescription');
+        if (descEl) descEl.value = data.description || '';
         $('editMgmtAssetTypeVenue').value = data.forVenue || 'restaurant';
         var loc = $('editMgmtAssetTypeLocationDisplay');
         if (loc) loc.textContent = locationLabelForEditAssetType(data);
@@ -388,6 +390,8 @@
 
         var formData = new FormData();
         formData.append('name', name);
+        var descEl = $('editMgmtAssetTypeDescription');
+        if (descEl) formData.append('description', descEl.value.trim());
 
         return fetch('/admin/asset-types/' + encodeURIComponent(id), { method: 'PUT', body: formData })
             .then(function (r) { return r.json(); })

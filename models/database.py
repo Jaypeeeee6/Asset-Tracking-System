@@ -615,6 +615,17 @@ def _migrate_asset_types_allow_both(cur):
         cur.execute("INSERT INTO sqlite_sequence (name, seq) VALUES ('asset_types', ?)", (mx,))
 
 
+def _migrate_asset_types_description(cur):
+    """Add optional description on asset categories."""
+    cur.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='asset_types'")
+    if not cur.fetchone():
+        return
+    cur.execute('PRAGMA table_info(asset_types)')
+    if 'description' in [r[1] for r in cur.fetchall()]:
+        return
+    cur.execute('ALTER TABLE asset_types ADD COLUMN description TEXT')
+
+
 def asset_type_for_venue_matches(for_venue, asset_venue):
     """True when an asset type's scope includes the asset's restaurant/office venue."""
     fv = (for_venue or 'restaurant').strip().lower()
@@ -1497,6 +1508,7 @@ def init_db():
     ''')
     _migrate_asset_types_for_venue(cur)
     _migrate_asset_types_allow_both(cur)
+    _migrate_asset_types_description(cur)
     
     # Create asset_names table
     cur.execute('''

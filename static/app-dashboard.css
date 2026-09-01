@@ -347,7 +347,7 @@
 /* Floor at 100% so tables stretch; fixed px kicks in only when wider than the container */
 .asset-dashboard .app-table-scroll > .app-table.app-table--min-sm { min-width: max(100%, 400px); }
 .asset-dashboard .app-table-scroll > .app-table.app-table--min-md { min-width: max(100%, 480px); }
-.asset-dashboard .app-table-scroll > .app-table.app-table--min-categories { min-width: max(100%, 520px); }
+.asset-dashboard .app-table-scroll > .app-table.app-table--min-categories { min-width: max(100%, 680px); }
 .asset-dashboard .app-table-scroll > .app-table.app-table--min-lg { min-width: max(100%, 640px); }
 .asset-dashboard .app-table-scroll > .app-table.app-table--min-xl { min-width: max(100%, 680px); }
 .asset-dashboard .app-table-scroll > .app-table.app-table--min-2xl { min-width: max(100%, 720px); }

@@ -2285,22 +2285,30 @@ function appDeleteConfirm(message, title) {
                 location: colIndex(h, ['location', 'venue']),
                 category: colIndex(h, ['category', 'category name', 'asset category']),
                 asset_name: colIndex(h, ['asset name']),
+                description: colIndex(h, ['description', 'category description', 'desc']),
                 specifications: colIndex(h, ['specifications', 'specification', 'specs']),
                 inclusions: colIndex(h, ['inclusions', 'inclusion'])
             };
             const rows = [];
             let lastLocation = DEFAULT_IMPORT_LOCATION;
             let lastCategory = '';
+            let lastDescription = '';
             for (let i = best.found.idx + 1; i < best.aoa.length; i++) {
                 const r = best.aoa[i] || [];
                 const locCell = ci.location !== -1 ? norm(r[ci.location]) : '';
                 const catCell = ci.category !== -1 ? norm(r[ci.category]) : '';
                 const assetName = ci.asset_name !== -1 ? norm(r[ci.asset_name]) : '';
+                const descCell = ci.description !== -1 ? norm(r[ci.description]) : '';
                 const specifications = ci.specifications !== -1 ? norm(r[ci.specifications]) : '';
                 const inclusions = ci.inclusions !== -1 ? norm(r[ci.inclusions]) : '';
 
                 if (locCell) lastLocation = locCell;
-                if (catCell) lastCategory = catCell;
+                if (catCell) {
+                    lastCategory = catCell;
+                    lastDescription = descCell || '';
+                } else if (descCell) {
+                    lastDescription = descCell;
+                }
 
                 if (!lastCategory && !assetName) continue;
                 if (!lastCategory) continue;
@@ -2309,6 +2317,7 @@ function appDeleteConfirm(message, title) {
                     location: lastLocation || DEFAULT_IMPORT_LOCATION,
                     category: lastCategory,
                     asset_name: assetName,
+                    description: lastDescription,
                     specifications: splitLabels(specifications),
                     inclusions: splitLabels(inclusions)
                 });
@@ -2485,7 +2494,7 @@ function appDeleteConfirm(message, title) {
         resetMgmtTableBulkUI('selectAllAssetTypesCheckbox', 'bulkDeleteAssetTypesBtn', 'assetTypesList', 'asset-type-row-checkbox');
 
         if (!assetTypesData.length) {
-            assetTypesList.innerHTML = '<tr><td colspan="5" class="text-center text-muted py-4">No asset categories found</td></tr>';
+            assetTypesList.innerHTML = '<tr><td colspan="6" class="text-center text-muted py-4">No asset categories found</td></tr>';
             resetMgmtTableBulkUI('selectAllAssetTypesCheckbox', 'bulkDeleteAssetTypesBtn', 'assetTypesList', 'asset-type-row-checkbox');
             return;
         }
@@ -2497,18 +2506,23 @@ function appDeleteConfirm(message, title) {
         });
         sorted.forEach((assetType, i) => {
             const venueLabel = assetTypeLocationLabel(assetType);
+            const descText = (assetType.description || '').trim();
+            const descHtml = descText
+                ? '<span class="text-muted small">' + escapeHtmlDoc(descText) + '</span>'
+                : '<span class="text-muted">—</span>';
             const tr = document.createElement('tr');
             tr.innerHTML = `
                 <td><input type="checkbox" class="asset-type-row-checkbox" value="${assetType.id}" aria-label="Select ${assetType.name}"></td>
                 <td>${i + 1}</td>
                 <td>${venueLabel}</td>
-                <td><strong class="asset-type-name" data-id="${assetType.id}">${assetType.name}</strong></td>
+                <td><strong class="asset-type-name" data-id="${assetType.id}">${escapeHtmlDoc(assetType.name)}</strong></td>
+                <td>${descHtml}</td>
                 <td>
                     <div class="d-flex gap-2 flex-wrap align-items-center">
-                        <button type="button" class="btn-app-edit-icon edit-asset-type-btn" data-id="${assetType.id}" data-name="${assetType.name}" data-for-venue="${assetType.for_venue || 'restaurant'}" title="Edit asset category" aria-label="Edit asset category">
+                        <button type="button" class="btn-app-edit-icon edit-asset-type-btn" data-id="${assetType.id}" data-name="${escapeHtmlDoc(assetType.name)}" data-for-venue="${assetType.for_venue || 'restaurant'}" title="Edit asset category" aria-label="Edit asset category">
                             <i class="bi bi-pencil-square" aria-hidden="true"></i>
                         </button>
-                        <button type="button" class="btn-app-edit-icon btn-app-danger-icon delete-asset-type-btn" data-id="${assetType.id}" data-name="${assetType.name}" title="Delete asset category" aria-label="Delete asset category">
+                        <button type="button" class="btn-app-edit-icon btn-app-danger-icon delete-asset-type-btn" data-id="${assetType.id}" data-name="${escapeHtmlDoc(assetType.name)}" title="Delete asset category" aria-label="Delete asset category">
                             <i class="bi bi-trash" aria-hidden="true"></i>
                         </button>
                     </div>
@@ -3894,11 +3908,16 @@ function appDeleteConfirm(message, title) {
     // Handle editing asset type
     function handleEditAssetType(e) {
         const btn = e.currentTarget;
+        const id = btn.getAttribute('data-id');
+        const record = (assetTypesData || []).find(function (t) {
+            return String(t.id) === String(id);
+        });
         if (window.MgmtEditModals && window.MgmtEditModals.openAssetType) {
             window.MgmtEditModals.openAssetType({
-                id: btn.getAttribute('data-id'),
-                name: btn.getAttribute('data-name'),
-                forVenue: btn.getAttribute('data-for-venue') || 'restaurant'
+                id: id,
+                name: record ? record.name : btn.getAttribute('data-name'),
+                forVenue: record ? (record.for_venue || 'restaurant') : (btn.getAttribute('data-for-venue') || 'restaurant'),
+                description: record ? (record.description || '') : ''
             });
             return;
         }

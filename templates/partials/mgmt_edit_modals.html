@@ -127,9 +127,13 @@
           <span class="form-label d-block">Location</span>
           <p class="mb-0 text-muted" id="editMgmtAssetTypeLocationDisplay"></p>
         </div>
-        <div class="mb-0">
+        <div class="mb-3">
           {{ form_label('Asset category name', 'editMgmtAssetTypeName', true) }}
           <input type="text" class="form-control" id="editMgmtAssetTypeName" maxlength="100" required>
+        </div>
+        <div class="mb-0">
+          {{ form_label('Description', 'editMgmtAssetTypeDescription') }}
+          <textarea class="form-control" id="editMgmtAssetTypeDescription" rows="3" maxlength="2000" placeholder="Optional description for this category"></textarea>
         </div>
       </div>
       <div class="modal-footer">

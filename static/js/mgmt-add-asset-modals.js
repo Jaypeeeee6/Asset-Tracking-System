@@ -98,9 +98,11 @@
 
     function resetAddAssetTypeModal() {
         var name = $('addMgmtAssetTypeName');
+        var desc = $('addMgmtAssetTypeDescription');
         var rest = $('addMgmtAssetTypeAllRestaurants');
         var office = $('addMgmtAssetTypeAllOfficeDepts');
         if (name) name.value = '';
+        if (desc) desc.value = '';
         if (rest) rest.checked = false;
         if (office) office.checked = false;
     }
@@ -182,6 +184,10 @@
 
         var fd = new FormData();
         fd.append('name', name);
+        var descEl = $('addMgmtAssetTypeDescription');
+        if (descEl && descEl.value.trim()) {
+            fd.append('description', descEl.value.trim());
+        }
         appendLocationFlags(fd, 'addMgmtAssetType');
 
         return fetch('/admin/asset-types', { method: 'POST', body: fd })

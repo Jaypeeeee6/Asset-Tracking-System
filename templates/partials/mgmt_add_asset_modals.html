@@ -17,6 +17,10 @@
           {{ form_label('Asset category name', 'addMgmtAssetTypeName', true) }}
           <input type="text" class="form-control" id="addMgmtAssetTypeName" maxlength="100" required placeholder="e.g. Electronics">
         </div>
+        <div class="mb-3">
+          {{ form_label('Description', 'addMgmtAssetTypeDescription') }}
+          <textarea class="form-control" id="addMgmtAssetTypeDescription" rows="3" maxlength="2000" placeholder="Optional description for this category"></textarea>
+        </div>
         <fieldset class="mb-0">
           <legend class="form-label">Location</legend>
           <div class="form-check">
