@@ -227,6 +227,15 @@ body {
     font-weight: 600;
 }
 
+.sidebar-item-logout {
+    color: #f87171;
+}
+
+.sidebar-item-logout:hover {
+    background: rgba(239, 68, 68, 0.12);
+    color: #ef4444;
+}
+
 .sidebar-divider {
     height: 1px;
     background: rgba(217, 189, 125, 0.1);
