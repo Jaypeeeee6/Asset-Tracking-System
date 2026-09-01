@@ -60,9 +60,7 @@
                             <strong>{{ full_name }}</strong>
                         </td>
                         <td>{{ email }}</td>
-                        <td>
-                            <span class="badge role-badge role-{{ role|lower|replace(' ', '-') }}">{{ role }}</span>
-                        </td>
+                        <td>{{ role }}</td>
                         <td>
                             <span><i class="bi bi-calendar3 me-1 text-muted" aria-hidden="true"></i>{{ user[4]|string|truncate(19, true, '') }}</span>
                         </td>
