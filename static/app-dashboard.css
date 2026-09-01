@@ -142,7 +142,7 @@
     color: var(--text-dark);
 }
 
-/* ----- Filter form ----- */
+/* ----- Filter form (settings / inline forms) ----- */
 .asset-dashboard .filter-bar {
     background: #fff;
     border: 1px solid var(--card-border);
@@ -153,6 +153,53 @@
     gap: 0.75rem;
     flex-wrap: wrap;
     align-items: flex-end;
+}
+
+/* ----- Stacked filter panel (dashboard & archive — matches JAE-TCRMS) ----- */
+.asset-dashboard .filter-panel {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+    padding-bottom: 0.75rem;
+    margin-bottom: 1rem;
+    border-bottom: 1px solid #f3f4f6;
+    background: transparent;
+}
+
+.asset-dashboard .filter-panel__search {
+    width: 100%;
+}
+
+.asset-dashboard .filter-panel__search .filter-group {
+    width: 100%;
+    margin: 0;
+}
+
+.asset-dashboard .filter-panel__search .filter-search-wrap input {
+    width: 100%;
+    min-width: 0;
+    padding-top: 0.625rem;
+    padding-bottom: 0.625rem;
+}
+
+.asset-dashboard .filter-panel__controls {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.75rem;
+    align-items: center;
+}
+
+.asset-dashboard .filter-panel__controls .filter-group {
+    margin: 0;
+}
+
+.asset-dashboard .filter-panel__controls .filter-group select {
+    min-width: 0;
+}
+
+.asset-dashboard .filter-panel__actions {
+    display: flex;
+    align-items: center;
 }
 
 .asset-dashboard .filter-bar .filter-group label {
@@ -166,7 +213,9 @@
 }
 
 .asset-dashboard .filter-bar .filter-group select,
-.asset-dashboard .filter-bar .filter-group input {
+.asset-dashboard .filter-bar .filter-group input,
+.asset-dashboard .filter-panel .filter-group select,
+.asset-dashboard .filter-panel .filter-group input {
     border: 1.5px solid var(--card-border);
     border-radius: 8px;
     padding: 0.45rem 0.75rem;
@@ -179,13 +228,16 @@
 }
 
 .asset-dashboard .filter-bar .filter-group select:focus,
-.asset-dashboard .filter-bar .filter-group input:focus {
+.asset-dashboard .filter-bar .filter-group input:focus,
+.asset-dashboard .filter-panel .filter-group select:focus,
+.asset-dashboard .filter-panel .filter-group input:focus {
     border-color: var(--gold);
     box-shadow: 0 0 0 3px rgba(217, 189, 125, 0.2);
 }
 
 /* Custom chevron (filter-bar resets select background and hides native arrow) */
-.asset-dashboard .filter-bar .filter-group select.app-select-with-chevron {
+.asset-dashboard .filter-bar .filter-group select.app-select-with-chevron,
+.asset-dashboard .filter-panel .filter-group select.app-select-with-chevron {
     appearance: none;
     -webkit-appearance: none;
     -moz-appearance: none;
@@ -210,9 +262,14 @@
     pointer-events: none;
 }
 
-.asset-dashboard .filter-search-wrap input {
+.asset-dashboard .filter-search-wrap input,
+.asset-dashboard .filter-panel .filter-search-wrap input {
     padding-left: 1.85rem !important;
     min-width: 200px;
+}
+
+.asset-dashboard .filter-panel .filter-search-wrap input {
+    min-width: 0;
 }
 
 .live-search-results.is-loading {
@@ -986,6 +1043,10 @@ body.dark-mode .asset-dashboard .page-header {
     border-bottom-color: rgba(217, 189, 125, 0.25);
 }
 
+body.dark-mode .asset-dashboard .filter-panel {
+    border-bottom-color: rgba(217, 189, 125, 0.15);
+}
+
 body.dark-mode .asset-dashboard .app-card,
 body.dark-mode .asset-dashboard .stat-card,
 body.dark-mode .asset-dashboard .filter-bar {
@@ -1008,13 +1069,16 @@ body.dark-mode .asset-dashboard .filter-bar .filter-group label {
 }
 
 body.dark-mode .asset-dashboard .filter-bar .filter-group select,
-body.dark-mode .asset-dashboard .filter-bar .filter-group input {
+body.dark-mode .asset-dashboard .filter-bar .filter-group input,
+body.dark-mode .asset-dashboard .filter-panel .filter-group select,
+body.dark-mode .asset-dashboard .filter-panel .filter-group input {
     background: #1e1c16;
     border-color: #4a4334;
     color: #f5f5f0;
 }
 
-body.dark-mode .asset-dashboard .filter-bar .filter-group select.app-select-with-chevron {
+body.dark-mode .asset-dashboard .filter-bar .filter-group select.app-select-with-chevron,
+body.dark-mode .asset-dashboard .filter-panel .filter-group select.app-select-with-chevron {
     background-color: #1e1c16;
     background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3e%3cpath fill='none' stroke='%23d4c4a8' stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M2 5l6 6 6-6'/%3e%3c/svg%3e");
 }
@@ -1255,12 +1319,21 @@ body.dark-mode .asset-dashboard.archive-page .archive-reason {
         flex-direction: column;
     }
 
-    .asset-dashboard .filter-bar .filter-group select,
-    .asset-dashboard .filter-bar .filter-group input {
-        min-width: 100%;
+    .asset-dashboard .filter-panel__controls {
+        flex-direction: column;
+        align-items: stretch;
     }
 
-    .asset-dashboard .filter-search-wrap input {
+    .asset-dashboard .filter-bar .filter-group select,
+    .asset-dashboard .filter-bar .filter-group input,
+    .asset-dashboard .filter-panel .filter-group select,
+    .asset-dashboard .filter-panel .filter-group input {
+        min-width: 100%;
+        width: 100%;
+    }
+
+    .asset-dashboard .filter-search-wrap input,
+    .asset-dashboard .filter-panel .filter-search-wrap input {
         width: 100%;
     }
 

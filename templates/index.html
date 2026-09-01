@@ -701,17 +701,20 @@
         </div>
     </div>
 
-    <form method="get" id="searchForm">
-        <div class="filter-bar">
+    <form method="get" id="searchForm" class="filter-panel">
+        <div class="filter-panel__search">
             <div class="filter-group filter-search-wrap">
                 <i class="bi bi-search filter-search-icon" aria-hidden="true"></i>
                 <input type="text" name="search" id="globalSearch"
                        value="{{ request.args.get('search', '') }}"
                        placeholder="Search names, owners, codes, categories&hellip;"
-                       autocomplete="off">
+                       autocomplete="off"
+                       aria-label="Search assets">
             </div>
+        </div>
+        <div class="filter-panel__controls">
             <div class="filter-group">
-                <select id="branchFilter" name="branch" aria-label="Branch">
+                <select id="branchFilter" name="branch" class="app-select-with-chevron" aria-label="Branch">
                     <option value="">All Branches</option>
                     {% for b in branches %}
                         <option value="{{ b }}" {% if b == branch_filter %}selected{% endif %}>{{ b }}</option>
@@ -719,7 +722,7 @@
                 </select>
             </div>
             <div class="filter-group">
-                <select id="departmentFilter" name="department" aria-label="Department">
+                <select id="departmentFilter" name="department" class="app-select-with-chevron" aria-label="Department">
                     <option value="" {% if not department_filter %}selected{% endif %}>All Departments</option>
                     <option value="Restaurant" {% if department_filter == 'Restaurant' %}selected{% endif %}>Restaurant</option>
                     {% for d in departments %}
@@ -728,7 +731,7 @@
                 </select>
             </div>
             <div class="filter-group">
-                <select id="statusFilter" name="status" aria-label="Status">
+                <select id="statusFilter" name="status" class="app-select-with-chevron" aria-label="Status">
                     <option value="">All Status</option>
                     <option value="Used" {% if request.args.get('status') == 'Used' %}selected{% endif %}>Used</option>
                     <option value="Not Used" {% if request.args.get('status') == 'Not Used' %}selected{% endif %}>Not Used</option>
@@ -736,11 +739,11 @@
                 </select>
             </div>
             <div class="filter-group">
-                <select id="assetTypeFilter" name="asset_type" aria-label="Asset category">
+                <select id="assetTypeFilter" name="asset_type" class="app-select-with-chevron" aria-label="Asset category">
                     <option value="">All Categories</option>
                 </select>
             </div>
-            <div class="filter-group">
+            <div class="filter-group filter-panel__actions">
                 <a href="{{ url_for('assets.dashboard') }}" class="btn btn-outline-secondary btn-sm">Reset</a>
             </div>
         </div>
