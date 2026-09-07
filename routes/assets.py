@@ -31,6 +31,7 @@ from models.database import (
     ASSET_KINDS,
     ASSET_STATUSES,
     ASSET_STATUS_DEFAULT,
+    ASSET_STATUS_RETURNED,
     asset_type_for_venue_matches,
     format_branch_with_code,
     format_asset_location_display,
@@ -45,6 +46,8 @@ from utils.asset_documents import (
     delete_document_record,
     delete_all_documents_for_assets,
     document_path,
+    nonempty_uploaded_files,
+    DOC_CATEGORY_RETURN,
 )
 import qrcode
 from io import BytesIO
@@ -53,6 +56,18 @@ import json
 import datetime
 
 assets_bp = Blueprint('assets', __name__)
+
+RETURN_DECLARATION_REQUIRED_MSG = 'Please upload the asset return declaration file.'
+
+
+def _apply_return_documents(cur, asset_ids, file_storages):
+    files = nonempty_uploaded_files(file_storages)
+    if not files:
+        return RETURN_DECLARATION_REQUIRED_MSG
+    _, err = save_uploaded_files_for_assets(
+        cur, asset_ids, files, doc_category=DOC_CATEGORY_RETURN
+    )
+    return err
 
 
 def _parse_asset_date(raw_value):
@@ -1151,7 +1166,7 @@ def _form_getlist(data, key):
     return [raw]
 
 
-def _create_assets_from_payload(cur, form_data, uploaded_files=None, force_insert=False):
+def _create_assets_from_payload(cur, form_data, uploaded_files=None, force_insert=False, return_uploaded_files=None):
     """
     Create asset row(s) from one form-like payload.
     Returns (created_asset_ids, error_message). On error, created_asset_ids is [].
@@ -1286,6 +1301,12 @@ def _create_assets_from_payload(cur, form_data, uploaded_files=None, force_inser
         if doc_err:
             return [], doc_err
 
+    unique_ids = list(dict.fromkeys(created_asset_ids))
+    if used_status == ASSET_STATUS_RETURNED:
+        return_err = _apply_return_documents(cur, unique_ids, return_uploaded_files)
+        if return_err:
+            return [], return_err
+
     return created_asset_ids, None
 
 
@@ -1301,7 +1322,8 @@ def add_asset():
     conn = get_db_connection()
     cur = conn.cursor()
     created_asset_ids, err = _create_assets_from_payload(
-        cur, request.form, request.files.getlist('supporting_documents')
+        cur, request.form, request.files.getlist('supporting_documents'),
+        return_uploaded_files=request.files.getlist('return_documents'),
     )
     if err:
         conn.rollback()
@@ -1352,7 +1374,8 @@ def add_assets_bulk():
             payload['branch'] = branches[0] if branches else ''
         files = request.files.getlist(f'docs_{index}')
         created_ids, err = _create_assets_from_payload(
-            cur, payload, files, force_insert=True
+            cur, payload, files, force_insert=True,
+            return_uploaded_files=request.files.getlist(f'return_docs_{index}'),
         )
         if err:
             conn.rollback()
@@ -1543,6 +1566,9 @@ def update_asset(asset_id):
     
     conn = get_db_connection()
     cur = conn.cursor()
+    cur.execute('SELECT used_status FROM assets WHERE id = ?', (asset_id,))
+    current_status_row = cur.fetchone()
+    previous_status = current_status_row['used_status'] if current_status_row else None
 
     if venue == 'restaurant' and asset_kind == ASSET_KIND_SHARED:
         if not branch_names:
@@ -1614,6 +1640,16 @@ def update_asset(asset_id):
                     conn.close()
                     return jsonify({'error': doc_err}), 400
 
+            if used_status == ASSET_STATUS_RETURNED and previous_status != ASSET_STATUS_RETURNED:
+                unique_ids = list(dict.fromkeys(updated_ids or [asset_id]))
+                return_err = _apply_return_documents(
+                    cur, unique_ids, request.files.getlist('return_documents')
+                )
+                if return_err:
+                    conn.rollback()
+                    conn.close()
+                    return jsonify({'error': return_err}), 400
+
             conn.commit()
             conn.close()
             return jsonify({
@@ -1679,6 +1715,15 @@ def update_asset(asset_id):
                 conn.rollback()
                 conn.close()
                 return jsonify({'error': doc_err}), 400
+
+        if used_status == ASSET_STATUS_RETURNED and previous_status != ASSET_STATUS_RETURNED:
+            return_err = _apply_return_documents(
+                cur, [asset_id], request.files.getlist('return_documents')
+            )
+            if return_err:
+                conn.rollback()
+                conn.close()
+                return jsonify({'error': return_err}), 400
 
         # If this row left a shared group, convert a lone remaining sibling to Branch Asset
         if (
@@ -2338,11 +2383,31 @@ def update_status(asset_id):
     
     conn = get_db_connection()
     cur = conn.cursor()
+    cur.execute('SELECT id FROM assets WHERE id = ?', (asset_id,))
+    if not cur.fetchone():
+        conn.close()
+        return jsonify({'error': 'Asset not found'}), 404
+
+    expanded_ids = _expand_shared_group_asset_ids(cur, [asset_id])
+    if used_status == ASSET_STATUS_RETURNED:
+        return_err = _apply_return_documents(
+            cur, expanded_ids, request.files.getlist('return_documents')
+        )
+        if return_err:
+            conn.rollback()
+            conn.close()
+            return jsonify({'error': return_err}), 400
+
     _sync_shared_group_status(cur, asset_id, used_status)
+    docs = list_documents_for_asset(cur, asset_id)
     conn.commit()
     conn.close()
     
-    return jsonify({'success': True})
+    return jsonify({
+        'success': True,
+        'document_count': len(docs),
+        'updated_asset_ids': expanded_ids,
+    })
 
 @assets_bp.route('/bulk_update_status', methods=['POST'])
 @login_required
@@ -2357,6 +2422,15 @@ def bulk_update_status():
     cur = conn.cursor()
     
     expanded_ids = _expand_shared_group_asset_ids(cur, asset_ids)
+    if used_status == ASSET_STATUS_RETURNED:
+        return_err = _apply_return_documents(
+            cur, expanded_ids, request.files.getlist('return_documents')
+        )
+        if return_err:
+            conn.rollback()
+            conn.close()
+            return jsonify({'error': return_err}), 400
+
     placeholders = ','.join(['?'] * len(expanded_ids))
     cur.execute(f'UPDATE assets SET used_status=? WHERE id IN ({placeholders})', [used_status] + expanded_ids)
     

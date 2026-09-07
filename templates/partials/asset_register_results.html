@@ -90,7 +90,7 @@
                     {% endif %}
                 </td>
                 <td class="app-table-col-status">
-                    <select class="form-select form-select-sm status-select" data-asset-id="{{ asset.id }}">
+                    <select class="form-select form-select-sm status-select" data-asset-id="{{ asset.id }}" data-previous-status="{{ asset.used_status or 'Not Active' }}">
                         <option value="Active" {% if asset.used_status == 'Active' %}selected{% endif %}>Active</option>
                         <option value="Not Active" {% if asset.used_status == 'Not Active' %}selected{% endif %}>Not Active</option>
                         <option value="Out of Service" {% if asset.used_status == 'Out of Service' %}selected{% endif %}>Out of Service</option>

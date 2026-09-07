@@ -331,6 +331,23 @@ a.btn-app-add:focus-visible {
     outline-offset: 2px;
 }
 
+.btn-app-add.btn-app-add--success,
+a.btn-app-add.btn-app-add--success {
+    background: #198754;
+    color: #fff;
+}
+
+.btn-app-add.btn-app-add--success:hover,
+a.btn-app-add.btn-app-add--success:hover {
+    background: #157347;
+    color: #fff;
+}
+
+.btn-app-add.btn-app-add--success:focus-visible,
+a.btn-app-add.btn-app-add--success:focus-visible {
+    outline-color: #157347;
+}
+
 .input-group > .btn-app-add {
     position: relative;
     z-index: 2;
@@ -350,6 +367,13 @@ a.btn-app-add:focus-visible {
 .dark-mode .btn-app-add:hover,
 .dark-mode a.btn-app-add:hover {
     color: var(--dark-bg);
+}
+
+.dark-mode .btn-app-add.btn-app-add--success,
+.dark-mode a.btn-app-add.btn-app-add--success,
+.dark-mode .btn-app-add.btn-app-add--success:hover,
+.dark-mode a.btn-app-add.btn-app-add--success:hover {
+    color: #fff;
 }
 
 /* ----- Excel import actions (JAE-TCRMS-style outline; use macros `import_excel_button`) ----- */

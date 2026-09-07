@@ -1266,33 +1266,87 @@ function appDeleteConfirm(message, title) {
         if (existing) {
             existing.innerHTML = '<div class="text-muted small">Loading documents…</div>';
         }
+        var editReturnInput = document.getElementById('editReturnDocuments');
+        if (editReturnInput) editReturnInput.value = '';
+        toggleEditReturnDocumentsWrap();
+    }
+
+    function splitDocumentsByCategory(documents) {
+        var supporting = [];
+        var returnDocs = [];
+        (documents || []).forEach(function (doc) {
+            if ((doc.doc_category || 'supporting') === 'return') returnDocs.push(doc);
+            else supporting.push(doc);
+        });
+        return { supporting: supporting, returnDocs: returnDocs };
+    }
+
+    function appendDocumentRows(container, documents, options) {
+        options = options || {};
+        if (!documents || !documents.length) {
+            var empty = document.createElement('div');
+            empty.className = 'text-muted small mb-3';
+            empty.textContent = options.emptyText || 'None';
+            container.appendChild(empty);
+            return;
+        }
+        documents.forEach(function (doc) {
+            var row = document.createElement(options.rowTag || 'div');
+            row.className = options.rowClass || 'asset-doc-item asset-doc-item--view-only';
+            if (doc.id) row.dataset.documentId = String(doc.id);
+            var html = '<i class="bi bi-file-earmark" aria-hidden="true"></i>'
+                + '<a class="asset-doc-name" href="' + escapeHtmlDoc(doc.download_url) + '" target="_blank" rel="noopener">'
+                + escapeHtmlDoc(doc.original_filename) + '</a>'
+                + '<span class="asset-doc-meta">' + escapeHtmlDoc(formatFileSize(doc.file_size)) + '</span>';
+            if (options.withDelete) {
+                html += '<button type="button" class="btn btn-sm btn-outline-danger asset-doc-delete-btn" title="Remove document" aria-label="Remove document">'
+                    + '<i class="bi bi-trash" aria-hidden="true"></i></button>';
+            }
+            row.innerHTML = html;
+            if (options.withDelete && typeof options.onDelete === 'function') {
+                var delBtn = row.querySelector('.asset-doc-delete-btn');
+                if (delBtn) {
+                    delBtn.addEventListener('click', function () {
+                        options.onDelete(doc, row);
+                    });
+                }
+            }
+            container.appendChild(row);
+        });
+    }
+
+    function appendDocumentSection(container, title, documents, options) {
+        var heading = document.createElement('h6');
+        heading.className = 'asset-doc-section-title';
+        heading.textContent = title;
+        container.appendChild(heading);
+        appendDocumentRows(container, documents, options);
     }
 
     function renderEditAssetDocumentsList(documents, assetId) {
         var existing = document.getElementById('editAssetDocumentsExisting');
         if (!existing) return;
         existing.innerHTML = '';
-        if (!documents || !documents.length) {
+        var split = splitDocumentsByCategory(documents);
+        if (!split.supporting.length && !split.returnDocs.length) {
             existing.innerHTML = '<div class="text-muted small">No supporting documents yet.</div>';
             return;
         }
-        documents.forEach(function (doc) {
-            var row = document.createElement('div');
-            row.className = 'asset-doc-item';
-            row.dataset.documentId = String(doc.id);
-            row.innerHTML = '<i class="bi bi-file-earmark" aria-hidden="true"></i>'
-                + '<a class="asset-doc-name" href="' + escapeHtmlDoc(doc.download_url) + '" target="_blank" rel="noopener">'
-                + escapeHtmlDoc(doc.original_filename) + '</a>'
-                + '<span class="asset-doc-meta">' + escapeHtmlDoc(formatFileSize(doc.file_size)) + '</span>'
-                + '<button type="button" class="btn btn-sm btn-outline-danger asset-doc-delete-btn" title="Remove document" aria-label="Remove document">'
-                + '<i class="bi bi-trash" aria-hidden="true"></i></button>';
-            var delBtn = row.querySelector('.asset-doc-delete-btn');
-            if (delBtn) {
-                delBtn.addEventListener('click', function () {
-                    deleteEditAssetDocument(assetId, doc.id, doc.original_filename, row);
-                });
+        appendDocumentSection(existing, 'Supporting Documents', split.supporting, {
+            rowClass: 'asset-doc-item',
+            emptyText: 'No supporting documents yet.',
+            withDelete: true,
+            onDelete: function (doc, row) {
+                deleteEditAssetDocument(assetId, doc.id, doc.original_filename, row);
             }
-            existing.appendChild(row);
+        });
+        appendDocumentSection(existing, 'Return Documents', split.returnDocs, {
+            rowClass: 'asset-doc-item',
+            emptyText: 'None',
+            withDelete: true,
+            onDelete: function (doc, row) {
+                deleteEditAssetDocument(assetId, doc.id, doc.original_filename, row);
+            }
         });
     }
 
@@ -1313,19 +1367,17 @@ function appDeleteConfirm(message, title) {
     function renderAssetDocumentsModalList(documents) {
         var list = document.getElementById('assetDocumentsModalList');
         if (!list) return;
-        if (!documents || !documents.length) {
-            list.innerHTML = '<div class="text-muted small">No supporting documents for this asset.</div>';
+        var split = splitDocumentsByCategory(documents);
+        if (!split.supporting.length && !split.returnDocs.length) {
+            list.innerHTML = '<div class="text-muted small">No documents for this asset.</div>';
             return;
         }
         list.innerHTML = '';
-        documents.forEach(function (doc) {
-            var row = document.createElement('div');
-            row.className = 'asset-doc-item asset-doc-item--view-only';
-            row.innerHTML = '<i class="bi bi-file-earmark" aria-hidden="true"></i>'
-                + '<a class="asset-doc-name" href="' + escapeHtmlDoc(doc.download_url) + '" target="_blank" rel="noopener">'
-                + escapeHtmlDoc(doc.original_filename) + '</a>'
-                + '<span class="asset-doc-meta">' + escapeHtmlDoc(formatFileSize(doc.file_size)) + '</span>';
-            list.appendChild(row);
+        appendDocumentSection(list, 'Supporting Documents', split.supporting, {
+            emptyText: 'No supporting documents.'
+        });
+        appendDocumentSection(list, 'Return Documents', split.returnDocs, {
+            emptyText: 'No return documents.'
         });
     }
 
@@ -4780,6 +4832,14 @@ function appDeleteConfirm(message, title) {
             alert('Please select an owner, or check No Owner Required.');
             return false;
         }
+        var statusEl = document.getElementById('used_status');
+        if (statusEl && statusEl.value === 'Returned') {
+            var returnInput = document.getElementById('addReturnDocuments');
+            if (!returnInput || !returnInput.files || !returnInput.files[0]) {
+                alert('Please upload the asset return declaration file.');
+                return false;
+            }
+        }
         return true;
     }
 
@@ -4829,6 +4889,7 @@ function appDeleteConfirm(message, title) {
         if (priceEl) priceEl.value = '';
         var statusEl = document.getElementById('used_status');
         if (statusEl) statusEl.value = 'Active';
+        toggleAddReturnDocumentsWrap();
         var nameInput = document.getElementById('asset_name');
         if (nameInput) nameInput.value = '';
 
@@ -4870,7 +4931,11 @@ function appDeleteConfirm(message, title) {
             owner: ownerEl ? ownerEl.value : '',
             used_status: statusEl ? statusEl.value : 'Active',
             asset_date: dateEl ? dateEl.value : todayIsoDate(),
-            pendingDocs: (addAssetPendingDocs || []).slice()
+            pendingDocs: (addAssetPendingDocs || []).slice(),
+            returnFile: (function () {
+                var ret = document.getElementById('addReturnDocuments');
+                return (ret && ret.files && ret.files[0]) ? ret.files[0] : null;
+            })()
         };
     }
 
@@ -4901,6 +4966,7 @@ function appDeleteConfirm(message, title) {
         }
         // Files cannot be JSON-cloned; keep a separate array copy (same File refs are ok).
         copy.pendingDocs = (draft.pendingDocs || []).slice();
+        copy.returnFile = draft.returnFile || null;
         return copy;
     }
 
@@ -5030,6 +5096,17 @@ function appDeleteConfirm(message, title) {
                 if (priceEl) priceEl.value = draft.price != null ? draft.price : '';
                 var statusEl = document.getElementById('used_status');
                 if (statusEl) statusEl.value = normalizeAssetStatus(draft.used_status, 'Active');
+                toggleAddReturnDocumentsWrap();
+                var returnEl = document.getElementById('addReturnDocuments');
+                if (returnEl) {
+                    if (draft.returnFile && typeof DataTransfer !== 'undefined') {
+                        var dt = new DataTransfer();
+                        try { dt.items.add(draft.returnFile); } catch (e) { /* ignore */ }
+                        returnEl.files = dt.files;
+                    } else {
+                        returnEl.value = '';
+                    }
+                }
                 var dateEl = document.getElementById('asset_date');
                 if (dateEl) dateEl.value = draft.asset_date || todayIsoDate();
 
@@ -5289,6 +5366,11 @@ function appDeleteConfirm(message, title) {
                         goToIndex(i);
                         return;
                     }
+                    if (d.used_status === 'Returned' && !d.returnFile) {
+                        alert(label + ': please upload the asset return declaration file.');
+                        goToIndex(i);
+                        return;
+                    }
                 }
 
                 // Also run live-form checks on the current page (names vs catalog, etc.)
@@ -5301,6 +5383,9 @@ function appDeleteConfirm(message, title) {
                     (d.pendingDocs || []).forEach(function (file) {
                         fd.append('docs_' + idx, file, file.name);
                     });
+                    if (d.returnFile) {
+                        fd.append('return_docs_' + idx, d.returnFile, d.returnFile.name);
+                    }
                 });
 
                 if (submitBtn) submitBtn.disabled = true;
@@ -5769,6 +5854,16 @@ function appDeleteConfirm(message, title) {
             collectEditAssetSpecValuesJson();
             collectEditAssetInclusionValuesJson();
             collectEditAssetSubscriptionsJson();
+
+            var editStatus = document.getElementById('edit_used_status');
+            if (editStatus && editStatus.value === 'Returned'
+                && (editStatus.getAttribute('data-original-status') || '') !== 'Returned') {
+                var retInput = document.getElementById('editReturnDocuments');
+                if (!retInput || !retInput.files || !retInput.files[0]) {
+                    alert('Please upload the asset return declaration file.');
+                    return;
+                }
+            }
             
             AppDialogs.confirm({
                 title: 'Update asset',
@@ -6728,12 +6823,179 @@ function appDeleteConfirm(message, title) {
         });
     }
 
+    function setStatusSelectPrevious(assetId, status) {
+        document.querySelectorAll('.status-select[data-asset-id="' + assetId + '"]').forEach(function (sel) {
+            sel.setAttribute('data-previous-status', status || '');
+        });
+    }
+
+    function refreshAssetDocsButton(assetId, count) {
+        var n = Number(count) || 0;
+        document.querySelectorAll('.view-asset-docs-btn[data-asset-id="' + assetId + '"]').forEach(function (btn) {
+            btn.setAttribute('data-doc-count', String(n));
+            btn.disabled = n === 0;
+            btn.classList.toggle('is-disabled-empty', n === 0);
+            var badge = btn.querySelector('.asset-docs-action-badge');
+            if (n > 0) {
+                if (!badge) {
+                    badge = document.createElement('span');
+                    badge.className = 'asset-docs-action-badge';
+                    badge.setAttribute('aria-hidden', 'true');
+                    btn.appendChild(badge);
+                }
+                badge.textContent = String(n);
+            } else if (badge) {
+                badge.remove();
+            }
+            btn.title = n
+                ? ('View ' + n + ' document' + (n === 1 ? '' : 's'))
+                : 'No documents';
+            btn.setAttribute('aria-label', n ? 'View documents' : 'No documents');
+        });
+        if (typeof syncAssetRegisterMobileCards === 'function') {
+            syncAssetRegisterMobileCards();
+        }
+    }
+
+    var returnAssetContext = null;
+    var returnAssetCompleted = false;
+
+    function revertReturnAssetStatus() {
+        if (!returnAssetContext || returnAssetContext.mode !== 'single') return;
+        var prev = returnAssetContext.previousStatus || 'Not Active';
+        var assetId = returnAssetContext.assetId;
+        document.querySelectorAll('.status-select[data-asset-id="' + assetId + '"]').forEach(function (sel) {
+            sel.value = prev;
+        });
+        syncAssetStatusAppearance(assetId, prev);
+    }
+
+    function openReturnAssetModal(ctx) {
+        var modalEl = document.getElementById('returnAssetModal');
+        if (!modalEl || typeof bootstrap === 'undefined') return;
+        returnAssetContext = ctx;
+        returnAssetCompleted = false;
+        var nameEl = document.getElementById('returnAssetModalAssetName');
+        var codeEl = document.getElementById('returnAssetModalAssetCode');
+        var msgEl = document.getElementById('returnAssetModalMessage');
+        var fileEl = document.getElementById('returnAssetDocument');
+        if (fileEl) fileEl.value = '';
+        if (ctx.mode === 'bulk') {
+            if (msgEl) {
+                msgEl.textContent = 'Upload the asset return declaration file to confirm returning '
+                    + ctx.assetIds.length + ' selected asset(s).';
+            }
+            if (nameEl) nameEl.textContent = ctx.assetIds.length + ' selected asset(s)';
+            if (codeEl) codeEl.textContent = '';
+        } else {
+            if (msgEl) msgEl.textContent = 'Upload the asset return declaration file to confirm this return.';
+            if (nameEl) nameEl.textContent = ctx.assetName || '';
+            if (codeEl) codeEl.textContent = ctx.assetCode || '';
+        }
+        bootstrap.Modal.getOrCreateInstance(modalEl).show();
+    }
+
+    function submitReturnAsset() {
+        if (!returnAssetContext) return;
+        var fileEl = document.getElementById('returnAssetDocument');
+        var file = fileEl && fileEl.files && fileEl.files[0];
+        if (!file) {
+            alert('Please upload the asset return declaration file.');
+            return;
+        }
+        var confirmBtn = document.getElementById('confirmReturnAssetBtn');
+        if (confirmBtn) confirmBtn.disabled = true;
+
+        var formData = new FormData();
+        formData.append('used_status', 'Returned');
+        formData.append('return_documents', file, file.name);
+
+        var request;
+        if (returnAssetContext.mode === 'bulk') {
+            (returnAssetContext.assetIds || []).forEach(function (id) {
+                formData.append('asset_ids[]', id);
+            });
+            request = fetch('/assets/bulk_update_status', { method: 'POST', body: formData });
+        } else {
+            request = fetch('/assets/update_status/' + encodeURIComponent(returnAssetContext.assetId), {
+                method: 'POST',
+                body: formData
+            });
+        }
+
+        request
+            .then(function (response) { return response.json().then(function (data) { return { ok: response.ok, data: data }; }); })
+            .then(function (res) {
+                if (confirmBtn) confirmBtn.disabled = false;
+                if (!res.ok || !res.data.success) {
+                    alert((res.data && res.data.error) || 'Failed to return asset.');
+                    return;
+                }
+                returnAssetCompleted = true;
+                if (returnAssetContext.mode === 'bulk') {
+                    var bulkModalEl = document.getElementById('bulkStatusModal');
+                    if (bulkModalEl) {
+                        var bulkModal = bootstrap.Modal.getInstance(bulkModalEl);
+                        if (bulkModal) bulkModal.hide();
+                    }
+                    clearAssetBulkSelectionState();
+                    var returnModalEl = document.getElementById('returnAssetModal');
+                    if (returnModalEl) bootstrap.Modal.getInstance(returnModalEl).hide();
+                    location.reload();
+                    return;
+                }
+                var assetId = returnAssetContext.assetId;
+                document.querySelectorAll('.status-select[data-asset-id="' + assetId + '"]').forEach(function (sel) {
+                    sel.value = 'Returned';
+                });
+                document.querySelectorAll('.edit-asset-btn[data-asset-id="' + assetId + '"]').forEach(function (btn) {
+                    btn.setAttribute('data-asset-status', 'Returned');
+                });
+                setStatusSelectPrevious(assetId, 'Returned');
+                syncAssetStatusAppearance(assetId, 'Returned');
+                if (typeof res.data.document_count !== 'undefined') {
+                    refreshAssetDocsButton(assetId, res.data.document_count);
+                }
+                var returnModalEl = document.getElementById('returnAssetModal');
+                if (returnModalEl) bootstrap.Modal.getInstance(returnModalEl).hide();
+            })
+            .catch(function (error) {
+                if (confirmBtn) confirmBtn.disabled = false;
+                console.error('Error:', error);
+                alert('Failed to return asset.');
+            });
+    }
+
     // Status change (delegated so it survives live-search table refresh)
     document.addEventListener('change', function(e) {
         var select = e.target && e.target.closest ? e.target.closest('.status-select') : null;
         if (!select) return;
         const assetId = select.getAttribute('data-asset-id');
         const newStatus = select.value;
+        const previousStatus = select.getAttribute('data-previous-status') || '';
+
+        if (newStatus === 'Returned') {
+            select.value = previousStatus;
+            syncAssetStatusAppearance(assetId, previousStatus);
+            var row = select.closest('tr.asset-register-row, .asset-register-mobile-card');
+            var name = '';
+            var code = '';
+            if (row) {
+                var nameEl = row.querySelector('.app-table-col-name strong, .asset-register-mobile-card-name');
+                var codeEl = row.querySelector('.qr-code-text, .asset-register-mobile-card-code');
+                if (nameEl) name = nameEl.textContent.replace(/\s+/g, ' ').trim();
+                if (codeEl) code = codeEl.textContent.replace(/\s+/g, ' ').trim();
+            }
+            openReturnAssetModal({
+                mode: 'single',
+                assetId: assetId,
+                previousStatus: previousStatus,
+                assetName: name,
+                assetCode: code
+            });
+            return;
+        }
+
         syncAssetStatusAppearance(assetId, newStatus);
 
         const formData = new FormData();
@@ -6746,16 +7008,80 @@ function appDeleteConfirm(message, title) {
         .then(response => response.json())
         .then(data => {
             if (!data.success) {
-                alert('Failed to update status.');
-                location.reload();
+                alert((data && data.error) || 'Failed to update status.');
+                select.value = previousStatus;
+                syncAssetStatusAppearance(assetId, previousStatus);
+                return;
             }
+            setStatusSelectPrevious(assetId, newStatus);
         })
         .catch(error => {
             console.error('Error:', error);
             alert('Failed to update status.');
-            location.reload();
+            select.value = previousStatus;
+            syncAssetStatusAppearance(assetId, previousStatus);
         });
     });
+
+    (function bindReturnAssetModal() {
+        var confirmBtn = document.getElementById('confirmReturnAssetBtn');
+        if (confirmBtn) {
+            confirmBtn.addEventListener('click', submitReturnAsset);
+        }
+        var modalEl = document.getElementById('returnAssetModal');
+        if (modalEl) {
+            modalEl.addEventListener('hidden.bs.modal', function () {
+                var fileEl = document.getElementById('returnAssetDocument');
+                if (fileEl) fileEl.value = '';
+                if (!returnAssetCompleted) revertReturnAssetStatus();
+                returnAssetContext = null;
+                returnAssetCompleted = false;
+            });
+        }
+    })();
+
+    function toggleAddReturnDocumentsWrap() {
+        var statusEl = document.getElementById('used_status');
+        var wrap = document.getElementById('addReturnDocumentsWrap');
+        var input = document.getElementById('addReturnDocuments');
+        if (!wrap) return;
+        var show = statusEl && statusEl.value === 'Returned';
+        wrap.classList.toggle('d-none', !show);
+        if (input) {
+            if (show) input.setAttribute('required', 'required');
+            else {
+                input.removeAttribute('required');
+                input.value = '';
+            }
+        }
+    }
+
+    function toggleEditReturnDocumentsWrap() {
+        var statusEl = document.getElementById('edit_used_status');
+        var wrap = document.getElementById('editReturnDocumentsWrap');
+        var input = document.getElementById('editReturnDocuments');
+        if (!wrap || !statusEl) return;
+        var original = statusEl.getAttribute('data-original-status') || '';
+        var show = statusEl.value === 'Returned' && original !== 'Returned';
+        wrap.classList.toggle('d-none', !show);
+        if (input) {
+            if (show) input.setAttribute('required', 'required');
+            else {
+                input.removeAttribute('required');
+                if (statusEl.value !== 'Returned') input.value = '';
+            }
+        }
+    }
+
+    var addStatusEl = document.getElementById('used_status');
+    if (addStatusEl) {
+        addStatusEl.addEventListener('change', toggleAddReturnDocumentsWrap);
+        toggleAddReturnDocumentsWrap();
+    }
+    var editStatusEl = document.getElementById('edit_used_status');
+    if (editStatusEl) {
+        editStatusEl.addEventListener('change', toggleEditReturnDocumentsWrap);
+    }
 
 // ============================================================================
 // BULK SELECTION & ACTIONS
@@ -6975,6 +7301,14 @@ function appDeleteConfirm(message, title) {
         
         if (!newStatus) {
             alert('Please select a status.');
+            return;
+        }
+
+        if (newStatus === 'Returned') {
+            openReturnAssetModal({
+                mode: 'bulk',
+                assetIds: selectedAssets.map(function (asset) { return asset.id; })
+            });
             return;
         }
         
@@ -7368,7 +7702,13 @@ function appDeleteConfirm(message, title) {
         resetEditAssetDocuments();
 
         document.getElementById('edit_price').value = assetPrice || '';
-        document.getElementById('edit_used_status').value = normalizeAssetStatus(assetStatus, 'Not Active');
+        var editStatusSelect = document.getElementById('edit_used_status');
+        var normalizedStatus = normalizeAssetStatus(assetStatus, 'Not Active');
+        editStatusSelect.value = normalizedStatus;
+        editStatusSelect.setAttribute('data-original-status', normalizedStatus);
+        toggleEditReturnDocumentsWrap();
+        var editReturnInput = document.getElementById('editReturnDocuments');
+        if (editReturnInput) editReturnInput.value = '';
         var editDateInput = document.getElementById('edit_asset_date');
         if (editDateInput) editDateInput.value = assetDate || todayIsoDate();
 

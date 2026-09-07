@@ -1236,6 +1236,23 @@
     grid-template-columns: auto 1fr auto;
 }
 
+.asset-doc-section-title {
+    font-size: 0.75rem;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: #667085;
+    margin: 1rem 0 0.5rem;
+}
+
+.asset-doc-section-title:first-child {
+    margin-top: 0;
+}
+
+body.dark-mode .asset-doc-section-title {
+    color: #c4c0b5;
+}
+
 .asset-documents-modal-asset {
     padding-bottom: 0.75rem;
     border-bottom: 1px solid rgba(0, 0, 0, 0.08);

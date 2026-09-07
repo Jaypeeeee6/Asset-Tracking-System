@@ -935,6 +935,12 @@
                     <option value="Returned">Returned</option>
                 </select>
             </div>
+            <div class="mb-3 d-none" id="editReturnDocumentsWrap">
+                {{ form_label('Asset return declaration', 'editReturnDocuments', true) }}
+                <input type="file" class="form-control" id="editReturnDocuments" name="return_documents"
+                       accept=".pdf,.doc,.docx,.xls,.xlsx,.csv,.txt,.png,.jpg,.jpeg,.gif,.webp,.zip,application/pdf,image/*">
+                <div class="form-text"><i class="bi bi-info-circle" aria-hidden="true"></i> Required when changing status to Returned. PDF, Office, or image; max 10 MB.</div>
+            </div>
             <div class="mb-3">
                 {{ form_label('Date', 'edit_asset_date', true) }}
                 <input type="date" class="form-control" id="edit_asset_date" name="asset_date" readonly>
@@ -1100,7 +1106,7 @@
     <div class="modal-content">
       <div class="modal-header">
         <h5 class="modal-title" id="assetDocumentsModalLabel">
-          <i class="bi bi-paperclip me-2" style="color:var(--gold);" aria-hidden="true"></i>Supporting Documents
+          <i class="bi bi-paperclip me-2" style="color:var(--gold);" aria-hidden="true"></i>Documents
         </h5>
         <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
       </div>
@@ -1112,6 +1118,35 @@
         <div id="assetDocumentsModalList" class="asset-doc-list asset-doc-list--modal"></div>
       </div>
       <div class="modal-footer">{{ modal_cancel_button('Close') }}</div>
+    </div>
+  </div>
+</div>
+
+<!-- Return Asset Declaration Modal -->
+<div class="modal fade app-modal" id="returnAssetModal" tabindex="-1" aria-labelledby="returnAssetModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered app-modal-dialog-comfort">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="returnAssetModalLabel">
+          <i class="bi bi-box-arrow-left me-2" style="color:var(--gold);" aria-hidden="true"></i>Return Asset
+        </h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body">
+        <p class="mb-3" id="returnAssetModalMessage">Upload the asset return declaration file to confirm this return.</p>
+        <div class="asset-documents-modal-asset mb-3">
+          <div class="fw-semibold" id="returnAssetModalAssetName"></div>
+          <div class="text-muted small" id="returnAssetModalAssetCode"></div>
+        </div>
+        {{ form_label('Asset return declaration', 'returnAssetDocument', true) }}
+        <input type="file" class="form-control" id="returnAssetDocument" name="return_documents" required
+               accept=".pdf,.doc,.docx,.xls,.xlsx,.csv,.txt,.png,.jpg,.jpeg,.gif,.webp,.zip,application/pdf,image/*">
+        <div class="form-text"><i class="bi bi-info-circle" aria-hidden="true"></i> Required. PDF, Office, or image; max 10 MB.</div>
+      </div>
+      <div class="modal-footer">
+        {{ modal_cancel_button('Cancel') }}
+        {{ add_button('Confirm Return', button_id='confirmReturnAssetBtn', icon='bi bi-check-lg', extra_classes='btn-app-add--success') }}
+      </div>
     </div>
   </div>
 </div>

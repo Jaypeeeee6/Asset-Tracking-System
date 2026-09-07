@@ -162,6 +162,12 @@
             <option value="Returned">Returned</option>
         </select>
     </div>
+    <div class="col-12 d-none" id="addReturnDocumentsWrap">
+        {{ form_label('Asset return declaration', 'addReturnDocuments', true) }}
+        <input type="file" class="form-control" id="addReturnDocuments" name="return_documents"
+               accept=".pdf,.doc,.docx,.xls,.xlsx,.csv,.txt,.png,.jpg,.jpeg,.gif,.webp,.zip,application/pdf,image/*">
+        <div class="form-text"><i class="bi bi-info-circle" aria-hidden="true"></i> Required when status is Returned. PDF, Office, or image; max 10 MB.</div>
+    </div>
     <div class="col-md-6">
         {{ form_label('Date', 'asset_date', true) }}
         <input type="date" class="form-control" id="asset_date" name="asset_date" required readonly>
