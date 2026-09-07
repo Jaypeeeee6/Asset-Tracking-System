@@ -733,9 +733,10 @@
             <div class="filter-group">
                 <select id="statusFilter" name="status" class="app-select-with-chevron" aria-label="Status">
                     <option value="">All Status</option>
-                    <option value="Used" {% if request.args.get('status') == 'Used' %}selected{% endif %}>Used</option>
-                    <option value="Not Used" {% if request.args.get('status') == 'Not Used' %}selected{% endif %}>Not Used</option>
+                    <option value="Active" {% if request.args.get('status') == 'Active' %}selected{% endif %}>Active</option>
+                    <option value="Not Active" {% if request.args.get('status') == 'Not Active' %}selected{% endif %}>Not Active</option>
                     <option value="Out of Service" {% if request.args.get('status') == 'Out of Service' %}selected{% endif %}>Out of Service</option>
+                    <option value="Returned" {% if request.args.get('status') == 'Returned' %}selected{% endif %}>Returned</option>
                 </select>
             </div>
             <div class="filter-group">
@@ -928,9 +929,10 @@
             <div class="mb-3">
                 {{ form_label('Status', 'edit_used_status', true) }}
                 <select class="form-select" id="edit_used_status" name="used_status" required>
-                    <option value="Used">Used</option>
-                    <option value="Not Used">Not Used</option>
+                    <option value="Active">Active</option>
+                    <option value="Not Active">Not Active</option>
                     <option value="Out of Service">Out of Service</option>
+                    <option value="Returned">Returned</option>
                 </select>
             </div>
             <div class="mb-3">
@@ -1316,9 +1318,10 @@
           <label for="bulkStatusSelect" class="form-label">New Status:</label>
           <select class="form-select" id="bulkStatusSelect" required>
             <option value="">Select Status</option>
-            <option value="Used">Used</option>
-            <option value="Not Used">Not Used</option>
+            <option value="Active">Active</option>
+            <option value="Not Active">Not Active</option>
             <option value="Out of Service">Out of Service</option>
+            <option value="Returned">Returned</option>
           </select>
         </div>
       </div>

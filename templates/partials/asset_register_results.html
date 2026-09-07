@@ -38,7 +38,7 @@
         </thead>
         <tbody>
         {% for asset in assets %}
-            <tr class="asset-register-row">
+            <tr class="asset-register-row{% if asset.used_status == 'Out of Service' %} is-out-of-service{% endif %}">
                 <td class="app-table-col-select"><input type="checkbox" class="asset-checkbox" data-asset-id="{{ asset.id }}" data-asset-name="{{ asset.name }}" data-asset-code="{{ asset.asset_code or '' }}"></td>
                 <td class="app-table-col-num">{{ loop.index + (page-1)*per_page }}</td>
                 <td class="app-table-col-qr">
@@ -91,9 +91,10 @@
                 </td>
                 <td class="app-table-col-status">
                     <select class="form-select form-select-sm status-select" data-asset-id="{{ asset.id }}">
-                        <option value="Used" {% if asset.used_status == 'Used' %}selected{% endif %}>Used</option>
-                        <option value="Not Used" {% if asset.used_status == 'Not Used' %}selected{% endif %}>Not Used</option>
+                        <option value="Active" {% if asset.used_status == 'Active' %}selected{% endif %}>Active</option>
+                        <option value="Not Active" {% if asset.used_status == 'Not Active' %}selected{% endif %}>Not Active</option>
                         <option value="Out of Service" {% if asset.used_status == 'Out of Service' %}selected{% endif %}>Out of Service</option>
+                        <option value="Returned" {% if asset.used_status == 'Returned' %}selected{% endif %}>Returned</option>
                     </select>
                 </td>
                 <td class="app-table-col-date">

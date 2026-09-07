@@ -106,6 +106,9 @@
         rows.forEach(function (row) {
             var card = document.createElement('article');
             card.className = 'asset-register-mobile-card asset-register-row';
+            if (row.classList.contains('is-out-of-service')) {
+                card.classList.add('is-out-of-service');
+            }
 
             var checkbox = row.querySelector('.asset-checkbox');
             if (checkbox) {

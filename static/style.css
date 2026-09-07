@@ -615,13 +615,15 @@ h1, .modal-title {
     font-weight: 500;
 }
 
-.status-used {
+.status-used,
+.status-active {
     background: rgba(40, 167, 69, 0.2);
     color: #28a745;
     border: 1px solid #28a745;
 }
 
-.status-not-used {
+.status-not-used,
+.status-not-active {
     background: rgba(255, 193, 7, 0.2);
     color: #ffc107;
     border: 1px solid #ffc107;
@@ -631,6 +633,12 @@ h1, .modal-title {
     background: rgba(220, 53, 69, 0.2);
     color: #dc3545;
     border: 1px solid #dc3545;
+}
+
+.status-returned {
+    background: rgba(13, 202, 240, 0.2);
+    color: #0dcaf0;
+    border: 1px solid #0dcaf0;
 }
 
 .no-items {

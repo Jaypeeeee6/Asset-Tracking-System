@@ -53,12 +53,14 @@
                             </div>
                         </td>
                         <td>
-                            {% if asset.used_status == 'Used' %}
-                                <span class="badge bg-success">Used</span>
-                            {% elif asset.used_status == 'Not Used' %}
-                                <span class="badge bg-warning text-dark">Not Used</span>
+                            {% if asset.used_status == 'Active' %}
+                                <span class="badge bg-success">Active</span>
+                            {% elif asset.used_status == 'Not Active' %}
+                                <span class="badge bg-warning text-dark">Not Active</span>
                             {% elif asset.used_status == 'Out of Service' %}
                                 <span class="badge bg-danger">Out of Service</span>
+                            {% elif asset.used_status == 'Returned' %}
+                                <span class="badge bg-info text-dark">Returned</span>
                             {% else %}
                                 <span class="badge bg-secondary">{{ asset.used_status }}</span>
                             {% endif %}

@@ -4783,6 +4783,12 @@ function appDeleteConfirm(message, title) {
         return true;
     }
 
+    function normalizeAssetStatus(status, fallback) {
+        if (status === 'Used') return 'Active';
+        if (status === 'Not Used') return 'Not Active';
+        return status || fallback || 'Active';
+    }
+
     function resetAddAssetFormToDefaults() {
         const noOwnerCheck = document.getElementById('noOwnerCheck');
         if (noOwnerCheck) {
@@ -4822,7 +4828,7 @@ function appDeleteConfirm(message, title) {
         var priceEl = document.getElementById('price');
         if (priceEl) priceEl.value = '';
         var statusEl = document.getElementById('used_status');
-        if (statusEl) statusEl.value = 'Used';
+        if (statusEl) statusEl.value = 'Active';
         var nameInput = document.getElementById('asset_name');
         if (nameInput) nameInput.value = '';
 
@@ -4862,7 +4868,7 @@ function appDeleteConfirm(message, title) {
             department: deptEl ? deptEl.value : '',
             no_owner: !!(noOwnerEl && noOwnerEl.checked),
             owner: ownerEl ? ownerEl.value : '',
-            used_status: statusEl ? statusEl.value : 'Used',
+            used_status: statusEl ? statusEl.value : 'Active',
             asset_date: dateEl ? dateEl.value : todayIsoDate(),
             pendingDocs: (addAssetPendingDocs || []).slice()
         };
@@ -4889,7 +4895,7 @@ function appDeleteConfirm(message, title) {
                 department: draft.department || '',
                 no_owner: !!draft.no_owner,
                 owner: draft.owner || '',
-                used_status: draft.used_status || 'Used',
+                used_status: normalizeAssetStatus(draft.used_status, 'Active'),
                 asset_date: draft.asset_date || todayIsoDate()
             };
         }
@@ -5023,7 +5029,7 @@ function appDeleteConfirm(message, title) {
                 var priceEl = document.getElementById('price');
                 if (priceEl) priceEl.value = draft.price != null ? draft.price : '';
                 var statusEl = document.getElementById('used_status');
-                if (statusEl) statusEl.value = draft.used_status || 'Used';
+                if (statusEl) statusEl.value = normalizeAssetStatus(draft.used_status, 'Active');
                 var dateEl = document.getElementById('asset_date');
                 if (dateEl) dateEl.value = draft.asset_date || todayIsoDate();
 
@@ -5114,7 +5120,7 @@ function appDeleteConfirm(message, title) {
             department: draft.department || '',
             no_owner: draft.no_owner ? 'on' : '',
             owner: draft.owner || '',
-            used_status: draft.used_status || 'Used',
+            used_status: normalizeAssetStatus(draft.used_status, 'Active'),
             asset_date: draft.asset_date || todayIsoDate()
         };
         if (payload.asset_kind === 'shared' && payload.asset_venue === 'restaurant') {
@@ -6713,12 +6719,22 @@ function appDeleteConfirm(message, title) {
 // EVENT LISTENERS - STATUS UPDATES
 // ============================================================================
 
+    function syncAssetStatusAppearance(assetId, status) {
+        var isOutOfService = status === 'Out of Service';
+        document.querySelectorAll('.status-select[data-asset-id="' + assetId + '"]').forEach(function (sel) {
+            if (sel.value !== status) sel.value = status;
+            var host = sel.closest('tr.asset-register-row, .asset-register-mobile-card');
+            if (host) host.classList.toggle('is-out-of-service', isOutOfService);
+        });
+    }
+
     // Status change (delegated so it survives live-search table refresh)
     document.addEventListener('change', function(e) {
         var select = e.target && e.target.closest ? e.target.closest('.status-select') : null;
         if (!select) return;
         const assetId = select.getAttribute('data-asset-id');
         const newStatus = select.value;
+        syncAssetStatusAppearance(assetId, newStatus);
 
         const formData = new FormData();
         formData.append('used_status', newStatus);
@@ -7352,7 +7368,7 @@ function appDeleteConfirm(message, title) {
         resetEditAssetDocuments();
 
         document.getElementById('edit_price').value = assetPrice || '';
-        document.getElementById('edit_used_status').value = assetStatus || 'Not Used';
+        document.getElementById('edit_used_status').value = normalizeAssetStatus(assetStatus, 'Not Active');
         var editDateInput = document.getElementById('edit_asset_date');
         if (editDateInput) editDateInput.value = assetDate || todayIsoDate();
 

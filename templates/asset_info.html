@@ -38,8 +38,8 @@
                 <li class="list-group-item"><b>Asset Type:</b> {% if asset.asset_kind == 'shared' %}Shared Asset{% else %}Branch Asset{% endif %}</li>
                 <li class="list-group-item">
                     <b>Status:</b>
-                    <span class="badge {% if asset.used_status == 'Used' %}bg-success{% elif asset.used_status == 'Not Used' %}bg-warning{% elif asset.used_status == 'Out of Service' %}bg-danger{% else %}bg-secondary{% endif %}" style="margin-left: 10px;">
-                        {{ asset.used_status or 'Not Used' }}
+                    <span class="badge {% if asset.used_status == 'Active' %}bg-success{% elif asset.used_status == 'Not Active' %}bg-warning{% elif asset.used_status == 'Out of Service' %}bg-danger{% elif asset.used_status == 'Returned' %}bg-info{% else %}bg-secondary{% endif %}" style="margin-left: 10px;">
+                        {{ asset.used_status or 'Not Active' }}
                     </span>
                 </li>
 

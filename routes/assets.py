@@ -29,6 +29,8 @@ from models.database import (
     ASSET_KIND_SHARED,
     ASSET_KIND_BRANCH,
     ASSET_KINDS,
+    ASSET_STATUSES,
+    ASSET_STATUS_DEFAULT,
     asset_type_for_venue_matches,
     format_branch_with_code,
     format_asset_location_display,
@@ -713,7 +715,7 @@ def _get_asset_subscriptions(cur, asset_id):
 
 def _compute_chart_data_from_asset_rows(rows):
     """Aggregate branch/department/value stats from asset rows (tuple or dict)."""
-    status_counts = {'Used': 0, 'Not Used': 0, 'Out of Service': 0}
+    status_counts = {status: 0 for status in ASSET_STATUSES}
     branch_counts = {}
     branch_prices = {}
     department_counts = {}
@@ -1018,7 +1020,7 @@ def matching_archived_ids():
 
 
 _SETTINGS_CHART_DATA = {
-    'status_counts': {'Used': 0, 'Not Used': 0, 'Out of Service': 0},
+    'status_counts': {status: 0 for status in ASSET_STATUSES},
     'branch_counts': {},
     'branch_prices': {},
     'department_counts': {},
@@ -1167,7 +1169,9 @@ def _create_assets_from_payload(cur, form_data, uploaded_files=None, force_inser
         price = float(price_raw) if price_raw else 0.0
     except ValueError:
         return [], 'Invalid price.'
-    used_status = _form_get(form_data, 'used_status', 'Not Used') or 'Not Used'
+    used_status = _form_get(form_data, 'used_status', ASSET_STATUS_DEFAULT) or ASSET_STATUS_DEFAULT
+    if used_status not in ASSET_STATUSES:
+        used_status = ASSET_STATUS_DEFAULT
     no_owner_raw = _form_get(form_data, 'no_owner', '')
     no_owner = no_owner_raw in ('on', 'true', '1', True, 1)
     asset_date = _parse_asset_date(_form_get(form_data, 'asset_date'))
@@ -1509,7 +1513,9 @@ def update_asset(asset_id):
         price = float(price_raw) if price_raw else 0.0
     except ValueError:
         return jsonify({'error': 'Invalid price.'}), 400
-    used_status = request.form.get('used_status', 'Not Used')
+    used_status = request.form.get('used_status', ASSET_STATUS_DEFAULT)
+    if used_status not in ASSET_STATUSES:
+        used_status = ASSET_STATUS_DEFAULT
     no_owner = request.form.get('no_owner') == 'on'
 
     if no_owner:
@@ -2327,8 +2333,7 @@ def delete_asset(asset_id):
 @login_required
 def update_status(asset_id):
     used_status = request.form.get('used_status')
-    valid_statuses = ['Used', 'Not Used', 'Out of Service']
-    if used_status not in valid_statuses:
+    if used_status not in ASSET_STATUSES:
         return jsonify({'error': 'Invalid status'}), 400
     
     conn = get_db_connection()
@@ -2344,9 +2349,8 @@ def update_status(asset_id):
 def bulk_update_status():
     asset_ids = request.form.getlist('asset_ids[]')
     used_status = request.form.get('used_status')
-    valid_statuses = ['Used', 'Not Used', 'Out of Service']
     
-    if not asset_ids or used_status not in valid_statuses:
+    if not asset_ids or used_status not in ASSET_STATUSES:
         return jsonify({'error': 'Invalid data'}), 400
     
     conn = get_db_connection()
@@ -2556,7 +2560,7 @@ def qrdata(asset_id):
             'owner': asset['owner'],
             'branch': asset['branch'],
             'department': asset['department'],
-            'used_status': asset.get('used_status', 'Not Used')
+            'used_status': asset.get('used_status', ASSET_STATUS_DEFAULT)
         })
     return jsonify({'error': 'Not found'}), 404
 
@@ -2576,7 +2580,7 @@ def archived_qrdata(archived_id):
             'owner': asset['owner'],
             'branch': asset['branch'],
             'department': asset['department'],
-            'used_status': asset.get('used_status', 'Not Used')
+            'used_status': asset.get('used_status', ASSET_STATUS_DEFAULT)
         })
     return jsonify({'error': 'Not found'}), 404
 

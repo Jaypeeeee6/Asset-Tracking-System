@@ -57,6 +57,19 @@ ASSET_KIND_SHARED = 'shared'
 ASSET_KIND_BRANCH = 'branch'
 ASSET_KINDS = (ASSET_KIND_SHARED, ASSET_KIND_BRANCH)
 
+# Asset lifecycle status (stored in assets.used_status / archived_assets.used_status).
+ASSET_STATUS_ACTIVE = 'Active'
+ASSET_STATUS_NOT_ACTIVE = 'Not Active'
+ASSET_STATUS_OUT_OF_SERVICE = 'Out of Service'
+ASSET_STATUS_RETURNED = 'Returned'
+ASSET_STATUSES = (
+    ASSET_STATUS_ACTIVE,
+    ASSET_STATUS_NOT_ACTIVE,
+    ASSET_STATUS_OUT_OF_SERVICE,
+    ASSET_STATUS_RETURNED,
+)
+ASSET_STATUS_DEFAULT = ASSET_STATUS_NOT_ACTIVE
+
 
 def _department_name_tokens(text):
     parts = [p for p in re.split(r'[^A-Za-z0-9]+', text or '') if p]
@@ -1279,6 +1292,32 @@ def _migrate_asset_kind_column(cur):
             cur.execute(f'ALTER TABLE {table} ADD COLUMN shared_group_id TEXT')
 
 
+def _migrate_asset_used_status_labels(cur):
+    """Rename Used/Not Used to Active/Not Active on existing rows."""
+    if _migration_applied(cur, 'rename_used_status_to_active_v1'):
+        return
+    for table in ('assets', 'archived_assets'):
+        cur.execute(
+            "SELECT name FROM sqlite_master WHERE type='table' AND name=?",
+            (table,),
+        )
+        if not cur.fetchone():
+            continue
+        cur.execute(f'PRAGMA table_info({table})')
+        columns = [row[1] for row in cur.fetchall()]
+        if 'used_status' not in columns:
+            continue
+        cur.execute(
+            f'UPDATE {table} SET used_status = ? WHERE used_status = ?',
+            (ASSET_STATUS_ACTIVE, 'Used'),
+        )
+        cur.execute(
+            f'UPDATE {table} SET used_status = ? WHERE used_status = ?',
+            (ASSET_STATUS_NOT_ACTIVE, 'Not Used'),
+        )
+    _mark_migration_applied(cur, 'rename_used_status_to_active_v1')
+
+
 def _migrate_drop_quantity_columns(cur):
     """Remove obsolete quantity columns from assets and archived_assets."""
     for table in ('assets', 'archived_assets'):
@@ -1306,7 +1345,7 @@ def _migrate_drop_quantity_columns(cur):
                     department TEXT NOT NULL,
                     asset_code TEXT,
                     qr_random_code TEXT,
-                    used_status TEXT DEFAULT 'Not Used',
+                    used_status TEXT DEFAULT 'Not Active',
                     asset_type TEXT{kind_col_def}
                 );
                 INSERT INTO assets_rebuild (
@@ -1344,7 +1383,7 @@ def _migrate_drop_quantity_columns(cur):
                     department TEXT NOT NULL,
                     asset_code TEXT,
                     qr_random_code TEXT,
-                    used_status TEXT DEFAULT 'Not Used',
+                    used_status TEXT DEFAULT 'Not Active',
                     asset_type TEXT{kind_col_def},
                     archived_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                     archived_by TEXT,
@@ -1475,7 +1514,7 @@ def init_db():
             department TEXT NOT NULL,
             asset_code TEXT,
             qr_random_code TEXT,
-            used_status TEXT DEFAULT 'Not Used',
+            used_status TEXT DEFAULT 'Not Active',
             asset_type TEXT
         )
     ''')
@@ -1484,7 +1523,7 @@ def init_db():
     if 'qr_random_code' not in columns:
         cur.execute('ALTER TABLE assets ADD COLUMN qr_random_code TEXT')
     if 'used_status' not in columns:
-        cur.execute('ALTER TABLE assets ADD COLUMN used_status TEXT DEFAULT "Not Used"')
+        cur.execute('ALTER TABLE assets ADD COLUMN used_status TEXT DEFAULT "Not Active"')
     if 'asset_type' not in columns:
         cur.execute('ALTER TABLE assets ADD COLUMN asset_type TEXT')
     if 'price' not in columns:
@@ -1540,7 +1579,7 @@ def init_db():
             department TEXT NOT NULL,
             asset_code TEXT,
             qr_random_code TEXT,
-            used_status TEXT DEFAULT 'Not Used',
+            used_status TEXT DEFAULT 'Not Active',
             asset_type TEXT,
             asset_kind TEXT DEFAULT 'branch',
             shared_group_id TEXT,
@@ -1555,6 +1594,7 @@ def init_db():
         cur.execute('ALTER TABLE archived_assets ADD COLUMN asset_date TEXT')
     _migrate_drop_quantity_columns(cur)
     _migrate_asset_kind_column(cur)
+    _migrate_asset_used_status_labels(cur)
 
     # Ownership / branch hand-over audit trail (keeps asset active; logs each transfer)
     cur.execute(
