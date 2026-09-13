@@ -42,9 +42,20 @@
         var requestId = 0;
         var basePath = form.getAttribute('action') || window.location.pathname;
 
+        function stripBranchPageParams(params) {
+            var keys = [];
+            params.forEach(function (_value, key) {
+                if (key.indexOf('bp_') === 0) keys.push(key);
+            });
+            keys.forEach(function (key) { params.delete(key); });
+        }
+
         function buildUrlFromForm(resetPage) {
             var params = new URLSearchParams(new FormData(form));
-            if (resetPage) params.set('page', '1');
+            if (resetPage) {
+                params.set('page', '1');
+                stripBranchPageParams(params);
+            }
             var perPageEl = document.getElementById('itemsPerPage');
             if (perPageEl && perPageEl.value && !params.has('per_page')) {
                 params.set('per_page', perPageEl.value);
@@ -159,6 +170,7 @@
                 var url = buildUrlFromForm(true);
                 url.searchParams.set('per_page', e.target.value);
                 url.searchParams.set('page', '1');
+                stripBranchPageParams(url.searchParams);
                 fetchResults(url, { syncForm: false });
             }
         });

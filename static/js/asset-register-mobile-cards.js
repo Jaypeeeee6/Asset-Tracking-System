@@ -84,145 +84,167 @@
         body.appendChild(rowEl);
     }
 
+    function buildCardFromRow(row) {
+        var card = document.createElement('article');
+        card.className = 'asset-register-mobile-card asset-register-row';
+        if (row.classList.contains('is-out-of-service')) {
+            card.classList.add('is-out-of-service');
+        }
+
+        var checkbox = row.querySelector('.asset-checkbox');
+        if (checkbox) {
+            var checkWrap = document.createElement('div');
+            checkWrap.className = 'asset-register-mobile-card-check';
+            checkWrap.appendChild(checkbox.cloneNode(true));
+            card.appendChild(checkWrap);
+        }
+
+        var header = document.createElement('div');
+        header.className = 'asset-register-mobile-card-header';
+
+        var codeEl = document.createElement('span');
+        codeEl.className = 'asset-register-mobile-card-code';
+        codeEl.textContent = assetCodeFromRow(row);
+
+        var nameEl = document.createElement('span');
+        nameEl.className = 'asset-register-mobile-card-name';
+        nameEl.textContent = assetNameFromRow(row);
+
+        header.appendChild(codeEl);
+        header.appendChild(nameEl);
+        card.appendChild(header);
+
+        var body = document.createElement('div');
+        body.className = 'asset-register-mobile-card-body';
+
+        var categoryNode = cloneCategoryValue(row);
+        addCardRow(body, 'Category', categoryNode || cellTextAt(row, 4));
+
+        var ownerCell = cellAt(row, 5);
+        if (ownerCell) {
+            var ownerClone = ownerCell.cloneNode(true);
+            ownerClone.querySelectorAll('br').forEach(function (br) {
+                br.replaceWith(document.createTextNode(' '));
+            });
+            addCardRow(body, 'Owner', ownerClone);
+        } else {
+            addCardRow(body, 'Owner', '—');
+        }
+
+        var locationNode = cloneLocationValue(row);
+        if (locationNode) {
+            var locationRow = document.createElement('div');
+            locationRow.className = 'asset-register-mobile-card-row';
+            var locationLabel = document.createElement('span');
+            locationLabel.className = 'asset-register-mobile-card-label';
+            locationLabel.textContent = 'Branch/Department';
+            var locationValue = document.createElement('div');
+            locationValue.className = 'asset-register-mobile-card-value asset-register-mobile-card-value--chips';
+            locationValue.appendChild(locationNode);
+            locationRow.appendChild(locationLabel);
+            locationRow.appendChild(locationValue);
+            body.appendChild(locationRow);
+        } else {
+            addCardRow(body, 'Branch/Department', cellTextAt(row, 6));
+        }
+
+        var statusCell = cellAt(row, 7);
+        if (statusCell) {
+            var statusSelect = statusCell.querySelector('.status-select');
+            var statusRow = document.createElement('div');
+            statusRow.className = 'asset-register-mobile-card-row';
+            var statusLabel = document.createElement('span');
+            statusLabel.className = 'asset-register-mobile-card-label';
+            statusLabel.textContent = 'Status';
+            var statusValue = document.createElement('div');
+            statusValue.className = 'asset-register-mobile-card-value asset-register-mobile-card-value--status';
+            if (statusSelect) {
+                statusValue.appendChild(statusSelect.cloneNode(true));
+            } else {
+                statusValue.textContent = cellTextAt(row, 7);
+            }
+            statusRow.appendChild(statusLabel);
+            statusRow.appendChild(statusValue);
+            body.appendChild(statusRow);
+        }
+
+        addCardRow(body, 'Date', cellTextAt(row, 8));
+
+        var qrCell = cellAt(row, 2);
+        var qrImg = qrCell && qrCell.querySelector('.asset-register-qr-img');
+        if (qrImg) {
+            var qrRow = document.createElement('div');
+            qrRow.className = 'asset-register-mobile-card-row asset-register-mobile-card-row--qr';
+            var qrLabel = document.createElement('span');
+            qrLabel.className = 'asset-register-mobile-card-label';
+            qrLabel.textContent = 'QR Code';
+            var qrValue = document.createElement('div');
+            qrValue.className = 'asset-register-mobile-card-value';
+            qrValue.appendChild(qrImg.cloneNode(true));
+            qrRow.appendChild(qrLabel);
+            qrRow.appendChild(qrValue);
+            body.appendChild(qrRow);
+        }
+
+        var actionsCell = cellAt(row, 9);
+        var actions = actionsCell && actionsCell.querySelector('.app-table-actions');
+        if (actions) {
+            var actionsWrap = document.createElement('div');
+            actionsWrap.className = 'asset-register-mobile-card-actions';
+            actionsWrap.appendChild(actions.cloneNode(true));
+            body.appendChild(actionsWrap);
+        }
+
+        card.appendChild(body);
+        return card;
+    }
+
+    function clearMobileSlots() {
+        document.querySelectorAll('.asset-register-mobile-slot').forEach(function (slot) {
+            slot.innerHTML = '';
+        });
+    }
+
     function buildMobileCards() {
-        var container = document.querySelector('.asset-register-mobile-cards');
+        var branchGroups = document.querySelectorAll('.asset-register-branch-group');
+        if (branchGroups.length) {
+            branchGroups.forEach(function (groupEl) {
+                var slot = groupEl.querySelector('.asset-register-mobile-slot');
+                if (!slot) return;
+                slot.innerHTML = '';
+                var rows = groupEl.querySelectorAll('tbody tr.asset-register-row');
+                rows.forEach(function (row) {
+                    slot.appendChild(buildCardFromRow(row));
+                });
+            });
+            return;
+        }
+
+        var legacyContainer = document.querySelector('.asset-register-mobile-cards');
         var table = document.querySelector('.asset-register-table');
-        if (!container || !table) return;
-
-        container.innerHTML = '';
+        if (!legacyContainer || !table) return;
+        legacyContainer.innerHTML = '';
         var rows = table.querySelectorAll('tbody tr.asset-register-row');
-
         if (!rows.length) {
             var emptyState = document.querySelector('.asset-register-card .empty-state');
             if (emptyState) {
                 var emptyEl = document.createElement('div');
                 emptyEl.className = 'asset-register-mobile-cards-empty';
                 emptyEl.textContent = emptyState.textContent.replace(/\s+/g, ' ').trim() || 'No assets found.';
-                container.appendChild(emptyEl);
+                legacyContainer.appendChild(emptyEl);
             }
             return;
         }
-
         rows.forEach(function (row) {
-            var card = document.createElement('article');
-            card.className = 'asset-register-mobile-card asset-register-row';
-            if (row.classList.contains('is-out-of-service')) {
-                card.classList.add('is-out-of-service');
-            }
-
-            var checkbox = row.querySelector('.asset-checkbox');
-            if (checkbox) {
-                var checkWrap = document.createElement('div');
-                checkWrap.className = 'asset-register-mobile-card-check';
-                checkWrap.appendChild(checkbox.cloneNode(true));
-                card.appendChild(checkWrap);
-            }
-
-            var header = document.createElement('div');
-            header.className = 'asset-register-mobile-card-header';
-
-            var codeEl = document.createElement('span');
-            codeEl.className = 'asset-register-mobile-card-code';
-            codeEl.textContent = assetCodeFromRow(row);
-
-            var nameEl = document.createElement('span');
-            nameEl.className = 'asset-register-mobile-card-name';
-            nameEl.textContent = assetNameFromRow(row);
-
-            header.appendChild(codeEl);
-            header.appendChild(nameEl);
-            card.appendChild(header);
-
-            var body = document.createElement('div');
-            body.className = 'asset-register-mobile-card-body';
-
-            var categoryNode = cloneCategoryValue(row);
-            addCardRow(body, 'Category', categoryNode || cellTextAt(row, 4));
-
-            var ownerCell = cellAt(row, 5);
-            if (ownerCell) {
-                var ownerClone = ownerCell.cloneNode(true);
-                ownerClone.querySelectorAll('br').forEach(function (br) {
-                    br.replaceWith(document.createTextNode(' '));
-                });
-                addCardRow(body, 'Owner', ownerClone);
-            } else {
-                addCardRow(body, 'Owner', '—');
-            }
-
-            var locationNode = cloneLocationValue(row);
-            if (locationNode) {
-                var locationRow = document.createElement('div');
-                locationRow.className = 'asset-register-mobile-card-row';
-                var locationLabel = document.createElement('span');
-                locationLabel.className = 'asset-register-mobile-card-label';
-                locationLabel.textContent = 'Branch/Department';
-                var locationValue = document.createElement('div');
-                locationValue.className = 'asset-register-mobile-card-value asset-register-mobile-card-value--chips';
-                locationValue.appendChild(locationNode);
-                locationRow.appendChild(locationLabel);
-                locationRow.appendChild(locationValue);
-                body.appendChild(locationRow);
-            } else {
-                addCardRow(body, 'Branch/Department', cellTextAt(row, 6));
-            }
-
-            var statusCell = cellAt(row, 7);
-            if (statusCell) {
-                var statusSelect = statusCell.querySelector('.status-select');
-                var statusRow = document.createElement('div');
-                statusRow.className = 'asset-register-mobile-card-row';
-                var statusLabel = document.createElement('span');
-                statusLabel.className = 'asset-register-mobile-card-label';
-                statusLabel.textContent = 'Status';
-                var statusValue = document.createElement('div');
-                statusValue.className = 'asset-register-mobile-card-value asset-register-mobile-card-value--status';
-                if (statusSelect) {
-                    statusValue.appendChild(statusSelect.cloneNode(true));
-                } else {
-                    statusValue.textContent = cellTextAt(row, 7);
-                }
-                statusRow.appendChild(statusLabel);
-                statusRow.appendChild(statusValue);
-                body.appendChild(statusRow);
-            }
-
-            addCardRow(body, 'Date', cellTextAt(row, 8));
-
-            var qrCell = cellAt(row, 2);
-            var qrImg = qrCell && qrCell.querySelector('.asset-register-qr-img');
-            if (qrImg) {
-                var qrRow = document.createElement('div');
-                qrRow.className = 'asset-register-mobile-card-row asset-register-mobile-card-row--qr';
-                var qrLabel = document.createElement('span');
-                qrLabel.className = 'asset-register-mobile-card-label';
-                qrLabel.textContent = 'QR Code';
-                var qrValue = document.createElement('div');
-                qrValue.className = 'asset-register-mobile-card-value';
-                qrValue.appendChild(qrImg.cloneNode(true));
-                qrRow.appendChild(qrLabel);
-                qrRow.appendChild(qrValue);
-                body.appendChild(qrRow);
-            }
-
-            var actionsCell = cellAt(row, 9);
-            var actions = actionsCell && actionsCell.querySelector('.app-table-actions');
-            if (actions) {
-                var actionsWrap = document.createElement('div');
-                actionsWrap.className = 'asset-register-mobile-card-actions';
-                actionsWrap.appendChild(actions.cloneNode(true));
-                body.appendChild(actionsWrap);
-            }
-
-            card.appendChild(body);
-            container.appendChild(card);
+            legacyContainer.appendChild(buildCardFromRow(row));
         });
     }
 
     function syncAssetRegisterMobileCards() {
         if (!MQ.matches) {
-            var container = document.querySelector('.asset-register-mobile-cards');
-            if (container) container.innerHTML = '';
+            clearMobileSlots();
+            var legacyContainer = document.querySelector('.asset-register-mobile-cards');
+            if (legacyContainer) legacyContainer.innerHTML = '';
             return;
         }
         buildMobileCards();

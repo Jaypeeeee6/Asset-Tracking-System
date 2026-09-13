@@ -12,6 +12,7 @@ from flask import (
 )
 from flask_login import login_required, current_user
 import base64
+import hashlib
 from models.database import (
     get_db_connection,
     generate_asset_code,
@@ -335,6 +336,10 @@ def _attach_asset_location_displays(cur, assets):
         branch = asset.get('branch') or ''
         department = asset.get('department') or ''
         kind = asset.get('asset_kind') or ASSET_KIND_BRANCH
+        if branch == OFFICE_BRANCH_LABEL:
+            asset['branch_display'] = OFFICE_BRANCH_LABEL
+        else:
+            asset['branch_display'] = format_branch_with_code(branch, codes.get(branch))
         if kind == ASSET_KIND_SHARED and branch != OFFICE_BRANCH_LABEL:
             gid = (asset.get('shared_group_id') or '').strip()
             if gid and gid in branches_by_group:
@@ -352,6 +357,88 @@ def _attach_asset_location_displays(cur, assets):
             asset['location_lines'] = [
                 format_asset_location_display(branch, department, codes.get(branch))
             ]
+
+
+def _branch_page_param(branch_name):
+    """Stable query-param key for a branch container's page number."""
+    digest = hashlib.sha1((branch_name or '').encode('utf-8')).hexdigest()[:12]
+    return f'bp_{digest}'
+
+
+def _parse_positive_int(raw, default=1):
+    try:
+        value = int(raw)
+    except (TypeError, ValueError):
+        return default
+    return value if value > 0 else default
+
+
+def _list_matching_dashboard_branches(cur, where_sql, params):
+    """Distinct branch names with at least one row matching filters."""
+    cur.execute(
+        f'''
+        SELECT DISTINCT branch
+        FROM assets
+        {where_sql}
+        ORDER BY
+            CASE WHEN branch = ? THEN 0 ELSE 1 END,
+            branch COLLATE NOCASE
+        ''',
+        list(params) + [OFFICE_BRANCH_LABEL],
+    )
+    return [(row[0] if row[0] is not None else '') for row in cur.fetchall()]
+
+
+def _with_branch_equality(where_sql, params, branch_name):
+    """Scope a dashboard WHERE clause to one concrete branch row."""
+    if where_sql:
+        return where_sql + ' AND branch = ?', list(params) + [branch_name]
+    return 'WHERE branch = ?', [branch_name]
+
+
+def _build_paginated_branch_groups(
+    cur, base_where_sql, base_params, branch_names, sort_by, sort_dir, per_page, args
+):
+    """Load each branch container with its own page of rows."""
+    codes = _branch_code_map(cur)
+    groups = []
+    all_assets = []
+
+    for branch_name in branch_names:
+        branch_where, branch_params = _with_branch_equality(
+            base_where_sql, base_params, branch_name
+        )
+        total = _count_dashboard_assets(cur, branch_where, branch_params)
+        if total <= 0:
+            continue
+
+        page_param = _branch_page_param(branch_name)
+        total_pages = max(1, (total + per_page - 1) // per_page)
+        page = min(_parse_positive_int(args.get(page_param), 1), total_pages)
+        offset = (page - 1) * per_page
+        assets = _fetch_dashboard_assets(
+            cur, branch_where, branch_params, sort_by, sort_dir, per_page, offset
+        )
+        if branch_name == OFFICE_BRANCH_LABEL:
+            label = OFFICE_BRANCH_LABEL
+        else:
+            label = format_branch_with_code(branch_name, codes.get(branch_name)) or (
+                branch_name or 'Unassigned'
+            )
+
+        groups.append({
+            'key': branch_name or 'Unassigned',
+            'label': label,
+            'assets': assets,
+            'page': page,
+            'total_pages': total_pages,
+            'total_assets': total,
+            'page_param': page_param,
+            'is_shared_group': False,
+        })
+        all_assets.extend(assets)
+
+    return groups, all_assets
 
 
 def _parse_brand_ids(raw_values):
@@ -831,7 +918,6 @@ def _attach_owner_contacts(cur, assets):
 @assets_bp.route('/dashboard')
 @login_required
 def dashboard():
-    page = int(request.args.get('page', 1))
     sort_by = request.args.get('sort_by', 'id')
     sort_dir = request.args.get('sort_dir', 'desc')
     branch_filter = request.args.get('branch') or request.args.get('building', '')
@@ -839,16 +925,17 @@ def dashboard():
     search_query = request.args.get('search', '')
     status_filter = request.args.get('status', '')
     asset_type_filter = request.args.get('asset_type', '')
-    per_page = int(request.args.get('per_page', 10))
-    
-    offset = (page - 1) * per_page
+    per_page = _parse_positive_int(request.args.get('per_page'), 10)
+    if per_page not in (10, 25, 50, 100):
+        per_page = 10
+
     conn = get_db_connection()
     cur = conn.cursor()
-    
+
     # Load branches from database
     cur.execute('SELECT name FROM branches ORDER BY name')
     branches = [row[0] for row in cur.fetchall()]
-    
+
     # Office departments from Settings (not restaurant areas on assets)
     cur.execute(
         'SELECT name FROM departments WHERE branch_id IS NULL ORDER BY name'
@@ -857,13 +944,12 @@ def dashboard():
         row[0] for row in cur.fetchall()
         if (row[0] or '').strip() and row[0].strip() != RESTAURANT_DEFAULT_DEPARTMENT_NAME
     ]
-    
-    # Build WHERE clause
+
+    # Base filters (no branch). Shared assets appear under each assigned branch via
+    # per-branch equality queries below.
     where_clauses = []
     params = []
-    
-    if branch_filter:
-        _append_dashboard_branch_filter(where_clauses, params, branch_filter)
+
     if department_filter:
         _append_dashboard_department_filter(where_clauses, params, department_filter)
     if status_filter:
@@ -884,19 +970,36 @@ def dashboard():
         where_clauses.append(f"({' OR '.join(search_clauses)})")
         search_param = f'%{search_query}%'
         params.extend([search_param] * 6)
-    
-    where_sql = ('WHERE ' + ' AND '.join(where_clauses)) if where_clauses else ''
+
+    base_where_sql = ('WHERE ' + ' AND '.join(where_clauses)) if where_clauses else ''
     valid_sort_fields = ['id', 'name', 'price', 'owner', 'branch', 'department', 'used_status', 'asset_type', 'asset_date']
     if sort_by not in valid_sort_fields:
         sort_by = 'id'
     sort_dir = 'desc' if sort_dir == 'desc' else 'asc'
-    
-    # Get total count (one row per shared group, not per branch)
-    total_assets = _count_dashboard_assets(cur, where_sql, params)
-    total_pages = (total_assets + per_page - 1) // per_page
-    
-    # Get paginated results (representative row per shared group)
-    assets = _fetch_dashboard_assets(cur, where_sql, params, sort_by, sort_dir, per_page, offset)
+
+    # Unique asset count for select-all (shared group = one), using branch expand filter
+    count_clauses = list(where_clauses)
+    count_params = list(params)
+    if branch_filter:
+        _append_dashboard_branch_filter(count_clauses, count_params, branch_filter)
+    count_where_sql = ('WHERE ' + ' AND '.join(count_clauses)) if count_clauses else ''
+    total_assets = _count_dashboard_assets(cur, count_where_sql, count_params)
+
+    if branch_filter:
+        branch_names = [branch_filter]
+    else:
+        branch_names = _list_matching_dashboard_branches(cur, base_where_sql, params)
+
+    assets_by_branch, assets = _build_paginated_branch_groups(
+        cur,
+        base_where_sql,
+        params,
+        branch_names,
+        sort_by,
+        sort_dir,
+        per_page,
+        request.args,
+    )
 
     _attach_owner_contacts(cur, assets)
 
@@ -907,11 +1010,10 @@ def dashboard():
         asset['supporting_documents'] = docs_by_asset.get(asset['id'], [])
 
     _attach_asset_location_displays(cur, assets)
-    
+
     partial_ctx = dict(
         assets=assets,
-        page=page,
-        total_pages=total_pages,
+        assets_by_branch=assets_by_branch,
         total_assets=total_assets,
         per_page=per_page,
         sort_by=sort_by,
@@ -937,10 +1039,10 @@ def dashboard():
     )
     chart_data = _compute_chart_data_from_asset_rows(cur.fetchall())
     conn.close()
-    
-    return render_template('index.html', 
-                         branches=branches, 
-                         departments=departments, 
+
+    return render_template('index.html',
+                         branches=branches,
+                         departments=departments,
                          chart_data=chart_data,
                          **partial_ctx)
 
