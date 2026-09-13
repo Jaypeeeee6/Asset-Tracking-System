@@ -971,7 +971,7 @@
         <h5 class="modal-title" id="handoverAssetModalLabel"><i class="bi bi-arrow-left-right me-2" style="color:var(--gold);" aria-hidden="true"></i>Hand Over Asset</h5>
         <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
       </div>
-      <form id="handoverAssetForm" method="post">
+      <form id="handoverAssetForm" method="post" enctype="multipart/form-data">
         <div class="modal-body" style="overflow-y: auto; max-height: 70vh;" id="handoverAssetModalBody">
           <input type="hidden" name="asset_venue" id="handoverAssetVenueField" value="restaurant">
           <div class="app-modal-tip mb-3" role="note">
@@ -1082,6 +1082,14 @@
           <div class="mb-3">
             {{ form_label('Notes', 'handover_notes', false) }}
             <textarea class="form-control" id="handover_notes" name="notes" rows="2" maxlength="500" placeholder="Optional reason or reference for this hand-over"></textarea>
+          </div>
+
+          <div class="mb-3">
+            {{ form_label('Supporting documents', 'handoverAssetDocuments', true) }}
+            <input type="file" class="form-control" id="handoverAssetDocuments" name="supporting_documents" multiple
+                   accept=".pdf,.doc,.docx,.xls,.xlsx,.csv,.txt,.png,.jpg,.jpeg,.gif,.webp,.zip,application/pdf,image/*">
+            <div class="form-text"><i class="bi bi-info-circle" aria-hidden="true"></i> Required. Upload documents for the new owner (PDF, Office, images, ZIP; max 10 MB each). The previous owner&apos;s files stay on the asset under Previous Owner Documents. Selecting again adds more files.</div>
+            <ul id="handoverAssetDocumentsPreview" class="asset-doc-list mt-2 mb-0" hidden></ul>
           </div>
 
           <div class="handover-history-section">

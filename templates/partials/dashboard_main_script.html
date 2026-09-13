@@ -1160,6 +1160,7 @@ function appDeleteConfirm(message, title) {
 
     var addAssetPendingDocs = [];
     var editAssetPendingDocs = [];
+    var handoverAssetPendingDocs = [];
 
     function formatFileSize(bytes) {
         var n = Number(bytes) || 0;
@@ -1250,11 +1251,28 @@ function appDeleteConfirm(message, title) {
         });
     }
 
+    function refreshHandoverAssetDocumentsUI() {
+        var input = document.getElementById('handoverAssetDocuments');
+        var list = document.getElementById('handoverAssetDocumentsPreview');
+        syncFilesToInput(input, handoverAssetPendingDocs);
+        renderPendingDocumentsList(list, handoverAssetPendingDocs, function (index) {
+            handoverAssetPendingDocs.splice(index, 1);
+            refreshHandoverAssetDocumentsUI();
+        });
+    }
+
     function resetAddAssetDocuments() {
         addAssetPendingDocs = [];
         var input = document.getElementById('addAssetDocuments');
         if (input) input.value = '';
         refreshAddAssetDocumentsUI();
+    }
+
+    function resetHandoverAssetDocuments() {
+        handoverAssetPendingDocs = [];
+        var input = document.getElementById('handoverAssetDocuments');
+        if (input) input.value = '';
+        refreshHandoverAssetDocumentsUI();
     }
 
     function resetEditAssetDocuments() {
@@ -1274,11 +1292,18 @@ function appDeleteConfirm(message, title) {
     function splitDocumentsByCategory(documents) {
         var supporting = [];
         var returnDocs = [];
+        var previousOwnerDocs = [];
         (documents || []).forEach(function (doc) {
-            if ((doc.doc_category || 'supporting') === 'return') returnDocs.push(doc);
+            var category = doc.doc_category || 'supporting';
+            if (category === 'return') returnDocs.push(doc);
+            else if (category === 'previous_owner') previousOwnerDocs.push(doc);
             else supporting.push(doc);
         });
-        return { supporting: supporting, returnDocs: returnDocs };
+        return {
+            supporting: supporting,
+            returnDocs: returnDocs,
+            previousOwnerDocs: previousOwnerDocs
+        };
     }
 
     function appendDocumentRows(container, documents, options) {
@@ -1328,13 +1353,21 @@ function appDeleteConfirm(message, title) {
         if (!existing) return;
         existing.innerHTML = '';
         var split = splitDocumentsByCategory(documents);
-        if (!split.supporting.length && !split.returnDocs.length) {
+        if (!split.supporting.length && !split.returnDocs.length && !split.previousOwnerDocs.length) {
             existing.innerHTML = '<div class="text-muted small">No supporting documents yet.</div>';
             return;
         }
         appendDocumentSection(existing, 'Supporting Documents', split.supporting, {
             rowClass: 'asset-doc-item',
             emptyText: 'No supporting documents yet.',
+            withDelete: true,
+            onDelete: function (doc, row) {
+                deleteEditAssetDocument(assetId, doc.id, doc.original_filename, row);
+            }
+        });
+        appendDocumentSection(existing, 'Previous Owner Documents', split.previousOwnerDocs, {
+            rowClass: 'asset-doc-item',
+            emptyText: 'None',
             withDelete: true,
             onDelete: function (doc, row) {
                 deleteEditAssetDocument(assetId, doc.id, doc.original_filename, row);
@@ -1368,13 +1401,16 @@ function appDeleteConfirm(message, title) {
         var list = document.getElementById('assetDocumentsModalList');
         if (!list) return;
         var split = splitDocumentsByCategory(documents);
-        if (!split.supporting.length && !split.returnDocs.length) {
+        if (!split.supporting.length && !split.returnDocs.length && !split.previousOwnerDocs.length) {
             list.innerHTML = '<div class="text-muted small">No documents for this asset.</div>';
             return;
         }
         list.innerHTML = '';
         appendDocumentSection(list, 'Supporting Documents', split.supporting, {
             emptyText: 'No supporting documents.'
+        });
+        appendDocumentSection(list, 'Previous Owner Documents', split.previousOwnerDocs, {
+            emptyText: 'No previous owner documents.'
         });
         appendDocumentSection(list, 'Return Documents', split.returnDocs, {
             emptyText: 'No return documents.'
@@ -1465,6 +1501,17 @@ function appDeleteConfirm(message, title) {
                 editAssetPendingDocs = mergePendingDocuments(editAssetPendingDocs, picked);
                 editInput.value = '';
                 refreshEditAssetPendingDocumentsUI();
+            });
+        }
+        var handoverInput = document.getElementById('handoverAssetDocuments');
+        if (handoverInput && handoverInput.dataset.bound !== '1') {
+            handoverInput.dataset.bound = '1';
+            handoverInput.addEventListener('change', function () {
+                var picked = Array.from(handoverInput.files || []);
+                if (!picked.length) return;
+                handoverAssetPendingDocs = mergePendingDocuments(handoverAssetPendingDocs, picked);
+                handoverInput.value = '';
+                refreshHandoverAssetDocumentsUI();
             });
         }
     }
@@ -6267,6 +6314,7 @@ function appDeleteConfirm(message, title) {
                 form.dataset.assetKind = assetKind;
                 form.dataset.isShared = assetKind === 'shared' ? '1' : '0';
             }
+            resetHandoverAssetDocuments();
 
             const nameEl = document.getElementById('handoverAssetName');
             if (nameEl) nameEl.textContent = assetName;
@@ -6520,6 +6568,12 @@ function appDeleteConfirm(message, title) {
                     return;
                 }
 
+                refreshHandoverAssetDocumentsUI();
+                if (!handoverAssetPendingDocs.length) {
+                    alert('Please upload supporting documents for the new owner.');
+                    return;
+                }
+
                 let confirmMessage = 'Hand over "' + assetName + '" to the selected owner and location? This will be recorded in hand-over history.';
                 if (isSharedHandOver) {
                     confirmMessage = 'Hand over "' + assetName + '" and split it out of the Shared Asset group?\n\n'
@@ -6535,6 +6589,7 @@ function appDeleteConfirm(message, title) {
                 }).then(function (ok) {
                     if (!ok) return;
                     const form = document.getElementById('handoverAssetForm');
+                    refreshHandoverAssetDocumentsUI();
                     const formData = new FormData(form);
                     if (noOwner && noOwner.checked) {
                         formData.set('no_owner', 'on');

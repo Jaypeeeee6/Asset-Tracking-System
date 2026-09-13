@@ -16,7 +16,12 @@ MAX_DOCUMENTS_PER_UPLOAD = 20
 
 DOC_CATEGORY_SUPPORTING = 'supporting'
 DOC_CATEGORY_RETURN = 'return'
-DOC_CATEGORIES = (DOC_CATEGORY_SUPPORTING, DOC_CATEGORY_RETURN)
+DOC_CATEGORY_PREVIOUS_OWNER = 'previous_owner'
+DOC_CATEGORIES = (
+    DOC_CATEGORY_SUPPORTING,
+    DOC_CATEGORY_RETURN,
+    DOC_CATEGORY_PREVIOUS_OWNER,
+)
 
 
 def get_documents_root():
@@ -48,8 +53,8 @@ def delete_document_file(stored_filename):
 
 
 def _normalize_doc_category(value):
-    if value == DOC_CATEGORY_RETURN:
-        return DOC_CATEGORY_RETURN
+    if value in (DOC_CATEGORY_RETURN, DOC_CATEGORY_PREVIOUS_OWNER):
+        return value
     return DOC_CATEGORY_SUPPORTING
 
 
@@ -252,6 +257,22 @@ def save_uploaded_files_for_assets(cur, asset_ids, file_storages, doc_category=D
             )
             saved += 1
     return saved, None
+
+
+def reclassify_supporting_documents_as_previous_owner(cur, asset_ids):
+    """Move current supporting docs to previous-owner so a new owner can attach fresh files."""
+    ids = [int(a) for a in (asset_ids or []) if a is not None]
+    if not ids:
+        return
+    placeholders = ','.join(['?'] * len(ids))
+    cur.execute(
+        f'''
+        UPDATE asset_documents
+        SET doc_category = ?
+        WHERE asset_id IN ({placeholders}) AND doc_category = ?
+        ''',
+        [DOC_CATEGORY_PREVIOUS_OWNER] + ids + [DOC_CATEGORY_SUPPORTING],
+    )
 
 
 def delete_document_record(cur, asset_id, document_id):

@@ -48,6 +48,7 @@ from utils.asset_documents import (
     document_path,
     nonempty_uploaded_files,
     DOC_CATEGORY_RETURN,
+    reclassify_supporting_documents_as_previous_owner,
 )
 import qrcode
 from io import BytesIO
@@ -2014,6 +2015,13 @@ def handover_asset(asset_id):
             'error': 'Nothing to hand over. Change the owner, branch, or department.',
         }), 400
 
+    uploaded_files = nonempty_uploaded_files(request.files.getlist('supporting_documents'))
+    if not uploaded_files:
+        conn.close()
+        return jsonify({
+            'error': 'Please upload supporting documents for the new owner.',
+        }), 400
+
     shared_branches_before = []
     if is_shared_split:
         if shared_group_id:
@@ -2093,6 +2101,13 @@ def handover_asset(asset_id):
                 cur, shared_group_id, current_user.display_name
             )
             remaining_shared_branches = _list_shared_group_branches(cur, shared_group_id)
+
+        reclassify_supporting_documents_as_previous_owner(cur, [target_asset_id])
+        _, doc_err = save_uploaded_files_for_assets(cur, [target_asset_id], uploaded_files)
+        if doc_err:
+            conn.rollback()
+            conn.close()
+            return jsonify({'error': doc_err}), 400
 
         conn.commit()
         conn.close()
