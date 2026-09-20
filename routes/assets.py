@@ -1649,6 +1649,7 @@ def _update_shared_asset_group(
     spec_values,
     inclusion_ids,
     subscriptions_data=None,
+    asset_date=None,
 ):
     """Create/update/delete sibling rows when editing a shared asset's branches."""
     cur.execute(
@@ -1677,7 +1678,9 @@ def _update_shared_asset_group(
     if not shared_asset_code and siblings:
         shared_asset_code = siblings[0].get('asset_code') or generate_shared_asset_code(cur=cur)
 
-    asset_date = anchor['asset_date'] if 'asset_date' in anchor.keys() else None
+    if asset_date is None:
+        asset_date = anchor['asset_date'] if 'asset_date' in anchor.keys() else None
+    asset_date = _parse_asset_date(asset_date)
     existing_by_branch = {
         (s.get('branch') or ''): s for s in siblings if s.get('branch')
     }
@@ -1700,12 +1703,12 @@ def _update_shared_asset_group(
                 '''
                 UPDATE assets
                 SET name=?, asset_type=?, asset_kind=?, price=?, owner=?,
-                    department=?, used_status=?, shared_group_id=?, asset_code=?
+                    department=?, used_status=?, shared_group_id=?, asset_code=?, asset_date=?
                 WHERE id=?
                 ''',
                 (
                     name, asset_type, asset_kind, price, owner, department,
-                    used_status, shared_group_id, shared_asset_code, row_id,
+                    used_status, shared_group_id, shared_asset_code, asset_date, row_id,
                 ),
             )
         else:
@@ -1747,6 +1750,7 @@ def update_asset(asset_id):
     if used_status not in ASSET_STATUSES:
         used_status = ASSET_STATUS_DEFAULT
     no_owner = request.form.get('no_owner') == 'on'
+    asset_date = _parse_asset_date(request.form.get('asset_date'))
 
     if no_owner:
         owner = 'No Owner'
@@ -1833,6 +1837,7 @@ def update_asset(asset_id):
                 cur, asset_id, name, asset_type, asset_kind, price, owner,
                 department, used_status, branch_names, spec_values, inclusion_ids,
                 subscriptions_data,
+                asset_date=asset_date,
             )
             if sync_err:
                 conn.close()
@@ -1907,9 +1912,9 @@ def update_asset(asset_id):
         # Update the asset with new asset code if needed
         cur.execute('''
             UPDATE assets 
-            SET name=?, asset_type=?, asset_kind=?, price=?, owner=?, branch=?, department=?, used_status=?, asset_code=?, shared_group_id=?
+            SET name=?, asset_type=?, asset_kind=?, price=?, owner=?, branch=?, department=?, used_status=?, asset_code=?, shared_group_id=?, asset_date=?
             WHERE id=?
-        ''', (name, asset_type, asset_kind, price, owner, branch, department, used_status, new_asset_code, next_shared_group_id, asset_id))
+        ''', (name, asset_type, asset_kind, price, owner, branch, department, used_status, new_asset_code, next_shared_group_id, asset_date, asset_id))
 
         _save_spec_values_for_single_asset(cur, asset_id, name, asset_type, spec_values)
         _save_inclusion_values_for_single_asset(cur, asset_id, name, asset_type, inclusion_ids)

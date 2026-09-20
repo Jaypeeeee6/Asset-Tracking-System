@@ -47,9 +47,6 @@
     <div class="col-md-6">
         {{ form_label('Price (OMR)', 'price', false) }}
         <input type="number" class="form-control" id="price" name="price" min="0" step="0.01" placeholder="0.00">
-        <div class="form-text">
-            <i class="bi bi-info-circle" aria-hidden="true"></i> Optional. Enter the price in Omani Rial (OMR).
-        </div>
     </div>
 
     <div class="col-12">
@@ -58,7 +55,6 @@
             <option value="">Select Asset Name</option>
         </select>
         <input type="hidden" id="selectedAssetNamesInput" name="selected_asset_names" value="">
-        <div class="form-text"><i class="bi bi-info-circle" aria-hidden="true"></i> Choose one asset name for this form.</div>
     </div>
 
     <div class="col-12" id="addAssetSpecFieldsSection" style="display: none;">
@@ -129,9 +125,6 @@
         <select class="form-select" id="department" name="department">
             <option value="">Select area</option>
         </select>
-        <div class="form-text d-none" id="addAssetAreaHelp">
-            <i class="bi bi-info-circle" aria-hidden="true"></i> Where in the restaurant this asset belongs (Kitchen, Dining, Cashier, etc.).
-        </div>
     </div>
 
     <div class="col-12 asset-form-section-divider-wrap">
@@ -170,8 +163,7 @@
     </div>
     <div class="col-md-6">
         {{ form_label('Date', 'asset_date', true) }}
-        <input type="date" class="form-control" id="asset_date" name="asset_date" required readonly>
-        <div class="form-text"><i class="bi bi-info-circle" aria-hidden="true"></i> Automatically set to today&apos;s date.</div>
+        <input type="date" class="form-control" id="asset_date" name="asset_date" required>
     </div>
 
     <div class="col-12 asset-form-section-divider-wrap">
@@ -182,7 +174,7 @@
         {{ form_label('Supporting documents', 'addAssetDocuments', false) }}
         <input type="file" class="form-control" id="addAssetDocuments" name="supporting_documents" multiple
                accept=".pdf,.doc,.docx,.xls,.xlsx,.csv,.txt,.png,.jpg,.jpeg,.gif,.webp,.zip,application/pdf,image/*">
-        <div class="form-text"><i class="bi bi-info-circle" aria-hidden="true"></i> Optional. Upload one or more files (PDF, Office, images, ZIP; max 15 MB each). All files across this bulk add must stay under 50 MB. Selecting again adds more files; use the remove button on a file to drop it before saving.</div>
+        <div class="form-text"><i class="bi bi-info-circle" aria-hidden="true"></i> Optional. Upload one or more files (PDF, Office, images, ZIP; max 15 MB each). All files across this bulk add must stay under 50 MB.</div>
         <ul id="addAssetDocumentsPreview" class="asset-doc-list mt-2 mb-0" hidden></ul>
     </div>
 </div>

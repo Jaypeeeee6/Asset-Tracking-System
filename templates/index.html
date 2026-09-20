@@ -901,9 +901,6 @@
             <div class="mb-3">
                 {{ form_label('Price (OMR)', 'edit_price', false) }}
                 <input type="number" class="form-control" id="edit_price" name="price" min="0" step="0.01" placeholder="0.00">
-                <div class="form-text">
-                    <i class="bi bi-info-circle" aria-hidden="true"></i> Optional. Enter the price in Omani Rial (OMR).
-                </div>
             </div>
             <div class="mb-3 d-none" id="editAssetBrandField" aria-hidden="true">
                 <label for="edit_asset_brand" class="form-label">Brand</label>
@@ -935,9 +932,6 @@
                 <select class="form-select" id="edit_department" name="department">
                     <option value="">Select area</option>
                 </select>
-                <div class="form-text d-none" id="editAssetAreaHelp">
-                    <i class="bi bi-info-circle" aria-hidden="true"></i> Where in the restaurant this asset belongs (Kitchen, Dining, Cashier, etc.).
-                </div>
             </div>
             <hr class="asset-form-section-divider" aria-hidden="true">
             <div class="mb-3">
@@ -972,8 +966,7 @@
             </div>
             <div class="mb-3">
                 {{ form_label('Date', 'edit_asset_date', true) }}
-                <input type="date" class="form-control" id="edit_asset_date" name="asset_date" readonly>
-                <div class="form-text"><i class="bi bi-info-circle" aria-hidden="true"></i> Date this asset was added.</div>
+                <input type="date" class="form-control" id="edit_asset_date" name="asset_date" required>
             </div>
             <hr class="asset-form-section-divider" aria-hidden="true">
             <div class="mb-0">
