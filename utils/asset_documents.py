@@ -11,7 +11,7 @@ ALLOWED_DOCUMENT_EXTENSIONS = frozenset({
     'pdf', 'doc', 'docx', 'xls', 'xlsx', 'csv', 'txt',
     'png', 'jpg', 'jpeg', 'gif', 'webp', 'zip',
 })
-MAX_DOCUMENT_BYTES = 10 * 1024 * 1024  # 10 MB per file
+MAX_DOCUMENT_BYTES = 15 * 1024 * 1024  # 15 MB per file
 MAX_DOCUMENTS_PER_UPLOAD = 20
 
 DOC_CATEGORY_SUPPORTING = 'supporting'
@@ -168,7 +168,7 @@ def save_uploaded_file_for_asset(cur, asset_id, file_storage, doc_category=DOC_C
     size = file_storage.stream.tell()
     file_storage.stream.seek(0)
     if size > MAX_DOCUMENT_BYTES:
-        return None, f'File too large (max 10 MB): {original}'
+        return None, f'File too large (max 15 MB): {original}'
 
     category = _normalize_doc_category(doc_category)
     safe_base = secure_filename(original) or 'document'

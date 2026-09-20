@@ -1161,6 +1161,10 @@ function appDeleteConfirm(message, title) {
     var addAssetPendingDocs = [];
     var editAssetPendingDocs = [];
     var handoverAssetPendingDocs = [];
+    var addAssetBulkDrafts = [];
+    var addAssetBulkIndex = 0;
+    var DEFAULT_BULK_UPLOAD_MAX_BYTES = 50 * 1024 * 1024;
+    var MAX_DOCUMENT_BYTES = 15 * 1024 * 1024; // keep in sync with utils/asset_documents.py
 
     function formatFileSize(bytes) {
         var n = Number(bytes) || 0;
@@ -1190,6 +1194,116 @@ function appDeleteConfirm(message, title) {
             try { dt.items.add(file); } catch (e) { /* ignore */ }
         });
         inputEl.files = dt.files;
+    }
+
+    function getBulkUploadMaxBytes() {
+        var page = document.getElementById('addAssetPage');
+        var n = page ? parseInt(page.getAttribute('data-bulk-max-bytes'), 10) : 0;
+        return n > 0 ? n : DEFAULT_BULK_UPLOAD_MAX_BYTES;
+    }
+
+    function formatMbLimit(bytes) {
+        return String(Math.round((Number(bytes) || 0) / (1024 * 1024)));
+    }
+
+    function fileListBytes(files) {
+        var total = 0;
+        (files || []).forEach(function (file) {
+            if (file && file.size) total += Number(file.size) || 0;
+        });
+        return total;
+    }
+
+    function draftUploadBytes(draft) {
+        var bytes = fileListBytes(draft && draft.pendingDocs);
+        if (draft && draft.returnFile && draft.returnFile.size) {
+            bytes += Number(draft.returnFile.size) || 0;
+        }
+        return bytes;
+    }
+
+    function bulkUploadBytes(drafts) {
+        var total = 0;
+        (drafts || []).forEach(function (draft) {
+            total += draftUploadBytes(draft);
+        });
+        return total;
+    }
+
+    function liveBulkUploadBytes() {
+        var total = 0;
+        (addAssetBulkDrafts || []).forEach(function (draft, index) {
+            if (index === addAssetBulkIndex) return;
+            total += draftUploadBytes(draft);
+        });
+        total += fileListBytes(addAssetPendingDocs);
+        var returnEl = document.getElementById('addReturnDocuments');
+        if (returnEl && returnEl.files && returnEl.files[0] && returnEl.files[0].size) {
+            total += Number(returnEl.files[0].size) || 0;
+        }
+        return total;
+    }
+
+    function notifyAddAssetError(message, title) {
+        if (typeof window.showAppErrorModal === 'function') {
+            window.showAppErrorModal({
+                title: title || 'Error',
+                lead: String(message || 'Something went wrong.')
+            });
+            return;
+        }
+        if (window.AppDialogs && typeof AppDialogs.error === 'function') {
+            AppDialogs.error(message, title || 'Error');
+            return;
+        }
+        alert(message);
+    }
+
+    function showBulkUploadLimitReachedError() {
+        var maxMb = formatMbLimit(getBulkUploadMaxBytes());
+        notifyAddAssetError(
+            'You cannot add any more assets because the ' + maxMb
+                + ' MB upload limit has been reached. Please submit the assets you have already prepared.'
+        );
+    }
+
+    function showBulkUploadFilesLimitError() {
+        var maxMb = formatMbLimit(getBulkUploadMaxBytes());
+        notifyAddAssetError(
+            'These files would exceed the ' + maxMb
+                + ' MB upload limit for this bulk. Please remove some files or submit the assets you have already prepared.'
+        );
+    }
+
+    function findOversizedDocuments(files) {
+        return (files || []).filter(function (file) {
+            return file && (Number(file.size) || 0) > MAX_DOCUMENT_BYTES;
+        });
+    }
+
+    function showPerFileSizeLimitError(oversizedFiles) {
+        var maxLabel = formatFileSize(MAX_DOCUMENT_BYTES);
+        var files = oversizedFiles || [];
+        var names = files.map(function (f) {
+            return (f && f.name ? f.name : 'file') + ' (' + formatFileSize(f && f.size) + ')';
+        });
+        var lead = 'Each file must be ' + maxLabel + ' or smaller.';
+        var detail = names.length
+            ? ('Too large:\n' + names.join('\n'))
+            : 'Please choose a smaller file and try again.';
+        if (typeof window.showAppErrorModal === 'function') {
+            window.showAppErrorModal({
+                title: 'Error',
+                lead: lead,
+                detail: detail
+            });
+            return;
+        }
+        notifyAddAssetError(lead + ' ' + detail.replace(/\n/g, ' '));
+    }
+
+    function wouldExceedBulkUploadLimit(nextTotalBytes) {
+        return nextTotalBytes > getBulkUploadMaxBytes();
     }
 
     function mergePendingDocuments(pendingFiles, incomingFiles) {
@@ -1486,7 +1600,20 @@ function appDeleteConfirm(message, title) {
             addInput.addEventListener('change', function () {
                 var picked = Array.from(addInput.files || []);
                 if (!picked.length) return;
-                addAssetPendingDocs = mergePendingDocuments(addAssetPendingDocs, picked);
+                var oversized = findOversizedDocuments(picked);
+                if (oversized.length) {
+                    addInput.value = '';
+                    showPerFileSizeLimitError(oversized);
+                    return;
+                }
+                var nextDocs = mergePendingDocuments(addAssetPendingDocs, picked);
+                var withoutCurrentDocs = liveBulkUploadBytes() - fileListBytes(addAssetPendingDocs);
+                if (wouldExceedBulkUploadLimit(withoutCurrentDocs + fileListBytes(nextDocs))) {
+                    addInput.value = '';
+                    showBulkUploadFilesLimitError();
+                    return;
+                }
+                addAssetPendingDocs = nextDocs;
                 // Clear native picker so choosing the same file again still fires change
                 addInput.value = '';
                 refreshAddAssetDocumentsUI();
@@ -1498,6 +1625,12 @@ function appDeleteConfirm(message, title) {
             editInput.addEventListener('change', function () {
                 var picked = Array.from(editInput.files || []);
                 if (!picked.length) return;
+                var oversized = findOversizedDocuments(picked);
+                if (oversized.length) {
+                    editInput.value = '';
+                    showPerFileSizeLimitError(oversized);
+                    return;
+                }
                 editAssetPendingDocs = mergePendingDocuments(editAssetPendingDocs, picked);
                 editInput.value = '';
                 refreshEditAssetPendingDocumentsUI();
@@ -1509,9 +1642,64 @@ function appDeleteConfirm(message, title) {
             handoverInput.addEventListener('change', function () {
                 var picked = Array.from(handoverInput.files || []);
                 if (!picked.length) return;
+                var oversized = findOversizedDocuments(picked);
+                if (oversized.length) {
+                    handoverInput.value = '';
+                    showPerFileSizeLimitError(oversized);
+                    return;
+                }
                 handoverAssetPendingDocs = mergePendingDocuments(handoverAssetPendingDocs, picked);
                 handoverInput.value = '';
                 refreshHandoverAssetDocumentsUI();
+            });
+        }
+        var addReturnInput = document.getElementById('addReturnDocuments');
+        if (addReturnInput && addReturnInput.dataset.bound !== '1') {
+            addReturnInput.dataset.bound = '1';
+            addReturnInput.addEventListener('change', function () {
+                var pickedFile = addReturnInput.files && addReturnInput.files[0];
+                if (pickedFile && findOversizedDocuments([pickedFile]).length) {
+                    addReturnInput.value = '';
+                    showPerFileSizeLimitError([pickedFile]);
+                    return;
+                }
+                if (!wouldExceedBulkUploadLimit(liveBulkUploadBytes())) return;
+                var prev = addAssetBulkDrafts[addAssetBulkIndex]
+                    && addAssetBulkDrafts[addAssetBulkIndex].returnFile;
+                if (prev && typeof DataTransfer !== 'undefined') {
+                    var dt = new DataTransfer();
+                    try {
+                        dt.items.add(prev);
+                        addReturnInput.files = dt.files;
+                    } catch (e) {
+                        addReturnInput.value = '';
+                    }
+                } else {
+                    addReturnInput.value = '';
+                }
+                showBulkUploadFilesLimitError();
+            });
+        }
+        var editReturnInput = document.getElementById('editReturnDocuments');
+        if (editReturnInput && editReturnInput.dataset.bound !== '1') {
+            editReturnInput.dataset.bound = '1';
+            editReturnInput.addEventListener('change', function () {
+                var pickedFile = editReturnInput.files && editReturnInput.files[0];
+                if (pickedFile && findOversizedDocuments([pickedFile]).length) {
+                    editReturnInput.value = '';
+                    showPerFileSizeLimitError([pickedFile]);
+                }
+            });
+        }
+        var returnAssetInput = document.getElementById('returnAssetDocument');
+        if (returnAssetInput && returnAssetInput.dataset.bound !== '1') {
+            returnAssetInput.dataset.bound = '1';
+            returnAssetInput.addEventListener('change', function () {
+                var pickedFile = returnAssetInput.files && returnAssetInput.files[0];
+                if (pickedFile && findOversizedDocuments([pickedFile]).length) {
+                    returnAssetInput.value = '';
+                    showPerFileSizeLimitError([pickedFile]);
+                }
             });
         }
     }
@@ -3020,16 +3208,16 @@ function appDeleteConfirm(message, title) {
         const data = collectAddAssetSubscriptionsJson();
         if (data.microsoft_office.enabled) {
             if (!data.microsoft_office.product_key) {
-                alert('Microsoft Office Product Key is required when Microsoft Office Subscription is enabled.');
+                notifyAddAssetError('Microsoft Office Product Key is required when Microsoft Office Subscription is enabled.');
                 return false;
             }
             if (data.microsoft_office.price === '') {
-                alert('Microsoft Office price is required when Microsoft Office Subscription is enabled.');
+                notifyAddAssetError('Microsoft Office price is required when Microsoft Office Subscription is enabled.');
                 return false;
             }
         }
         if (data.google_workspace.enabled && data.google_workspace.price === '') {
-            alert('Google Workspace price is required when Google Workspace Account is enabled.');
+            notifyAddAssetError('Google Workspace price is required when Google Workspace Account is enabled.');
             return false;
         }
         return true;
@@ -4825,34 +5013,34 @@ function appDeleteConfirm(message, title) {
         const assetType = assetTypeEl ? assetTypeEl.value : '';
         const atRow = (assetTypesData || []).find(function (t) { return t.name === assetType; });
         if (!venue || (venue !== 'restaurant' && venue !== 'office')) {
-            alert('Please choose Restaurant or Office.');
+            notifyAddAssetError('Please choose Restaurant or Office.');
             return false;
         }
         if (!atRow || !assetTypeMatchesVenue(atRow.for_venue, venue)) {
-            alert('Please select an asset category that matches Restaurant or Office.');
+            notifyAddAssetError('Please select an asset category that matches Restaurant or Office.');
             return false;
         }
         const selectedAssetNamesInput = document.getElementById('selectedAssetNamesInput');
 
         if (!assetType) {
-            alert('Please select an asset category.');
+            notifyAddAssetError('Please select an asset category.');
             return false;
         }
 
         if (!selectedAssetNamesInput || !selectedAssetNamesInput.value.trim()) {
-            alert('Please select an asset name.');
+            notifyAddAssetError('Please select an asset name.');
             return false;
         }
 
         const selectedNames = selectedAssetNamesInput.value.split(',').map(function (name) { return name.trim(); }).filter(Boolean);
         if (selectedNames.length !== 1) {
-            alert('Please select exactly one asset name for this form.');
+            notifyAddAssetError('Please select exactly one asset name for this form.');
             return false;
         }
         for (var i = 0; i < selectedNames.length; i++) {
             var assetName = selectedNames[i];
             if (!validateAssetName(assetType, assetName)) {
-                alert('Asset name "' + assetName + '" does not exist. Please select from the available asset names or add it first through Settings.');
+                notifyAddAssetError('Asset name "' + assetName + '" does not exist. Please select from the available asset names or add it first through Settings.');
                 return false;
             }
         }
@@ -4863,27 +5051,27 @@ function appDeleteConfirm(message, title) {
             const kind = getAddAssetKind();
             const selectedBranches = getSelectedAddBranches();
             if (!selectedBranches.length) {
-                alert(kind === 'shared' ? 'Please select at least one branch.' : 'Please select a branch.');
+                notifyAddAssetError(kind === 'shared' ? 'Please select at least one branch.' : 'Please select a branch.');
                 return false;
             }
         } else {
             const dsel = document.getElementById('department');
             if (!dsel || !dsel.value) {
-                alert('Please select a department.');
+                notifyAddAssetError('Please select a department.');
                 return false;
             }
         }
         const noOwner = document.getElementById('noOwnerCheck');
         const ownerSel = document.getElementById('owner');
         if ((!noOwner || !noOwner.checked) && (!ownerSel || !ownerSel.value)) {
-            alert('Please select an owner, or check No Owner Required.');
+            notifyAddAssetError('Please select an owner, or check No Owner Required.');
             return false;
         }
         var statusEl = document.getElementById('used_status');
         if (statusEl && statusEl.value === 'Returned') {
             var returnInput = document.getElementById('addReturnDocuments');
             if (!returnInput || !returnInput.files || !returnInput.files[0]) {
-                alert('Please upload the asset return declaration file.');
+                notifyAddAssetError('Please upload the asset return declaration file.');
                 return false;
             }
         }
@@ -5270,7 +5458,13 @@ function appDeleteConfirm(message, title) {
         var formEl = document.getElementById('addAssetForm');
         var actionsBar = document.querySelector('.add-asset-actions');
 
+        function syncBulkState() {
+            addAssetBulkDrafts = drafts;
+            addAssetBulkIndex = currentIndex;
+        }
+
         function updatePagerUI() {
+            syncBulkState();
             var total = drafts.length;
             var draft = drafts[currentIndex];
             // Title reflects the form on screen; stored drafts stay untouched until persist.
@@ -5289,7 +5483,7 @@ function appDeleteConfirm(message, title) {
             if (actionsBar) actionsBar.hidden = total <= 1;
             if (submitBtn) {
                 var label = submitBtn.querySelector('.btn-app-add-label');
-                var text = total === 1 ? 'Add 1 Asset' : ('Add ' + total + ' Assets');
+                var text = total === 1 ? 'Save 1 Asset' : ('Save ' + total + ' Assets');
                 if (label) label.textContent = text;
                 else submitBtn.textContent = text;
             }
@@ -5335,9 +5529,20 @@ function appDeleteConfirm(message, title) {
 
         if (newBtn) {
             newBtn.addEventListener('click', function () {
-                // Freeze current form into its slot, then add a one-time copy as the next form.
+                // Freeze current form into its slot, then add a copy of field details (not files).
                 persistCurrent();
+                syncBulkState();
+                var maxBytes = getBulkUploadMaxBytes();
+                var currentTotal = bulkUploadBytes(drafts);
+                // New Asset does not copy uploads, so only block when the bulk is already at/over the limit.
+                if (currentTotal >= maxBytes) {
+                    showBulkUploadLimitReachedError();
+                    return;
+                }
                 var snapshotFromCurrent = cloneAddAssetDraft(drafts[currentIndex]);
+                // Keep form details, but start the new asset without inherited file uploads.
+                snapshotFromCurrent.pendingDocs = [];
+                snapshotFromCurrent.returnFile = null;
                 drafts.push(snapshotFromCurrent);
                 currentIndex = drafts.length - 1;
                 updatePagerUI();
@@ -5377,51 +5582,56 @@ function appDeleteConfirm(message, title) {
         if (formEl) {
             formEl.addEventListener('submit', function (e) {
                 e.preventDefault();
+                e.stopPropagation();
                 persistCurrent();
+                syncBulkState();
+
+                function failDraft(index, message) {
+                    notifyAddAssetError(message);
+                    goToIndex(index);
+                }
 
                 // All drafts must be complete before create; navigation stays free.
                 for (var i = 0; i < drafts.length; i++) {
                     var d = drafts[i];
                     var label = 'Asset ' + (i + 1);
                     if (!d.asset_type) {
-                        alert(label + ' is incomplete. Please select an asset category.');
-                        goToIndex(i);
+                        failDraft(i, label + ' is incomplete. Please select an asset category.');
                         return;
                     }
                     if (!(d.selected_asset_names || []).length) {
-                        alert(label + ' is incomplete. Please select an asset name.');
-                        goToIndex(i);
+                        failDraft(i, label + ' is incomplete. Please select an asset name.');
                         return;
                     }
                     if ((d.selected_asset_names || []).length > 1) {
-                        alert(label + ': please select only one asset name.');
-                        goToIndex(i);
+                        failDraft(i, label + ': please select only one asset name.');
                         return;
                     }
                     if (d.asset_venue === 'restaurant' && !(d.branch || []).length) {
-                        alert(label + ': please select a branch.');
-                        goToIndex(i);
+                        failDraft(i, label + ': please select a branch.');
                         return;
                     }
                     if (d.asset_venue === 'office' && !d.department) {
-                        alert(label + ': please select a department.');
-                        goToIndex(i);
+                        failDraft(i, label + ': please select a department.');
                         return;
                     }
                     if (!d.no_owner && !d.owner) {
-                        alert(label + ': please select an owner, or check No Owner Required.');
-                        goToIndex(i);
+                        failDraft(i, label + ': please select an owner, or check No Owner Required.');
                         return;
                     }
                     if (d.used_status === 'Returned' && !d.returnFile) {
-                        alert(label + ': please upload the asset return declaration file.');
-                        goToIndex(i);
+                        failDraft(i, label + ': please upload the asset return declaration file.');
                         return;
                     }
                 }
 
                 // Also run live-form checks on the current page (names vs catalog, etc.)
                 if (!validateAddAssetFormClient()) return;
+
+                if (wouldExceedBulkUploadLimit(bulkUploadBytes(drafts))) {
+                    showBulkUploadLimitReachedError();
+                    return;
+                }
 
                 var fd = new FormData();
                 var payloads = drafts.map(draftToSubmitPayload);
@@ -5452,14 +5662,30 @@ function appDeleteConfirm(message, title) {
                     });
                 }).then(function (result) {
                     var data = result.data || {};
-                    if (result.res.ok && data.ok) {
+                    var createdCount = Number(data.created_count) || 0;
+                    // Only leave the page when the server confirms assets were actually saved.
+                    if (result.res.ok && data.ok === true && createdCount > 0) {
                         window.location.href = data.redirect || '/assets/dashboard';
                         return;
                     }
-                    alert(data.error || 'Could not save assets. Please try again.');
+                    var saveError = data.error;
+                    if (!saveError) {
+                        if (result.res.status === 413) {
+                            saveError = 'The upload is too large. Nothing was saved — please remove some files or submit fewer assets, then try again.';
+                        } else if (result.res.status === 401 || result.res.status === 403) {
+                            saveError = 'Your session may have expired. Nothing was saved — please sign in again and try again.';
+                        } else if (result.res.status >= 500) {
+                            saveError = 'A server error occurred while saving. Nothing was saved — please try again.';
+                        } else if (data.ok === true && createdCount < 1) {
+                            saveError = 'No assets were saved. Please check your details and try again.';
+                        } else {
+                            saveError = 'Could not save assets. Nothing was saved — please fix the issue and try again.';
+                        }
+                    }
+                    notifyAddAssetError(saveError);
                     if (submitBtn) submitBtn.disabled = false;
                 }).catch(function () {
-                    alert('Could not save assets. Please try again.');
+                    notifyAddAssetError('Could not save assets. Nothing was saved — please check your connection and try again.');
                     if (submitBtn) submitBtn.disabled = false;
                 });
             });
@@ -6956,6 +7182,11 @@ function appDeleteConfirm(message, title) {
         var file = fileEl && fileEl.files && fileEl.files[0];
         if (!file) {
             alert('Please upload the asset return declaration file.');
+            return;
+        }
+        if (findOversizedDocuments([file]).length) {
+            if (fileEl) fileEl.value = '';
+            showPerFileSizeLimitError([file]);
             return;
         }
         var confirmBtn = document.getElementById('confirmReturnAssetBtn');

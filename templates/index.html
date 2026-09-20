@@ -638,20 +638,49 @@
 {%- endmacro %}
 <div class="asset-dashboard">
     <!-- Flash Messages -->
+    {% set dash_flash_ns = namespace(errors=[]) %}
     {% with messages = get_flashed_messages(with_categories=true) %}
         {% if messages %}
             <div class="row mb-3">
                 <div class="col-md-12">
                     {% for category, message in messages %}
-                        <div class="alert alert-{{ 'danger' if category == 'error' else category }} alert-dismissible fade show" role="alert">
-                            {{ message }}
-                            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
-                        </div>
+                        {% if category == 'error' %}
+                            {% set _ = dash_flash_ns.errors.append(message) %}
+                        {% else %}
+                            <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
+                                {{ message }}
+                                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                            </div>
+                        {% endif %}
                     {% endfor %}
                 </div>
             </div>
         {% endif %}
     {% endwith %}
+    {% if dash_flash_ns.errors %}
+    <script type="application/json" id="dashboardFlashErrors">{{ dash_flash_ns.errors|tojson }}</script>
+    <script>
+      (function () {
+        function showDashFlashErrors() {
+          var el = document.getElementById('dashboardFlashErrors');
+          if (!el) return;
+          var errors = [];
+          try { errors = JSON.parse(el.textContent || '[]'); } catch (e) { errors = []; }
+          if (!errors.length) return;
+          if (typeof window.showAppErrorModal === 'function') {
+            window.showAppErrorModal({ title: 'Error', lead: errors.join('\n\n') });
+            return;
+          }
+          window.alert(errors.join('\n\n'));
+        }
+        if (document.readyState === 'loading') {
+          document.addEventListener('DOMContentLoaded', showDashFlashErrors);
+        } else {
+          showDashFlashErrors();
+        }
+      })();
+    </script>
+    {% endif %}
 
     <div class="page-header">
         <div>
@@ -939,7 +968,7 @@
                 {{ form_label('Asset return declaration', 'editReturnDocuments', true) }}
                 <input type="file" class="form-control" id="editReturnDocuments" name="return_documents"
                        accept=".pdf,.doc,.docx,.xls,.xlsx,.csv,.txt,.png,.jpg,.jpeg,.gif,.webp,.zip,application/pdf,image/*">
-                <div class="form-text"><i class="bi bi-info-circle" aria-hidden="true"></i> Required when changing status to Returned. PDF, Office, or image; max 10 MB.</div>
+                <div class="form-text"><i class="bi bi-info-circle" aria-hidden="true"></i> Required when changing status to Returned. PDF, Office, or image; max 15 MB.</div>
             </div>
             <div class="mb-3">
                 {{ form_label('Date', 'edit_asset_date', true) }}
@@ -952,7 +981,7 @@
                 <div id="editAssetDocumentsExisting" class="asset-doc-list mb-2"></div>
                 <input type="file" class="form-control" id="editAssetDocuments" name="supporting_documents" multiple
                        accept=".pdf,.doc,.docx,.xls,.xlsx,.csv,.txt,.png,.jpg,.jpeg,.gif,.webp,.zip,application/pdf,image/*">
-                <div class="form-text"><i class="bi bi-info-circle" aria-hidden="true"></i> Optional. Add more files (selecting again appends), or remove existing ones above / pending ones below. Max 10 MB each.</div>
+                <div class="form-text"><i class="bi bi-info-circle" aria-hidden="true"></i> Optional. Add more files (selecting again appends), or remove existing ones above / pending ones below. Max 15 MB each.</div>
                 <ul id="editAssetDocumentsPreview" class="asset-doc-list mt-2 mb-0" hidden></ul>
             </div>
           </div>
@@ -1088,7 +1117,7 @@
             {{ form_label('Supporting documents', 'handoverAssetDocuments', true) }}
             <input type="file" class="form-control" id="handoverAssetDocuments" name="supporting_documents" multiple
                    accept=".pdf,.doc,.docx,.xls,.xlsx,.csv,.txt,.png,.jpg,.jpeg,.gif,.webp,.zip,application/pdf,image/*">
-            <div class="form-text"><i class="bi bi-info-circle" aria-hidden="true"></i> Required. Upload documents for the new owner (PDF, Office, images, ZIP; max 10 MB each). The previous owner&apos;s files stay on the asset under Previous Owner Documents. Selecting again adds more files.</div>
+            <div class="form-text"><i class="bi bi-info-circle" aria-hidden="true"></i> Required. Upload documents for the new owner (PDF, Office, images, ZIP; max 15 MB each). The previous owner&apos;s files stay on the asset under Previous Owner Documents. Selecting again adds more files.</div>
             <ul id="handoverAssetDocumentsPreview" class="asset-doc-list mt-2 mb-0" hidden></ul>
           </div>
 
@@ -1149,7 +1178,7 @@
         {{ form_label('Asset return declaration', 'returnAssetDocument', true) }}
         <input type="file" class="form-control" id="returnAssetDocument" name="return_documents" required
                accept=".pdf,.doc,.docx,.xls,.xlsx,.csv,.txt,.png,.jpg,.jpeg,.gif,.webp,.zip,application/pdf,image/*">
-        <div class="form-text"><i class="bi bi-info-circle" aria-hidden="true"></i> Required. PDF, Office, or image; max 10 MB.</div>
+        <div class="form-text"><i class="bi bi-info-circle" aria-hidden="true"></i> Required. PDF, Office, or image; max 15 MB.</div>
       </div>
       <div class="modal-footer">
         {{ modal_cancel_button('Cancel') }}

@@ -3,8 +3,9 @@ import secrets
 from pathlib import Path
 
 from dotenv import load_dotenv
-from flask import Flask
+from flask import Flask, jsonify, request
 from flask_login import LoginManager
+from werkzeug.exceptions import RequestEntityTooLarge
 from models.database import get_db_connection, init_db
 from models.user import User
 
@@ -15,7 +16,7 @@ def create_app():
     app.config['DATABASE'] = 'production_assets.db'
     # SECURITY: Use environment variable for secret key with fallback
     app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY') or secrets.token_hex(32)
-    # Supporting documents (multiple files per asset); keep under ~50 MB per request
+    # Supporting documents across a bulk add (JSON + files) stay under 50 MB per request
     app.config['MAX_CONTENT_LENGTH'] = 50 * 1024 * 1024
     
     # Enable debug mode for development
@@ -44,6 +45,25 @@ def create_app():
             return False
         return current_user.has_it_access()
     
+    @app.errorhandler(413)
+    @app.errorhandler(RequestEntityTooLarge)
+    def request_entity_too_large(_e):
+        max_bytes = app.config.get('MAX_CONTENT_LENGTH') or 0
+        max_mb = max(1, int((max_bytes + 1024 * 1024 - 1) // (1024 * 1024))) if max_bytes else 50
+        message = (
+            f'The upload is too large (maximum {max_mb} MB for all files in this request). '
+            'Please submit the assets you have already prepared, or remove some files and try again.'
+        )
+        wants_json = (
+            request.headers.get('X-Requested-With') == 'XMLHttpRequest'
+            or 'application/json' in (request.accept_mimetypes.best or '')
+        )
+        if wants_json:
+            return jsonify({'ok': False, 'error': message}), 413
+        from flask import flash, redirect, url_for
+        flash(message, 'error')
+        return redirect(url_for('assets.add_asset_page'))
+
     # SECURITY: Add security headers
     @app.after_request
     def add_security_headers(response):

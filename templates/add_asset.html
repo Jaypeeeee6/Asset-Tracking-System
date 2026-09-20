@@ -7,21 +7,50 @@
 {% endblock %}
 
 {% block app_content %}
-<div class="asset-dashboard add-asset-page" id="addAssetPage">
+<div class="asset-dashboard add-asset-page" id="addAssetPage" data-bulk-max-bytes="{{ config.MAX_CONTENT_LENGTH }}">
+    {% set flash_ns = namespace(errors=[]) %}
     {% with messages = get_flashed_messages(with_categories=true) %}
         {% if messages %}
             <div class="row mb-3">
                 <div class="col-md-12">
                     {% for category, message in messages %}
-                        <div class="alert alert-{{ 'danger' if category == 'error' else category }} alert-dismissible fade show" role="alert">
-                            {{ message }}
-                            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
-                        </div>
+                        {% if category == 'error' %}
+                            {% set _ = flash_ns.errors.append(message) %}
+                        {% else %}
+                            <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
+                                {{ message }}
+                                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                            </div>
+                        {% endif %}
                     {% endfor %}
                 </div>
             </div>
         {% endif %}
     {% endwith %}
+    {% if flash_ns.errors %}
+    <script type="application/json" id="addAssetFlashErrors">{{ flash_ns.errors|tojson }}</script>
+    <script>
+      (function () {
+        function showFlashErrors() {
+          var el = document.getElementById('addAssetFlashErrors');
+          if (!el) return;
+          var errors = [];
+          try { errors = JSON.parse(el.textContent || '[]'); } catch (e) { errors = []; }
+          if (!errors.length) return;
+          if (typeof window.showAppErrorModal === 'function') {
+            window.showAppErrorModal({ title: 'Error', lead: errors.join('\n\n') });
+            return;
+          }
+          window.alert(errors.join('\n\n'));
+        }
+        if (document.readyState === 'loading') {
+          document.addEventListener('DOMContentLoaded', showFlashErrors);
+        } else {
+          showFlashErrors();
+        }
+      })();
+    </script>
+    {% endif %}
 
     <div class="page-header">
         <div>
@@ -34,14 +63,14 @@
             </a>
             <button type="submit" class="btn-app-add" id="addAssetsSubmitBtn" form="addAssetForm">
                 <i class="bi bi-plus-lg" aria-hidden="true"></i>
-                <span class="btn-app-add-label">Add 1 Asset</span>
+                <span class="btn-app-add-label">Save 1 Asset</span>
             </button>
         </div>
     </div>
 
     <div class="app-card add-asset-card mb-4">
         <div class="card-body-pad">
-            <form id="addAssetForm" method="post" action="{{ url_for('assets.add_assets_bulk') }}" enctype="multipart/form-data" novalidate>
+            <form id="addAssetForm" method="post" action="{{ url_for('assets.add_assets_bulk') }}" enctype="multipart/form-data" novalidate data-ajax-save="1">
                 <div id="addAssetFormFields">
                     {% include 'partials/add_asset_form_fields.html' %}
                 </div>
@@ -51,7 +80,7 @@
                         <i class="bi bi-plus-circle-fill" aria-hidden="true"></i>
                         <span>New Asset</span>
                     </button>
-                    <p class="form-text mb-0 mt-2">Adds another asset form, starting with a copy of the current details.</p>
+                    <p class="form-text mb-0 mt-2">Adds another asset form, starting with a copy of the current details (files are not copied).</p>
                 </div>
 
                 <div class="add-asset-pager" id="addAssetPager" aria-label="Asset form navigation">

@@ -166,7 +166,7 @@
         {{ form_label('Asset return declaration', 'addReturnDocuments', true) }}
         <input type="file" class="form-control" id="addReturnDocuments" name="return_documents"
                accept=".pdf,.doc,.docx,.xls,.xlsx,.csv,.txt,.png,.jpg,.jpeg,.gif,.webp,.zip,application/pdf,image/*">
-        <div class="form-text"><i class="bi bi-info-circle" aria-hidden="true"></i> Required when status is Returned. PDF, Office, or image; max 10 MB.</div>
+        <div class="form-text"><i class="bi bi-info-circle" aria-hidden="true"></i> Required when status is Returned. PDF, Office, or image; max 15 MB.</div>
     </div>
     <div class="col-md-6">
         {{ form_label('Date', 'asset_date', true) }}
@@ -182,7 +182,7 @@
         {{ form_label('Supporting documents', 'addAssetDocuments', false) }}
         <input type="file" class="form-control" id="addAssetDocuments" name="supporting_documents" multiple
                accept=".pdf,.doc,.docx,.xls,.xlsx,.csv,.txt,.png,.jpg,.jpeg,.gif,.webp,.zip,application/pdf,image/*">
-        <div class="form-text"><i class="bi bi-info-circle" aria-hidden="true"></i> Optional. Upload one or more files (PDF, Office, images, ZIP; max 10 MB each). Selecting again adds more files; use the remove button on a file to drop it before saving.</div>
+        <div class="form-text"><i class="bi bi-info-circle" aria-hidden="true"></i> Optional. Upload one or more files (PDF, Office, images, ZIP; max 15 MB each). All files across this bulk add must stay under 50 MB. Selecting again adds more files; use the remove button on a file to drop it before saving.</div>
         <ul id="addAssetDocumentsPreview" class="asset-doc-list mt-2 mb-0" hidden></ul>
     </div>
 </div>

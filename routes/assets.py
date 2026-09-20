@@ -1422,19 +1422,63 @@ def add_asset_page():
 @assets_bp.route('/add', methods=['POST'])
 @login_required
 def add_asset():
-    conn = get_db_connection()
-    cur = conn.cursor()
-    created_asset_ids, err = _create_assets_from_payload(
-        cur, request.form, request.files.getlist('supporting_documents'),
-        return_uploaded_files=request.files.getlist('return_documents'),
+    wants_json = (
+        request.headers.get('X-Requested-With') == 'XMLHttpRequest'
+        or 'application/json' in (request.accept_mimetypes.best or '')
     )
-    if err:
-        conn.rollback()
-        conn.close()
-        flash(err, 'error')
+
+    def fail(message, status=400):
+        if wants_json:
+            return jsonify({'ok': False, 'error': message}), status
+        flash(message, 'error')
         return redirect(url_for('assets.add_asset_page'))
-    conn.commit()
-    conn.close()
+
+    conn = None
+    created_asset_ids = []
+    try:
+        conn = get_db_connection()
+        cur = conn.cursor()
+        created_asset_ids, err = _create_assets_from_payload(
+            cur, request.form, request.files.getlist('supporting_documents'),
+            return_uploaded_files=request.files.getlist('return_documents'),
+        )
+        if err:
+            conn.rollback()
+            return fail(err)
+        if not created_asset_ids:
+            conn.rollback()
+            return fail('No assets were created. Please check your details and try again.')
+        conn.commit()
+    except Exception as exc:
+        if conn is not None:
+            try:
+                conn.rollback()
+            except Exception:
+                pass
+        return fail(
+            'Could not save the asset. Nothing was saved — please fix the issue and try again. '
+            f'({exc})',
+            status=500,
+        )
+    finally:
+        if conn is not None:
+            try:
+                conn.close()
+            except Exception:
+                pass
+
+    record_count = len(created_asset_ids)
+    flash(
+        f'Successfully added {record_count} asset{"s" if record_count != 1 else ""}.',
+        'success',
+    )
+    if wants_json:
+        return jsonify({
+            'ok': True,
+            'created_count': record_count,
+            'created_ids': created_asset_ids,
+            'redirect': url_for('assets.dashboard'),
+        })
     return redirect(url_for('assets.dashboard'))
 
 
@@ -1457,37 +1501,67 @@ def add_assets_bulk():
     try:
         payloads = json.loads(raw) if raw else []
     except (TypeError, ValueError):
-        return fail('Invalid asset data.')
+        return fail('Invalid asset data. Nothing was saved — please try again.')
 
     if not isinstance(payloads, list) or not payloads:
         return fail('Please add at least one asset.')
 
-    conn = get_db_connection()
-    cur = conn.cursor()
+    conn = None
     all_created = []
-    for index, payload in enumerate(payloads):
-        if not isinstance(payload, dict):
-            conn.rollback()
-            conn.close()
-            return fail(f'Invalid data for asset {index + 1}.')
-        # Normalize branch for non-shared: accept list or string
-        branches = payload.get('branch')
-        if isinstance(branches, list) and payload.get('asset_kind') != 'shared':
-            payload = dict(payload)
-            payload['branch'] = branches[0] if branches else ''
-        files = request.files.getlist(f'docs_{index}')
-        created_ids, err = _create_assets_from_payload(
-            cur, payload, files, force_insert=True,
-            return_uploaded_files=request.files.getlist(f'return_docs_{index}'),
-        )
-        if err:
-            conn.rollback()
-            conn.close()
-            return fail(f'Asset {index + 1}: {err}')
-        all_created.extend(created_ids)
+    try:
+        conn = get_db_connection()
+        cur = conn.cursor()
+        for index, payload in enumerate(payloads):
+            if not isinstance(payload, dict):
+                conn.rollback()
+                return fail(
+                    f'Invalid data for asset {index + 1}. Nothing was saved — please fix it and try again.'
+                )
+            # Normalize branch for non-shared: accept list or string
+            branches = payload.get('branch')
+            if isinstance(branches, list) and payload.get('asset_kind') != 'shared':
+                payload = dict(payload)
+                payload['branch'] = branches[0] if branches else ''
+            files = request.files.getlist(f'docs_{index}')
+            created_ids, err = _create_assets_from_payload(
+                cur, payload, files, force_insert=True,
+                return_uploaded_files=request.files.getlist(f'return_docs_{index}'),
+            )
+            if err:
+                conn.rollback()
+                return fail(
+                    f'Asset {index + 1}: {err} Nothing was saved — please fix it and try again.'
+                )
+            if not created_ids:
+                conn.rollback()
+                return fail(
+                    f'Asset {index + 1}: nothing was created. Nothing was saved — please check the details and try again.'
+                )
+            all_created.extend(created_ids)
 
-    conn.commit()
-    conn.close()
+        if not all_created:
+            conn.rollback()
+            return fail('No assets were created. Nothing was saved — please check your details and try again.')
+
+        conn.commit()
+    except Exception as exc:
+        if conn is not None:
+            try:
+                conn.rollback()
+            except Exception:
+                pass
+        return fail(
+            'Could not save assets. Nothing was saved — please fix the issue and try again. '
+            f'({exc})',
+            status=500,
+        )
+    finally:
+        if conn is not None:
+            try:
+                conn.close()
+            except Exception:
+                pass
+
     record_count = len(all_created)
     flash(
         f'Successfully added {record_count} asset{"s" if record_count != 1 else ""}.',

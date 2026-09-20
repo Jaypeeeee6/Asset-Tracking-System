@@ -1,0 +1,213 @@
+<style>
+  .app-error-modal {
+    display: none;
+    position: fixed;
+    inset: 0;
+    z-index: 10050;
+    width: 100vw;
+    max-width: 100vw;
+    height: 100vh;
+    height: 100dvh;
+    background: rgba(0, 0, 0, 0.5);
+    align-items: flex-start;
+    justify-content: center;
+    padding: 24px;
+    box-sizing: border-box;
+    overflow-x: hidden;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior: contain;
+  }
+  .app-error-modal.is-open {
+    display: flex;
+  }
+  .app-error-modal .modal-confirm-card {
+    background: var(--card-bg, #fff);
+    border-radius: 12px;
+    padding: 24px;
+    max-width: 420px;
+    width: 100%;
+    max-height: calc(100vh - 48px);
+    max-height: calc(100dvh - 48px);
+    overflow-x: hidden;
+    overflow-y: auto;
+    min-height: 0;
+    margin-top: auto;
+    margin-bottom: auto;
+    box-sizing: border-box;
+    box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+    border: 1px solid var(--border, #E5E7EB);
+  }
+  .app-error-modal .modal-confirm-title {
+    margin: 0 0 12px 0;
+    font-size: 18px;
+    font-weight: 600;
+    color: var(--text, #101828);
+    text-align: center;
+  }
+  .app-error-modal .modal-confirm-message {
+    margin: 0 0 20px 0;
+    font-size: 14px;
+    color: #374151;
+    line-height: 1.5;
+    white-space: pre-wrap;
+  }
+  .app-error-modal .modal-confirm-message-secondary {
+    margin: -8px 0 20px 0;
+    font-size: 13px;
+    color: #6b7280;
+    line-height: 1.45;
+  }
+  .app-error-modal .modal-confirm-buttons {
+    display: flex;
+    gap: 12px;
+    justify-content: flex-end;
+  }
+  .app-error-modal .modal-confirm-btn {
+    padding: 8px 18px;
+    border-radius: 999px;
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+    font-family: inherit;
+  }
+  .app-error-modal .modal-confirm-btn-cancel {
+    background: #F9FAFB;
+    color: #101828;
+    border: 1px solid #E5E7EB;
+  }
+  .app-error-modal .modal-confirm-btn-cancel:hover {
+    background: #F3F4F6;
+  }
+  .app-error-modal .modal-confirm-icon {
+    width: 48px;
+    height: 48px;
+    margin: 0 auto 16px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+  }
+  .app-error-modal .modal-confirm-icon-error {
+    background: #FEE2E2;
+    color: #DC2626;
+  }
+  .app-error-modal .modal-confirm-icon-error svg {
+    width: 24px;
+    height: 24px;
+    display: block;
+  }
+  body.dark-mode .app-error-modal .modal-confirm-card {
+    background: #1f2937;
+    border-color: #374151;
+  }
+  body.dark-mode .app-error-modal .modal-confirm-title {
+    color: #f9fafb;
+  }
+  body.dark-mode .app-error-modal .modal-confirm-message {
+    color: #d1d5db;
+  }
+  body.dark-mode .app-error-modal .modal-confirm-message-secondary {
+    color: #9ca3af;
+  }
+  body.dark-mode .app-error-modal .modal-confirm-btn-cancel {
+    background: #374151;
+    color: #f9fafb;
+    border-color: #4b5563;
+  }
+  body.dark-mode .app-error-modal .modal-confirm-btn-cancel:hover {
+    background: #4b5563;
+  }
+  body.dark-mode .app-error-modal .modal-confirm-icon-error {
+    background: rgba(220, 38, 38, 0.2);
+    color: #f87171;
+  }
+</style>
+<div id="app-error-modal" class="modal-confirm app-error-modal" role="alertdialog" aria-modal="true" aria-labelledby="app-error-title" aria-describedby="app-error-lead app-error-detail" aria-hidden="true">
+  <div class="modal-confirm-card">
+    <div class="modal-confirm-icon modal-confirm-icon-error" aria-hidden="true">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/>
+        <line x1="12" y1="9" x2="12" y2="13"/>
+        <line x1="12" y1="17" x2="12.01" y2="17"/>
+      </svg>
+    </div>
+    <h3 id="app-error-title" class="modal-confirm-title">Error</h3>
+    <p id="app-error-lead" class="modal-confirm-message"></p>
+    <p id="app-error-detail" class="modal-confirm-message modal-confirm-message-secondary"></p>
+    <div class="modal-confirm-buttons">
+      <button type="button" class="modal-confirm-btn modal-confirm-btn-cancel" id="app-error-ok">OK</button>
+    </div>
+  </div>
+</div>
+<script>
+  (function() {
+    var modal = document.getElementById('app-error-modal');
+    if (!modal) return;
+    var titleEl = document.getElementById('app-error-title');
+    var leadEl = document.getElementById('app-error-lead');
+    var detailEl = document.getElementById('app-error-detail');
+    var okBtn = document.getElementById('app-error-ok');
+    var onCloseCb = null;
+    var escHandler = null;
+
+    function closeErrorModal() {
+      modal.classList.remove('is-open');
+      modal.setAttribute('aria-hidden', 'true');
+      if (escHandler) {
+        document.removeEventListener('keydown', escHandler);
+        escHandler = null;
+      }
+      var cb = onCloseCb;
+      onCloseCb = null;
+      if (typeof cb === 'function') cb();
+    }
+
+    window.showAppErrorModal = function(opts) {
+      opts = opts || {};
+      var title = 'Error';
+      var lead = '';
+      var detail = '';
+      var detailHtml = '';
+      onCloseCb = null;
+      if (typeof opts === 'string') {
+        lead = opts;
+      } else {
+        title = opts.title || title;
+        lead = opts.lead || opts.message || opts.error || '';
+        detail = opts.detail || opts.error_detail || '';
+        detailHtml = opts.detailHtml || opts.error_detail_html || '';
+        onCloseCb = opts.onClose || null;
+      }
+      titleEl.textContent = title;
+      leadEl.textContent = lead;
+      if (detailHtml) {
+        detailEl.innerHTML = detailHtml;
+      } else {
+        detailEl.textContent = detail;
+      }
+      detailEl.style.display = (detail || detailHtml) ? 'block' : 'none';
+      modal.classList.add('is-open');
+      modal.setAttribute('aria-hidden', 'false');
+      if (escHandler) document.removeEventListener('keydown', escHandler);
+      escHandler = function(e) {
+        if (e.key === 'Escape' && modal.classList.contains('is-open')) closeErrorModal();
+      };
+      document.addEventListener('keydown', escHandler);
+      if (okBtn) okBtn.focus();
+    };
+
+    window.showAppError = function(message, title) {
+      window.showAppErrorModal({
+        title: title || 'Error',
+        lead: String(message || 'Something went wrong.'),
+      });
+    };
+
+    if (okBtn) okBtn.addEventListener('click', closeErrorModal);
+    modal.addEventListener('click', function(e) {
+      if (e.target === modal) closeErrorModal();
+    });
+  })();
+</script>
