@@ -868,6 +868,35 @@ def _compute_chart_data_from_asset_rows(rows):
     }
 
 
+def _attach_asset_specifications(cur, assets):
+    """Attach ordered specification label/value pairs for dashboard display."""
+    for asset in assets or []:
+        asset['specifications'] = []
+    asset_ids = [int(a['id']) for a in (assets or []) if a.get('id') is not None]
+    if not asset_ids:
+        return
+    placeholders = ','.join('?' * len(asset_ids))
+    cur.execute(
+        f'''
+        SELECT asv.asset_id, sf.label, asv.value
+        FROM asset_spec_values asv
+        JOIN asset_name_spec_fields sf ON sf.id = asv.spec_field_id
+        WHERE asv.asset_id IN ({placeholders})
+          AND TRIM(IFNULL(asv.value, '')) != ''
+        ORDER BY asv.asset_id, sf.sort_order, sf.id
+        ''',
+        asset_ids,
+    )
+    by_asset = {aid: [] for aid in asset_ids}
+    for asset_id, label, value in cur.fetchall():
+        by_asset.setdefault(int(asset_id), []).append({
+            'label': label or '',
+            'value': (value or '').strip(),
+        })
+    for asset in assets:
+        asset['specifications'] = by_asset.get(int(asset['id']), [])
+
+
 def _attach_owner_contacts(cur, assets):
     """Attach owner mobile/email onto asset dicts for table display.
 
@@ -1010,6 +1039,7 @@ def dashboard():
         asset['supporting_documents'] = docs_by_asset.get(asset['id'], [])
 
     _attach_asset_location_displays(cur, assets)
+    _attach_asset_specifications(cur, assets)
 
     partial_ctx = dict(
         assets=assets,

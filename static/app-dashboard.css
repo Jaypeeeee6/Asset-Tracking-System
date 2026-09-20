@@ -1441,6 +1441,52 @@ body.dark-mode .asset-documents-modal-asset {
     text-align: center;
 }
 
+/* Specifications column */
+.asset-dashboard .asset-register-card .app-table col.app-table-col-specs,
+.asset-dashboard .asset-register-card .app-table th.app-table-col-specs,
+.asset-dashboard .asset-register-card .app-table td.app-table-col-specs {
+    min-width: 10rem;
+    width: 14%;
+    white-space: normal;
+    overflow-wrap: anywhere;
+    box-sizing: border-box;
+    text-align: center;
+    vertical-align: middle;
+}
+
+.asset-dashboard .asset-spec-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0.2rem;
+    align-items: center;
+}
+
+.asset-dashboard .asset-spec-item {
+    font-size: 0.8125rem;
+    line-height: 1.35;
+    color: #344054;
+}
+
+.asset-dashboard .asset-spec-label {
+    font-weight: 600;
+    color: #5c5035;
+    margin-right: 0.2rem;
+}
+
+.asset-dashboard .asset-spec-value {
+    font-weight: 500;
+    color: #344054;
+}
+
+body.dark-mode .asset-dashboard .asset-spec-item,
+body.dark-mode .asset-dashboard .asset-spec-value {
+    color: #e7e5e4;
+}
+
+body.dark-mode .asset-dashboard .asset-spec-label {
+    color: #d9bd7d;
+}
+
 /* Owner column */
 .asset-dashboard .asset-register-card .app-table col.app-table-col-owner,
 .asset-dashboard .asset-register-card .app-table th.app-table-col-owner,

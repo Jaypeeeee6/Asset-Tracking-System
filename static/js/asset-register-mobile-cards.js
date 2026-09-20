@@ -44,7 +44,7 @@
     }
 
     function cloneLocationValue(row) {
-        var cell = cellAt(row, 6);
+        var cell = cellAt(row, 7);
         if (!cell) return null;
         var chips = cell.querySelector('.asset-location-chips');
         if (chips) return chips.cloneNode(true);
@@ -61,6 +61,14 @@
             span.textContent = badge.textContent.replace(/\s+/g, ' ').trim();
             return span;
         }
+        return null;
+    }
+
+    function cloneSpecsValue(row) {
+        var cell = cellAt(row, 5);
+        if (!cell) return null;
+        var list = cell.querySelector('.asset-spec-list');
+        if (list) return list.cloneNode(true);
         return null;
     }
 
@@ -120,7 +128,10 @@
         var categoryNode = cloneCategoryValue(row);
         addCardRow(body, 'Category', categoryNode || cellTextAt(row, 4));
 
-        var ownerCell = cellAt(row, 5);
+        var specsNode = cloneSpecsValue(row);
+        addCardRow(body, 'Specifications', specsNode || cellTextAt(row, 5));
+
+        var ownerCell = cellAt(row, 6);
         if (ownerCell) {
             var ownerClone = ownerCell.cloneNode(true);
             ownerClone.querySelectorAll('br').forEach(function (br) {
@@ -145,10 +156,10 @@
             locationRow.appendChild(locationValue);
             body.appendChild(locationRow);
         } else {
-            addCardRow(body, 'Branch/Department', cellTextAt(row, 6));
+            addCardRow(body, 'Branch/Department', cellTextAt(row, 7));
         }
 
-        var statusCell = cellAt(row, 7);
+        var statusCell = cellAt(row, 8);
         if (statusCell) {
             var statusSelect = statusCell.querySelector('.status-select');
             var statusRow = document.createElement('div');
@@ -161,14 +172,14 @@
             if (statusSelect) {
                 statusValue.appendChild(statusSelect.cloneNode(true));
             } else {
-                statusValue.textContent = cellTextAt(row, 7);
+                statusValue.textContent = cellTextAt(row, 8);
             }
             statusRow.appendChild(statusLabel);
             statusRow.appendChild(statusValue);
             body.appendChild(statusRow);
         }
 
-        addCardRow(body, 'Date', cellTextAt(row, 8));
+        addCardRow(body, 'Date', cellTextAt(row, 9));
 
         var qrCell = cellAt(row, 2);
         var qrImg = qrCell && qrCell.querySelector('.asset-register-qr-img');
@@ -186,7 +197,7 @@
             body.appendChild(qrRow);
         }
 
-        var actionsCell = cellAt(row, 9);
+        var actionsCell = cellAt(row, 10);
         var actions = actionsCell && actionsCell.querySelector('.app-table-actions');
         if (actions) {
             var actionsWrap = document.createElement('div');

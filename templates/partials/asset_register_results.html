@@ -19,6 +19,7 @@ sort_by={{ sort_by }}&sort_dir={{ sort_dir }}&branch={{ branch_filter|urlencode 
             <col class="app-table-col-qr">
             <col class="app-table-col-name">
             <col class="app-table-col-type">
+            <col class="app-table-col-specs">
             <col class="app-table-col-owner">
             <col class="app-table-col-location">
             <col class="app-table-col-status">
@@ -32,6 +33,7 @@ sort_by={{ sort_by }}&sort_dir={{ sort_dir }}&branch={{ branch_filter|urlencode 
                 <th class="app-table-col-qr">QR Code</th>
                 <th class="app-table-col-name"><a href="{{ url_for('assets.dashboard') }}{{ sort_href('name') }}">Name{% if sort_by == 'name' %} {% if sort_dir == 'asc' %}&#9650;{% else %}&#9660;{% endif %}{% endif %}</a></th>
                 <th class="app-table-col-type"><a href="{{ url_for('assets.dashboard') }}{{ sort_href('asset_type') }}">Category{% if sort_by == 'asset_type' %} {% if sort_dir == 'asc' %}&#9650;{% else %}&#9660;{% endif %}{% endif %}</a></th>
+                <th class="app-table-col-specs">Specifications</th>
                 <th class="app-table-col-owner"><a href="{{ url_for('assets.dashboard') }}{{ sort_href('owner') }}">Owner{% if sort_by == 'owner' %} {% if sort_dir == 'asc' %}&#9650;{% else %}&#9660;{% endif %}{% endif %}</a></th>
                 <th class="app-table-col-location"><a href="{{ url_for('assets.dashboard') }}{{ sort_href('branch') }}">Branch/Department{% if sort_by == 'branch' %} {% if sort_dir == 'asc' %}&#9650;{% else %}&#9660;{% endif %}{% endif %}</a></th>
                 <th class="app-table-col-status"><a href="{{ url_for('assets.dashboard') }}{{ sort_href('used_status') }}">Status{% if sort_by == 'used_status' %} {% if sort_dir == 'asc' %}&#9650;{% else %}&#9660;{% endif %}{% endif %}</a></th>
@@ -149,6 +151,20 @@ sort_by={{ sort_by }}&sort_dir={{ sort_dir }}&branch={{ branch_filter|urlencode 
                                 {% if asset.asset_kind == 'shared' %}
                                     <div class="small text-muted mt-1">Shared Asset</div>
                                 {% endif %}
+                            {% else %}
+                                <span class="text-muted">—</span>
+                            {% endif %}
+                        </td>
+                        <td class="app-table-col-specs">
+                            {% if asset.specifications %}
+                            <div class="asset-spec-list">
+                                {% for spec in asset.specifications %}
+                                <div class="asset-spec-item">
+                                    <span class="asset-spec-label">{{ spec.label }}:</span>
+                                    <span class="asset-spec-value">{{ spec.value }}</span>
+                                </div>
+                                {% endfor %}
+                            </div>
                             {% else %}
                                 <span class="text-muted">—</span>
                             {% endif %}
