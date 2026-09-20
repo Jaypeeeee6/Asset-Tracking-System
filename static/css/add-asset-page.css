@@ -1,5 +1,81 @@
 /* Add Assets page — multi-draft form + pager */
 
+/* ----- Sticky heading (same idea as inventory edit-item page) -----
+   Scroll lives on `#page-content-wrapper` so the page header can stick.
+   Overflow on `.page-enter` / `.add-asset-page` would trap `position: sticky`. */
+html.add-asset-page-open,
+html.add-asset-page-open body {
+    height: 100%;
+    overflow: hidden;
+}
+
+html.add-asset-page-open #wrapper.app-shell {
+    height: 100%;
+    max-height: 100%;
+    min-height: 0;
+    overflow: hidden;
+}
+
+html.add-asset-page-open #page-content-wrapper {
+    --add-asset-sticky-pad-x: calc(0.9rem + 1rem); /* wrapper pad + .container-fluid.px-3 */
+    --add-asset-sticky-pad-top: 1.15rem;
+    height: calc(100vh - var(--navbar-height));
+    max-height: calc(100vh - var(--navbar-height));
+    min-height: 0;
+    /* No top padding — sticky header must sit flush under the navbar */
+    padding-top: 0 !important;
+    overflow-x: hidden;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+}
+
+html.add-asset-page-open #page-content-wrapper > .container-fluid,
+html.add-asset-page-open .page-enter,
+html.add-asset-page-open .add-asset-page {
+    height: auto !important;
+    min-height: 0 !important;
+    max-height: none !important;
+    overflow: visible !important;
+}
+
+html.add-asset-page-open .page-enter {
+    animation: none !important;
+}
+
+/* Keep actions in the header and freeze the whole heading bar while the form scrolls.
+   `top: 0` because `#page-content-wrapper` is the scrollport (already below the fixed navbar). */
+html.add-asset-page-open .add-asset-page > .page-header {
+    position: -webkit-sticky;
+    position: sticky;
+    top: 0;
+    z-index: 40;
+    align-items: flex-start;
+    background: var(--body-bg, #F8F6F0);
+    margin: 0 calc(-1 * var(--add-asset-sticky-pad-x)) 1.5rem;
+    padding: var(--add-asset-sticky-pad-top) var(--add-asset-sticky-pad-x) 0.85rem;
+    border-bottom: 1px solid rgba(196, 163, 90, 0.28);
+    box-shadow: 0 8px 16px rgba(248, 246, 240, 0.92);
+    box-sizing: border-box;
+}
+
+html.add-asset-page-open body.dark-mode .add-asset-page > .page-header,
+html.add-asset-page-open.dark-mode .add-asset-page > .page-header {
+    background: #1a1a1a;
+    border-bottom-color: rgba(217, 189, 125, 0.25);
+    box-shadow: 0 8px 16px rgba(26, 26, 26, 0.92);
+}
+
+@media (max-width: 640px) {
+    html.add-asset-page-open #page-content-wrapper {
+        --add-asset-sticky-pad-x: calc(12px + 1rem);
+        --add-asset-sticky-pad-top: 12px;
+    }
+
+    html.add-asset-page-open .add-asset-page > .page-header {
+        align-items: stretch;
+    }
+}
+
 .add-asset-page .page-header #addAssetsSubmitBtn,
 .add-asset-page #addAssetsSubmitBtn.btn-app-add {
     background: #22c55e;
