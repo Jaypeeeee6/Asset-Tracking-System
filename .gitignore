@@ -24,6 +24,10 @@ ENV/
 .idea/
 *.swp
 *.swo
+*.code-workspace
+
+# Accidental / unused Node lockfile (this is a Python project)
+package-lock.json
 
 # OS files
 .DS_Store
