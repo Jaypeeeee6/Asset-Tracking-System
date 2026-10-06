@@ -1091,10 +1091,33 @@ def dashboard():
     _attach_asset_location_displays(cur, assets)
     _attach_asset_specifications(cur, assets)
 
+    # Stat cards follow the same filters/search as the register (not global totals).
+    if branch_filter:
+        chart_where_sql, chart_params = _with_branch_equality(
+            base_where_sql, params, branch_filter
+        )
+    else:
+        chart_where_sql, chart_params = base_where_sql, params
+    cur.execute(
+        f'''
+        SELECT used_status, branch, department, price FROM assets
+        WHERE id IN (
+            SELECT MIN(id)
+            FROM assets
+            {chart_where_sql}
+            GROUP BY {_ASSET_DISPLAY_KEY_SQL}
+        )
+        ''',
+        chart_params,
+    )
+    chart_data = _compute_chart_data_from_asset_rows(cur.fetchall())
+    conn.close()
+
     partial_ctx = dict(
         assets=assets,
         assets_by_branch=assets_by_branch,
         total_assets=total_assets,
+        chart_data=chart_data,
         per_page=per_page,
         sort_by=sort_by,
         sort_dir=sort_dir,
@@ -1107,24 +1130,11 @@ def dashboard():
     )
 
     if request.args.get('partial') == '1':
-        conn.close()
         return render_template('partials/asset_register_results.html', **partial_ctx)
-
-    cur.execute(
-        f'''
-        SELECT used_status, branch, department, price FROM assets
-        WHERE id IN (
-            SELECT MIN(id) FROM assets GROUP BY {_ASSET_DISPLAY_KEY_SQL}
-        )
-        '''
-    )
-    chart_data = _compute_chart_data_from_asset_rows(cur.fetchall())
-    conn.close()
 
     return render_template('index.html',
                          branches=branches,
                          departments=departments,
-                         chart_data=chart_data,
                          **partial_ctx)
 
 

@@ -7816,7 +7816,24 @@ function appDeleteConfirm(message, title) {
         syncPlaceholder();
     })();
 
-    // Live search: refresh table only (no full page reload)
+    function syncDashboardSummaryStatsFromResults() {
+        var meta = document.getElementById('dashboardFilterStats');
+        if (!meta) return;
+        var map = [
+            ['statTotalSystemValue', 'data-total-value'],
+            ['statTotalAssets', 'data-total-assets'],
+            ['statBranchCount', 'data-branch-count'],
+            ['statDepartmentCount', 'data-department-count']
+        ];
+        map.forEach(function (pair) {
+            var el = document.getElementById(pair[0]);
+            if (!el) return;
+            var next = meta.getAttribute(pair[1]);
+            if (next != null) el.textContent = next;
+        });
+    }
+
+    // Live search: refresh table + filtered stat cards (no full page reload)
     if (typeof bindLiveSearchForm === 'function') {
         bindLiveSearchForm({
             form: 'searchForm',
@@ -7824,6 +7841,7 @@ function appDeleteConfirm(message, title) {
             results: 'assetRegisterResults',
             selectIds: ['searchByFilter', 'branchFilter', 'departmentFilter', 'statusFilter', 'assetTypeFilter'],
             onUpdated: function () {
+                syncDashboardSummaryStatsFromResults();
                 if (typeof syncAssetRegisterMobileCards === 'function') {
                     syncAssetRegisterMobileCards();
                 }

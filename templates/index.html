@@ -695,11 +695,11 @@
         </div>
     </div>
 
-    <div class="row g-2 mb-4 summary-stats-row">
+    <div class="row g-2 mb-4 summary-stats-row" id="dashboardSummaryStats">
         <div class="col-sm-6 col-xl-3">
             <div class="stat-card blue">
                 <div class="stat-label">Total System Value</div>
-                <div class="stat-value">{{ chart_data.total_system_value|fmt_omr }}</div>
+                <div class="stat-value" id="statTotalSystemValue">{{ chart_data.total_system_value|fmt_omr }}</div>
                 <div class="stat-sub">OMR</div>
                 <i class="bi bi-currency-exchange stat-icon"></i>
             </div>
@@ -707,7 +707,7 @@
         <div class="col-sm-6 col-xl-3">
             <div class="stat-card green">
                 <div class="stat-label">Total Assets</div>
-                <div class="stat-value">{{ total_assets|fmt_num }}</div>
+                <div class="stat-value" id="statTotalAssets">{{ total_assets|fmt_num }}</div>
                 <div class="stat-sub">In register</div>
                 <i class="bi bi-box-seam stat-icon"></i>
             </div>
@@ -715,7 +715,7 @@
         <div class="col-sm-6 col-xl-3">
             <div class="stat-card teal">
                 <div class="stat-label">Branches</div>
-                <div class="stat-value">{{ chart_data.branch_counts|length }}</div>
+                <div class="stat-value" id="statBranchCount">{{ chart_data.branch_counts|length|fmt_num }}</div>
                 <div class="stat-sub">Locations tracked</div>
                 <i class="bi bi-building stat-icon"></i>
             </div>
@@ -723,7 +723,7 @@
         <div class="col-sm-6 col-xl-3">
             <div class="stat-card yellow">
                 <div class="stat-label">Departments</div>
-                <div class="stat-value">{{ chart_data.department_counts|length }}</div>
+                <div class="stat-value" id="statDepartmentCount">{{ chart_data.department_counts|length|fmt_num }}</div>
                 <div class="stat-sub">Distinct names</div>
                 <i class="bi bi-diagram-3 stat-icon"></i>
             </div>

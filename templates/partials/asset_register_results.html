@@ -90,6 +90,11 @@ sort_by={{ sort_by }}&sort_dir={{ sort_dir }}&branch={{ branch_filter|urlencode 
         </div>
 {%- endmacro %}
     <span id="registerMatchingTotal" class="d-none" data-total="{{ total_assets }}"></span>
+    <span id="dashboardFilterStats" class="d-none"
+          data-total-value="{{ chart_data.total_system_value|fmt_omr }}"
+          data-total-assets="{{ total_assets|fmt_num }}"
+          data-branch-count="{{ chart_data.branch_counts|length|fmt_num }}"
+          data-department-count="{{ chart_data.department_counts|length|fmt_num }}"></span>
 
     <div class="app-card mb-4 asset-register-card">
         {% if assets_by_branch %}
