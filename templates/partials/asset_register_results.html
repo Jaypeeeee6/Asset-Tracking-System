@@ -1,5 +1,5 @@
 {% macro filter_query() -%}
-sort_by={{ sort_by }}&sort_dir={{ sort_dir }}&branch={{ branch_filter|urlencode }}&department={{ department_filter|urlencode }}&search={{ request.args.get('search', '')|urlencode }}&status={{ request.args.get('status', '')|urlencode }}&asset_type={{ request.args.get('asset_type', '')|urlencode }}&per_page={{ per_page }}
+sort_by={{ sort_by }}&sort_dir={{ sort_dir }}&branch={{ branch_filter|urlencode }}&department={{ department_filter|urlencode }}&search={{ request.args.get('search', '')|urlencode }}&search_by={{ search_by|default(request.args.get('search_by', 'all'))|urlencode }}&status={{ request.args.get('status', '')|urlencode }}&asset_type={{ request.args.get('asset_type', '')|urlencode }}&per_page={{ per_page }}
 {%- endmacro %}
 {% macro branch_pages_query(active_group=None, active_page=None) -%}
 {%- for g in assets_by_branch -%}
@@ -7,7 +7,7 @@ sort_by={{ sort_by }}&sort_dir={{ sort_dir }}&branch={{ branch_filter|urlencode 
 {%- endfor -%}
 {%- endmacro %}
 {% macro sort_href(field) -%}
-?sort_by={{ field }}&sort_dir={{ 'desc' if sort_by == field and sort_dir == 'asc' else 'asc' }}&branch={{ branch_filter|urlencode }}&department={{ department_filter|urlencode }}&search={{ request.args.get('search', '')|urlencode }}&status={{ request.args.get('status', '')|urlencode }}&asset_type={{ request.args.get('asset_type', '')|urlencode }}&per_page={{ per_page }}
+?sort_by={{ field }}&sort_dir={{ 'desc' if sort_by == field and sort_dir == 'asc' else 'asc' }}&branch={{ branch_filter|urlencode }}&department={{ department_filter|urlencode }}&search={{ request.args.get('search', '')|urlencode }}&search_by={{ search_by|default(request.args.get('search_by', 'all'))|urlencode }}&status={{ request.args.get('status', '')|urlencode }}&asset_type={{ request.args.get('asset_type', '')|urlencode }}&per_page={{ per_page }}
 {%- endmacro %}
 {% macro branch_page_href(group, p) -%}
 ?{{ filter_query() }}{{ branch_pages_query(group, p) }}

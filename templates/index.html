@@ -631,10 +631,10 @@
 {% endblock %}
 {% block app_content %}
 {% macro page_href(p) -%}
-?page={{ p }}&sort_by={{ sort_by }}&sort_dir={{ sort_dir }}&branch={{ branch_filter|urlencode }}&department={{ department_filter|urlencode }}&search={{ request.args.get('search', '')|urlencode }}&status={{ request.args.get('status', '')|urlencode }}&asset_type={{ request.args.get('asset_type', '')|urlencode }}&per_page={{ per_page }}
+?page={{ p }}&sort_by={{ sort_by }}&sort_dir={{ sort_dir }}&branch={{ branch_filter|urlencode }}&department={{ department_filter|urlencode }}&search={{ request.args.get('search', '')|urlencode }}&search_by={{ search_by|default(request.args.get('search_by', 'all'))|urlencode }}&status={{ request.args.get('status', '')|urlencode }}&asset_type={{ request.args.get('asset_type', '')|urlencode }}&per_page={{ per_page }}
 {%- endmacro %}
 {% macro sort_href(field) -%}
-?sort_by={{ field }}&sort_dir={{ 'desc' if sort_by == field and sort_dir == 'asc' else 'asc' }}&branch={{ branch_filter|urlencode }}&department={{ department_filter|urlencode }}&search={{ request.args.get('search', '')|urlencode }}&status={{ request.args.get('status', '')|urlencode }}&asset_type={{ request.args.get('asset_type', '')|urlencode }}&per_page={{ per_page }}
+?sort_by={{ field }}&sort_dir={{ 'desc' if sort_by == field and sort_dir == 'asc' else 'asc' }}&branch={{ branch_filter|urlencode }}&department={{ department_filter|urlencode }}&search={{ request.args.get('search', '')|urlencode }}&search_by={{ search_by|default(request.args.get('search_by', 'all'))|urlencode }}&status={{ request.args.get('status', '')|urlencode }}&asset_type={{ request.args.get('asset_type', '')|urlencode }}&per_page={{ per_page }}
 {%- endmacro %}
 <div class="asset-dashboard">
     <!-- Flash Messages -->
@@ -732,13 +732,27 @@
 
     <form method="get" id="searchForm" class="filter-panel">
         <div class="filter-panel__search">
-            <div class="filter-group filter-search-wrap">
-                <i class="bi bi-search filter-search-icon" aria-hidden="true"></i>
-                <input type="text" name="search" id="globalSearch"
-                       value="{{ request.args.get('search', '') }}"
-                       placeholder="Search names, owners, codes, categories&hellip;"
-                       autocomplete="off"
-                       aria-label="Search assets">
+            {% set search_by_current = search_by|default(request.args.get('search_by', 'all')) %}
+            <div class="filter-group filter-search-combo">
+                <label class="visually-hidden" for="searchByFilter">Search by</label>
+                <select name="search_by" id="searchByFilter" class="filter-search-by app-select-with-chevron" aria-label="Search by">
+                    <option value="all" {% if search_by_current == 'all' %}selected{% endif %}>All fields</option>
+                    <option value="name" {% if search_by_current == 'name' %}selected{% endif %}>Name</option>
+                    <option value="owner" {% if search_by_current == 'owner' %}selected{% endif %}>Owner</option>
+                    <option value="asset_code" {% if search_by_current == 'asset_code' %}selected{% endif %}>Asset code</option>
+                    <option value="branch" {% if search_by_current == 'branch' %}selected{% endif %}>Branch</option>
+                    <option value="department" {% if search_by_current == 'department' %}selected{% endif %}>Department</option>
+                    <option value="asset_type" {% if search_by_current == 'asset_type' %}selected{% endif %}>Category</option>
+                    <option value="specification" {% if search_by_current == 'specification' %}selected{% endif %}>Specification</option>
+                </select>
+                <div class="filter-search-wrap">
+                    <i class="bi bi-search filter-search-icon" aria-hidden="true"></i>
+                    <input type="text" name="search" id="globalSearch"
+                           value="{{ request.args.get('search', '') }}"
+                           placeholder="Search names, owners, codes, categories, specs&hellip;"
+                           autocomplete="off"
+                           aria-label="Search assets">
+                </div>
             </div>
         </div>
         <div class="filter-panel__controls">

@@ -7787,13 +7787,42 @@ function appDeleteConfirm(message, title) {
 // EVENT LISTENERS - SEARCH & NAVIGATION
 // ============================================================================
 
+    (function bindDashboardSearchByPlaceholder() {
+        var searchBy = document.getElementById('searchByFilter');
+        var searchInput = document.getElementById('globalSearch');
+        if (!searchBy || !searchInput) return;
+
+        var placeholders = {
+            all: 'Search names, owners, codes, categories, specs…',
+            name: 'Search by asset name…',
+            owner: 'Search by owner…',
+            asset_code: 'Search by asset code…',
+            branch: 'Search by branch…',
+            department: 'Search by department…',
+            asset_type: 'Search by category…',
+            specification: 'Search by specification label or value…'
+        };
+
+        function syncPlaceholder() {
+            var key = searchBy.value || 'all';
+            searchInput.placeholder = placeholders[key] || placeholders.all;
+        }
+
+        // Clear before live-search's change handler reads the form.
+        searchBy.addEventListener('change', function () {
+            searchInput.value = '';
+            syncPlaceholder();
+        });
+        syncPlaceholder();
+    })();
+
     // Live search: refresh table only (no full page reload)
     if (typeof bindLiveSearchForm === 'function') {
         bindLiveSearchForm({
             form: 'searchForm',
             input: 'globalSearch',
             results: 'assetRegisterResults',
-            selectIds: ['branchFilter', 'departmentFilter', 'statusFilter', 'assetTypeFilter'],
+            selectIds: ['searchByFilter', 'branchFilter', 'departmentFilter', 'statusFilter', 'assetTypeFilter'],
             onUpdated: function () {
                 if (typeof syncAssetRegisterMobileCards === 'function') {
                     syncAssetRegisterMobileCards();

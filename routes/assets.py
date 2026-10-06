@@ -175,6 +175,66 @@ def _append_dashboard_department_filter(where_clauses, params, department_filter
     params.extend([dept, OFFICE_BRANCH_LABEL])
 
 
+_DASHBOARD_SEARCH_FIELD_COLUMNS = {
+    'name': ('name',),
+    'owner': ('owner',),
+    'asset_code': ('asset_code',),
+    'branch': ('branch',),
+    'department': ('department',),
+    'asset_type': ('asset_type',),
+}
+_DASHBOARD_SEARCH_ALL_COLUMNS = (
+    'name',
+    'owner',
+    'asset_code',
+    'branch',
+    'department',
+    'asset_type',
+)
+_DASHBOARD_SEARCH_BY_VALUES = frozenset(
+    {'all', 'specification'} | set(_DASHBOARD_SEARCH_FIELD_COLUMNS)
+)
+
+
+def _normalize_dashboard_search_by(value):
+    key = (value or 'all').strip().lower()
+    return key if key in _DASHBOARD_SEARCH_BY_VALUES else 'all'
+
+
+def _append_dashboard_search_filter(where_clauses, params, search_query, search_by='all'):
+    """Append asset register search (field-scoped or all + specifications)."""
+    term = (search_query or '').strip()
+    if not term:
+        return
+    mode = _normalize_dashboard_search_by(search_by)
+    like = f'%{term}%'
+    spec_exists = (
+        'EXISTS ('
+        'SELECT 1 FROM asset_spec_values AS asv '
+        'JOIN asset_name_spec_fields AS sf ON sf.id = asv.spec_field_id '
+        'WHERE asv.asset_id = assets.id '
+        'AND (asv.value LIKE ? OR sf.label LIKE ?)'
+        ')'
+    )
+
+    if mode == 'specification':
+        where_clauses.append(spec_exists)
+        params.extend([like, like])
+        return
+
+    columns = _DASHBOARD_SEARCH_FIELD_COLUMNS.get(mode) or _DASHBOARD_SEARCH_ALL_COLUMNS
+    field_clauses = [f'{col} LIKE ?' for col in columns]
+    if mode == 'all':
+        field_clauses.append(spec_exists)
+        where_clauses.append(f"({' OR '.join(field_clauses)})")
+        params.extend([like] * len(columns))
+        params.extend([like, like])
+        return
+
+    where_clauses.append(f"({' OR '.join(field_clauses)})")
+    params.extend([like] * len(field_clauses))
+
+
 def _count_dashboard_assets(cur, where_sql, params):
     cur.execute(
         f'''
@@ -952,6 +1012,7 @@ def dashboard():
     branch_filter = request.args.get('branch') or request.args.get('building', '')
     department_filter = request.args.get('department', '')
     search_query = request.args.get('search', '')
+    search_by = _normalize_dashboard_search_by(request.args.get('search_by', 'all'))
     status_filter = request.args.get('status', '')
     asset_type_filter = request.args.get('asset_type', '')
     per_page = _parse_positive_int(request.args.get('per_page'), 10)
@@ -987,18 +1048,7 @@ def dashboard():
     if asset_type_filter:
         where_clauses.append('asset_type = ?')
         params.append(asset_type_filter)
-    if search_query:
-        search_clauses = [
-            'name LIKE ?',
-            'owner LIKE ?',
-            'asset_code LIKE ?',
-            'branch LIKE ?',
-            'department LIKE ?',
-            'asset_type LIKE ?'
-        ]
-        where_clauses.append(f"({' OR '.join(search_clauses)})")
-        search_param = f'%{search_query}%'
-        params.extend([search_param] * 6)
+    _append_dashboard_search_filter(where_clauses, params, search_query, search_by)
 
     base_where_sql = ('WHERE ' + ' AND '.join(where_clauses)) if where_clauses else ''
     valid_sort_fields = ['id', 'name', 'price', 'owner', 'branch', 'department', 'used_status', 'asset_type', 'asset_date']
@@ -1051,6 +1101,7 @@ def dashboard():
         branch_filter=branch_filter,
         department_filter=department_filter,
         search_query=search_query,
+        search_by=search_by,
         status_filter=status_filter,
         asset_type_filter=asset_type_filter,
     )
@@ -1083,6 +1134,7 @@ def _register_filter_where_from_request():
     branch_filter = (args.get('branch') or args.get('building') or '').strip()
     department_filter = (args.get('department') or '').strip()
     search_query = (args.get('search') or '').strip()
+    search_by = _normalize_dashboard_search_by(args.get('search_by', 'all'))
     status_filter = (args.get('status') or '').strip()
     asset_type_filter = (args.get('asset_type') or '').strip()
     where_clauses = []
@@ -1098,18 +1150,7 @@ def _register_filter_where_from_request():
     if asset_type_filter:
         where_clauses.append('asset_type = ?')
         params.append(asset_type_filter)
-    if search_query:
-        search_clauses = [
-            'name LIKE ?',
-            'owner LIKE ?',
-            'asset_code LIKE ?',
-            'branch LIKE ?',
-            'department LIKE ?',
-            'asset_type LIKE ?'
-        ]
-        where_clauses.append(f"({' OR '.join(search_clauses)})")
-        search_param = f'%{search_query}%'
-        params.extend([search_param] * 6)
+    _append_dashboard_search_filter(where_clauses, params, search_query, search_by)
     where_sql = ('WHERE ' + ' AND '.join(where_clauses)) if where_clauses else ''
     return where_sql, params
 
