@@ -16,6 +16,9 @@ def create_app():
     app.config['DATABASE'] = 'production_assets.db'
     # SECURITY: Use environment variable for secret key with fallback
     app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY') or secrets.token_hex(32)
+    app.config['SESSION_COOKIE_NAME'] = os.environ.get('SESSION_COOKIE_NAME') or 'maa_assets_session'
+    app.config['SESSION_COOKIE_HTTPONLY'] = True
+    app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'
     # Supporting documents across a bulk add (JSON + files) stay under 50 MB per request
     app.config['MAX_CONTENT_LENGTH'] = 50 * 1024 * 1024
     
@@ -82,17 +85,28 @@ def create_app():
     def load_user(user_id):
         conn = get_db_connection()
         cur = conn.cursor()
-        cur.execute(
-            'SELECT id, email, role, full_name FROM users_auth WHERE id = ?',
-            (user_id,),
-        )
+        try:
+            cur.execute(
+                'SELECT id, email, role, full_name, COALESCE(is_active, 1) FROM users_auth WHERE id = ?',
+                (user_id,),
+            )
+        except Exception:
+            cur.execute(
+                'SELECT id, email, role, full_name FROM users_auth WHERE id = ?',
+                (user_id,),
+            )
         user_data = cur.fetchone()
         conn.close()
         if user_data:
             try:
+                if len(user_data) > 4 and not user_data[4]:
+                    return None
+            except Exception:
+                pass
+            try:
                 fn = user_data['full_name'] or ''
             except (KeyError, IndexError):
-                fn = ''
+                fn = user_data[3] if len(user_data) > 3 else ''
             return User(user_data[0], user_data[1], user_data[2], fn)
         return None
     
@@ -100,11 +114,13 @@ def create_app():
     from routes.auth import auth_bp
     from routes.assets import assets_bp
     from routes.admin import admin_bp
-    
+    from routes.portal_sso import portal_bp
+
     app.register_blueprint(auth_bp, url_prefix='/auth')
     app.register_blueprint(assets_bp, url_prefix='/assets')
     app.register_blueprint(admin_bp, url_prefix='/admin')
-    
+    app.register_blueprint(portal_bp)
+
     # Root route redirects to login
     @app.route('/')
     def root():

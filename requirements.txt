@@ -4,3 +4,5 @@ Pillow
 Flask-Login
 bcrypt
 python-dotenv
+itsdangerous
+requests
